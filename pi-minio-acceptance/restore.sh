@@ -10,25 +10,20 @@ umask 077
 [[ $EUID == 0 ]] || { echo 'ERROR: root required'; exit 2; }
 HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP="$2"
-# Where the encrypted 48 GiB test image is created. Default /mnt/benz; with the data set at ~31 GB the archive
-# leaves too little room there, so /mnt/hc4backup/skyhub-restore (ext4, own directory, no symlink) is allowed too.
-RESTORE_DIR="${SKYHUB_RESTORE_DIR:-/mnt/benz}"
-case "$RESTORE_DIR" in /mnt/benz|/mnt/hc4backup/skyhub-restore) ;; *) echo 'ERROR: unsupported SKYHUB_RESTORE_DIR'; exit 2 ;; esac
-[[ -d "$RESTORE_DIR" && ! -L "$RESTORE_DIR" && "$(realpath -e "$RESTORE_DIR")" == "$RESTORE_DIR" ]] || { echo 'ERROR: restore directory missing or symlinked'; exit 2; }
 [[ "$BACKUP" == /mnt/benz/skyhub-backup-* && -d "$BACKUP" && ! -L "$BACKUP" ]]
 [[ "$(findmnt -nr --mountpoint /mnt/benz -o SOURCE)" == /dev/nvme1n1p1 ]]
 [[ "$(findmnt -nr -T /run -o FSTYPE)" == tmpfs ]]
 for tool in python3 docker tar zstd gpg cryptsetup mkfs.ext4 fallocate mount umount; do command -v "$tool" >/dev/null; done
 [[ -x /home/mason/.local/bin/mc ]]
 [[ -f "$BACKUP/ARCHIVE-COMPLETE.txt" ]]
-python3 - "$BACKUP" "$RESTORE_DIR" <<'PY'
+python3 - "$BACKUP" <<'PY'
 from pathlib import Path
 import hashlib, shutil, sys
 p = Path(sys.argv[1])
 if p.resolve() != p or p.parent != Path('/mnt/benz'):
     raise SystemExit('ERROR: unexpected or symlinked backup path')
-if shutil.disk_usage(sys.argv[2]).free < 58*1024**3:
-    raise SystemExit('ERROR: need 48 GiB restore image plus 10 GiB reserve in the restore directory')
+if shutil.disk_usage(p).free < 58*1024**3:
+    raise SystemExit('ERROR: need 48 GiB restore image plus 10 GiB reserve')
 rows = (p/'SHA256SUMS').read_text().splitlines()
 expected_names = {'data.tar.zst.gpg', 'image.tar.zst.gpg'}
 seen = set()
@@ -59,7 +54,7 @@ TOKEN="$(basename "$STAGE" | tr '.' '-')"
 MAP="$TOKEN"
 NET="$TOKEN-net"
 TEST="$TOKEN-minio"
-IMAGE_FILE="$(mktemp "$RESTORE_DIR/skyhub-restore-XXXXXXXX.luks")"
+IMAGE_FILE="$(mktemp /mnt/benz/skyhub-restore-XXXXXXXX.luks)"
 MOUNT="$STAGE/fs"
 MAPPED=0; MOUNTED=0; NETWORKED=0; CONTAINER=0
 finish() {

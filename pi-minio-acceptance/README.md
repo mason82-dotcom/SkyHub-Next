@@ -1,10 +1,12 @@
 # SkyHub MinIO – ausführbare Backup-/Restore-Anleitung
 
-Stand: 25.10.2026, Europe/Berlin (angepasst an den laufenden gemeinsamen MinIO, siehe Abschnitt „Aktualisierung 25.10.2026“). **Backup und isolierter Restore wurden am 25./26.10.2026 auf dem Pi ausgeführt und bestanden (siehe Abschnitt „Ergebnis 25./26.10.2026“). Neustart- und Persistenztest sind weiterhin nicht freigegeben.**
+Stand: 22.10.2026, Europe/Berlin. **Vorbereitet, nicht auf dem Pi ausgeführt.**
 
-Dieses Paket ist eine Anleitung mit überprüfbaren Skripten. Der frühere Backup-Lauf
-vom 22.10. ist abgebrochen und durch den Lauf vom 25.10. ersetzt. Neustarttests
-bleiben freigabepflichtig. Nicht das gesamte Dokument
+Dieses Paket ist eine Anleitung mit überprüfbaren Skripten. Zunächst waren nur
+lesende Pi-Checks und die Vorbereitung erlaubt. Der Nutzer hat anschließend
+einen Backup-Lauf mit MinIO-Unterbrechung freigegeben; dieser Lauf ist abgebrochen.
+Die neue Startvariante wurde noch nicht ausgeführt. Restore, Formatierung und
+Neustarttests sind weiterhin nicht freigegeben. Nicht das gesamte Dokument
 als Shell-Skript ausführen. Keine automatische Ausführung beim Entpacken.
 
 ## 1. Gesicherter Ausgangspunkt und Grenzen
@@ -15,19 +17,19 @@ Aus den vom Nutzer übermittelten Terminalausgaben:
 |---|---|
 | Projekt | `/home/mason/Projekte/SkyHub-Next` |
 | Git | `feature/m3m-minio-integration-20261021`, zuletzt gemeldet `bbd0ea6d838afde9a863ab4f8a5dff76846b3969` |
-| MinIO | `skyhub-shared-minio`, Compose-Projekt `skyhub-storage` (früher `skyhub-next-minio-1`) |
-| Compose | `docker-compose.minio-shared.yml` (eigenständig) und `docker-compose.yml` für das Backend |
+| MinIO | `skyhub-next-minio-1`, Compose-Projekt `skyhub-next` |
+| Compose | `docker-compose.yml` und lokale `docker-compose.minio.yml` |
 | Lokales Overlay | Modus 0600, durch `.git/info/exclude` ausgeschlossen |
 | Image-ID | `sha256:117cf7edd050e6acd4a2d06be79b15eaecd5af76ad73e8927a4bf67528f19d10`, Linux/ARM64 |
 | Daten | `/mnt/hc4backup/skyhub-next/minio`, ext4 auf `/dev/nvme0n1p1` |
 | Daten-UUID | `ad583d3f-9bfe-4792-829c-1cc2b6738358` |
-| Netzwerk | `skyhub-storage-net`, MinIO-Alias `skyhub-minio`, keine Host-Portbindungen |
-| Autostart | `restart: "no"`: nach einem Neustart des Pi startet MinIO nicht von selbst |
+| Netzwerk | `skyhub-next_default`, MinIO-Alias `minio`, keine Host-Portbindungen |
+| Autostart | `unless-stopped`; Docker wartet nur auf die andere NVMe unter `/mnt/data` |
 | Backend-IAM | Aktiver Service-Account des Root-Kontos mit eigener Policy; ListBucket/GetObject auf fünf Buckets, keine Prefix-Begrenzung |
 | Buckets der bestätigten Policy | `basemaps`, `dji-cloud`, `farming`, `mapping-results`, `pv-inspections` |
 | Aktuelle Größe | logisch 32.773.347.410 Byte, belegt 32.991.449.088 Byte |
 | Historischer Mirror | 292 Dateien, 377.266.971 logische Byte; Erfolgsmarker 15.10.2026 03:15:03 +02:00; gleiche NVMe wie Original |
-| Sicherungsziel | `/mnt/benz`, NTFS/fuseblk, `/dev/nvme1n1p1`; am 25.10. noch 44,3 GiB frei (früher 110 GB) |
+| Sicherungsziel | `/mnt/benz`, NTFS/fuseblk, `/dev/nvme1n1p1`, zuletzt 110.410.846.208 Byte frei |
 
 PR #19 ist nicht identisch mit diesem laufenden Aufbau. Der dortige alternative
 Container `skyhub-shared-minio` wird hier nicht angelegt. Kein `move`, kein
@@ -70,7 +72,7 @@ getestet; ein nicht unterstütztes `fallocate` führt zum Abbruch.
 | `recover_backup.py` | Getrennte ExecStopPost-Wiederanlaufprüfung mit UUID-/Container-ID-Schutz |
 | `restore.sh` | Späterer Restore in neues verschlüsseltes Testabbild mit isoliertem MinIO |
 | `manifest.py` | Vollständiger Dateisatz, SHA-256, Größen, numerische Eigentümer, Modi und xattr-Digests |
-| `restore_probe.py` | IAM-/LIST-/GET-Prüfung gegen die Restore-Kopie, danach negative Schreibversuche (PUT, DELETE, Bucket anlegen), die verweigert werden müssen |
+| `restore_probe.py` | Lesende IAM-/LIST-/GET-Prüfung gegen die Restore-Kopie |
 | `VALIDIERUNG.md` | Lokal ausgeführte Prüfungen und verbleibende Grenzen |
 
 Es wird keine dauerhafte Pi-Unit und kein Timer installiert. Der Backup-Launcher
@@ -239,12 +241,9 @@ Vergleich jedes S3-Objekts mit einer unabhängigen fachlichen Referenz.
 Prüfsummen und GPG-Integrität bestätigen nicht, dass der Originalbestand bereits
 vor der Sicherung fachlich unbeschädigt war.
 
-Kein PUT, DELETE, Bucket-Anlegen oder IAM-Schreibaufruf gegen die Produktiv-S3.
-Gegen die isolierte Restore-Kopie versucht `restore_probe.py` mit dem Reader-Konto je Bucket einen PUT, einen DELETE und
-einmal das Anlegen eines Buckets; alle drei müssen mit AccessDenied scheitern, danach wird per Root-Konto geprüft, dass
-nichts gespeichert und nichts entfernt wurde. Jeder andere Fehler gilt als FEHL, nicht als bestanden.
-Damit ist die Schreibverweigerung praktisch getestet, sobald ein Restore-Lauf damit bestanden hat. Das temporäre MinIO
-schreibt selbst nur in die Testkopie.
+Kein PUT, DELETE, Bucket-Anlegen oder IAM-Schreibaufruf gegen Produktiv- oder
+Test-S3. Damit ist insbesondere eine tatsächliche Schreibverweigerung weiterhin
+nicht praktisch getestet. Das temporäre MinIO schreibt selbst nur in die Testkopie.
 
 ### Fehler und Rückbau
 
@@ -262,12 +261,12 @@ schreibt selbst nur in die Testkopie.
 
 | Punkt | Durch dieses Paket geschlossen? |
 |---|---|
-| Unabhängiges Archiv auf zweiter NVMe | Ja, 25.10.2026 |
-| Dateiintegrität nach Restore | Ja, 54.835 Einträge, 26.10.2026 |
-| IAM und S3-Lesen aus Restore | Teilweise: LIST 5/5, GET 4/5 (Bucket 1 leer) |
+| Unabhängiges Archiv auf zweiter NVMe | Erst nach erfolgreichem Backup-Lauf |
+| Dateiintegrität nach Restore | Erst nach erfolgreichem Manifestabgleich |
+| IAM und S3-Lesen aus Restore | Erst nach erfolgreichen Restore-Probes |
 | Image-Wiederimport auf neuem Host | Nein |
 | Mountabhängiger produktiver Autostart | Nein |
-| Container-Recreate-/Reboot-Persistenz | Ja, Stop/Start und Reboot mit manuellem Start (26.10.2026) |
+| Container-Recreate-/Reboot-Persistenz | Nein |
 | Negative IAM-Tests / isolierter S3-Schreibtest | Nein |
 | Vollständige SkyHub-/Datenbank-Wiederherstellung | Nein |
 
@@ -283,15 +282,15 @@ ist deshalb nicht Teil dieses Pakets.
 
 | Nachweis | Eintrag bei Ausführung |
 |---|---|
-| Wartungsfreigabe / bekannte S3-Nutzer | Freigabe des Nutzers, 25.10.2026 |
-| Beginn/Ende MinIO-Unterbrechung | 22:53 bis 23:30 CET, 25.10.2026 |
-| Archivverzeichnis und SHA256SUMS | `/mnt/benz/skyhub-backup-20261025T225315-7kgdkf34`, beide Archive OK |
-| Sauberer MinIO-Exit / Wiederanlauf | Exit 0, derselbe Container läuft wieder |
-| Backend-Readiness nach Backup | `pi-minio-backend-access.sh check`: 5/5 Buckets HEAD 200 |
-| Vollständiger Restore-Manifestabgleich | PASS, 54.835 Einträge, 26.10.2026 |
-| Restore-IAM / LIST / GET je Bucket | LIST 5/5, GET 4/5 (Bucket 1 leer, Rest offen) |
-| Erfolgreicher Test-Rückbau | Ja, Container, Netz, Mount, Mapper entfernt |
-| Startsicherheit / Persistenz | Stop/Start und Reboot bestanden (26.10.2026); mountabhängiger Autostart offen |
+| Wartungsfreigabe / bekannte S3-Nutzer | Offen |
+| Beginn/Ende MinIO-Unterbrechung | Offen |
+| Archivverzeichnis und SHA256SUMS | Offen |
+| Sauberer MinIO-Exit / Wiederanlauf | Offen |
+| Backend-Readiness nach Backup | Offen |
+| Vollständiger Restore-Manifestabgleich | Offen |
+| Restore-IAM / LIST / GET je Bucket | Offen |
+| Erfolgreicher Test-Rückbau | Offen |
+| Startsicherheit / Persistenz | Offen |
 
 ## Referenzen
 
@@ -372,94 +371,3 @@ entladen sein. Journal, Archiv-Abschlussmarker und Readiness gemeinsam prüfen.
 `systemctl reset-failed` ist kein Wiederherstellungsverfahren und wird hier nicht
 automatisiert. Bei fehlgeschlagenem Auftrag vor einem neuen Start die Ursache
 und den bestehenden MinIO-Zustand klären.
-
-## Aktualisierung 25.10.2026 (Anpassung an den laufenden Stand)
-
-Der Branch war 509 Commits hinter `main`. Seitdem wurde der MinIO als gemeinsamer Dienst neu gestartet
-(`skyhub-shared-minio`, Image-ID und Datenpfad unverändert). Angepasst wurde nur, was nicht mehr stimmte:
-
-- **Containername und Compose-Dateien** in `backup.sh`, `recover_backup.py`, `restore_probe.py`, `preflight.sh`
-  und den Tests (`skyhub-shared-minio`, `docker-compose.minio-shared.yml`, Netz `skyhub-storage-net`).
-- **Kapazitätsprüfung des Backups.** Sie rechnete das 48-GiB-Restore-Abbild mit ein und hätte auf dem Pi
-  abgebrochen. Gemessen am 25.10. (nur lesend): 54.860 Einträge, keine Symlinks, 30,5 GiB Daten, Image 0,18 GiB,
-  `/mnt/benz` 44,3 GiB frei. Altes Kriterium: 88,9 GiB nötig, **fällt durch**. Neues Kriterium (Archiv, Image,
-  10 GiB Reserve, 4 KiB je Eintrag): 40,9 GiB nötig, **besteht mit rund 3,4 GiB Spielraum**. Das Archiv ist
-  vermutlich kleiner als die Rohdaten, weil Kartenkacheln und Fotos kaum komprimieren, aber nicht größer als
-  geschätzt. Eine Prüfung läuft vor dem Stoppen des MinIO erneut.
-- **Restore-Verzeichnis.** Nach einem Backup bleiben auf `/mnt/benz` rund 14 GiB frei, zu wenig für das 48-GiB-Abbild.
-  `restore.sh` nimmt jetzt `SKYHUB_RESTORE_DIR` an, erlaubt sind nur `/mnt/benz` (Standard) und
-  `/mnt/hc4backup/skyhub-restore` (ext4, 402 GiB frei). Das Verzeichnis darf kein Symlink sein, die 58 GiB
-  werden dort gemessen, wo das Abbild entsteht. Anlegen: `sudo install -d -m 700 /mnt/hc4backup/skyhub-restore`.
-  Das Archiv selbst bleibt immer auf `/mnt/benz` (andere physische Platte). Der Restore-Test liegt dann auf der
-  Quellplatte; das prüft die Wiederherstellbarkeit, aber nicht den Ausfall dieser Platte.
-
-**Was ein Backup bedeutet:** Der MinIO wird für die Dauer des Laufs gestoppt (Offline-Konsistenz). In dieser Zeit
-liefert `/api/media/*` des Backends Fehler, alle anderen Funktionen laufen weiter. Bei 30,5 GiB, einem
-zstd-Thread und GPG ist mit deutlich mehr als einer halben Stunde zu rechnen. Der Wiederanlauf-Pfad startet
-anschließend ausschließlich denselben Container.
-
-**Nicht geändert und weiter offen:** Die Kombination aus transientem systemd-Dienst, Credentials und Recovery
-wurde nie auf dem Pi ausgeführt (kein echter SSH-Abbruch, kein SIGKILL-Test). `/mnt/benz` ist NTFS (`fuseblk`):
-Dateien und `sync -f` funktionieren, wie sich ein 48-GiB-Abbild darauf verhält, ist nicht geprüft; deshalb ist das
-Restore-Verzeichnis auf ext4 wählbar. Backup, Restore und Neustarttest bleiben freigabepflichtig.
-
-## Neustart- und Persistenztest (Stop/Start am 26.10.2026 bestanden)
-
-`scripts/pi-minio-restart-test.sh` prüft nur den Stop/Start desselben Containers `skyhub-shared-minio`:
-Ohne Argument (Plan) liest es nur und bestätigt die Voraussetzungen (Container läuft, Restart-Policy `no`, Netz
-und Alias, Mount, Readiness, `pi-minio-backend-access.sh check` mit fünf Buckets, genau ein Backend-Container).
-Mit `--execute-restart-test` und der Eingabe `RESTART` hält es den Container mit `docker stop --time 60` an,
-verlangt Exit-Code 0, startet denselben Container wieder, wartet auf Readiness und prüft gleiche Container-ID,
-gleiches Image, geänderte `StartedAt`, erhaltenes Netz/Alias, unverändertes Backend und erneut alle fünf Buckets.
-Kein Recreate, kein Pull, kein Compose. Schlägt der Start fehl, versucht ein Handler genau einmal denselben
-Container zu starten. Dauer etwa eine Minute, in der `/api/media/*` Fehler liefert.
-
-**Ergebnis 26.10.2026:** bestanden. Sauberer Stop (Exit 0), derselbe Container (gleiche ID und gleiches Image,
-neues `StartedAt`), Netz und Alias `skyhub-minio` erhalten, Backend nicht neu gestartet, danach alle fünf Buckets
-per Reader-Konto lesbar. Eine einzelne `curl: (7)`-Zeile im ersten Lauf war der erste Readiness-Versuch kurz nach dem
-Start und kein Fehler; die Abfrage ist seitdem leise.
-
-Der Pi-Reboot ist ein eigener Schritt und gehört nicht dazu: Wegen `restart: "no"` bleibt MinIO nach einem
-Reboot bewusst aus. Dafür gibt es `scripts/pi-reboot-test.sh` (vorbereitet, nicht ausgeführt): `pre` hält den
-Zustand vor dem Reboot fest (Container und Restart-Policies, Mounts, lauschende Ports, Gesundheit; nur lesend),
-nach dem eigenen `sudo reboot` vergleicht `post` (neuer Boot, Mounts, alle Container mit always/unless-stopped
-wieder oben, Ports, `/api/health`, systemd-Units, Proxy-Peer), und `start-minio` startet den MinIO erst nach der
-Mount-Prüfung und der Eingabe `START` und prüft danach die fünf Buckets. Das Skript startet den Pi nicht neu.
-
-**Ergebnis 26.10.2026 (echter Reboot): bestanden für SkyHub.** Neuer Boot, `/mnt/data`, `/mnt/hc4backup` und
-`/mnt/benz` gemountet, Backend `/api/health`, Mosquitto, systemd-Units und Proxy-Peer in Ordnung, alle Container mit
-always/unless-stopped wieder oben bis auf `nextcloud-aio-notify-push` (schon vorher unhealthy, gehört zu Nextcloud AIO).
-Der MinIO blieb wie vorgesehen aus; `start-minio` startete ihn nach der Mount-Prüfung, er war ready und alle fünf Buckets
-per Reader-Konto lesbar. Die Cloud-API-Demo (Policy `on-failure`) startet nach einem Reboot nicht von selbst; Ports von
-Handprozessen (z. B. adb 5037) und `on-failure`-Containern gelten im Skript seitdem nur als Hinweis, FEHL gibt es nur für
-Ports von always/unless-stopped-Containern. Der mountabhängige Autostart ist als `scripts/pi-minio-autostart.sh` vorbereitet (nicht installiert): eine
-systemd-Unit `skyhub-shared-minio.service` mit `RequiresMountsFor=/mnt/hc4backup`, `ConditionPathIsMountPoint` und der
-Mount-Prüfung als `ExecStartPre`, die nur `docker start`/`docker stop` des vorhandenen Containers ausführt. Der Container
-behält `restart: "no"`, damit Docker ihn nie ohne Mount startet. `plan` zeigt die Unit lesend, `sudo … install` schreibt und
-aktiviert sie (startet nicht sofort), `remove` baut zurück, `check` liest den Zustand. `pi-reboot-test.sh post` erwartet den
-MinIO dann als laufend. Ein mountabhängiger
-Autostart bleibt ein separates Designthema.
-
-## Ergebnis 25./26.10.2026 (Backup und isolierter Restore auf dem Pi)
-
-**Backup (25.10., 22:53 bis 23:30 CET, `skyhub-minio-backup.service`):** Dienst Exit 0. Das Daten-Archiv
-(28,83 GB) wurde zurückgelesen, Quelle gegen Manifest verglichen (PASS: Dateisatz, SHA256, Größen, Besitzer,
-Modi, xattrs; 54.835 Einträge). `sha256sum -c` bestätigt beide Archive, `ARCHIVE-COMPLETE.txt` ist gesetzt.
-MinIO stand etwa 37 Minuten still und lief danach als derselbe Container weiter. `pi-minio-backend-access.sh check`
-bestätigt danach alle fünf Buckets mit dem Reader-Konto (HEAD 200, nur lesend).
-
-**Isolierter Restore (26.10., `SKYHUB_RESTORE_DIR=/mnt/hc4backup/skyhub-restore`):** Manifestabgleich PASS
-(54.835 Einträge), isolierter MinIO bereit (HTTP 200), Service-Account aktiv mit Nur-Lese-Policy, LIST 5/5,
-Stichproben-GET 4/5. Bucket 1 ist leer, dort blieb der GET aus. Rückbau sauber (keine Mounts, Mapper, Container,
-Netze). Das 48-GiB-Testabbild bleibt erhalten und gehört dem Nutzer zum Löschen.
-
-**Hinweise aus der Durchführung:**
-- Zwei frühere Restore-Anläufe brachen nach 25 s und 66 s ab, weil die Archivpassphrase falsch eingegeben wurde.
-  Das Skript hat jeweils sauber ausgehängt. Je Anlauf bleibt ein 48-GiB-Abbild liegen (fallocate belegt den Platz
-  sofort); nach einem Abbruch das Abbild löschen.
-- Aus einem Verzeichnis `pi-minio-acceptance/` aufrufen, sonst findet `bash restore.sh` die Datei nicht.
-- Mit `2>&1 | tee ~/restore-lauf.log` bleibt die Ausgabe auswertbar. Passphrasen erscheinen nicht.
-
-**Weiter offen:** mountabhängiger Autostart des MinIO (Stop/Start und Reboot sind bestanden), Wiederimport des Image-Archivs auf einem frischen
-Host, praktischer Schreibversuch gegen das Reader-Konto (negativer Test), GET für Bucket 1 sobald er Objekte hat,
-Backup-Passphrase außerhalb des Pi sichern.

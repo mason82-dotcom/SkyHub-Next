@@ -13,7 +13,7 @@ findmnt --raw --noheadings --mountpoint /mnt/hc4backup -o SOURCE,TARGET,FSTYPE,O
 findmnt --raw --noheadings --mountpoint /mnt/benz -o SOURCE,TARGET,FSTYPE,OPTIONS
 df -B1 --output=source,avail,target /mnt/benz
 losetup --list
-docker inspect --format 'State={{.State.Status}} Image={{.Image}} Restart={{.HostConfig.RestartPolicy.Name}}' skyhub-shared-minio
+docker inspect --format 'State={{.State.Status}} Image={{.Image}} Restart={{.HostConfig.RestartPolicy.Name}}' skyhub-next-minio-1
 python3 "$HERE/legacy_guard.py"
-docker ps --filter network=skyhub-storage-net --format '{{.Names}} {{.Status}}'
+docker ps --filter network=skyhub-next_default --format '{{.Names}} {{.Status}}'
 printf '%s\n' 'Read-only preflight complete. Client inventory and maintenance approval still required.'
