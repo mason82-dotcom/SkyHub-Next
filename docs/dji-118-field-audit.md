@@ -111,22 +111,25 @@ drei zusätzliche Aircraft-Rootfelder konkret in Mavic-3M-OSD beobachtet:
 - `rth_altitude` – eingestellte Rückkehrhöhe (RTH);
 - `rc_lost_action` – konfigurierte Aktion bei Verbindungsverlust zur RC.
 
-**Nachweisgrenze:** Beobachtet wurden ausschließlich die Root**namen**.
-Werte, Typen, Unterfelder, Grenzbereiche und Enum-Codes wurden in dieser
-Live-Sitzung **nicht** protokolliert und deshalb nicht auf M3M-Hardware
-bestätigt. Die typisierten Grenzen stammen aus der generischen
+**Nachweisgrenze der ersten Sitzung:** Zunächst waren ausschließlich
+die drei Root**namen** modellbezogen nachgewiesen. Erst der spätere,
+hier separat dokumentierte Hardwaretest bestätigte, dass der SkyHub-
+Parser typisierte Feldwerte für alle sechs Erweiterungspfade akzeptiert.
+Die Datentypen und Grenzen stammen aus der generischen
 [DJI Aircraft Property Reference](https://developer.dji.com/doc/cloud-api-tutorial/en/api-reference/pilot-to-cloud/mqtt/aircraft/properties.html),
-Editionsstand 2024-06-28. Es dürfen daraus insbesondere **keine**
-Aussagen über sicherheitskritische tatsächliche RTH- oder
-Verbindungsverlust-Einstellungen abgeleitet werden.
+Editionsstand 2024-06-28. Aus der Parser-Annahme allein dürfen **keine**
+Aussagen über die tatsächlichen sicherheitskritischen RTH- oder
+Verbindungsverlust-Einstellungen oder deren Wirkung abgeleitet werden.
 
 Die Schemaabbildung `mavic3m` enthält **nur sechs zusätzliche
 Felddefinitionen** (3 Roots plus 3 Kinder unter
 `distance_limit_status`) und erbt alle 144 fest gepinnten Mavic-3-Felder.
 Dadurch lautet das vorläufige inventarisierte Profil **150 Pfade**.
 Die Mavic 3E und 3T behalten unverändert ihre 144 Definitionen.
-`confidence` und `extensionEvidence` kennzeichnen die Hardware-
-Validierung auf Rootnamen-Ebene und die noch offene Werteprüfung.
+`confidence`, `extensionEvidence` und `extensionStatus` trennen den
+hardwarebestätigten Rootnamen-/Typ-Annahme-Nachweis von der noch
+offenen unabhängigen Interpretation konkreter Werte, Grenzfälle und
+Funktionen.
 
 Die neuen Definitionen werden ausschließlich gelesen und mit
 DJI-Typ-/Wertebereich-Prüfungen akzeptiert; die generischen
@@ -138,6 +141,51 @@ Bei vorläufiger M3M-OSD-Feldprüfung sind mindestens zu unterscheiden:
 `osd`-Nachricht angenommen, dokumentierter Rootname beobachtet,
 einzelnes Unterfeld/Enum-Wert tatsächlich validiert und schließlich
 hardwarebestätigte Funktion. Jede Stufe benötigt gesonderte Evidenz.
+
+### Realer Nachtest nach M3M-150-Backend-Update (21.10.2026)
+
+**Quelle:** vom Benutzer auf dem Raspberry Pi ausgeführter
+`node scripts/pi-rc-pro-m3m-check.js` gegen die tatsächlich verbundene
+RC Pro Enterprise und Mavic 3M. Das Update-Skript hat nur den
+Backend-Container neu erstellt; PostGIS, Redis, EMQX und Caddy blieben
+unverändert.
+
+| Prüfmerkmal | Echte Beobachtung |
+|---|---|
+| MQTT verbunden/abonniert | ja / ja |
+| RC Pro und M3M in Topologie zugeordnet | ja |
+| OSD-Feldfrische je Gerät | ungefähr 1 s |
+| OSD-Pakete backendweit | 10 empfangen / 10 übernommen / 10 verwertbare Updates |
+| M3M-Feldprofil | 150 Definitionen |
+| M3M-Property-Pfade | 64 gültig beobachtet, 64 frisch |
+| M3M-Erweiterung | **6/6 neue Feldpfade frisch und vom typisierten Parser übernommen** |
+| RC-Pro-Property-Pfade | 10/48 beobachtet, 10 frisch |
+| Status-/State-Pakete seit Backend-Neustart | 0 / 0 |
+| Topologie-ACK seit Neustart | 0 gesendet, 0 Fehler |
+
+**Sechs auf echter M3M vom Parser angenommene Feldpfade:**
+`osd:distance_limit_status`,
+`osd:distance_limit_status.state`,
+`osd:distance_limit_status.distance_limit`,
+`osd:distance_limit_status.is_near_distance_limit`,
+`osd:rth_altitude`, `osd:rc_lost_action`.
+
+Die Werte erfüllten die in SkyHub hinterlegten **generischen DJI-
+Datentyp-, Bereichs- und Enum-Bedingungen**. Der Testbericht enthielt
+absichtlich **keine Zahlenwerte, IDs, Koordinaten oder Secrets**.
+Deshalb sind konkrete Semantik, unabhängige Werte-/Grenzfallkontrolle,
+historische Firmwarevarianten und das korrekte Verhalten im Flug **nicht
+nachgewiesen**. Kein DJI-`property/set`-, RTH- oder RC-Loss-Test nötig.
+
+Die State-/Status-Zähler wurden **unmittelbar nach dem Backend-Neustart**
+beobachtet; es gab keine frischen State-Ereignisse seit dessen Start.
+Die Topologie konnte aus bereits persistierten Daten wiederhergestellt
+werden. OSD der beiden real verbundenen Geräte war dagegen frisch.
+Topologie-ACK `0` ist hier kein Fehlernachweis.
+
+**Abnahmestatus:** Typisierte, rein lesende Telemetrieaufnahme dieser
+sechs Felder **an echter M3M bestätigt**; vollständige DJI-1.18-
+Geräteabdeckung und Flugsemantik bleiben ausdrücklich offen.
 
 ### Rein lesende Hardwareabnahme der sechs M3M-Erweiterungspfade
 
