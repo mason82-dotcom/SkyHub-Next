@@ -36,13 +36,17 @@ hr{border:0;border-top:1px solid var(--edge);margin:16px 0}
 .caption{font-size:12px;line-height:1.45;color:var(--muted)}
 @media(max-width:880px){main{grid-template-columns:1fr}.map-wrap{height:43vh;min-height:280px}#map{min-height:280px}aside{max-height:none;border-left:0;border-top:1px solid var(--edge)}}
 </style>
+<link rel="stylesheet" href="/hyperframes-gfx.css">
+<script src="/hyperframes-gfx.js" defer></script>
 </head>
-<body>
+<body class="skyhub-gfx gfx-page-editor" data-gfx-motion="off">
+<a class="gfx-skip" href="#gfxMain">Zum Hauptinhalt springen</a>
 <header>
   <div><h1>SkyHub <span>WPML Missionsentwurf</span></h1><small>DJI Cloud API 1.18 · ausschließlich Offline-Dateierstellung</small></div>
   <nav><a href="/wpml-route-library.html">Routenbibliothek & Action Groups</a> · <a href="/wpml-survey-preview.html">2D-Vermessungsvorschau</a> · <a href="/">← Zum Live-Dashboard</a></nav>
+  <button id="gfxMotionToggle" class="gfx-motion-toggle" type="button" hidden aria-pressed="false" aria-label="Visuelle Animationen einschalten">GFX · AUS</button>
 </header>
-<main>
+<main id="gfxMain" tabindex="-1">
  <section class="map-wrap" aria-label="Wegpunktkarte">
   <div id="map" aria-label="Kartenausschnitt"></div>
   <div class="map-overlay">Klicken Sie auf die Karte, um Wegpunkte zu setzen. Die Route ist nur eine geometrische Vorschau. Keine Hindernis-, Geländehöhen- oder Flugfreigabeprüfung.</div>

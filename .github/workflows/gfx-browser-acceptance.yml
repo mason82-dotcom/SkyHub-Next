@@ -1,0 +1,45 @@
+name: SKY//PULSE GFX offline Chromium acceptance
+
+on:
+  pull_request:
+    paths:
+      - "frontend/public/index.html"
+      - "frontend/public/gfx-cockpit.js"
+      - "frontend/public/hyperframes-gfx.*"
+      - "tests/gfx_browser_acceptance.py"
+      - ".github/workflows/gfx-browser-acceptance.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gfx-browser-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  offline-gfx-chromium:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pinned browser and Leaflet assets
+        run: |
+          python -m pip install --disable-pip-version-check "playwright==1.56.0"
+          python -m playwright install --with-deps chromium
+          npm install --no-save --no-package-lock --prefix "${{ runner.temp }}/skyhub-leaflet" "leaflet@1.9.4"
+      - name: Chromium offline telemetry cockpit
+        env:
+          SKYHUB_TEST_LEAFLET_DIST: ${{ runner.temp }}/skyhub-leaflet/node_modules/leaflet/dist
+        run: python tests/gfx_browser_acceptance.py
+      - name: Upload synthetic-only browser screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gfx-browser-synthetic-screenshots
+          path: artifacts/gfx-browser/*.png
+          if-no-files-found: ignore
+          retention-days: 7

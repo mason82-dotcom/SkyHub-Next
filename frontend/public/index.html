@@ -101,26 +101,32 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;margin:14px 0 8p
 @media(min-width:600px) and (max-width:1100px){.tak-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
  .module-nav{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.module-nav a{color:#a8ecfc;font-size:12px;text-decoration:underline;text-underline-offset:3px}.module-nav a[aria-current=page]{font-weight:700;color:white}
 </style>
+<link rel="stylesheet" href="/hyperframes-gfx.css">
+<script src="/hyperframes-gfx.js" defer></script>
 </head>
-<body>
+<body class="skyhub-gfx gfx-page-dashboard" data-gfx-motion="off">
+<a class="gfx-skip" href="#skyhubMain">Zum Hauptinhalt springen</a>
 <header>
-  <h1>SKY<span>HUB</span> NEXT <small>· read-only</small></h1>
-  <nav class="module-nav" aria-label="SkyHub-Module"><a href="/" aria-current="page">Live-Dashboard</a><a href="/smart-farming.html">Smart Farming <small>· Experimentell</small></a></nav>
+  <h1>SKY<span>HUB</span> NEXT <small>· read-only</small><span class="gfx-brand-caption" aria-hidden="true">MISSION CONTROL // SKY·PULSE</span></h1>
+  <nav class="module-nav" aria-label="SkyHub-Module"><a href="/" aria-current="page">Live-Dashboard</a><a href="/smart-farming.html">Smart Farming <small>· Experimentell</small></a><a href="/wpml-editor.html">Mission Studio</a><a href="/wpml-route-library.html">Routenbibliothek</a><a href="/wpml-survey-preview.html">Survey 2D</a></nav>
   <div class="auth">
     <input id="token" type="password" placeholder="SkyHub Zugriffstoken" aria-label="Zugriffstoken" autocomplete="off">
     <button id="connect" type="button" disabled>Verbinden</button>
     <span id="message" role="status">Nicht verbunden</span>
   </div>
+  <button id="gfxMotionToggle" class="gfx-motion-toggle" type="button" hidden aria-pressed="false" aria-label="Visuelle Animationen einschalten">GFX · AUS</button>
 </header>
 <nav class="workspace-tabs" role="tablist" aria-label="SkyHub Hauptbereiche">
   <button id="tabOperations" class="workspace-tab" type="button" role="tab" aria-controls="operationsPanel" aria-selected="true" tabindex="0">01 · Operations</button>
   <button id="tabTak" class="workspace-tab" type="button" role="tab" aria-controls="takPanel" aria-selected="false" tabindex="-1">02 · TAK / CoT</button>
 </nav>
-<main id="skyhubMain">
+<main id="skyhubMain" tabindex="-1">
 <div id="operationsPanel" role="tabpanel" aria-labelledby="tabOperations">
   <section class="map-shell" aria-label="Drohnenkarte">
     <div id="map" aria-label="Karte mit zuletzt gemeldeten Gerätepositionen"></div>
+    <div class="gfx-map-caption" aria-hidden="true"><strong>GEO / WGS84</strong><span>Zuletzt gemeldete Positionen · keine Flugsteuerung</span></div>
     <div class="map-tools">
+      <button id="gfxMapFocus" class="gfx-map-focus-toggle" type="button" aria-pressed="false" hidden>Karte priorisieren</button>
       <button id="fitDevices" type="button" disabled>Alle Positionen zeigen</button>
       <span id="mapNote" class="map-note" role="status">Warte auf Gerätepositionen.</span>
     </div>
@@ -132,6 +138,78 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;margin:14px 0 8p
       <div class="tile"><small>OSD &lt;15 s</small><strong id="live">0</strong></div>
       <div class="tile"><small>HMS Stufe 2</small><strong id="hmsCount">0</strong></div>
     </div>
+    <section id="gfxCockpit" class="gfx-cockpit" aria-labelledby="gfxCockpitTitle">
+      <div class="gfx-cockpit-top"><div><span class="gfx-cockpit-overline">SKY//PULSE / OSD</span><h2 id="gfxCockpitTitle">Fluginstrumente</h2></div><span class="gfx-cockpit-badge">Nur lesend</span></div>
+      <label for="gfxCockpitDevice">Gerät für Instrumente</label>
+      <select id="gfxCockpitDevice" disabled aria-describedby="gfxCockpitHelp"><option value="">Warte auf Gerätedaten</option></select>
+      <p id="gfxCockpitStatus" role="status">Warte auf Gerätedaten.</p>
+      <section class="gfx-quality" aria-labelledby="gfxQualityTitle">
+        <div class="gfx-quality-head">
+          <h3 id="gfxQualityTitle">Einzelwert-Qualität</h3>
+          <span class="gfx-quality-scope">Nur 8 Instrumentenfelder</span>
+        </div>
+        <p id="gfxQualitySummary">Noch keine Instrumentenfelder geprüft</p>
+        <dl class="gfx-quality-counts">
+          <div data-kind="current"><dt>Aktuell · geprüft</dt><dd id="gfxQualityCurrent">—</dd></div>
+          <div data-kind="stale"><dt>Veraltet</dt><dd id="gfxQualityStale">—</dd></div>
+          <div data-kind="unverified"><dt>Zeit ungeprüft</dt><dd id="gfxQualityUnverified">—</dd></div>
+          <div data-kind="unknown"><dt>Zeit unbekannt</dt><dd id="gfxQualityUnknown">—</dd></div>
+          <div data-kind="missing"><dt>Nicht empfangen</dt><dd id="gfxQualityMissing">—</dd></div>
+        </dl>
+        <p class="gfx-quality-help">Dies ist die Feldprüfung der acht hier dargestellten Instrumentenwerte, nicht der Status der Drohne oder eine Flugfreigabe.</p>
+      </section>
+      <details class="gfx-timeline" id="gfxCockpitTimeline">
+        <summary>Feldverlauf · lokale Beobachtungen</summary>
+        <div class="gfx-timeline-content">
+          <div class="gfx-timeline-controls">
+            <p>Maximal 24 Beobachtungen nur für das ausgewählte Gerät und diesen geöffneten Tab. Keine Speicherung, kein Paket- oder Flugprotokoll.</p>
+            <button type="button" id="gfxTimelineClear" disabled>Verlauf leeren</button>
+          </div>
+          <section class="gfx-timeline-digest" aria-labelledby="gfxTimelineDigestTitle">
+            <h4 id="gfxTimelineDigestTitle">Diagnose der behaltenen Beobachtungen</h4>
+            <p id="gfxTimelineSummary">0 von maximal 24 lokal behaltenen Beobachtungen</p>
+            <h5>Wechsel zu „Veraltet“ je Feld (maximal drei Felder)</h5>
+            <p id="gfxTimelineTopEmpty">Bisher kein Wechsel zu „Veraltet“ beobachtet.</p>
+            <ol id="gfxTimelineTop" class="gfx-timeline-top" aria-label="Felder mit beobachteten Veraltungswechseln"></ol>
+            <p class="gfx-timeline-digest-note">Nur die jüngsten maximal 24 lokal gespeicherten UI-Beobachtungen. Keine Fehlerhäufigkeit, Paketverlustquote, Empfangslückenmessung oder Flugfreigabe.</p>
+          </section>
+          <p id="gfxTimelineEmpty">Noch keine Veränderungen beobachtet. Die Übersicht beginnt nach der ersten Feldprüfung und zeigt nur folgende Wechsel.</p>
+          <ol class="gfx-timeline-list" id="gfxTimelineList" aria-label="Beobachtete Feldstatus- und Zeitstempeländerungen"></ol>
+          <p class="gfx-timeline-footnote">Ein Frischewechsel wird beim Aktualisieren der Anzeige erkannt, nicht zwingend zum tatsächlichen Ereigniszeitpunkt. „Veraltet“ beweist weder einen Verbindungsabbruch noch einen ausgefallenen OSD-Empfang.</p>
+        </div>
+      </details>
+      <div class="gfx-cockpit-dials" aria-label="Gemeldete Einzelwerte und Zeitprüfung">
+        <div class="gfx-cockpit-dial"><span class="gfx-cockpit-name">Akku</span><strong id="gfxCockpitBattery" class="gfx-cockpit-value">—</strong><small id="gfxCockpitBatteryAge" class="gfx-cockpit-age" data-kind="missing">Nicht empfangen</small><div class="gfx-cockpit-meter" aria-hidden="true"><span id="gfxCockpitBatteryMeter"></span></div></div>
+        <div class="gfx-cockpit-dial"><span class="gfx-cockpit-name">Höhe relativ</span><strong id="gfxCockpitAltitude" class="gfx-cockpit-value">—</strong><small id="gfxCockpitAltitudeAge" class="gfx-cockpit-age" data-kind="missing">Nicht empfangen</small></div>
+        <div class="gfx-cockpit-dial"><span class="gfx-cockpit-name">Horizontaltempo</span><strong id="gfxCockpitSpeed" class="gfx-cockpit-value">—</strong><small id="gfxCockpitSpeedAge" class="gfx-cockpit-age" data-kind="missing">Nicht empfangen</small></div>
+        <div class="gfx-cockpit-dial"><span class="gfx-cockpit-name">Kurs / Heading</span><div class="gfx-heading-readout"><strong id="gfxCockpitHeading" class="gfx-cockpit-value">—</strong><span id="gfxCockpitCompass" class="gfx-heading-compass" aria-hidden="true" hidden><span class="gfx-heading-north">N</span><span id="gfxCockpitNeedle" class="gfx-heading-needle"></span></span></div><small id="gfxCockpitHeadingAge" class="gfx-cockpit-age" data-kind="missing">Nicht empfangen</small></div>
+        <div class="gfx-cockpit-dial"><span class="gfx-cockpit-name">Vertikaltempo</span><strong id="gfxCockpitClimb" class="gfx-cockpit-value">—</strong><small id="gfxCockpitClimbAge" class="gfx-cockpit-age" data-kind="missing">Nicht empfangen</small></div>
+
+        <div class="gfx-cockpit-dial gfx-attitude-dial" aria-label="Schematischer künstlicher Horizont mit einzeln geprüften Nick- und Rollwerten">
+          <span class="gfx-cockpit-name">Lageanzeige / Attitude</span>
+          <div class="gfx-attitude-layout">
+            <div id="gfxCockpitAttitude" class="gfx-attitude-instrument" aria-hidden="true" hidden>
+              <div class="gfx-attitude-scene">
+                <div id="gfxCockpitAttitudePlane" class="gfx-attitude-plane">
+                  <div class="gfx-attitude-sky"></div>
+                  <div class="gfx-attitude-ground"></div>
+                  <div class="gfx-attitude-horizonline"></div>
+                </div>
+              </div>
+              <span class="gfx-attitude-fixed-wing"></span>
+            </div>
+            <div class="gfx-attitude-readouts">
+              <div><span class="gfx-cockpit-name">Nickwinkel</span><strong id="gfxCockpitPitch" class="gfx-cockpit-value">—</strong><small id="gfxCockpitPitchAge" class="gfx-cockpit-age" data-kind="missing">Nicht empfangen</small></div>
+              <div><span class="gfx-cockpit-name">Rollwinkel</span><strong id="gfxCockpitRoll" class="gfx-cockpit-value">—</strong><small id="gfxCockpitRollAge" class="gfx-cockpit-age" data-kind="missing">Nicht empfangen</small></div>
+            </div>
+          </div>
+          <p class="gfx-attitude-note">Schematische Darstellung · nur mit zwei zeitverifizierten Einzelwerten, keine künstliche Flugfreigabe.</p>
+        </div>
+        <div class="gfx-cockpit-dial"><span class="gfx-cockpit-name">SDR-Funkqualität</span><strong id="gfxCockpitLink" class="gfx-cockpit-value">—</strong><small id="gfxCockpitLinkAge" class="gfx-cockpit-age" data-kind="missing">Nicht empfangen</small><div class="gfx-cockpit-meter" aria-hidden="true"><span id="gfxCockpitLinkMeter"></span></div></div>
+      </div>
+      <button id="gfxCockpitLocate" type="button" disabled>Letzten Kartenstandort zeigen</button>
+      <p id="gfxCockpitHelp">DJI-OSD aus der vorhandenen Verbindung. Frische und Quellzeit werden je Feld geprüft. Keine Flugfreigabe.</p>
+    </section>
     <details class="health-panel">
       <summary>Datenpfad · <span id="healthSummary" role="status">wird geprüft</span></summary>
       <dl>
@@ -199,6 +277,7 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;margin:14px 0 8p
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script src="/telemetry-freshness.js"></script>
+<script src="/gfx-cockpit.js"></script>
 <script src="/workspace-tabs.js"></script>
 <script>
 (function(){
@@ -242,6 +321,7 @@ let eventsController=null,eventsLoadId=0;
 const recentEvents=[];
 const expanded=new Set();
 let listState='loading',composingSearch=false;
+const cockpit=window.SkyHubGfxCockpit?.mount({document,fieldFreshness,mapAvailable:Boolean(map),onLocate:sn=>revealDevice(sn)});
 const show=(x,suffix='')=>typeof x==='number'&&Number.isFinite(x)?String(Math.round(x*100)/100)+suffix:'—';
 const fresh=d=>Number.isFinite(d.lastTelemetryAt)&&Date.now()>=d.lastTelemetryAt&&Date.now()-d.lastTelemetryAt<15000;
 // HMS lists are pushed repeatedly while alerts are active; older lists are stale.
@@ -305,6 +385,7 @@ function fitDevices(){
 }
 function update(){
   const data=[...records.values()].sort((a,b)=>(b.lastSeenAt||0)-(a.lastSeenAt||0));
+  if(cockpit)cockpit.render(data,selectedSn,listState);
   const root=el('devices');
   const focusedSn=document.activeElement?.dataset?.focusSn;
   const focusedDetailsSn=document.activeElement?.dataset?.detailsSn;

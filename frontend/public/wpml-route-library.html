@@ -24,13 +24,17 @@ button:disabled{opacity:.4;cursor:not-allowed}.row{display:flex;gap:8px;flex-wra
 code{font-size:12px}a{color:#9de5fb}hr{border:0;border-top:1px solid #375b72;margin:18px 0}
 @media(max-width:850px){main{grid-template-columns:1fr}}
 </style>
-</head><body>
+<link rel="stylesheet" href="/hyperframes-gfx.css">
+<script src="/hyperframes-gfx.js" defer></script>
+</head><body class="skyhub-gfx gfx-page-library" data-gfx-motion="off">
+<a class="gfx-skip" href="#gfxMain">Zum Hauptinhalt springen</a>
 <header>
 <h1>SkyHub Next · Lokale Routenbibliothek</h1>
 <div class="caption">P0 Missionsrevisionen · P1 geordnete Wegpunktaktionen · Kein DJI-Flugauftrag</div>
 <nav><a href="/wpml-editor.html">Zum einfachen Wegpunkteditor</a> · <a href="/">Dashboard</a></nav>
+  <button id="gfxMotionToggle" class="gfx-motion-toggle" type="button" hidden aria-pressed="false" aria-label="Visuelle Animationen einschalten">GFX · AUS</button>
 </header>
-<main>
+<main id="gfxMain" tabindex="-1">
 <section aria-label="Routenverwaltung">
 <h2>P0 · Routenbibliothek</h2>
 <p class="caption">Nur nach Klick auf „Revision speichern“ werden Missionsdaten samt GPS-Koordinaten im <strong>lokalen Browser-Speicher im Klartext</strong> hinterlegt. Nicht auf gemeinsam genutzten Geräten verwenden. Keine Synchronisation mit SkyHub-Server oder DJI.</p>

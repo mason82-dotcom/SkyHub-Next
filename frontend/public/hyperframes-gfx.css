@@ -1,0 +1,775 @@
+/*
+ * SKY//PULSE experimental GFX overlay for SkyHub-Next.
+ * Pure presentation. No changes to telemetry, auth, flight or WPML logic.
+ * Activate only on pages with body.skyhub-gfx.
+ */
+body.skyhub-gfx {
+  --bg: #07101c;
+  --panel: #101e30;
+  --edge: #355268;
+  --muted: #aec0d0;
+  --blue: #67e8f9;
+  --accent: #67e8f9;
+  --line: #355268;
+  --card: #13273a;
+  --ink: #f2f8ff;
+  --gfx-cyan: #67e8f9;
+  --gfx-lime: #c9fa79;
+  --gfx-amber: #ffc37c;
+  --gfx-border: #41657b;
+  --gfx-ink: #f2f8ff;
+  --gfx-deep: #07101c;
+  --gfx-motion-duration: 360ms;
+  background: radial-gradient(ellipse at 85% -18%, #163346 0, #07101c 44%) fixed;
+  color: var(--gfx-ink);
+  font-family: "Bahnschrift", "Aptos", "Segoe UI", system-ui, sans-serif;
+  line-height: 1.45;
+  accent-color: var(--gfx-cyan);
+}
+body.skyhub-gfx, body.skyhub-gfx * {
+  scrollbar-color: #426b80 #081626;
+  scrollbar-width: thin;
+}
+body.skyhub-gfx *::-webkit-scrollbar { width: 10px; height: 10px; }
+body.skyhub-gfx *::-webkit-scrollbar-track { background: #081626; }
+body.skyhub-gfx *::-webkit-scrollbar-thumb { background: #426b80; border: 2px solid #081626; border-radius: 8px; }
+body.skyhub-gfx *::-webkit-scrollbar-thumb:hover { background: #67a8bb; }
+body.skyhub-gfx *::-webkit-scrollbar-thumb:active { background: #91cddb; }
+body.skyhub-gfx header {
+  position: relative;
+  isolation: isolate;
+  min-height: 76px;
+  height: auto;
+  gap: 14px;
+  background: linear-gradient(105deg, #091827 0%, #102b3a 46%, #081521 100%);
+  border-bottom: 1px solid var(--gfx-border);
+  padding: 14px clamp(15px, 2vw, 32px);
+}
+body.skyhub-gfx header::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: min(43%, 380px);
+  height: 2px;
+  background: linear-gradient(90deg, var(--gfx-cyan), rgba(103,232,249,0));
+  pointer-events: none;
+}
+body.skyhub-gfx header h1 {
+  font-family: "Bahnschrift SemiCondensed", "Arial Narrow", "Bahnschrift", sans-serif;
+  font-weight: 750;
+  letter-spacing: .085em;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+body.skyhub-gfx header h1 span { color: var(--gfx-cyan); }
+body.skyhub-gfx .gfx-brand-caption {
+  display: block;
+  color: #a3b9ca;
+  margin-top: 6px;
+  font: 600 10px/1.3 "Cascadia Code", Consolas, monospace;
+  letter-spacing: .14em;
+}
+body.skyhub-gfx header nav a,
+body.skyhub-gfx header a { color: #bcf0f7; }
+body.skyhub-gfx header nav a:hover { color: white; text-decoration-color: var(--gfx-lime); }
+body.skyhub-gfx .module-nav {
+  row-gap: 10px;
+}
+body.skyhub-gfx .module-nav a[aria-current="page"] {
+  color: var(--gfx-lime);
+  text-decoration-thickness: 2px;
+}
+body.skyhub-gfx button,
+body.skyhub-gfx input,
+body.skyhub-gfx select {
+  font-family: inherit;
+  border-color: #54758a;
+  border-radius: 9px;
+  color: #f6fcff;
+}
+body.skyhub-gfx input,
+body.skyhub-gfx select {
+  background: #0d2032;
+  caret-color: var(--gfx-cyan);
+}
+body.skyhub-gfx input::placeholder { color: #a4b6c7; opacity: 1; }
+body.skyhub-gfx button {
+  background: #155773;
+  transition: background var(--gfx-motion-duration) ease, border-color var(--gfx-motion-duration) ease, box-shadow var(--gfx-motion-duration) ease;
+}
+body.skyhub-gfx button:hover:not(:disabled) {
+  background: #1e7292;
+  border-color: var(--gfx-cyan);
+}
+body.skyhub-gfx :is(a, button, input, select, textarea, summary):focus-visible {
+  outline: 3px solid #dbfa89;
+  outline-offset: 3px;
+}
+body.skyhub-gfx button:disabled { cursor: not-allowed; opacity: .56; }
+body.skyhub-gfx .gfx-motion-toggle {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 8px 12px;
+  background: #112536;
+  color: #d4e9f2;
+  border: 1px solid #54758a;
+  font: 650 11px/1.2 "Cascadia Code", Consolas, monospace;
+  letter-spacing: .06em;
+  white-space: nowrap;
+}
+body.skyhub-gfx .gfx-motion-toggle[aria-pressed="true"] {
+  color: #061423;
+  background: var(--gfx-lime);
+  border-color: #dfffac;
+}
+body.skyhub-gfx .gfx-motion-toggle[aria-pressed="true"]:hover:not(:disabled) {
+  background: #e0ffae;
+  color: #061423;
+}
+body.skyhub-gfx .workspace-tabs {
+  background: #0a1725;
+  border-color: #34536c;
+  padding-inline: clamp(12px, 2vw, 32px);
+}
+body.skyhub-gfx .workspace-tab {
+  background: #102437;
+  border-color: #35576d;
+  color: #b7d3df;
+  border-radius: 7px;
+  font-weight: 650;
+  letter-spacing: .055em;
+}
+body.skyhub-gfx .workspace-tab[aria-selected="true"] {
+  background: #17364a;
+  color: #f1fcff;
+  border-color: var(--gfx-cyan);
+  box-shadow: inset 0 -3px var(--gfx-lime);
+}
+body.skyhub-gfx.gfx-page-dashboard #operationsPanel {
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 420px);
+  height: calc(100vh - 139px);
+  min-height: 440px;
+}
+body.skyhub-gfx.gfx-page-dashboard .map-shell {
+  overflow: hidden;
+  background: #102334;
+}
+body.skyhub-gfx.gfx-page-dashboard .map-shell::before {
+  content: "";
+  position: absolute;
+  z-index: 499;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(103,232,249,.10) 1px, rgba(103,232,249,0) 1px),
+    linear-gradient(0deg, rgba(103,232,249,.08) 1px, rgba(103,232,249,0) 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(circle at 50% 50%, #000 5%, transparent 80%);
+  opacity: .7;
+}
+body.skyhub-gfx.gfx-page-dashboard .map-shell::after {
+  content: "";
+  position: absolute;
+  z-index: 499;
+  inset: 28% 25%;
+  border: 1px solid rgba(103,232,249,.27);
+  border-radius: 50%;
+  pointer-events: none;
+  background: conic-gradient(from 0deg, rgba(103,232,249,.32), rgba(103,232,249,0) 62deg, rgba(103,232,249,0) 360deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 2px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 2px));
+}
+body.skyhub-gfx.gfx-page-dashboard .map-tools { z-index: 500; }
+body.skyhub-gfx.gfx-page-dashboard .map-tools button,
+body.skyhub-gfx.gfx-page-dashboard .map-note {
+  color: var(--gfx-ink);
+  background: rgba(8,23,37,.96);
+  border: 1px solid #4c7186;
+  box-shadow: 0 8px 30px rgba(0,0,0,.23);
+  backdrop-filter: blur(12px);
+}
+body.skyhub-gfx.gfx-page-dashboard aside {
+  border-left: 1px solid #477187;
+  padding: 18px;
+  background: linear-gradient(180deg, #102538, #0b1829 55%);
+}
+body.skyhub-gfx.gfx-page-dashboard .tile,
+body.skyhub-gfx.gfx-page-dashboard .device,
+body.skyhub-gfx.gfx-page-dashboard .health-panel,
+body.skyhub-gfx.gfx-page-dashboard .events-panel,
+body.skyhub-gfx.gfx-page-dashboard .tak-card {
+  background: linear-gradient(140deg, rgba(28,57,76,.91), rgba(13,31,49,.98));
+  border: 1px solid #42637a;
+  box-shadow: inset 0 1px rgba(184,237,255,.06);
+}
+body.skyhub-gfx.gfx-page-dashboard .tile {
+  position: relative;
+  overflow: hidden;
+  min-height: 92px;
+  padding: 12px 10px;
+}
+body.skyhub-gfx.gfx-page-dashboard .tile::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  background: var(--gfx-cyan);
+}
+body.skyhub-gfx.gfx-page-dashboard .tile:nth-child(2)::before { background: var(--gfx-lime); }
+body.skyhub-gfx.gfx-page-dashboard .tile:nth-child(3)::before { background: var(--gfx-amber); }
+body.skyhub-gfx.gfx-page-dashboard .tile strong {
+  color: #f7fcff;
+  font: 750 clamp(21px, 2vw, 30px)/1.15 "Bahnschrift SemiCondensed", "Arial Narrow", sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+body.skyhub-gfx.gfx-page-dashboard .device.selected {
+  border-color: var(--gfx-cyan);
+  box-shadow: inset 3px 0 var(--gfx-lime), 0 0 0 1px rgba(103,232,249,.2);
+}
+body.skyhub-gfx.gfx-page-dashboard .device h3 { font-size: 15px; }
+body.skyhub-gfx.gfx-page-dashboard .notice {
+  background: rgba(69,48,19,.38);
+  border: 1px solid #94754d;
+  color: #ffe1b7;
+}
+body.skyhub-gfx.gfx-page-dashboard .tak-heading,
+body.skyhub-gfx.gfx-page-dashboard .tak-note {
+  background: #102438;
+  border-color: #3d6078;
+}
+body.skyhub-gfx.gfx-page-dashboard .tak-heading h2 { color: #f6fbff; }
+body.skyhub-gfx.gfx-page-dashboard .tak-status { color: #ffe1ae; }
+body.skyhub-gfx.gfx-page-dashboard #takPanel { background: #091522; }
+body.skyhub-gfx.gfx-page-dashboard h2 {
+  letter-spacing: .10em;
+}
+body.skyhub-gfx:not(.gfx-page-dashboard) main > section,
+body.skyhub-gfx:not(.gfx-page-dashboard) .panel {
+  border-color: #466982;
+  box-shadow: 0 14px 42px rgba(0,0,0,.12);
+}
+body.skyhub-gfx:not(.gfx-page-dashboard) .panel,
+body.skyhub-gfx:not(.gfx-page-dashboard) main > section:not(.map-wrap):not(.map-shell) {
+  background: linear-gradient(140deg,#142c40,#102135);
+}
+body.skyhub-gfx:not(.gfx-page-dashboard) :is(.metric-card,.waypoint,.item) {
+  background: #17364a;
+  border-color: #44677f;
+}
+body.skyhub-gfx:not(.gfx-page-dashboard) h1,
+body.skyhub-gfx:not(.gfx-page-dashboard) h2 { letter-spacing: .035em; }
+body.skyhub-gfx:not(.gfx-page-dashboard) :is(.warning,.notice) {
+  border-color: #96734d;
+}
+body.skyhub-gfx a:hover { text-underline-offset: 4px; }
+body.skyhub-gfx[data-gfx-motion="on"] .tile,
+body.skyhub-gfx[data-gfx-motion="on"] .panel,
+body.skyhub-gfx[data-gfx-motion="on"] .tak-card {
+  animation: gfx-reveal 460ms cubic-bezier(.16,1,.3,1) both;
+}
+body.skyhub-gfx[data-gfx-motion="on"] .tile:nth-child(2) { animation-delay: 70ms; }
+body.skyhub-gfx[data-gfx-motion="on"] .tile:nth-child(3) { animation-delay: 140ms; }
+body.skyhub-gfx[data-gfx-motion="on"] .map-shell::after { animation: gfx-scan 8s linear infinite; }
+@keyframes gfx-reveal {
+  from { opacity: .45; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes gfx-scan {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@media (max-width: 960px) {
+  body.skyhub-gfx.gfx-page-dashboard #operationsPanel {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+    min-height: 0;
+  }
+  body.skyhub-gfx.gfx-page-dashboard .map-shell { min-height: 300px; }
+  body.skyhub-gfx.gfx-page-dashboard #map { height: clamp(300px, 48vh, 540px); }
+  body.skyhub-gfx.gfx-page-dashboard aside {
+    border-left: 0;
+    border-top: 1px solid var(--gfx-border);
+  }
+}
+@media (max-width: 620px) {
+  body.skyhub-gfx header { align-items: flex-start; padding: 14px; }
+  body.skyhub-gfx .gfx-motion-toggle { min-height: 44px; }
+  body.skyhub-gfx .workspace-tabs { flex-wrap: wrap; }
+  body.skyhub-gfx.gfx-page-dashboard .grid { gap: 5px; }
+  body.skyhub-gfx.gfx-page-dashboard .tile { min-height: 83px; }
+  body.skyhub-gfx.gfx-page-dashboard .map-tools { max-width: calc(100% - 24px); }
+  body.skyhub-gfx.gfx-page-dashboard aside { padding: 13px; }
+}
+@media (prefers-reduced-motion: reduce), (forced-colors: active) {
+  body.skyhub-gfx *, body.skyhub-gfx *::before, body.skyhub-gfx *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+  body.skyhub-gfx .map-shell::after { display: none; }
+}
+
+
+/* Phase 2: unified command rail. The original header navigation remains
+   available when JS is off, and is hidden only after successful enhancement. */
+body.skyhub-gfx.gfx-has-module-rail > header nav {display:none}
+body.skyhub-gfx .gfx-module-rail {
+  display:flex;align-items:center;gap:clamp(12px,2vw,32px);min-width:0;
+  padding:7px clamp(12px,2vw,32px);background:#0a1928;
+  border-bottom:1px solid #426276;
+}
+body.skyhub-gfx .gfx-rail-signature {
+  flex:0 0 auto;color:#c9fa79;letter-spacing:.16em;
+  font:800 13px/1.1 "Cascadia Code",Consolas,monospace;
+}
+body.skyhub-gfx .gfx-rail-links {
+  display:flex;flex:1;align-items:stretch;gap:5px;min-width:0;
+  overflow-x:auto;overscroll-behavior-x:contain;scrollbar-gutter:stable;
+}
+body.skyhub-gfx .gfx-rail-link {
+  min-width:133px;min-height:48px;display:flex;flex-direction:column;
+  justify-content:center;gap:2px;padding:7px 13px;border:1px solid transparent;
+  border-bottom:2px solid transparent;border-radius:8px 8px 0 0;
+  color:#c0d4e2;text-decoration:none;white-space:nowrap;
+  transition:background 180ms ease,border-color 180ms ease;
+}
+body.skyhub-gfx .gfx-rail-link strong {font-size:12px;font-weight:750;letter-spacing:.025em}
+body.skyhub-gfx .gfx-rail-link small {
+  font:500 10px/1.3 "Cascadia Code",Consolas,monospace;color:#aac0cd;
+}
+body.skyhub-gfx .gfx-rail-link:hover {background:#18354b;border-color:#416d87}
+body.skyhub-gfx .gfx-rail-link[aria-current="page"] {
+  color:#f2fbff;background:#17364a;border-color:#46748b;border-bottom-color:#c9fa79;
+}
+body.skyhub-gfx .gfx-rail-link[aria-current="page"] small {color:#c9fa79}
+
+/* Keyboard-first skip link, available without JS. */
+body.skyhub-gfx .gfx-skip {
+  position:fixed;z-index:1200;top:6px;left:8px;padding:10px 14px;
+  background:#dfffac;color:#091522;border:2px solid #091522;
+  border-radius:8px;font-size:14px;font-weight:750;transform:translateY(-180%);
+}
+body.skyhub-gfx .gfx-skip:focus {transform:translateY(0)}
+
+/* Content-sized header, rail and tab heights, no brittle pixel subtraction. */
+body.skyhub-gfx.gfx-page-dashboard {
+  display:grid;grid-template-rows:auto auto auto minmax(0,1fr);
+  height:100dvh;overflow:hidden;
+}
+body.skyhub-gfx.gfx-page-dashboard main#skyhubMain {min-height:0;overflow:hidden}
+body.skyhub-gfx.gfx-page-dashboard #operationsPanel {height:100%;min-height:0}
+body.skyhub-gfx.gfx-page-dashboard #takPanel {height:100%;min-height:0;overflow:auto}
+body.skyhub-gfx.gfx-page-dashboard #map {min-height:0}
+body.skyhub-gfx.gfx-page-dashboard.gfx-map-focus #operationsPanel {
+  grid-template-columns:minmax(0,1fr) 314px;
+}
+body.skyhub-gfx .gfx-map-focus-toggle {
+  min-height:42px;font-size:12px;border-color:#7290a4;background:#0b2536;
+}
+body.skyhub-gfx .gfx-map-focus-toggle[aria-pressed="true"] {
+  border-color:#c9fa79;color:#edffc4;
+}
+body.skyhub-gfx .gfx-map-caption {
+  position:absolute;z-index:480;bottom:28px;left:20px;width:min(300px,52%);
+  padding:11px 13px;border-left:3px solid #67e8f9;
+  background:rgba(8,22,36,.90);box-shadow:0 6px 18px rgba(0,0,0,.22);
+  pointer-events:none;
+}
+body.skyhub-gfx .gfx-map-caption strong {
+  display:block;letter-spacing:.13em;color:#b4f2fb;
+  font:750 11px/1.4 "Cascadia Code",Consolas,monospace;
+}
+body.skyhub-gfx .gfx-map-caption span {
+  display:block;margin-top:3px;color:#d6e6ef;font-size:11px;line-height:1.35;
+}
+/* Survey previously subtracted only its header from 100vh. */
+body.skyhub-gfx.gfx-page-survey {
+  display:flex;flex-direction:column;min-height:100dvh;
+}
+body.skyhub-gfx.gfx-page-survey main {
+  flex:1;height:auto;min-height:530px;
+}
+body.skyhub-gfx.gfx-page-survey .map-shell {min-height:530px}
+@media (max-width:960px) {
+  body.skyhub-gfx.gfx-page-dashboard {
+    display:block;height:auto;min-height:100dvh;overflow:visible;
+  }
+  body.skyhub-gfx.gfx-page-dashboard main#skyhubMain {overflow:visible}
+  body.skyhub-gfx.gfx-page-dashboard #operationsPanel {height:auto}
+  body.skyhub-gfx.gfx-page-dashboard.gfx-map-focus #operationsPanel {grid-template-columns:1fr}
+  body.skyhub-gfx .gfx-map-focus-toggle {display:none}
+  body.skyhub-gfx.gfx-page-survey main {min-height:0}
+  body.skyhub-gfx.gfx-page-survey .map-shell {min-height:300px}
+}
+@media (max-width:640px) {
+  body.skyhub-gfx .gfx-module-rail {display:block;padding:6px 10px}
+  body.skyhub-gfx .gfx-rail-signature {display:none}
+  body.skyhub-gfx .gfx-rail-link {min-width:136px;min-height:48px}
+  body.skyhub-gfx .gfx-map-caption {left:10px;bottom:30px;padding:9px;width:min(235px,56%)}
+}
+@media (prefers-reduced-motion:reduce),(forced-colors:active) {
+  body.skyhub-gfx .gfx-rail-link {transition:none}
+}
+
+@media (min-width:961px) and (max-height:670px) {
+  body.skyhub-gfx.gfx-page-dashboard {
+    height:auto;min-height:100dvh;overflow:auto;
+    grid-template-rows:auto auto auto minmax(480px,1fr);
+  }
+  body.skyhub-gfx.gfx-page-dashboard main#skyhubMain {min-height:480px}
+  body.skyhub-gfx.gfx-page-dashboard #operationsPanel {min-height:480px}
+}
+
+
+/* Phase 2 module surfaces: keep warning and form semantics intact. */
+body.skyhub-gfx:not(.gfx-page-dashboard) .panel,
+body.skyhub-gfx.gfx-page-library main > section {
+  position:relative;border-top-color:#5a879e;
+}
+body.skyhub-gfx:not(.gfx-page-dashboard) .panel::before,
+body.skyhub-gfx.gfx-page-library main > section::before {
+  content:"";position:absolute;pointer-events:none;
+  top:-1px;left:18px;width:70px;height:2px;background:#67e8f9;
+}
+body.skyhub-gfx.gfx-page-farming .metric-card {
+  border-left:3px solid #67e8f9;border-radius:6px 12px 12px 6px;
+}
+body.skyhub-gfx.gfx-page-farming .metric-card h3 {
+  color:#c9fa79;letter-spacing:.055em;
+}
+body.skyhub-gfx.gfx-page-editor .map-overlay,
+body.skyhub-gfx.gfx-page-survey .instructions {
+  background:rgba(8,22,36,.95);
+  border:1px solid #6191aa;border-left:3px solid #c9fa79;
+  box-shadow:0 16px 32px rgba(0,0,0,.2);
+}
+body.skyhub-gfx.gfx-page-library :is(.item,.waypoint):focus-within,
+body.skyhub-gfx.gfx-page-editor .waypoint:focus-within {
+  border-color:#c9fa79;box-shadow:0 0 0 1px rgba(201,250,121,.35);
+}
+body.skyhub-gfx.gfx-page-survey #status,
+body.skyhub-gfx.gfx-page-editor #message,
+body.skyhub-gfx.gfx-page-library #status {
+  border-left:3px solid #67e8f9;overflow-wrap:anywhere;
+}
+
+
+/* Phase 3: field provenance cockpit; no animation of telemetry values. */
+body.skyhub-gfx .gfx-cockpit {
+  margin:13px 0 14px;padding:14px;border:1px solid #507d96;border-radius:14px;
+  background:radial-gradient(ellipse at 87% 0%, #1c4558, #0a1d30 70%);
+  box-shadow:inset 0 1px rgba(231,253,255,.12),0 8px 24px rgba(0,0,0,.12);
+}
+body.skyhub-gfx .gfx-cockpit-top {display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+body.skyhub-gfx .gfx-cockpit-overline {
+  display:block;color:#c9fa79;letter-spacing:.15em;
+  font:700 10px/1.4 "Cascadia Code",Consolas,monospace;
+}
+body.skyhub-gfx .gfx-cockpit h2 {
+  margin:3px 0 10px;color:#f1f9ff;letter-spacing:.055em;
+  text-transform:none;font-size:17px;
+}
+body.skyhub-gfx .gfx-cockpit-badge {
+  margin-top:2px;white-space:nowrap;padding:4px 7px;
+  border:1px solid #557b87;border-radius:6px;
+  font:650 10px/1.2 "Cascadia Code",Consolas,monospace;color:#c2d8e6;
+}
+body.skyhub-gfx .gfx-cockpit label {
+  display:block;color:#d9e8f1;font-size:12px;font-weight:650;margin:0 0 5px;
+}
+body.skyhub-gfx #gfxCockpitDevice {
+  width:100%;min-height:42px;margin:0;
+  font:600 12px/1.3 "Bahnschrift","Segoe UI",system-ui,sans-serif;
+}
+body.skyhub-gfx #gfxCockpitStatus {
+  min-height:30px;margin:8px 0 12px;
+  color:#c1d5e2;font-size:11px;line-height:1.45;
+}
+body.skyhub-gfx .gfx-cockpit-dials {
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;
+}
+body.skyhub-gfx .gfx-cockpit-dial {
+  display:flex;flex-direction:column;gap:5px;min-width:0;min-height:107px;
+  padding:11px 10px 9px;border:1px solid #3e667e;border-radius:9px;
+  background:linear-gradient(145deg,rgba(23,52,72,.94),rgba(11,28,46,.94));
+}
+body.skyhub-gfx .gfx-cockpit-name {color:#bcd0dd;font-size:11px;line-height:1.3}
+body.skyhub-gfx .gfx-cockpit-value {
+  color:#effbff;font:750 clamp(17px,1.8vw,24px)/1.12 "Bahnschrift SemiCondensed","Arial Narrow",sans-serif;
+  letter-spacing:.015em;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;
+}
+body.skyhub-gfx .gfx-cockpit-age {
+  color:#e8c7a1;font-size:10px;line-height:1.3;overflow-wrap:anywhere;
+}
+body.skyhub-gfx .gfx-cockpit-age[data-kind="current"] {color:#aeebd5}
+body.skyhub-gfx .gfx-cockpit-age[data-kind="unverified"],
+body.skyhub-gfx .gfx-cockpit-age[data-kind="stale"],
+body.skyhub-gfx .gfx-cockpit-age[data-kind="unknown"] {color:#f4cc98}
+body.skyhub-gfx .gfx-cockpit-age[data-kind="missing"] {color:#b9c6d1}
+body.skyhub-gfx .gfx-cockpit-meter {
+  height:4px;margin-top:auto;background:#345164;border-radius:999px;overflow:hidden;
+}
+body.skyhub-gfx .gfx-cockpit-meter span {
+  display:block;height:100%;width:0;background:#67e8f9;
+}
+body.skyhub-gfx #gfxCockpitLocate {
+  min-height:42px;width:100%;margin-top:12px;
+  background:#194760;border:1px solid #5485a0;
+}
+body.skyhub-gfx #gfxCockpitHelp {
+  color:#aec6d4;margin:10px 0 0;font-size:11px;line-height:1.45;
+}
+@media (max-width:390px){
+  body.skyhub-gfx .gfx-cockpit {padding:10px}
+  body.skyhub-gfx .gfx-cockpit-dials {gap:6px}
+  body.skyhub-gfx .gfx-cockpit-dial {padding:9px 7px}
+}
+
+
+/* Phase 4: compass is a purely visual representation of verified fresh
+   heading and never overlays the provenance text or uses live-looking motion. */
+body.skyhub-gfx .gfx-heading-readout{
+  display:flex;align-items:center;justify-content:space-between;gap:9px;min-height:48px;
+}
+body.skyhub-gfx .gfx-heading-compass{
+  position:relative;flex:0 0 48px;width:48px;height:48px;
+  border:1px solid #5c91aa;border-radius:50%;
+  box-shadow:inset 0 0 0 4px #112e42,0 0 0 1px rgba(103,232,249,.14);
+  background:radial-gradient(circle at 50% 50%,#18374a 0 18%,#102436 19%);
+  pointer-events:none;
+}
+body.skyhub-gfx .gfx-heading-compass[hidden]{display:none!important}
+body.skyhub-gfx .gfx-heading-north{
+  position:absolute;top:-4px;left:50%;transform:translateX(-50%);
+  color:#d5efef;background:#102436;padding:0 2px;
+  font:750 9px/1.2 "Cascadia Code",Consolas,monospace;
+}
+body.skyhub-gfx .gfx-heading-needle{
+  position:absolute;left:calc(50% - 1.5px);top:6px;
+  height:34px;width:3px;transform-origin:center center;
+  background:linear-gradient(to bottom,#c9fa79 0 45%,#4b6c83 46% 100%);
+}
+body.skyhub-gfx .gfx-heading-needle::before{
+  content:"";position:absolute;left:50%;top:-3px;transform:translateX(-50%);
+  width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;
+  border-bottom:7px solid #c9fa79;
+}
+@media (forced-colors:active){
+  body.skyhub-gfx .gfx-heading-compass{
+    background:Canvas;border:1px solid CanvasText;box-shadow:none;
+  }
+  body.skyhub-gfx .gfx-heading-north{background:Canvas;color:CanvasText}
+  body.skyhub-gfx .gfx-heading-needle{background:CanvasText}
+  body.skyhub-gfx .gfx-heading-needle::before{border-bottom-color:CanvasText}
+}
+
+
+/* Phase 6 · schematic attitude display. Never animate live field transforms. */
+body.skyhub-gfx .gfx-attitude-dial{
+  grid-column:span 2;min-height:180px;gap:8px;
+}
+body.skyhub-gfx .gfx-attitude-layout{
+  display:grid;grid-template-columns:minmax(125px,1fr) minmax(0,1fr);
+  align-items:center;gap:15px;
+}
+body.skyhub-gfx .gfx-attitude-instrument{
+  position:relative;justify-self:center;
+  width:clamp(125px,15vw,156px);aspect-ratio:1;border-radius:50%;
+  overflow:hidden;border:2px solid #7bb3c2;
+  background:#132b3a;box-shadow:inset 0 0 0 3px #071d2c,0 0 0 1px #294f64;
+}
+body.skyhub-gfx .gfx-attitude-instrument[hidden]{display:none!important}
+body.skyhub-gfx .gfx-attitude-scene{
+  position:absolute;inset:0;overflow:hidden;border-radius:50%;
+}
+body.skyhub-gfx .gfx-attitude-plane{
+  position:absolute;width:320px;height:320px;top:50%;left:50%;
+  margin-left:-160px;margin-top:-160px;transform-origin:center;
+}
+body.skyhub-gfx .gfx-attitude-sky{
+  height:50%;background:linear-gradient(180deg,#153f58,#2b708d);
+}
+body.skyhub-gfx .gfx-attitude-ground{
+  height:50%;background:linear-gradient(180deg,#726244,#3f4a42);
+}
+body.skyhub-gfx .gfx-attitude-horizonline{
+  position:absolute;top:calc(50% - 1px);left:0;width:100%;height:2px;background:#eaf9ff;
+}
+body.skyhub-gfx .gfx-attitude-fixed-wing{
+  position:absolute;left:50%;top:50%;width:68px;height:22px;
+  transform:translate(-50%,-50%);pointer-events:none;
+  border-bottom:2px solid #dcfaab;
+}
+body.skyhub-gfx .gfx-attitude-fixed-wing::before,
+body.skyhub-gfx .gfx-attitude-fixed-wing::after{
+  content:"";position:absolute;top:7px;width:16px;height:2px;background:#dcfaab;
+}
+body.skyhub-gfx .gfx-attitude-fixed-wing::before{left:-4px}
+body.skyhub-gfx .gfx-attitude-fixed-wing::after{right:-4px}
+body.skyhub-gfx .gfx-attitude-readouts{display:grid;gap:10px;min-width:0}
+body.skyhub-gfx .gfx-attitude-readouts>div{display:grid;gap:4px}
+body.skyhub-gfx .gfx-attitude-note{
+  margin:2px 0 0;color:#b4cad8;font-size:10px;line-height:1.45;
+}
+@media(max-width:390px){
+  body.skyhub-gfx .gfx-attitude-layout{
+    grid-template-columns:minmax(110px,1fr) minmax(0,1fr);gap:8px;
+  }
+  body.skyhub-gfx .gfx-attitude-instrument{width:112px}
+  body.skyhub-gfx .gfx-attitude-readouts .gfx-cockpit-value{font-size:18px}
+}
+@media(forced-colors:active){
+  body.skyhub-gfx .gfx-attitude-instrument{border-color:CanvasText;box-shadow:none}
+  body.skyhub-gfx .gfx-attitude-sky{background:Canvas}
+  body.skyhub-gfx .gfx-attitude-ground{background:GrayText}
+  body.skyhub-gfx .gfx-attitude-horizonline,
+  body.skyhub-gfx .gfx-attitude-fixed-wing,
+  body.skyhub-gfx .gfx-attitude-fixed-wing::before,
+  body.skyhub-gfx .gfx-attitude-fixed-wing::after{background:CanvasText;border-color:CanvasText}
+}
+
+
+/* Keep mobile Leaflet zoom separate from the overlay action toolbar. */
+@media(max-width:640px){
+  body.skyhub-gfx.gfx-page-dashboard .map-tools { top: 96px; }
+}
+
+
+/* Phase 8 · Explain field-level data quality without a readiness meter. */
+body.skyhub-gfx .gfx-quality {
+  border:1px solid #4a6c7e;border-radius:10px;
+  padding:11px 12px;margin:0 0 13px;
+  background:rgba(4,19,32,.62);
+}
+body.skyhub-gfx .gfx-quality-head {
+  display:flex;align-items:flex-start;justify-content:space-between;gap:8px;
+}
+body.skyhub-gfx .gfx-quality h3 {
+  margin:0;color:#e6f5fb;letter-spacing:.025em;font-size:13px;line-height:1.4;
+}
+body.skyhub-gfx .gfx-quality-scope{
+  color:#b1cbd6;font:600 10px/1.4 "Cascadia Code",Consolas,monospace;
+  text-align:right;
+}
+body.skyhub-gfx #gfxQualitySummary {
+  color:#d4e8f2;font-size:11px;line-height:1.4;margin:8px 0 9px;
+}
+body.skyhub-gfx .gfx-quality-counts {
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:6px;margin:0;
+}
+body.skyhub-gfx .gfx-quality-counts > div{
+  display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0;
+  padding:7px 8px;border:1px solid #38576a;border-radius:6px;
+  background:#112a3b;
+}
+body.skyhub-gfx .gfx-quality-counts > div:last-child{grid-column:span 2}
+body.skyhub-gfx .gfx-quality-counts dt {
+  min-width:0;color:#c9dbe6;font-size:11px;line-height:1.3;
+}
+body.skyhub-gfx .gfx-quality-counts dd{
+  flex:0 0 auto;margin:0;color:#f0f7ff;
+  font:750 16px/1.1 "Bahnschrift","Segoe UI",sans-serif;
+  font-variant-numeric:tabular-nums;
+}
+body.skyhub-gfx .gfx-quality-counts [data-kind="current"] dd{color:#aeebd5}
+body.skyhub-gfx .gfx-quality-counts [data-kind="stale"] dd,
+body.skyhub-gfx .gfx-quality-counts [data-kind="unverified"] dd{color:#f4cc98}
+body.skyhub-gfx .gfx-quality-help{
+  margin:9px 0 0;color:#acc7d3;font-size:10px;line-height:1.5;
+}
+@media (forced-colors:active) {
+  body.skyhub-gfx .gfx-quality,
+  body.skyhub-gfx .gfx-quality-counts>div {
+    background:Canvas;border-color:CanvasText;
+  }
+  body.skyhub-gfx .gfx-quality-counts dd {color:CanvasText!important}
+}
+
+
+/* Phase 9 · Bounded, disclosure-only field-observation timeline. No flight status. */
+body.skyhub-gfx .gfx-timeline{
+  border:1px solid #38586a;border-radius:9px;
+  margin:0 0 12px;padding:0;background:rgba(6,25,40,.74);
+}
+body.skyhub-gfx .gfx-timeline>summary{
+  cursor:pointer;color:#deeff8;font-size:12px;font-weight:700;
+  padding:12px;min-height:44px;
+}
+body.skyhub-gfx .gfx-timeline>summary:focus-visible,
+body.skyhub-gfx .gfx-timeline button:focus-visible{
+  outline:2px solid #bdf5de;outline-offset:2px;
+}
+body.skyhub-gfx .gfx-timeline-content{padding:0 12px 12px}
+body.skyhub-gfx .gfx-timeline-controls{
+  display:flex;align-items:start;justify-content:space-between;gap:9px;flex-wrap:wrap;
+}
+body.skyhub-gfx .gfx-timeline-controls p{
+  flex:1 1 150px;margin:0;color:#b7cedb;font-size:11px;line-height:1.5;
+}
+body.skyhub-gfx .gfx-timeline-controls button{
+  flex:0 0 auto;min-height:36px;
+}
+body.skyhub-gfx .gfx-timeline #gfxTimelineEmpty,
+body.skyhub-gfx .gfx-timeline .gfx-timeline-footnote{
+  color:#c6d9e2;font-size:11px;line-height:1.5;margin:10px 0 0;
+}
+body.skyhub-gfx .gfx-timeline-list{
+  margin:9px 0 0;padding:0;list-style:none;
+  display:grid;gap:5px;max-height:220px;overflow-y:auto;
+}
+body.skyhub-gfx .gfx-timeline-item{
+  display:grid;grid-template-columns:auto minmax(0,1fr);gap:9px;
+  padding:7px 8px;border-left:2px solid #668e9e;border-radius:3px;
+  background:#132e41;color:#dbedf5;font-size:11px;line-height:1.4;
+}
+body.skyhub-gfx .gfx-timeline-item[data-kind="stale"],
+body.skyhub-gfx .gfx-timeline-item[data-kind="unverified"]{border-left-color:#eccb99}
+body.skyhub-gfx .gfx-timeline-item[data-kind="current"]{border-left-color:#adddc5}
+body.skyhub-gfx .gfx-timeline-item time{
+  color:#c3dbe8;white-space:nowrap;font-variant-numeric:tabular-nums;
+  font-family:"Cascadia Code",Consolas,monospace;
+}
+body.skyhub-gfx .gfx-timeline-item strong{font-weight:700}
+@media (forced-colors:active){
+  body.skyhub-gfx .gfx-timeline,body.skyhub-gfx .gfx-timeline-item{
+    background:Canvas;color:CanvasText;border-color:CanvasText;
+  }
+}
+
+
+/* Phase 10: bounded diagnostic digest, never a simulated signal-strength or
+   flight-readiness meter. Stable textual counts, always tied to the retained list. */
+body.skyhub-gfx .gfx-timeline-digest{
+  padding:10px;margin:10px 0 8px;
+  border:1px solid #436879;border-radius:8px;background:#0d2638;
+}
+body.skyhub-gfx .gfx-timeline-digest h4{
+  margin:0;color:#e7f8fc;font-size:12px;line-height:1.4;
+}
+body.skyhub-gfx .gfx-timeline-digest h5{
+  margin:10px 0 6px;color:#d5eaf4;font-size:11px;line-height:1.4;
+}
+body.skyhub-gfx #gfxTimelineSummary,
+body.skyhub-gfx #gfxTimelineTopEmpty,
+body.skyhub-gfx .gfx-timeline-digest-note{
+  font-size:11px;line-height:1.5;margin:6px 0 0;color:#bfdae4;
+}
+body.skyhub-gfx .gfx-timeline-top{
+  padding:0;margin:0;display:grid;gap:5px;list-style:none;
+}
+body.skyhub-gfx .gfx-timeline-top li{
+  display:flex;justify-content:space-between;align-items:center;
+  gap:8px;padding:7px 8px;background:#143349;border-radius:5px;
+  border-left:2px solid #dfbd89;color:#ebf7fc;font-size:11px;
+}
+body.skyhub-gfx .gfx-timeline-top li strong{
+  flex:0 0 auto;font-variant-numeric:tabular-nums;
+}
+@media (forced-colors:active){
+  body.skyhub-gfx .gfx-timeline-digest,
+  body.skyhub-gfx .gfx-timeline-top li{
+    background:Canvas;border-color:CanvasText;color:CanvasText;
+  }
+}

@@ -63,3 +63,27 @@ Primäre Aktionen sind beschriftete Buttons mit Hover-, deaktiviertem und sichtb
 - Kartenelemente und Live-Telemetrie begrifflich unterscheiden.
 - Keine aktive Flugsteuerung durch dekorative Buttons oder vermeintliche Missionsaktionen suggerieren.
 - Farbe nicht als einzigen Träger von Warnungen oder Auswahl verwenden.
+
+## Experimenteller Branch · SKY//PULSE GFX (24.10.2026)
+
+Der Branch `feature/hyperframes-gfx-ui-rework-20261024` enthält eine rein optische Variante der Einsatzoberfläche. Bestehende DJI-/API-Fachregeln bleiben unverändert.
+
+- **Nordstern:** ablesbares Telemetrie-Instrument im Stil eines präzisen Avionikdisplays statt eines Film-HUD mit erfundenen Werten.
+- **Runtime-Tokens:** `frontend/public/hyperframes-gfx.css` als zentraler Owner der GFX-Variante. Deep `#07101c`, Panel `#101e30`, Signal cyan `#67e8f9`, Auswahl lime `#c9fa79`, Text `#f2f8ff`, Hinweis amber `#ffc37c`. HMS-Warnstufen behalten ihre Fachsemantik.
+- **Typography:** Bahnschrift SemiCondensed für Logo und Kennzahlen, Bahnschrift/Segoe UI/System für Daten, Cascadia Code/Consolas für technische Labels; ohne Fontdownloads.
+- **Signatur:** transparentes, nicht interaktives Kartenradar und eine semantische Modulnavigation zusätzlich zu den Operations/TAK-Tabs.
+- **Navigation:** `frontend/public/hyperframes-gfx.js` ergänzt fünf feste interne Routen mit `aria-current`; ursprüngliche Headerlinks bilden den No-JS-Fallback.
+- **Motion:** Dekorative CSS-Bewegung statt animierter Echtzeitwerte. `prefers-reduced-motion` und `forced-colors` sperren die Animationen.
+- **Sicherheit:** keine erfundenen Connected-, RTK-, Flight-Ready- oder Exportzustände; Raster und Radar sind keine Positions- oder Sicherheitsnachweise.
+- **Layout:** gut sichtbarer Fokus, Skip-Links, bedienbare Seitenleiste im Karten-Fokusmodus; unter 961 px Dokumentenscroll statt aufgezwungenem Layout.
+
+Vor einer Produktivübernahme sind reale Browser- und Hardware-Abnahmen erforderlich.
+
+### Kursinstrument (GFX-Variante)
+
+Die 48px-Kursrose im Heading-Instrument nutzt Cyan/Lime-Kontrast gegen Deep-Panel. Die 0°-Nordreferenz ist als N markiert, die aus DJI-Heading abgeleitete Richtung wird nur bei explizit aktueller, zeitgeprüfter Meldung dargestellt. Keine flugbereitschaftssignalisierende Bewegung; unbekannte/stale Quelle blendet die Rose aus. Im High-Contrast-Modus kommen `Canvas` und `CanvasText` zum Einsatz. Fachliche Zustandskommunikation bleibt textbasiert und gehört dem Telemetrie-Zeitprüfer.
+
+
+### Künstlicher Horizont (GFX-Variante)
+
+Zweifarbige, kreisförmig beschnittene Lagefläche (Sky/State) mit fester Luftfahrzeugmarkierung; Textwerte für Pitch und Roll daneben. Die Szene ist nur bei unabhängig bestätigter Zeitfrische beider DJI-Messwerte sichtbar und wird sonst ausgeblendet. Keine Animation der Messwert-Geometrie, keine übergestülpte Flugbereitschaftssemantik. Die Zeichenfläche ist dekorativ; der Screenreader erhält die Zahlen und per-Feld-Zeitstatus. Unter 390 px bleibt das Instrument in einer zweispaltigen, kompakten Ansicht.

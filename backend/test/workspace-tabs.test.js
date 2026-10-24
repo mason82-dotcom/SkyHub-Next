@@ -95,7 +95,7 @@ test('Exactly one semantic main landmark contains both tab panels',()=>{
   const mainCloses=[...html.matchAll(/<\/main>/g)];
   assert.equal(mainOpens.length,1);
   assert.equal(mainCloses.length,1);
-  const start=html.indexOf('<main id="skyhubMain">');
+  const start=html.search(/<main id="skyhubMain"(?:\s[^>]*)?>/);
   assert.ok(start>=0,'main landmark is present');
   const end=html.indexOf('</main>',start);
   assert.ok(end>start,'main landmark is closed');

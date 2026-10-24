@@ -27,13 +27,17 @@ p{line-height:1.5}.muted{color:#a8bdd0;font-size:12px}
 #points{padding-left:20px;font-size:12px;color:#c7def0}#points li{padding:4px 0}
 @media(max-width:850px){main{grid-template-columns:1fr;height:auto}.map-shell{height:45vh;min-height:300px}aside{border:0;border-top:1px solid var(--edge)}}
 </style>
+<link rel="stylesheet" href="/hyperframes-gfx.css">
+<script src="/hyperframes-gfx.js" defer></script>
 </head>
-<body>
+<body class="skyhub-gfx gfx-page-survey" data-gfx-motion="off">
+<a class="gfx-skip" href="#gfxMain">Zum Hauptinhalt springen</a>
 <header>
 <h1>SkyHub <span>2D-Vermessungsvorschau</span></h1>
 <nav><a href="/wpml-editor.html">Wegpunkteditor</a> · <a href="/">Dashboard</a></nav>
+  <button id="gfxMotionToggle" class="gfx-motion-toggle" type="button" hidden aria-pressed="false" aria-label="Visuelle Animationen einschalten">GFX · AUS</button>
 </header>
-<main>
+<main id="gfxMain" tabindex="-1">
 <section class="map-shell" aria-label="2D-Vermessungskarte">
 <div id="map" aria-label="Survey-Grenze und Schätzlinien"></div>
 <div class="instructions">Kartenklick setzt Polygon-Eckpunkte. Gelbe Linien sind <strong>geometrische Aufnahmeabschnitte</strong>, rote Striche ausschließlich <strong>ungeplante Lücken</strong>. Keine DJI-Waylines.</div>
