@@ -3,6 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const {requireCatalogTransport} = require('./m3m-catalog-transport');
 
 const MANIFEST = 'catalog-manifest.json';
 const SCHEMA = 'skyhub-m3m-smart-farming-catalog-manifest-v1';
@@ -136,6 +137,7 @@ function createSmartFarmingCatalogRouter({express, auth, root, manifestSha256}) 
   const options = validateOptions({root, manifestSha256});
   const router = express.Router();
   router.use(auth);
+  router.use(requireCatalogTransport);
   router.use((_req, res, next) => {
     res.set('Cache-Control', 'no-store');
     res.set('X-Content-Type-Options', 'nosniff');
