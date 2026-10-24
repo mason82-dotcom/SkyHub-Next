@@ -15,6 +15,11 @@
 6. [Konfigurationsreferenz: Compose, Env und Feature-Flags](config-reference.md)
 7. [API-Referenz: HTTP, Socket.IO, MQTT, Autorisierung](api-reference.md)
 
+## Smart Farming – neue Fach-Roadmap (24.10.2026)
+
+- [Smart-Farming-Roadmap 2.1: quantitative M3M-Messdaten, wissenschaftliche QA, GIS, Agronomie und Release-Gates](smart-farming-roadmap-2026-10-24.md) – **Planung, keine Produktivfreigabe**.
+- [Experimentelle M3M-Konsolidierung PR #104](https://github.com/mason82-dotcom/SkyHub-Next/pull/104) – **Draft; CI und reale Kalibrierungsabnahme offen**.
+
 ## Technische Referenz des Hauptbranches
 
 **DJI-Missionsbeobachtung: #74/#78/#83 und Multi-Missions-Router #108 in `main`:** [Statusautomat](dji-rpc-lifecycle-observation.md), [read-only Reply-Adapter](dji-flighttask-rpc-integration.md), [isoliertes CAS-Journal](dji-flighttask-durable-journal.md), [Offline-Retention](dji-flighttask-journal-retention.md) und [optionale Workspace-Autorisierung](dji-flighttask-journal-access.md) und [experimentelles Multi-Missions-Routing](dji-flighttask-multimission-router.md). Die Module sind **nicht in die aktive DJI-Laufzeit eingebunden**; kein produktives SQL-Deployment oder freigegebener Identity Provider.
