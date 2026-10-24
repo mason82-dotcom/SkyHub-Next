@@ -7,7 +7,7 @@
 <meta name="robots" content="noindex,nofollow">
 <title>SkyHub Next · Offline-Routenbibliothek</title>
 <style>
-:root{color-scheme:dark;font:14px system-ui;background:#071525;color:#e4f4ff}
+:root{color-scheme:light;font:14px system-ui;background:#071525;color:#e4f4ff}
 *{box-sizing:border-box}body{margin:0}header{padding:14px 20px;border-bottom:1px solid #38546b}
 h1{font-size:19px;margin:0 0 6px}h2{font-size:16px}h3{font-size:14px}
 main{display:grid;grid-template-columns:minmax(270px,340px) minmax(330px,1fr);gap:16px;padding:16px}
@@ -24,13 +24,21 @@ button:disabled{opacity:.4;cursor:not-allowed}.row{display:flex;gap:8px;flex-wra
 code{font-size:12px}a{color:#9de5fb}hr{border:0;border-top:1px solid #375b72;margin:18px 0}
 @media(max-width:850px){main{grid-template-columns:1fr}}
 </style>
-</head><body>
+<link rel="stylesheet" href="/skyhub-light.css">
+</head><body data-skyhub-page="routes">
+<a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
 <header>
 <h1>SkyHub Next · Lokale Routenbibliothek</h1>
 <div class="caption">P0 Missionsrevisionen · P1 geordnete Wegpunktaktionen · Kein DJI-Flugauftrag</div>
-<nav><a href="/wpml-editor.html">Zum einfachen Wegpunkteditor</a> · <a href="/">Dashboard</a></nav>
+<nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
+  <a href="/">Übersicht</a>
+  <a href="/wpml-editor.html">Missionen</a>
+  <a href="/wpml-route-library.html" aria-current="page">Routen</a>
+  <a href="/wpml-survey-preview.html">Survey</a>
+  <a href="/smart-farming.html">Smart Farming</a>
+</nav>
 </header>
-<main>
+<main id="skyhubMain" tabindex="-1">
 <section aria-label="Routenverwaltung">
 <h2>P0 · Routenbibliothek</h2>
 <p class="caption">Nur nach Klick auf „Revision speichern“ werden Missionsdaten samt GPS-Koordinaten im <strong>lokalen Browser-Speicher im Klartext</strong> hinterlegt. Nicht auf gemeinsam genutzten Geräten verwenden. Keine Synchronisation mit SkyHub-Server oder DJI.</p>

@@ -81,7 +81,8 @@ test('Smart Farming page is separate and includes no geospatial tile/map rendere
 test('main dashboard has a discoverable navigation link',()=>{
   const src=fs.readFileSync(path.resolve(__dirname,'../public/index.html'),'utf8');
   assert.match(src,/href="\/smart-farming.html"/);
-  assert.match(src,/aria-label="SkyHub-Module"/);
+  assert.match(src,/aria-label="SkyHub-Bereiche"/);
+  assert.match(src,/<nav class="skyhub-global-nav"/);
 });
 
 test('M3M access-token transport rejects unencrypted LAN and credential-bearing origins',()=>{

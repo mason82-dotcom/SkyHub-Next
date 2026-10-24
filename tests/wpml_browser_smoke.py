@@ -89,6 +89,114 @@ def check(condition, message: str):
     if not condition:
         raise AssertionError(message)
 
+def assert_light_theme(page, active_href: str, name: str) -> None:
+    """Verify actual computed shared CSS, unique module navigation and no page overflow."""
+    state = page.evaluate("""() => ({
+        sheet: [...document.styleSheets].some(s => s.href?.endsWith('/skyhub-light.css')),
+        colorScheme: getComputedStyle(document.documentElement).colorScheme,
+        background: getComputedStyle(document.body).backgroundColor,
+        scrollWidth: document.documentElement.scrollWidth,
+        viewportWidth: window.innerWidth,
+        navigation: [...document.querySelectorAll('.skyhub-global-nav a')].map(a => ({
+            href: a.getAttribute('href'),
+            current: a.getAttribute('aria-current'),
+            fullyVisible: (() => {
+                const nav = a.closest('.skyhub-global-nav').getBoundingClientRect();
+                const rect = a.getBoundingClientRect();
+                return rect.left >= nav.left - 1 && rect.right <= nav.right + 1 &&
+                       rect.top >= nav.top - 1 && rect.bottom <= nav.bottom + 1;
+            })()
+        })),
+        // Layout only: never include route names, input values or GPS in CI diagnostics.
+        overflowElements: document.documentElement.scrollWidth > window.innerWidth + 1
+          ? [...document.body.querySelectorAll('*')]
+              .map(el => {
+                  const r = el.getBoundingClientRect();
+                  return {
+                      tag: el.tagName.toLowerCase(),
+                      id: el.id || null,
+                      cls: typeof el.className === 'string' ? el.className.slice(0, 60) : null,
+                      left: Math.round(r.left),
+                      right: Math.round(r.right),
+                      width: Math.round(r.width)
+                  };
+              }).filter(r => r.right > window.innerWidth + 1 || r.left < -1)
+              .slice(0, 20)
+          : []
+    })""")
+    check(state["sheet"], name + ": actual shared light CSS was not loaded")
+    check(state["colorScheme"] == "light" and
+          state["background"] == "rgb(243, 246, 251)",
+          name + ": computed light palette mismatch: " + str(state))
+    check(state["scrollWidth"] <= state["viewportWidth"] + 1,
+          name + ": page overflows screen: " + str(state))
+    check(len(state["navigation"]) == 5,
+          name + ": expected five operator module navigation links")
+    check(all(a["fullyVisible"] for a in state["navigation"]),
+          name + ": operator navigation clips a module on this viewport")
+    check([a["href"] for a in state["navigation"] if a["current"] == "page"]
+          == [active_href], name + ": active module mismatch")
+
+
+def assert_skip_link(page, name: str) -> None:
+    """The first keyboard tab can skip the module header to the main landmark."""
+    page.keyboard.press("Tab")
+    focused = page.evaluate("""() => ({
+        skip: document.activeElement.classList.contains('skyhub-skip-link'),
+        top: document.activeElement.getBoundingClientRect().top,
+        bottom: document.activeElement.getBoundingClientRect().bottom,
+        view: window.innerHeight
+    })""")
+    check(focused["skip"] and focused["top"] >= 0 and
+          focused["bottom"] <= focused["view"],
+          name + ": skip link not keyboard-visible")
+    page.keyboard.press("Enter")
+    state = page.evaluate("""() => ({
+        hash: location.hash,
+        target: document.activeElement.id
+    })""")
+    check(state == {"hash": "#skyhubMain", "target": "skyhubMain"},
+          name + ": skip navigation failed")
+
+
+def assert_system_accessibility(page, name: str) -> None:
+    """Check high contrast, selected navigation and reduced-motion without changing app data."""
+    page.emulate_media(forced_colors="active", reduced_motion="reduce")
+    state = page.evaluate("""() => {
+        const current=document.querySelector('.skyhub-global-nav a[aria-current="page"]');
+        return {
+            forced:matchMedia('(forced-colors: active)').matches,
+            reduced:matchMedia('(prefers-reduced-motion: reduce)').matches,
+            canvas:getComputedStyle(document.documentElement).getPropertyValue('--sky-bg').trim(),
+            outline:getComputedStyle(current).outlineWidth,
+            transition:getComputedStyle(current).transitionDuration
+        };
+    }""")
+    check(state == {"forced": True, "reduced": True, "canvas": "Canvas",
+                    "outline": "2px", "transition": "0s"},
+          name + ": system accessibility fallback missing: " + str(state))
+    page.emulate_media(forced_colors="none", reduced_motion="no-preference")
+
+
+def assert_map_help_clear(page, selector: str, name: str) -> None:
+    """Instruction text must not be obscured by Leaflet zoom buttons."""
+    state = page.evaluate("""selector => {
+        const zoom = document.querySelector('.leaflet-control-zoom');
+        const help = document.querySelector(selector);
+        if (!zoom || !help) return null;
+        const a = zoom.getBoundingClientRect();
+        const b = help.getBoundingClientRect();
+        return {
+            overlaps: a.left < b.right && a.right > b.left &&
+                      a.top < b.bottom && a.bottom > b.top,
+            zoom: [a.left, a.right, a.top, a.bottom],
+            help: [b.left, b.right, b.top, b.bottom]
+        };
+    }""", selector)
+    check(state is not None, name + ": missing map help or zoom control")
+    check(not state["overlaps"], name + ": map help covered by Leaflet: " + str(state))
+
+
 def review(page) -> str:
     return page.locator("#mission-review").inner_text()
 
@@ -123,6 +231,10 @@ def main() -> None:
                     guard(page, base, real_map=True, unexpected=unexpected)
                     page.goto(base + "/wpml-editor.html", wait_until="load")
                     page.locator(".leaflet-container").wait_for()
+                    assert_light_theme(page, "/wpml-editor.html", "WPML editor desktop")
+                    assert_skip_link(page, "WPML editor desktop")
+                    assert_system_accessibility(page, "WPML editor desktop")
+                    assert_map_help_clear(page, ".map-overlay", "WPML editor desktop")
                     check(page.locator('a[href="/wpml-route-library.html"]').count() == 1,
                           "Parent-branch route-library navigation must survive merge")
                     check(page.locator("#waypoints [role=listitem]").count() == 0,
@@ -205,7 +317,20 @@ def main() -> None:
                     page.locator("#takeoff").fill("0")
                     check("Sicherheitssteighöhe" in review(page),
                           "Invalid takeoff height not flagged")
+                    page.locator("#speed").focus()
+                    invalid_style = page.locator("#takeoff").evaluate("""el => ({
+                        invalid: el.matches(':user-invalid'),
+                        border: getComputedStyle(el).borderTopColor,
+                        inset: getComputedStyle(el).boxShadow
+                    })""")
+                    check(invalid_style["invalid"], "Edited invalid number must be identified")
+                    check(invalid_style["border"] == "rgb(180, 35, 40)" and
+                          "inset" in invalid_style["inset"],
+                          "Light theme native-invalid field styling is missing")
                     page.locator("#takeoff").fill("30")
+                    page.locator("#speed").focus()
+                    check(not page.locator("#takeoff").evaluate("el => el.matches(':user-invalid')"),
+                          "Corrected number must clear the native-invalid state")
                     page.screenshot(path=str(ARTIFACT_DIR / "desktop-review.png"),
                                     full_page=True)
                     check(not unexpected, "Nonlocal network access or write attempted")
@@ -220,6 +345,9 @@ def main() -> None:
                     phone.on("dialog", lambda dialog: dialog.accept())
                     guard(phone, base, real_map=False, unexpected=unexpected_mobile)
                     phone.goto(base + "/wpml-editor.html", wait_until="load")
+                    assert_light_theme(phone, "/wpml-editor.html", "WPML editor 390px")
+                    assert_skip_link(phone, "WPML editor 390px")
+                    assert_system_accessibility(phone, "WPML editor 390px")
                     check("manuell" in phone.locator("#map").inner_text(),
                           "Map outage fallback message missing")
                     width = phone.evaluate("""() => ({
@@ -254,6 +382,10 @@ def main() -> None:
                     route_page.on("dialog", lambda dlg: dlg.accept())
                     guard(route_page, base, real_map=False, unexpected=outbound)
                     route_page.goto(base + "/wpml-route-library.html", wait_until="load")
+                    assert_light_theme(route_page, "/wpml-route-library.html",
+                                       "Route library desktop")
+                    assert_skip_link(route_page, "Route library desktop")
+                    assert_system_accessibility(route_page, "Route library desktop")
                     route_page.locator("#route-name").fill("Synthetic browser-only route")
                     for idx, (lat, lon) in enumerate([("49.12345", "8.56789"),
                                                        ("49.12445", "8.56889")]):
@@ -302,6 +434,16 @@ def main() -> None:
                         path=str(ARTIFACT_DIR / "local-route-backup-synthetic.png"),
                         full_page=True
                     )
+                    for width_px in (390, 320):
+                        route_page.set_viewport_size({"width": width_px, "height": 844})
+                        assert_light_theme(route_page, "/wpml-route-library.html",
+                                           "Route library " + str(width_px) + "px")
+                        check(route_page.locator("#backup-export").is_visible(),
+                              "Mobile route-backup action must remain visible")
+                    route_page.screenshot(
+                        path=str(ARTIFACT_DIR / "local-route-mobile-320.png"),
+                        full_page=True
+                    )
                     check(not outbound, "Backup workflow attempted off-origin or write request")
                     check(not library_errors, "Library browser errors: " +
                           " | ".join(library_errors[:2]))
@@ -318,6 +460,11 @@ def main() -> None:
                     guard(survey, base, real_map=True, unexpected=survey_requests)
                     survey.goto(base + "/wpml-survey-preview.html", wait_until="load")
                     survey.locator(".leaflet-container").wait_for()
+                    assert_light_theme(survey, "/wpml-survey-preview.html",
+                                       "Survey desktop")
+                    assert_skip_link(survey, "Survey desktop")
+                    assert_system_accessibility(survey, "Survey desktop")
+                    assert_map_help_clear(survey, ".instructions", "Survey desktop")
                     outer = [[8, 49], [8.0018, 49], [8.0018, 49.0011],
                              [8, 49.0011], [8, 49]]
                     hole = [[8.0006, 49.0003], [8.0012, 49.0003],
@@ -409,15 +556,64 @@ def main() -> None:
                           "Reference mode cannot grant flight readiness")
                     survey.screenshot(path=str(ARTIFACT_DIR / "synthetic-survey-exclusion.png"),
                                       full_page=True)
+                    for width_px in (390, 320):
+                        survey.set_viewport_size({"width": width_px, "height": 844})
+                        assert_light_theme(survey, "/wpml-survey-preview.html",
+                                           "Survey " + str(width_px) + "px")
+                        assert_map_help_clear(survey, ".instructions",
+                                              "Survey mobile " + str(width_px) + "px")
+                        check(survey.locator("#preview").is_visible(),
+                              "Mobile survey preview action must remain visible")
+                    survey.screenshot(path=str(ARTIFACT_DIR / "synthetic-survey-mobile-320.png"),
+                                      full_page=True)
                     check(not survey_requests, "Survey attempted outbound or non-GET request")
                     check(not survey_errors,
                           "Survey JS errors: " + " | ".join(survey_errors[:2]))
                     survey_ctx.close()
 
+                    # Real link clicks across the four offline/operator views. This
+                    # context never sees production credentials or external services.
+                    # Local-only requests must stay GET; the guard rejects all writes.
+                    for nav_width in (320, 390):
+                        nav_ctx = browser.new_context(
+                            viewport={"width": nav_width, "height": 844})
+                        nav_page = nav_ctx.new_page()
+                        nav_requests, nav_errors = [], []
+                        nav_page.on("pageerror",
+                                    lambda error: nav_errors.append(str(error)))
+                        nav_page.on("dialog", lambda dialog: dialog.accept())
+                        guard(nav_page, base, real_map=True, unexpected=nav_requests)
+                        nav_page.goto(base + "/wpml-editor.html", wait_until="load")
+                        assert_light_theme(nav_page, "/wpml-editor.html",
+                                           "Navigation initial " + str(nav_width))
+                        journey = [
+                            ("/wpml-route-library.html", "Route library"),
+                            ("/wpml-survey-preview.html", "Survey"),
+                            ("/smart-farming.html", "Smart Farming"),
+                            ("/wpml-editor.html", "WPML editor")
+                        ]
+                        for target, title in journey:
+                            nav_page.locator(
+                                '.skyhub-global-nav a[href="' + target + '"]').click()
+                            nav_page.wait_for_url(base + target, wait_until="load")
+                            assert_light_theme(
+                                nav_page, target,
+                                "Navigation " + title + " " + str(nav_width))
+                            check(nav_page.locator('a[aria-current="page"]').count() == 1,
+                                  "Exactly one nav item must be selected after click")
+                            check(nav_page.locator('main#skyhubMain').count() == 1,
+                                  "Semantic main landmark lost after navigation")
+                        check(not nav_requests,
+                              "Cross-module navigation attempted unexpected outbound/write request")
+                        check(not nav_errors,
+                              "Cross-module JS errors: " + " | ".join(nav_errors[:2]))
+                        nav_ctx.close()
+
 
                     print("Chromium survey hole import, red transition gaps and safe GeoJSON preview PASS")
                     print("Chromium route library: local backup, redacted preview, confirmed restore PASS")
-                    print("Chromium desktop (real Leaflet) and 390px mobile (offline fallback): PASS")
+                    print("Chromium WPML desktop and 390px / 320px mobile light-CSS / overflow: PASS")
+                    print("Mobile 320px and 390px real cross-module links, no writes or errors: PASS")
                     print("No DJI/MQTT/SkyHub write requests; KMZ verified locally; no flight approval.")
                 finally:
                     browser.close()

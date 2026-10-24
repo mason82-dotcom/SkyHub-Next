@@ -10,7 +10,7 @@
   let map=null,markers=[],line=null,hasFit=false;
   const renderMessage=(message,error=false)=>{
     $('message').textContent=message;
-    $('message').style.color=error?'#ffcb7d':'#ccebf7';
+    $('message').style.color=error?'var(--sky-warning)':'var(--sky-ink)';
   };
   if(typeof window.L==='object'&&typeof window.L.map==='function'){
     map=L.map('map',{zoomControl:true}).setView([50.5,10.4],6);
@@ -184,7 +184,7 @@
       markers.push(marker);
     }
     if(points.length>1){
-      line=L.polyline(points.map(p=>[p.lat,p.lon]),{color:'#44c6e5',weight:4,opacity:.9}).addTo(map);
+      line=L.polyline(points.map(p=>[p.lat,p.lon]),{color:'#2458d3',weight:4,opacity:.9}).addTo(map);
     }
     if(!hasFit){fitRoute();hasFit=true;}
   }
@@ -220,7 +220,7 @@
     referenceApply.disabled=true;
     referenceDiscard.disabled=true;
     referencePreview.textContent=message;
-    referencePreview.style.color=error?'#ffcb7d':'#a8bdd0';
+    referencePreview.style.color=error?'var(--sky-warning)':'var(--sky-muted)';
   }
   $('waylines-reference-file').addEventListener('change',async event=>{
     const input=event.currentTarget;

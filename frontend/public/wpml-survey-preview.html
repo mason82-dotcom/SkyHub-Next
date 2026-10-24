@@ -6,7 +6,7 @@
 <title>SkyHub · 2D-Vermessungsvorschau</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
-:root{color-scheme:dark;--bg:#081321;--panel:#102338;--edge:#305069;--accent:#44c6e5}
+:root{color-scheme:light;--bg:#081321;--panel:#102338;--edge:#305069;--accent:#44c6e5}
 *{box-sizing:border-box}body{background:var(--bg);color:#f0f7ff;margin:0;font:14px system-ui,"Segoe UI",sans-serif}
 header{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:14px 18px;border-bottom:1px solid var(--edge)}
 h1{font-size:18px;margin:0}header span{color:var(--accent)}a{color:#9ceaff}
@@ -27,13 +27,21 @@ p{line-height:1.5}.muted{color:#a8bdd0;font-size:12px}
 #points{padding-left:20px;font-size:12px;color:#c7def0}#points li{padding:4px 0}
 @media(max-width:850px){main{grid-template-columns:1fr;height:auto}.map-shell{height:45vh;min-height:300px}aside{border:0;border-top:1px solid var(--edge)}}
 </style>
+<link rel="stylesheet" href="/skyhub-light.css">
 </head>
-<body>
+<body data-skyhub-page="survey">
+<a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
 <header>
 <h1>SkyHub <span>2D-Vermessungsvorschau</span></h1>
-<nav><a href="/wpml-editor.html">Wegpunkteditor</a> · <a href="/">Dashboard</a></nav>
+<nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
+  <a href="/">Übersicht</a>
+  <a href="/wpml-editor.html">Missionen</a>
+  <a href="/wpml-route-library.html">Routen</a>
+  <a href="/wpml-survey-preview.html" aria-current="page">Survey</a>
+  <a href="/smart-farming.html">Smart Farming</a>
+</nav>
 </header>
-<main>
+<main id="skyhubMain" tabindex="-1">
 <section class="map-shell" aria-label="2D-Vermessungskarte">
 <div id="map" aria-label="Survey-Grenze und Schätzlinien"></div>
 <div class="instructions">Kartenklick setzt Polygon-Eckpunkte. Gelbe Linien sind <strong>geometrische Aufnahmeabschnitte</strong>, rote Striche ausschließlich <strong>ungeplante Lücken</strong>. Keine DJI-Waylines.</div>
@@ -59,7 +67,7 @@ p{line-height:1.5}.muted{color:#a8bdd0;font-size:12px}
 <p class="muted">Alle Werte müssen zur <strong>tatsächlich gewählten Kamera und Linse</strong> gehören. Keine voreingestellten Mavic-/Matrice-Kameradaten; gerade bei Mavic 3M dürfen RGB- und Multispektralkameras nicht verwechselt werden. Höhe ist tatsächliche AGL-Höhe, nicht Höhe über Startpunkt.</p>
 <fieldset id="optics-fields" hidden style="border:1px solid var(--edge);padding:12px;border-radius:9px">
 <label for="camera-mode">Aufnahmereferenz (optional, DJI Mavic 3M)</label>
-<select id="camera-mode" style="width:100%;background:#173248;color:white;border:1px solid #476981;border-radius:8px;padding:9px 10px">
+<select id="camera-mode" style="width:100%">
 <option value="manual" selected>Manuell / unbekannte Kamera – keine DJI-Referenzannahme</option>
 <option value="m3m-rgb-jpeg">Mavic 3M – RGB JPEG (DJI Minimum 0,7 s)</option>
 <option value="m3m-rgb-jpeg-raw">Mavic 3M – RGB JPEG + DNG (DJI Minimum 3 s)</option>

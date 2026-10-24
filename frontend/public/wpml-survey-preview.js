@@ -10,7 +10,7 @@
   const points=[];let importedGeometry=null,map=null,polygon=null,markers=[],lines=[],photoMarkers=[],report=null,photoReport=null,captureReport=null,firstFit=false;
   const feedback=(txt,error=false)=>{
     $('status').textContent=txt;
-    $('status').style.color=error?'#ffdda6':'#e5f7ff';
+    $('status').style.color=error?'var(--sky-warning)':'var(--sky-ink)';
   };
   if(typeof window.L==='object'&&typeof window.L.map==='function'){
     map=L.map('map').setView([50.5,10.4],6);
@@ -71,28 +71,28 @@
       markers.push(m);
     });
     if(importedGeometry)polygon=L.geoJSON(importedGeometry,{
-      style:()=>({color:'#44c6e5',fillColor:'#44c6e5',fillOpacity:.12,weight:2})
+      style:()=>({color:'#2458d3',fillColor:'#2458d3',fillOpacity:.12,weight:2})
     }).addTo(map);
     else if(points.length>=3)polygon=L.polygon(points.map(p=>[p.lat,p.lon]),{
-      color:'#44c6e5',fillColor:'#44c6e5',fillOpacity:.12,weight:2
+      color:'#2458d3',fillColor:'#2458d3',fillOpacity:.12,weight:2
     }).addTo(map);
     else if(points.length===2)polygon=L.polyline(points.map(p=>[p.lat,p.lon]),{
-      color:'#44c6e5',weight:2
+      color:'#2458d3',weight:2
     }).addTo(map);
     if(report)for(const seg of report.segments){
       lines.push(L.polyline([[seg.start.lat,seg.start.lon],[seg.end.lat,seg.end.lon]],{
-        color:'#ffcc68',weight:3,opacity:.93
+        color:'#b46d12',weight:3,opacity:.93
       }).addTo(map));
     }
     if(report)for(const gap of report.unplannedTransitions){
       lines.push(L.polyline([[gap.from.lat,gap.from.lon],[gap.to.lat,gap.to.lon]],{
-        color:'#ff866b',weight:2,opacity:.8,dashArray:'5,9'
+        color:'#b42328',weight:2,opacity:.8,dashArray:'5,9'
       }).addTo(map));
     }
     if(captureReport&&$('show-photo-centers').checked){
       for(const p of captureReport.photoCenters)
         photoMarkers.push(L.circleMarker([p.lat,p.lon],{
-          radius:3,color:'#f5c85c',weight:1,opacity:.85,fillOpacity:.85
+          radius:3,color:'#b46d12',weight:1,opacity:.85,fillOpacity:.85
         }).addTo(map));
     }
     if(!firstFit&&(points.length||importedGeometry)){fit();firstFit=true;}
