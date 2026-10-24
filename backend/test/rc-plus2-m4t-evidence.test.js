@@ -3,7 +3,7 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const {
-  makePreflightEvidence,makeLiveEvidence
+  makePreflightEvidence,makeLiveEvidence,validateLiveEvidenceReceipt
 }=require('../rc-plus2-m4t-evidence');
 
 const NOW=new Date('2026-10-24T09:00:00.000Z');
@@ -94,4 +94,26 @@ test('missing parser and unbounded counts map to null, not zero or guessed accep
 test('invalid live reports are rejected before JSON serialization',()=>{
   assert.throws(()=>makeLiveEvidence({},NOW));
   assert.throws(()=>makeLiveEvidence({...data,passed:'yes'},NOW));
+});
+test('stale OSD age is preserved (up to one year), absurd values map to null',()=>{
+  const age=v=>makeLiveEvidence({...data,aircraft:{...data.aircraft,osdAgeSeconds:v}},NOW).aircraft.osdAgeSeconds;
+  assert.equal(age(5000),5000);
+  assert.equal(age(86400*30),86400*30);
+  assert.equal(age(86400*400),null);
+});
+test('receipt validation rejects impossible combinations of result and sub-facts',()=>{
+  const r=makeLiveEvidence({
+    passed:false,transportPassed:false,pairingConfirmed:false,
+    transport:{},pairing:{available:false},candidateCount:{linkedPairs:0},
+    controller:{},aircraft:{}
+  },NOW);
+  assert.equal(validateLiveEvidenceReceipt(r),true);
+  // INCOMPLETE although both gates claim to pass
+  const both={...r,transport:{...r.transport,transportPassed:true},pairing:{...r.pairing,independentlyConfirmed:true}};
+  assert.equal(validateLiveEvidenceReceipt(both),false);
+  // transportPassed without the facts it requires
+  assert.equal(validateLiveEvidenceReceipt({...r,transport:{...r.transport,transportPassed:true}}),false);
+  // field counts without a field interface
+  assert.equal(validateLiveEvidenceReceipt({...r,aircraft:{...r.aircraft,staticFieldsDocumented:202}}),false);
+  assert.equal(validateLiveEvidenceReceipt({...r,pairing:{...r.pairing,independentlyConfirmed:true}}),false);
 });
