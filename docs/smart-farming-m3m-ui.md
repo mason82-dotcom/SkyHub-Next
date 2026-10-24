@@ -24,8 +24,15 @@ Das Token wird weder in eine URL noch in Local-/Session-Storage
 geschrieben und nach der Anfrage aus dem Eingabefeld gelöscht.
 Vor dem Absenden verlangt die Oberfläche HTTPS oder einen lokalen
 Loopback-Zugang (`localhost`/`127.0.0.1`/`[::1]`). Unverschlüsselte
-LAN-Adressen sind gesperrt. Dies wird in
-`frontend/test/smart-farming-ui.test.js` geprüft.
+LAN-Adressen sind gesperrt. Zusätzlich setzt der Bearer-GET
+`redirect: 'error'` und `referrerPolicy: 'no-referrer'`, sodass
+HTTP-Weiterleitungen nicht automatisch mit Zugangsdaten verfolgt werden.
+Die Frontend-Tests prüfen dafür den wirklichen Klickpfad mit einem
+isolierten Browser-/DOM-Testdoppel: Auf unsicherem LAN darf nicht einmal
+`fetch()` aufgerufen werden, während HTTPS und SSH-Loopback ohne
+Tokenpersistenz funktionieren. Dies ist eine reine Client-Schutzschicht;
+Server-Authentifizierung, HTTPS-Terminierung und die bestehenden
+Netzwerkgrenzen bleiben weiterhin erforderlich.
 
 Der Browser zeigt unterscheidbare Zustände für:
 ungültigen Token (401), noch nicht aktivierte API (404),

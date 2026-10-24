@@ -162,6 +162,8 @@
       try {
         const response=await request(CATALOG,{
           method:'GET',cache:'no-store',credentials:'same-origin',
+          // Never follow a 3xx with a credential-bearing request (even on same origin).
+          redirect:'error',referrerPolicy:'no-referrer',
           headers:{Authorization:'Bearer '+secret,Accept:'application/json'},
           signal:controller.signal
         });
