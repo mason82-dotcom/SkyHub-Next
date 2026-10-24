@@ -21,10 +21,13 @@ const UNIT='skyhub-mosquitto';
 const CONF_DIR='/etc/skyhub-mosquitto';
 const UNIT_FILE='/etc/systemd/system/'+UNIT+'.service';
 const BACKUP_ROOT='/var/backups';
+const MOSQUITTO_BIN='/usr/sbin/mosquitto';
+const ENV_PATH=path.join(ROOT,'.env');
+const stamp=()=>new Date().toISOString().replace(/[:.]/g,'-');
 
 function readEnv(){
   const env={};
-  for(const line of fs.readFileSync(path.join(ROOT,'.env'),'utf8').split('\n')){
+  for(const line of fs.readFileSync(ENV_PATH,'utf8').split('\n')){
     const m=/^([A-Z0-9_]+)=(.*)$/.exec(line.trim());
     if(m)env[m[1]]=m[2];
   }
@@ -53,17 +56,25 @@ function accounts(){
 }
 
 // Same topic split as scripts/pi-emqx-harden.js. Mosquitto denies everything not listed.
+// Probe namespace: no SkyHub subscription matches it, so probe traffic is never ingested as
+// telemetry. Reader may read it and the pilot may write it, so `verify` can prove both directions.
+const PROBE_TOPIC='skyhub/probe';
 const READER_READ=['sys/product/+/status','thing/product/+/osd','thing/product/+/state',
-  'thing/product/+/events','thing/product/+/services_reply'];
+  'thing/product/+/events','thing/product/+/services_reply',PROBE_TOPIC+'/#'];
 const ACK_WRITE=['sys/product/+/status_reply'];
 // "+" instead of the RC serial: the RC also publishes for its aircraft.
 const PILOT_WRITE=['sys/product/+/status','thing/product/+/osd','thing/product/+/state',
   'thing/product/+/events','thing/product/+/services_reply','thing/product/+/requests',
-  'thing/product/+/property/set_reply','thing/product/+/drc/up'];
+  'thing/product/+/property/set_reply','thing/product/+/drc/up',PROBE_TOPIC+'/#'];
 const PILOT_READ=['sys/product/+/status_reply','sys/product/+/network/probe','thing/product/+/services',
   'thing/product/+/property/set','thing/product/+/events_reply','thing/product/+/requests_reply',
   'thing/product/+/state_reply','thing/product/+/drc/down'];
 
+// Topics the delivery test publishes (see aclCases for the rule they must follow).
+const DELIVERY_PUBLISH={
+  ack:['sys/product/SKYHUBPROBE/status_reply'],
+  pilot:['thing/product/SKYHUBPROBE/requests',PROBE_TOPIC+'/delivery']
+};
 function aclText(a){
   const block=(user,write,read)=>[
     'user '+user,
@@ -106,7 +117,7 @@ function unitText(){
     '',
     '[Service]',
     'User=mosquitto',
-    'ExecStart=/usr/sbin/mosquitto -c '+CONF_DIR+'/mosquitto.conf',
+    'ExecStart='+MOSQUITTO_BIN+' -c '+CONF_DIR+'/mosquitto.conf',
     'Restart=on-failure',
     'RestartSec=3',
     'NoNewPrivileges=true',
@@ -130,19 +141,20 @@ function sh(cmd,...args){return execFileSync(cmd,args,{encoding:'utf8'});}
 function requireRoot(){
   if(process.getuid()!==0)throw new Error('Dieser Schritt braucht root: sudo node scripts/pi-mosquitto-dedicated.js '+process.argv[2]);
 }
-function mosquittoIds(){
-  return [Number(sh('id','-u','mosquitto').trim()),Number(sh('id','-g','mosquitto').trim())];
+let mosquittoIds;
+// The service runs as "mosquitto": every path it reads, the directory included, must belong to it.
+function owned(target,mode){
+  mosquittoIds??=[Number(sh('id','-u','mosquitto').trim()),Number(sh('id','-g','mosquitto').trim())];
+  fs.chownSync(target,...mosquittoIds);
+  fs.chmodSync(target,mode);
 }
-// The service runs as "mosquitto": the directory itself must be traversable by that user too.
 function ensureConfDir(){
   fs.mkdirSync(CONF_DIR,{recursive:true,mode:0o750});
-  fs.chownSync(CONF_DIR,...mosquittoIds());
-  fs.chmodSync(CONF_DIR,0o750);
+  owned(CONF_DIR,0o750);
 }
 function writeOwned(file,text,mode){
   fs.writeFileSync(file,text,{mode});
-  fs.chownSync(file,...mosquittoIds());
-  fs.chmodSync(file,mode);
+  owned(file,mode);
 }
 function listening(){
   return sh('ss','-ltnH').split('\n').some(l=>l.trim().split(/\s+/)[3]?.endsWith(':'+PORT));
@@ -180,15 +192,15 @@ async function delivery(){
     await new Promise(r=>cl[k].subscribe('#',{qos:1},r));
   }
   await sleep(300);
-  cl.ack.publish('sys/product/SKYHUBPROBE/status_reply','{}',{qos:1});
-  cl.pilot.publish('thing/product/SKYHUBPROBE/requests','{}',{qos:1});
-  cl.pilot.publish('thing/product/SKYHUBPROBE/services_reply','{}',{qos:1});
+  for(const t of ${JSON.stringify(DELIVERY_PUBLISH.ack)})cl.ack.publish(t,'{}',{qos:1});
+  for(const t of ${JSON.stringify(DELIVERY_PUBLISH.pilot)})cl.pilot.publish(t,'{}',{qos:1});
   await sleep(1500);
   for(const c of Object.values(cl))c.end(true);
   return got;
 }
 (async()=>{const results=[];for(const c of cases)results.push(await run(c));
-  let got=null;try{got=await delivery();}catch(e){got={error:String(e.code||e.message)};}
+  let got=null;
+  if(users)try{got=await delivery();}catch(e){got={error:String(e.code||e.message)};}
   console.log(JSON.stringify({results,got}));})();`;
 }
 function probe(payload){
@@ -205,42 +217,43 @@ function connectCases(a){
     {name:'Pilot-Konto verbinden',action:'connect',...a.pilot,expect:/^connected$/}
   ];
 }
-// SKYHUBPROBE never exists. Publish probes use topics the backend either does not subscribe to or
-// rejects as invalid ("{}"), so a probe is never ingested as telemetry (at most one rejected
-// services_reply per run once the backend uses this broker).
+// Allowed publishes only use topics the backend does not subscribe to (status_reply, requests,
+// PROBE_TOPIC); denied ones never reach any subscriber. Never publish a topic SkyHub ingests
+// (osd, state, status, events, services_reply): the backend would register the probe serial as a device.
 function aclCases(a){
   return [
     {name:'Reader sendet services',action:'publish',topic:'thing/product/SKYHUBPROBE/services',...a.reader,expect:/^denied$/},
+    {name:'Reader sendet Probe-Topic',action:'publish',topic:PROBE_TOPIC+'/reader',...a.reader,expect:/^denied$/},
     {name:'Publisher sendet status_reply',action:'publish',topic:'sys/product/SKYHUBPROBE/status_reply',...a.ack,expect:/^allowed$/},
     {name:'Publisher sendet services',action:'publish',topic:'thing/product/SKYHUBPROBE/services',...a.ack,expect:/^denied$/},
     {name:'Pilot sendet requests',action:'publish',topic:'thing/product/SKYHUBPROBE/requests',...a.pilot,expect:/^allowed$/},
-    {name:'Pilot sendet services_reply',action:'publish',topic:'thing/product/SKYHUBPROBE/services_reply',...a.pilot,expect:/^allowed$/},
+    {name:'Pilot sendet Probe-Topic',action:'publish',topic:PROBE_TOPIC+'/pilot',...a.pilot,expect:/^allowed$/},
     {name:'Pilot faelscht status_reply',action:'publish',topic:'sys/product/SKYHUBPROBE/status_reply',...a.pilot,expect:/^denied$/}
   ];
 }
 // Delivery matrix with all three roles subscribed to "#": each must receive exactly its read topics.
 function deliveryChecks(got){
-  if(!got || got.error)return [{name:'Zustelltest ausfuehrbar',value:got?.error||'fehlt',pass:false}];
+  if(got.error)return [{name:'Zustelltest ausfuehrbar',value:got.error,pass:false}];
   const has=(k,t)=>got[k].includes(t);
   const only=(k,allowed)=>got[k].every(t=>allowed.includes(t));
   return [
-    {name:'Reader erhaelt services_reply',pass:has('reader','thing/product/SKYHUBPROBE/services_reply')},
-    {name:'Reader erhaelt nur Lese-Topics',pass:only('reader',['thing/product/SKYHUBPROBE/services_reply'])},
+    {name:'Reader erhaelt Probe-Topic',pass:has('reader',PROBE_TOPIC+'/delivery')},
+    {name:'Reader erhaelt nur Lese-Topics',pass:only('reader',[PROBE_TOPIC+'/delivery'])},
     {name:'Topologie-Publisher erhaelt nichts',pass:got.ack.length===0},
     {name:'Pilot erhaelt status_reply',pass:has('pilot','sys/product/SKYHUBPROBE/status_reply')},
     {name:'Pilot erhaelt nur Lese-Topics',pass:only('pilot',['sys/product/SKYHUBPROBE/status_reply'])}
   ].map(c=>({...c,value:c.pass?'ok':'verletzt'}));
 }
-function report(cases,withDelivery){
-  const users={reader:null,ack:null,pilot:null};
-  const {results,got}=probe({cases:cases.map(({expect,name,...c})=>c),users:withDelivery||users});
+// users: the three role accounts, given only when the delivery matrix should run as well.
+function report(cases,users){
+  const {results,got}=probe({cases:cases.map(({expect,name,...c})=>c),users:users||null});
   let ok=true;
   cases.forEach((c,i)=>{
     const pass=c.expect.test(results[i]);
     if(!pass)ok=false;
     console.log((pass?'  ok   ':'  FEHL ')+c.name.padEnd(38)+results[i]);
   });
-  if(withDelivery)for(const d of deliveryChecks(got)){
+  if(users)for(const d of deliveryChecks(got)){
     if(!d.pass)ok=false;
     console.log((d.pass?'  ok   ':'  FEHL ')+d.name.padEnd(38)+d.value);
   }
@@ -270,8 +283,7 @@ async function waitListening(){
 }
 
 function initEnv(write){
-  const envPath=path.join(ROOT,'.env');
-  const text=fs.readFileSync(envPath,'utf8');
+  const text=fs.readFileSync(ENV_PATH,'utf8');
   const env=readEnv();
   const additions=[];
   if(!env.MQTT_USER)additions.push('MQTT_USER=skyhub_reader');
@@ -279,13 +291,12 @@ function initEnv(write){
   if(!additions.length){console.log('MQTT_USER und MQTT_PASSWORD sind bereits gesetzt - nichts zu tun.');return;}
   console.log('Fehlend in .env: '+additions.map(l=>l.split('=')[0]).join(', ')+' (Werte werden nicht angezeigt)');
   if(!write){console.log('Trockenlauf. Mit --write wird zuerst eine Sicherung (0600) angelegt, dann ergänzt.');return;}
-  const stamp=new Date().toISOString().replace(/[:.]/g,'-');
-  const backup=envPath+'.before-mqtt-reader-'+stamp;
+  const backup=ENV_PATH+'.before-mqtt-reader-'+stamp();
   fs.writeFileSync(backup,text,{mode:0o600});
-  const tmp=envPath+'.tmp-'+process.pid;
+  const tmp=ENV_PATH+'.tmp-'+process.pid;
   fs.writeFileSync(tmp,text+(text.endsWith('\n')?'':'\n')+additions.join('\n')+'\n',{mode:0o600});
-  fs.renameSync(tmp,envPath);
-  fs.chmodSync(envPath,0o600);
+  fs.renameSync(tmp,ENV_PATH);
+  fs.chmodSync(ENV_PATH,0o600);
   console.log('.env ergänzt, Sicherung: '+path.basename(backup));
 }
 
@@ -296,13 +307,14 @@ function status(){
   let log='';
   try{log=sh('journalctl','-u',UNIT,'--since','-30min','--no-pager','-o','cat');}catch(_){}
   const byUser={},byIp={};let denied=0;
+  const count=(map,key)=>{map[key]=(map[key]||0)+1;};
   for(const line of log.split('\n')){
     const m=/New client connected from ([0-9a-fA-F:.]+):\d+ as \S+ \(.*u'([^']*)'\)/.exec(line);
-    if(m){byUser[m[2]]=(byUser[m[2]]||0)+1;byIp[m[1]]=(byIp[m[1]]||0)+1;}
+    if(m){count(byUser,m[2]);count(byIp,m[1]);}
     if(/not authori[sz]ed|bad user name or password/i.test(line))denied++;
   }
-  console.log('Letzte 30 min - Verbindungen je Benutzer: '+(JSON.stringify(byUser)));
-  console.log('Letzte 30 min - Verbindungen je Quell-IP:  '+(JSON.stringify(byIp)));
+  console.log('Letzte 30 min - Verbindungen je Benutzer: '+JSON.stringify(byUser));
+  console.log('Letzte 30 min - Verbindungen je Quell-IP:  '+JSON.stringify(byIp));
   console.log('Letzte 30 min - abgelehnte Anmeldungen:    '+denied);
 }
 
@@ -336,12 +348,12 @@ async function main(){
 
   requireRoot();
   const a=accounts();
-  if(!fs.existsSync('/usr/sbin/mosquitto'))throw new Error('/usr/sbin/mosquitto fehlt');
+  if(!fs.existsSync(MOSQUITTO_BIN))throw new Error(MOSQUITTO_BIN+' fehlt');
   const hadInstall=fs.existsSync(CONF_DIR)||fs.existsSync(UNIT_FILE);
   if(!hadInstall && listening())throw new Error('TCP '+PORT+' ist bereits belegt (nicht von '+UNIT+')');
   let backup=null;
   if(hadInstall){
-    backup=BACKUP_ROOT+'/'+UNIT+'-'+new Date().toISOString().replace(/[:.]/g,'-');
+    backup=BACKUP_ROOT+'/'+UNIT+'-'+stamp();
     fs.mkdirSync(backup,{recursive:true,mode:0o700});
     if(fs.existsSync(CONF_DIR))fs.cpSync(CONF_DIR,backup+'/conf',{recursive:true});
     if(fs.existsSync(UNIT_FILE))fs.copyFileSync(UNIT_FILE,backup+'/unit');
@@ -375,4 +387,5 @@ async function main(){
   console.log('  3. bash scripts/pi-update-backend.sh --apply   (Backup/Preflight laufen dort vorher)');
   console.log('  4. Auf der RC "MQTT erneut verbinden", danach: sudo node scripts/pi-mosquitto-dedicated.js status');
 }
-main().catch(err=>{console.error('Abbruch: '+err.message);process.exitCode=1;});
+if(require.main===module)main().catch(err=>{console.error('Abbruch: '+err.message);process.exitCode=1;});
+module.exports={aclCases,aclText,DELIVERY_PUBLISH,PROBE_TOPIC};
