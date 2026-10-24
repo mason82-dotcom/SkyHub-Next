@@ -89,16 +89,17 @@ function aclText(a){
     ...block(a.pilot.username,PILOT_WRITE,PILOT_READ)
   ].join('\n');
 }
-function confText(){
+// Options exist so tests can run the same config on a throwaway port and directory.
+function confText({port=PORT,bind='0.0.0.0',confDir=CONF_DIR,logDest='stderr'}={}){
   return [
     '# SkyHub Next - managed by scripts/pi-mosquitto-dedicated.js',
-    'listener '+PORT+' 0.0.0.0',
+    'listener '+port+' '+bind,
     'protocol mqtt',
     'allow_anonymous false',
-    'password_file '+CONF_DIR+'/passwd',
-    'acl_file '+CONF_DIR+'/acl',
+    'password_file '+confDir+'/passwd',
+    'acl_file '+confDir+'/acl',
     'persistence false',
-    'log_dest stderr',
+    'log_dest '+logDest,
     'log_type error',
     'log_type warning',
     'log_type notice',
@@ -164,9 +165,9 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 // Mosquitto (acl_file) grants wildcard SUBSCRIBEs and filters at delivery, so ACLs are proven by
 // what actually arrives, not by SUBACK codes. Probes run inside the SkyHub Next backend container
 // (MQTT.js, same network path as production). Credentials go through stdin, never through argv.
-function probeProgram(broker,payload){
+function probeProgram(broker,payload,mqttModule='/app/backend/node_modules/mqtt'){
   return `
-const mqtt=require('/app/backend/node_modules/mqtt');
+const mqtt=require(${JSON.stringify(mqttModule)});
 const {cases,users}=${JSON.stringify(payload)};
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const options=u=>({clientId:'skyhub_acl_probe_'+Math.random().toString(16).slice(2,8),protocolVersion:5,
@@ -388,4 +389,5 @@ async function main(){
   console.log('  4. Auf der RC "MQTT erneut verbinden", danach: sudo node scripts/pi-mosquitto-dedicated.js status');
 }
 if(require.main===module)main().catch(err=>{console.error('Abbruch: '+err.message);process.exitCode=1;});
-module.exports={aclCases,aclText,DELIVERY_PUBLISH,PROBE_TOPIC};
+module.exports={aclCases,aclText,confText,passwdLine,connectCases,deliveryChecks,probeProgram,
+  DELIVERY_PUBLISH,PROBE_TOPIC};

@@ -39,7 +39,16 @@ jobs:
         run: npm ci --prefix backend --ignore-scripts --no-audit --no-fund
       - name: Validate delivered inline dashboard scripts
         run: node scripts/check-dashboard-inline.js
-      - name: Backend unit tests (no broker or DJI hardware)
+      # Throwaway loopback broker started by the tests themselves (random port, temp files).
+      # The installed system service is stopped: it is never used and must not occupy 1883.
+      - name: Install Mosquitto for the dedicated-broker integration test
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends mosquitto
+          sudo systemctl stop mosquitto || true
+      - name: Backend unit tests (no DJI hardware; real throwaway Mosquitto)
+        env:
+          SKYHUB_REQUIRE_MOSQUITTO: "1"
         run: node --test backend/test/*.test.js
 
       - name: Experimental M3M catalog UI contract
