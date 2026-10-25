@@ -1,0 +1,109 @@
+# DJI Cloud API Demo (inoffiziell, von DJI eingestellt) als isolierter Zweitstack neben SkyHub Next.
+# Eigenes Docker-Projekt und Netz; Web, Backend und MQTT sind nur auf der LAN-Adresse DEMO_BIND_ADDRESS erreichbar
+# (nicht 0.0.0.0: also weder ueber Tailscale noch ueber andere Schnittstellen). Nicht für das Internet gedacht.
+# Start/Stopp nur über pi-cloud-api-demo.sh (setzt STACK_DIR, DEMO_BACKEND_DIR und DEMO_WEB_DIR selbst).
+name: cloudapidemo
+
+x-restart: &restart
+  restart: "on-failure:3"
+
+services:
+  mysql:
+    <<: *restart
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?run init first}
+    command: >
+      --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
+      --innodb-buffer-pool-size=96M --max-connections=60 --performance-schema=OFF
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ${DEMO_BACKEND_DIR}/sql/cloud_sample.sql:/docker-entrypoint-initdb.d/10-cloud_sample.sql:ro
+      - ./runtime/20-local-users.sql:/docker-entrypoint-initdb.d/20-local-users.sql:ro
+    ports:
+      - "127.0.0.1:3307:3306"
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent && mysql -uroot -p$$MYSQL_ROOT_PASSWORD -e 'select 1 from cloud_sample.manage_user limit 1' >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+
+  redis:
+    <<: *restart
+    image: redis:7-alpine
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?run init first}", "--maxmemory", "64mb", "--save", "", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:6380:6379"
+    mem_limit: 96m
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a $$REDIS_PASSWORD ping 2>/dev/null | grep -q PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+  emqx:
+    <<: *restart
+    image: emqx/emqx:5.3.0
+    environment:
+      EMQX_NODE__COOKIE: ${EMQX_COOKIE:?run init first}
+      EMQX_NODE__DEFAULT_LISTENER_ADDRESS: all
+      EMQX_DASHBOARD__DEFAULT_USERNAME: admin
+      EMQX_DASHBOARD__DEFAULT_PASSWORD: ${EMQX_DASHBOARD_PASSWORD:?run init first}
+    ports:
+      - "${DEMO_BIND_ADDRESS:?run init first}:18830:1883"      # MQTT fuer Fernsteuerung und Backend
+      - "${DEMO_BIND_ADDRESS}:18084:8083"      # MQTT ueber WebSocket (DRC, Browser)
+      - "127.0.0.1:18083:18083"   # EMQX-Dashboard nur lokal
+    volumes:
+      - emqx_data:/opt/emqx/data
+      - ./emqx/emqx.conf:/opt/emqx/etc/emqx.conf:ro
+      - ./runtime/acl.conf:/opt/emqx/etc/acl.conf:ro
+    mem_limit: 640m
+    healthcheck:
+      test: ["CMD", "/opt/emqx/bin/emqx", "ctl", "status"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 40s
+
+  backend:
+    <<: *restart
+    build:
+      context: ${DEMO_BACKEND_DIR}
+      dockerfile: ${STACK_DIR}/backend.Dockerfile
+    image: cloudapidemo-backend:local
+    depends_on:
+      mysql: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      emqx: {condition: service_healthy}
+    environment:
+      SPRING_CONFIG_ADDITIONAL_LOCATION: "file:/config/"
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m -XX:MaxMetaspaceSize=160m"
+    volumes:
+      - ./runtime/application.yml:/config/application.yml:ro
+    ports:
+      - "${DEMO_BACKEND_BIND:-${DEMO_BIND_ADDRESS}}:6789:6789"   # bei DEMO_SAME_ORIGIN=true nur Loopback
+    mem_limit: 768m
+
+  web:
+    <<: *restart
+    build:
+      context: ${DEMO_WEB_DIR}
+      dockerfile: ${STACK_DIR}/web.Dockerfile
+      additional_contexts:
+        overlay: ${STACK_DIR}/runtime/web
+    depends_on:
+      - backend   # nginx loest bei DEMO_SAME_ORIGIN=true den Namen "backend" beim Start auf
+    image: cloudapidemo-web:local
+    volumes:
+      - ${PMTILES_DIR:-./runtime/no-basemaps}:/usr/share/nginx/html/basemaps:ro
+    ports:
+      - "${DEMO_BIND_ADDRESS}:8081:80"
+    mem_limit: 64m
+
+volumes:
+  mysql_data:
+  emqx_data:

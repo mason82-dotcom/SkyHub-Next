@@ -128,3 +128,26 @@ test('caller-supplied role and workspace cannot elevate a paired Pilot',async()=
   assert.equal(res.statusCode,403);
   assert.equal(reads,0);
 });
+
+test('every error response uses the DJI {code, message, data} envelope without leaking details',async()=>{
+  const handler=createMapElementHandler({workspaceId:WORKSPACE,
+    authorize:async token=>token==='pilot-token'?PILOT:null,
+    store:{readResponse:async()=>{throw Error('database password must stay private');}}});
+  const cases=[
+    [request({secure:false}),403],
+    [request({token:'wrong'}),401],
+    [request({workspaceId:'123e4567-e89b-42d3-a456-426614174000'}),404],
+    [request({query:{group_id:''}}),400],
+    [request({query:{is_distributed:'false'}}),403],
+    [request(),503]
+  ];
+  for(const [req,status] of cases){
+    const res=response();
+    await handler(req,res);
+    assert.equal(res.statusCode,status);
+    assert.equal(res.body.code,status);
+    assert.equal(typeof res.body.message,'string');
+    assert.deepEqual(res.body.data,{});
+    assert.doesNotMatch(JSON.stringify(res.body),/password|private/);
+  }
+});

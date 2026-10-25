@@ -42,8 +42,12 @@ const GENERIC_AIRCRAFT_CANDIDATES=Object.freeze([
 ]);
 const MODEL_SCOPE=Object.freeze({
   '2:144:0':{role:'gateway',profile:'rcPro'},
-  '0:77:2':{role:'subdevice',profile:'mavic3'}
+  '0:77:2':{role:'subdevice',profile:'mavic3'},
+  '2:174:0':{role:'gateway',profile:'rcPlus2'},
+  '0:99:1':{role:'subdevice',profile:'matrice4T'}
 });
+// DJI replays the last OSD of an aircraft after mode_code=14 (not connected).
+const AIRCRAFT_SCOPES=Object.freeze(new Set(['0:77:2','0:99:1']));
 const allowedRoots=Object.create(null);
 for(const [key,scope] of Object.entries(MODEL_SCOPE)){
   const set=new Set(fieldsCatalog.profiles[scope.profile].fields
@@ -66,7 +70,7 @@ function createModelShapeCatalog() {
       const scope=MODEL_SCOPE[key];
       if(!scope||device.role!==scope.role)return;
       // DJI replays last OSD after mode_code=14, which is not new telemetry.
-      if(key==='0:77:2'&&device.aircraftConnected===false)return;
+      if(AIRCRAFT_SCOPES.has(key)&&device.aircraftConnected===false)return;
       const name=key+':'+message.channel;
       let entry=entries.get(name);
       if(!entry){

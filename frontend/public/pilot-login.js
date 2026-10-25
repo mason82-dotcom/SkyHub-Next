@@ -9,6 +9,7 @@
   let ready=false,connecting=false;
   let mqttLogin=null; // Kept only in WebView memory for an explicit retry.
   let lastConfig=null,sessionToken=null,pairingTimer=null;
+  let tsaState=null; // null: not requested, otherwise a short German status for the diagnostics
   const memory=Object.create(null);
   const isTls=location.protocol==='https:';
   function status(text){el('result').textContent=text;}
@@ -95,6 +96,7 @@
       'DJI-Lizenz geprüft: '+readBridgeStatus('platformIsVerified'),
       'Thing-Modul geladen: '+readBridgeStatus('platformIsComponentLoaded','thing'),
       'MQTT verbunden (DJI): '+readBridgeStatus('thingGetConnectState'),
+      ...(tsaState===null?[]:['Lagebild (TSA): '+tsaState+' · WebSocket verbunden: '+readBridgeStatus('wsGetConnectState')]),
       'Gerät gekoppelt: '+(storageGet(TOKEN_KEY)?'ja':'nein')
     ].join('\n');
   }
@@ -150,6 +152,28 @@
       password:config.mqtt.password,connectCallback:'skyhubPilotMqttState'
     }));
   }
+  // Situation awareness: DJI needs the api and ws modules before tsa, and the cloud (thing)
+  // module before all of them. Only requested when the server enables it; a failure here must
+  // never affect the MQTT connection. The device token is passed to the bridge only.
+  function loadTsa(config){
+    const tsa=config&&config.tsa;
+    if(!tsa||typeof tsa.apiHost!=='string'||typeof tsa.wsHost!=='string'||!sessionToken)return;
+    try{
+      if(bridgeBoolean('platformIsComponentLoaded','api')!==true)
+        invoke('platformLoadComponent','api',JSON.stringify({host:tsa.apiHost,token:sessionToken}));
+      if(bridgeBoolean('platformIsComponentLoaded','ws')!==true)
+        invoke('platformLoadComponent','ws',JSON.stringify({
+          host:tsa.wsHost,token:sessionToken,connectCallback:'skyhubPilotWsState'}));
+      if(bridgeBoolean('platformIsComponentLoaded','tsa')!==true)
+        invoke('platformLoadComponent','tsa','{}');
+      tsaState='Module geladen';
+    }catch(e){tsaState='nicht geladen ('+e.message+')';}
+    refreshDiagnostics();
+  }
+  window.skyhubPilotWsState=function(_callbackResult){
+    // The callback payload is intentionally ignored; the state is queried instead.
+    refreshDiagnostics();
+  };
   // A new MQTT session makes Pilot 2 publish update_topo again, which SkyHub acknowledges.
   function rebuildSession(){
     if(!lastConfig || !window.djiBridge)return;
@@ -247,11 +271,13 @@
     if(bridgeBoolean('platformIsComponentLoaded','thing')!==true){
       status('Lade DJI Cloud-Modul ...');
       loadThing(config);
+      loadTsa(config);
       refreshDiagnostics();
       status('DJI Cloud-Modul geladen. MQTT-Verbindungsstatus wird geprüft ...');
       setTimeout(()=>window.skyhubPilotMqttState(),4000);
       return 'loaded';
     }
+    loadTsa(config);
     refreshDiagnostics();
     const state=bridgeBoolean('thingGetConnectState');
     if(state===true){

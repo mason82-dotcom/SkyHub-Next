@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 'use strict';
-// Builds backend/data/hms-texts.json from DJI's hms.json (Cloud-API-Demo backend,
-// MIT License, (c) 2022 DJI-SDK). Keeps only well-formed keys and German/English
+// Builds backend/data/hms-texts.json from DJI's hms.json: the official file linked in
+// the Cloud API docs (see backend/data/HMS-LICENSE.txt for provenance and license
+// status) or the older Cloud-API-Demo copy (MIT License, (c) 2022 DJI-SDK). Keeps only well-formed keys and German/English
 // plain text, so nothing unexpected from the vendor file reaches SkyHub.
 //   node scripts/build-hms-texts.js <path/to/dji/hms.json>
 const fs=require('node:fs');

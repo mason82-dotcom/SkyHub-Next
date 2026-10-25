@@ -28,5 +28,6 @@ test('DJI map element migration draft is not run at server startup',()=>{
 
 test('DJI map-group endpoint stays disabled in the example configuration',()=>{
   assert.match(envExample,/^SKYHUB_DJI_MAP_ELEMENTS_ENABLED=false$/m);
-  assert.match(server,/SKYHUB_DJI_MAP_ELEMENTS_ENABLED==='true'&&pilot\.ready/);
+  assert.match(fs.readFileSync(path.join(__dirname,'..','pilot-routes.js'),'utf8'),
+    /SKYHUB_DJI_MAP_ELEMENTS_ENABLED==='true'&&pilot\.ready/);
 });

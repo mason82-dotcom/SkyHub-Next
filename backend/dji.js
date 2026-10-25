@@ -144,6 +144,25 @@ function isHms(method, data) {
     Boolean(data && typeof data === 'object' && data.event === 'hms' && data.method === 'hms');
 }
 // Field names only (never values) to compare real firmware payloads with the parser.
+// DJI AirSense (thing/product/{gateway}/events, method airsense_warning): the data is an
+// array of nearby manned aircraft. Only an aggregate is kept. The ICAO address, position and
+// heading of third parties are never copied out of the raw message.
+const MAX_AIRSENSE_ENTRIES = 50;
+function extractAirsense(data) {
+  if (!Array.isArray(data)) return null;
+  let count = 0, maxWarningLevel = null, nearestDistanceM = null;
+  for (const item of data.slice(0,MAX_AIRSENSE_ENTRIES)) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) continue;
+    const level = item.warning_level;
+    if (!Number.isInteger(level) || level < 0 || level > 4) continue;
+    count++;
+    maxWarningLevel = maxWarningLevel === null ? level : Math.max(maxWarningLevel,level);
+    const distance = item.distance;
+    if (Number.isInteger(distance) && distance >= 0 && distance <= 1e7)
+      nearestDistanceM = nearestDistanceM === null ? distance : Math.min(nearestDistanceM,distance);
+  }
+  return {count,maxWarningLevel,nearestDistanceM};
+}
 function dataKeys(data) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) return [];
   return Object.keys(data).filter(key=>/^[A-Za-z0-9_]{1,48}$/.test(key)).sort().slice(0,64);
@@ -176,10 +195,11 @@ function parseMessage(topic,raw) {
     telemetry:meta.channel==='osd' ? extractTelemetry(data) : null,
     state:meta.channel==='state' || meta.channel==='osd' ? extractState(data) : null,
     topology:meta.channel==='status' && method==='update_topo' ? extractTopology(data) : null,
-    hms:meta.channel==='events' && isHms(method,data) ? extractHms(data) : null
+    hms:meta.channel==='events' && isHms(method,data) ? extractHms(data) : null,
+    airsense:meta.channel==='events' && method==='airsense_warning' ? extractAirsense(data) : null
   };
 }
 function fresh(last,now=Date.now()) {
   return Number.isFinite(last) && last<=now && now-last<15000;
 }
-module.exports={finite,integer,dataKeys,serial,domain,model,parseTopic,extractTelemetry,extractState,extractTopology,extractHms,hmsCode,parseMessage,fresh};
+module.exports={finite,integer,dataKeys,extractAirsense,serial,domain,model,parseTopic,extractTelemetry,extractState,extractTopology,extractHms,hmsCode,parseMessage,fresh};

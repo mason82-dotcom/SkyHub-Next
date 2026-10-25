@@ -2,12 +2,25 @@
 
 Diese Übersicht bezieht sich auf das **aktive SkyHub-Next-Repository-Root**. Ein Skript im Verzeichnis `scripts/` ist nicht automatisch harmlos; die **Argumente** entscheiden über Schreibzugriffe. Die aktuelle Live-Installation und ihre Konfiguration müssen vor betrieblichen Änderungen erneut geprüft werden.
 
-**Keine Befehle in dieser Tabelle werden durch GitHub Actions ausgeführt.** Die CI prüft ausschließlich ihre Syntax; `docker compose config` und ein isolierter Image-Build sind separate CI-Prüfungen, keine Pi-Deployments.
+**CI-/Betriebsgrenze:** GitHub Actions führt eine Reihe von Syntax-, Node-/Python-, Compose- und isolierten Datenbank-/Backup-/Restore-Prüfungen mit Wegwerf-Testumgebungen aus, jedoch keine der hier beschriebenen **Pi-Live-Aktionen** wie EMQX-/Caddy-Apply, Pilot-Pairing, Backend-Update oder Legacy-Übernahme. Ein synthetischer CI-Restore ist kein Restore-Test des echten Pi-Datenbestands. Bei Branch-spezifischen Simulator-/Medien-Workflows deren eigene Schutzgrenzen beachten.
 
 ## Wirkungsgruppen
 
 | Tool | Aufruf / Modus | Wirkung | Betriebsregel |
 |---|---|---|---|
+| `pi-minio-migrate-from-aeronexus.sh` | `plan` / `status` | **Lesend**: prüft gestoppte AeroNexus-MinIO-Quellen, das geprüfte ARM64-Image, NVMe und Zielpfade | Vor jedem Umzug, keine Secrets ausgegeben |
+| `pi-minio-migrate-from-aeronexus.sh` | `move` | **Dateischreibend**: private 0600-Environment-Datei, atomare Verzeichnis-Umbenennung auf derselben NVMe, Symlink im SkyHub-Projekt | Kein Kopieren; nur nach Offline-Backup und genau geprüftem Ausgangszustand |
+| `pi-minio-migrate-from-aeronexus.sh` | `up` | **Docker-Änderung**: lokales Image umtaggen, neuen `skyhub-shared-minio` ohne Host-Port erstellen, Backend mit privater Storage-Bridge verbinden | Beide alten AeroNexus-Container bleiben gestoppt, keine vorhandenen Backend-/DB-Container neu starten |
+| `pi-minio-migrate-from-aeronexus.sh` | `start-plan` / `start` | `start-plan` **lesend**; `start` **Docker-Änderung**: nach abgeschlossenem `move` Image taggen, Netz anlegen, EINEN `skyhub-shared-minio` ohne Host-Port starten, Backend per `adopt` anbinden | Kein Vergleich mit dem nicht mehr vorhandenen AeroNexusAdvanced-Projekt; keine Secrets ausgegeben |
+| `pi-minio-env-from-aeronexusadvanced.py` | `locate` / `check` / `import --accept-different` | Findet private AeroNexusAdvanced-.env, vergleicht Root-Credentials ohne Werte auszugeben oder importiert sie in SkyHub | Keine Client-S3-Schlüssel als Root behandeln; vor abweichendem Import private Sicherung, nie bei laufendem MinIO |
+| `pi-minio-credentials.py` | `check` / `export` | Prüft nur MinIO-Variablennamen oder sichert Originalkonfiguration in private Datei | Nur lokale Datei 0600; Credentials niemals ausgeben oder in Git speichern |
+| `pi-minio-shared-mount-check.sh` | ohne Argumente | **Lesend**: Prüft tatsächliches Dateisystem und identische MinIO-Bind-Mount-Quellen unter `/mnt/hc4backup` | Pflicht vor dem Start eines historischen MinIO auf dem Backup-Datenträger |
+| `pi-minio-network.sh adopt` | Containername, erwarteter `/data`-Pfad per Umgebungsvariable | Übernimmt genau einen laufenden, persistenten MinIO mit internem S3-Docker-Port | Lehnt öffentlich oder lokal veröffentlichte S3-HostPorts 9000 ab |
+| `pi-minio-audit.py` | ohne Argumente | **Lesend**: Inventar gestoppter/laufender MinIO-Container und Mount-Metadaten | Keine Containerstarts, Secrets oder Objektzugriffe; lokale Pfade vor Weitergabe ggf. anonymisieren |
+| `pi-minio-network.sh` | `plan` / `verify` | **Lesend**: Docker-Netz-/Volume-Status bzw. HTTP-Readiness | Keine Buckets oder Datenwrites; Output ohne Secrets |
+| `pi-minio-network.sh` | `apply` / `adopt` / `attach` | **Live-Änderung**: MinIO-Container/Netz starten oder vorhandenen MinIO/Clients verbinden | `adopt` startet keinen Container; keine Neustarts anderer Dienste |
+| `pi-minio-s3-check.sh` | `--read` / `--write` | **Aktiver S3-Test**: temporärer Testcontainer mit per-Service-Credentials; optional Testobjekt schreiben/prüfen/löschen | Nur für isoliertes Testbucket, niemals mit Root- oder produktiven Anwendungszugängen |
+| `pi-m3m-media-inventory.js` | `node scripts/pi-m3m-media-inventory.js --directory /absoluter/pfad` | **Lokal lesend, opt-in**: unmittelbare Dateinamen, nur aggregierte RGB/G/R/RE/NIR-Zähler | Kein EXIF/XMP, kein S3/MinIO, keine Bildinhalte oder validierte Reflexionswerte; [Grenzen](m3m-offline-media-inventory.md) |
 | `pi-preflight.sh` | `bash scripts/pi-preflight.sh` | **Lesend**: Zeit, Listener und Docker-Portzuordnung | Geeignet vor Staging; beweist keine DJI-MQTT-Daten |
 | `pi-skyhub-takeover-audit.sh` | `bash scripts/pi-skyhub-takeover-audit.sh` | **Lesend**: Container-, HTTP-, Compose- und Secret-*Status* | Keine Geheimniswerte weitergeben; kein Cutover |
 | `pi-tls-audit.sh` | `bash scripts/pi-tls-audit.sh` | **Lesend**: TLS-Zertifikat und CA-Vertrauen | Pi-CA-Vertrauen beweist kein DJI-Android-Vertrauen |
@@ -18,12 +31,18 @@ Diese Übersicht bezieht sich auf das **aktive SkyHub-Next-Repository-Root**. Ei
 | `pi-caddy-lan-dashboard.sh` | `bash scripts/pi-caddy-lan-dashboard.sh print` | **Lesend**: geplanten Caddy-Block anzeigen | Keine Prüfung realer TLS-Vertrauensstellung |
 | `pi-caddy-lan-dashboard.sh` | `bash scripts/pi-caddy-lan-dashboard.sh check` | **Lesend**: HTTP-Reachability; nutzt `curl -k` ausschließlich diagnostisch | Kein TLS-Trust-Nachweis |
 | `pi-caddy-lan-dashboard.sh` | `sudo bash scripts/pi-caddy-lan-dashboard.sh apply` / `rollback` | **Live-Änderung**: Caddyfile schreiben, Caddy reload | Nur mit vorher geprüftem Backup und Rollback |
+| `pi-mosquitto-dedicated.js` | `plan` / `verify` / `init-env` (Trockenlauf) | **Lesend bzw. aktive Probe**: ACL anzeigen; `verify` verbindet Probe-Clients und veröffentlicht nur Probe-Topics (`skyhub/probe/#`, `status_reply`, `requests`), die das Backend nicht ingestiert | Keine Zugangsdaten veröffentlichen; Profil [mosquitto-dedicated](pi-mosquitto-migration.md) |
+| `pi-mosquitto-dedicated.js` | `init-env --write` | **Lokale Schreibaktion**: ergänzt fehlende `MQTT_USER`/`MQTT_PASSWORD` in `.env` mit Sicherung (0600) | Vorhandene Werte bleiben unangetastet |
+| `pi-mosquitto-dedicated.js` | `sudo ... apply` / `rollback` / `status` | **Live-Änderung** (apply/rollback): eigene systemd-Unit `skyhub-mosquitto` auf 1884, Auto-Rollback bei Fehlern; Broker 1883 und `.env` bleiben unberührt | Sicherheitskritisch; nach `apply` Umstellung von `.env`/Backend manuell |
+| `pi-influxdb-harden.js` | `status` / `clients [s]` / `plan` | **Lesend**: Zustand, Verbindungs-Adressen, geplantes Drop-in | Beobachtet nur Adressen, keine Daten; [Details](pi-influxdb-hardening.md) |
+| `pi-influxdb-harden.js` | `sudo ... apply --auth` / `--bind HOST:PORT` / `rollback` | **Live-Änderung** am Host-Dienst `influxdb`: ein systemd-Drop-in, Neustart, Prüfung, Auto-Rollback | Betrifft einen Dienst außerhalb von SkyHub Next; Clients vorher klären |
 | `pi-emqx-harden.js` | `node scripts/pi-emqx-harden.js plan` | **Lesend**: prüft lokale Rollen und gibt geplante ACL aus | Keine Zugangsdaten veröffentlichen |
 | `pi-emqx-harden.js` | `node scripts/pi-emqx-harden.js verify` | **Aktiver MQTT-Test**: verbindet Probes und prüft Berechtigungen | Keine Broker-ACL-Änderung, aber Netzwerkverkehr |
 | `pi-emqx-harden.js` | `node scripts/pi-emqx-harden.js apply` / `rollback` | **Live-Änderung**: EMQX-Authentifizierung/ACL; Rollback setzt historischen anonymen Zugang und Allow-all wieder | Sicherheitskritisch; niemals als generischen Cleanup ausführen |
 | `pi-pilot-pair.js` | `node scripts/pi-pilot-pair.js` | **Lesend**: zeigt ausstehende Codes und Gerätekennungen | Ausgabe vertraulich behandeln |
 | `pi-pilot-pair.js` | `node scripts/pi-pilot-pair.js 123456` / `--revoke <device-id>` | **Live-Änderung**: Gerät koppeln oder widerrufen | Nur mit Freigabe des Geräteverantwortlichen |
 | `build-hms-texts.js` | `node scripts/build-hms-texts.js <hms.json>` | **Dateischreibend**: erzeugt `backend/data/hms-texts.json` | Nur mit geprüftem DJI-HMS-Quelldokument und Lizenz |
+| `pi-migration-rehearsal.sh` | `bash scripts/pi-migration-rehearsal.sh <migration.sql> [...] [--tests]` | **Lesend an Produktion** (`pg_dump`), schreibt nur in einen Wegwerf-Container mit Kopie; Container und Dump werden gelöscht | Probelauf, keine Freigabe: produktive Migration braucht Sicherung und Entscheidung; [Details](dji-map-elements-aktivierung-2026-10-24.md) |
 | `stacks/legacy-skyhub/scripts/migrate-env.sh` | **Nicht ausführen** | Historisches Migrationswerkzeug des archivierten Stacks | Kein Teil der aktiven SkyHub-Next-Betriebslogik |
 
 ## Reale Betriebspfade
