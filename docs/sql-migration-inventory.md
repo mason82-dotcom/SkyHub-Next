@@ -1,6 +1,6 @@
 # SQL-Migrationsregister und Freigabegrenzen – 25.10.2026
 
-**Status:** Nur statische Bestandsaufnahme; keine Produktions- oder Raspberry-Pi-Migration. Grundlage: `main` ab Commit `f2a523cc`, [Issue #177](https://github.com/mason82-dotcom/SkyHub-Next/issues/177).
+**Registerstand:** Statische Bestandsaufnahme ab Main `f2a523cc`, [Issue #177](https://github.com/mason82-dotcom/SkyHub-Next/issues/177). **Betriebsnachtrag 25.10.2026:** Auf `rpi5` wurden ausschließlich die drei `pilot-media`-Migrationen 003/004/005 nach Dump-/Restore-Probe manuell angewandt. Das Register selbst führt weiterhin keine Migration aus und erfasst keinen produktiven Ausführungsstand.
 
 ## Verbindlicher Mechanismus
 
@@ -15,16 +15,16 @@
 | --- | --- | --- | --- |
 | `map-elements` | `map-elements-001` | `001_dji_map_elements.sql` | Isolierter DJI-Karten-GET-/Schema-Test; noch keine Live-Migration |
 | `map-elements` | `map-contract-002` | `002_dji_map_mutation_contract.sql` | Isolierter Schreibvertragsentwurf, nach `map-elements-001`; **kein aktivierter Schreibpfad** |
-| `pilot-media` | `pilot-media-verified-003` | `003_dji_pilot_media_verified.sql` | Isolierte, nicht gemountete DJI-Medienregistrierung |
+| `pilot-media` | `pilot-media-verified-003` | `003_dji_pilot_media_verified.sql` | Pilot-Medienregistrierung; auf `rpi5` am 25.10.2026 als Voraussetzung der lesenden Bibliothek manuell migriert, Uploadpfad weiterhin nicht gemountet |
 | `wpml-draft` | `wpml-library-draft-003` | `003_wpml_route_library_draft.sql` | **Gesperrt**; Rollen, Workspace-RLS und produktiver Migrationsplan fehlen |
-| `pilot-media` | `pilot-media-http-004` | `004_dji_pilot_media_http.sql` | Isolierte, nicht gemountete Medien-HTTP-/Audit-Tests nach `pilot-media-verified-003` |
-| `pilot-media` | `pilot-media-library-005` | `005_dji_pilot_media_library.sql` | Isolierte lesende Medienbibliothek und unveränderliches Leseaudit nach `pilot-media-http-004`; keine Live-Migration |
+| `pilot-media` | `pilot-media-http-004` | `004_dji_pilot_media_http.sql` | Medien-HTTP-Schema/Audit nach `pilot-media-verified-003`; auf `rpi5` manuell migriert, schreibende Callback-Routen weiterhin nicht gemountet |
+| `pilot-media` | `pilot-media-library-005` | `005_dji_pilot_media_library.sql` | Lesende Medienbibliothek und unveränderliches Leseaudit nach `pilot-media-http-004`; auf `rpi5` am 25.10.2026 nach Dump-/Restore-Probe gemeinsam mit 003/004 produktiv angewandt. Keine automatische Migration auf anderen Installationen |
 
 Die doppelte Dateinummer `003` ist **keine globale Migrationsreihenfolge**: `pilot-media` und `wpml-draft` sind verschiedene Fachfamilien. Die bestehenden Dateinamen bleiben absichtlich unverändert, damit Git-Historie, Runbooks und bestehende Integrationstests nicht gebrochen werden. **Wichtig:** Ein zukünftiger generischer SQL-Runner, der nach numerischen Dateipräfixen sortiert, bleibt ausdrücklich **verboten**, auch wenn das Register die beiden Einträge unterscheidet.
 
 `backend/db/schema.sql` ist die bestehende **separate Bootstrap-Datei** des PostGIS-Containers und gehört nicht zu diesen sechs nicht automatisch angewandten Fachmigrationen. Die SQL-Dateien unter `backend/db/offline/` gehören ebenfalls zu eigenständigen Offline-Verträgen und werden nicht vom Register freigegeben.
 
-## Verbindliche Freigabeprüfung für einen späteren SQL-Rollout
+## Verbindliche Freigabeprüfung für weitere SQL-Rollouts
 
 1. Eine neue Versionierung mit **global eindeutigen, unveränderlichen Migrations-IDs** und explizitem ausgeführtem Stand pro Datenbank erstellen. Die vorhandenen Nummern `001`–`005` dürfen nicht blind als global eindeutig interpretiert werden.
 2. Für jede Migration Abhängigkeiten, verfügbare Tabellen, Datenbankrolle, Mandantentrennung, RLS/FORCE, Trigger, Schemaeigentum, Locking und Downgrade-/Restore-Szenario festhalten.
