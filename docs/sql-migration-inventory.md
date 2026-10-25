@@ -18,14 +18,15 @@
 | `pilot-media` | `pilot-media-verified-003` | `003_dji_pilot_media_verified.sql` | Isolierte, nicht gemountete DJI-Medienregistrierung |
 | `wpml-draft` | `wpml-library-draft-003` | `003_wpml_route_library_draft.sql` | **Gesperrt**; Rollen, Workspace-RLS und produktiver Migrationsplan fehlen |
 | `pilot-media` | `pilot-media-http-004` | `004_dji_pilot_media_http.sql` | Isolierte, nicht gemountete Medien-HTTP-/Audit-Tests nach `pilot-media-verified-003` |
+| `pilot-media` | `pilot-media-library-005` | `005_dji_pilot_media_library.sql` | Isolierte lesende Medienbibliothek und unveränderliches Leseaudit nach `pilot-media-http-004`; keine Live-Migration |
 
 Die doppelte Dateinummer `003` ist **keine globale Migrationsreihenfolge**: `pilot-media` und `wpml-draft` sind verschiedene Fachfamilien. Die bestehenden Dateinamen bleiben absichtlich unverändert, damit Git-Historie, Runbooks und bestehende Integrationstests nicht gebrochen werden. **Wichtig:** Ein zukünftiger generischer SQL-Runner, der nach numerischen Dateipräfixen sortiert, bleibt ausdrücklich **verboten**, auch wenn das Register die beiden Einträge unterscheidet.
 
-`backend/db/schema.sql` ist die bestehende **separate Bootstrap-Datei** des PostGIS-Containers und gehört nicht zu diesen fünf nicht automatisch angewandten Fachmigrationen. Die SQL-Dateien unter `backend/db/offline/` gehören ebenfalls zu eigenständigen Offline-Verträgen und werden nicht vom Register freigegeben.
+`backend/db/schema.sql` ist die bestehende **separate Bootstrap-Datei** des PostGIS-Containers und gehört nicht zu diesen sechs nicht automatisch angewandten Fachmigrationen. Die SQL-Dateien unter `backend/db/offline/` gehören ebenfalls zu eigenständigen Offline-Verträgen und werden nicht vom Register freigegeben.
 
 ## Verbindliche Freigabeprüfung für einen späteren SQL-Rollout
 
-1. Eine neue Versionierung mit **global eindeutigen, unveränderlichen Migrations-IDs** und explizitem ausgeführtem Stand pro Datenbank erstellen. Die vorhandenen Nummern `001`–`004` dürfen nicht blind als global eindeutig interpretiert werden.
+1. Eine neue Versionierung mit **global eindeutigen, unveränderlichen Migrations-IDs** und explizitem ausgeführtem Stand pro Datenbank erstellen. Die vorhandenen Nummern `001`–`005` dürfen nicht blind als global eindeutig interpretiert werden.
 2. Für jede Migration Abhängigkeiten, verfügbare Tabellen, Datenbankrolle, Mandantentrennung, RLS/FORCE, Trigger, Schemaeigentum, Locking und Downgrade-/Restore-Szenario festhalten.
 3. Isoliertes PostgreSQL-15/16-Verfahren mit bereits vorhandenem Schema, zweitem Lauf, Transaktionsrollback und echten SQL-Abnahmen durchführen. Bestehende erfolgreiche synthetische Tests allein belegen **keine** gefahrlose Produktivmigration.
 4. Vor einem echten Raspberry-Pi-Eingriff den installierten Schema-/Image-Stand, Backup-Restore-Nachweis und separaten Freigabeprozess abschließen. Kein `docker compose down -v`, kein Auto-Apply, keine direkte SQL-Ausführung durch das Verzeichnisinventar.
