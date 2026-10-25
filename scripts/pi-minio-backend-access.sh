@@ -41,6 +41,7 @@ fi
 
 keys_of() { sed -nE 's/^([A-Z0-9_]+)=.*/\1/p' "$1"; }
 value_of() { sed -nE "s/^$2=(.*)$/\1/p" "$1" | head -1; }
+key_count() { keys_of "$1" | awk -v key="$2" '$0 == key { count++ } END { print count+0 }'; }
 
 echo "=== Backend-Zugang zum gemeinsamen MinIO (nur lesend) ==="
 if docker inspect --format '{{.State.Running}}' skyhub-shared-minio 2>/dev/null | grep -qx true; then ok "skyhub-shared-minio laeuft"; else need "skyhub-shared-minio laeuft nicht (zuerst: pi-minio-migrate-from-aeronexus.sh start)"; fi
@@ -48,7 +49,7 @@ if docker network inspect "$network" >/dev/null 2>&1; then ok "Netz $network vor
 if [[ -f "$reader" && ! -L "$reader" && "$(stat -c %a "$reader")" == 600 && "$(stat -c %u "$reader")" == "$(id -u)" ]]; then
   ok "Reader-Datei privat (0600, eigener Benutzer)"
   for key in SKYHUB_S3_ACCESS_KEY SKYHUB_S3_SECRET_KEY SKYHUB_S3_ENDPOINT; do
-    keys_of "$reader" | grep -qx "$key" && [[ -n "$(value_of "$reader" "$key")" ]] && ok "$key gesetzt (Wert nicht gelesen)" || need "$key fehlt oder ist leer"
+    [[ "$(key_count "$reader" "$key")" == 1 && -n "$(value_of "$reader" "$key")" ]] && ok "$key einmalig gesetzt (Wert nicht ausgegeben)" || need "$key fehlt, ist leer oder mehrfach gesetzt"
   done
   endpoint="$(value_of "$reader" SKYHUB_S3_ENDPOINT)"
   host="$(python3 -c 'import sys,urllib.parse as u;print(u.urlsplit(sys.argv[1]).hostname or "")' "$endpoint" 2>/dev/null || true)"
@@ -61,9 +62,10 @@ fi
 envfile="$root/.env"
 if [[ -f "$envfile" ]]; then
   for key in SKYHUB_MEDIA_ENABLED SKYHUB_S3_ENDPOINT SKYHUB_S3_ACCESS_KEY SKYHUB_S3_SECRET_KEY; do
-    keys_of "$envfile" | grep -qx "$key" && ok ".env enthaelt $key" || miss ".env enthaelt $key noch nicht"
+    [[ "$(key_count "$envfile" "$key")" == 1 ]] && ok ".env enthaelt $key genau einmal" || miss ".env muss $key genau einmal enthalten"
   done
   [[ "$(value_of "$envfile" SKYHUB_MEDIA_ENABLED)" == true ]] && ok "SKYHUB_MEDIA_ENABLED=true" || miss "SKYHUB_MEDIA_ENABLED ist nicht true"
+  [[ "$(value_of "$envfile" SKYHUB_S3_ENDPOINT)" == http://skyhub-minio:9000 ]] && ok "S3-Endpunkt zeigt auf skyhub-minio" || miss "S3-Endpunkt muss http://skyhub-minio:9000 sein"
   # Root-Zugangsdaten duerfen nie als S3-Konto des Backends dienen.
   if [[ -f "$HOME/.config/skyhub/minio-shared.env" ]]; then
     rootuser="$(value_of "$HOME/.config/skyhub/minio-shared.env" MINIO_ROOT_USER)"
@@ -79,7 +81,16 @@ if [[ -n "$backend" ]]; then
 else
   need "kein laufendes SkyHub-Next-Backend gefunden"
 fi
-[[ -f "$root/docker-compose.override.yml" ]] && ok "docker-compose.override.yml vorhanden (haelt die Netzzuordnung beim Recreate)" || miss "docker-compose.override.yml fehlt: ohne sie geht die Netzzuordnung beim naechsten Backend-Update verloren (override zeigt den Inhalt)"
+if [[ -f "$root/docker-compose.override.yml" ]]; then
+  # Prueft die wirksame Compose-Zuordnung statt nur den Dateinamen. Keine Konfiguration ausgeben: sie enthaelt Secrets.
+  if (cd "$root" && docker compose --env-file .env config --format json 2>/dev/null) | python3 -c 'import json,sys; c=json.load(sys.stdin); n=c["services"]["backend"].get("networks",{}); e=c["networks"].get("shared_storage",{}); sys.exit(0 if "shared_storage" in n and e.get("external") is True and e.get("name") == "skyhub-storage-net" else 1)' 2>/dev/null; then
+    ok "wirksames Compose bindet das Backend an skyhub-storage-net"
+  else
+    miss "wirksames Compose bindet das Backend nicht an das externe skyhub-storage-net (Override pruefen)"
+  fi
+else
+  miss "docker-compose.override.yml fehlt: ohne sie geht die Netzzuordnung beim naechsten Backend-Update verloren (override zeigt den Inhalt)"
+fi
 # Policy-Vorlage im Repo gegen die tatsaechlich genutzten Buckets
 python3 - "$root" <<'PY' && ok "Repo-Policy skyhub-backend-reader.json: nur ListBucket/GetObject auf die fuenf Buckets" || miss "Repo-Policy passt nicht zu den Buckets des Backends"
 import json, re, sys
