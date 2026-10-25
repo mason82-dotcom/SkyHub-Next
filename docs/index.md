@@ -2,7 +2,7 @@
 
 **Repository:** https://github.com/mason82-dotcom/SkyHub-Next. Historische GitHub-Links wurden auf den neuen Slug normalisiert; die lokalen Pi-Verzeichnisse `SkyHub` (Legacy) und `SkyHub-Next` (Entwicklung) bleiben unterschiedlich.
 
-**Repository- und PR-Abgleich vom 25.10.2026:** [Aktuelle Hygiene-/PR-Bestandsaufnahme](repository-hygiene-2026-10-25.md) – 52 offene PRs, davon 36 gestapelt. Der frühere [PR-Triagebericht vom 24.10.](pr-triage-2026-10-24.md) ist ein historischer Snapshot und darf nicht zur aktuellen Anzahl/Mergefreigabe herangezogen werden.
+**Repository- und PR-Abgleich vom 25.10.2026:** [Aktuelle Hygiene-/PR-Bestandsaufnahme](repository-hygiene-2026-10-25.md) – anfänglich 52 offene PRs, nach Schließung der ersetzten Drafts #88/#94 noch 50. Der frühere [PR-Triagebericht vom 24.10.](pr-triage-2026-10-24.md) ist ein historischer Snapshot und darf nicht zur aktuellen Anzahl/Mergefreigabe herangezogen werden.
 
 **Aktualisiert am 25.10.2026.** Diese Navigation gilt für den Root-Stack `skyhub-next`. Die wichtigste Unterscheidung ist die zwischen dem **Code auf `main`** und **noch nicht integrierten Entwicklungszweigen**.
 
