@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex,nofollow">
+<title>SkyHub Next · Mediengalerie</title>
+<link rel="stylesheet" href="/media-gallery.css">
+<script defer src="/media-gallery-verified-model.js"></script>
+<script defer src="/media-gallery-s3-model.js"></script>
+<script defer src="/media-gallery-verified.js"></script>
+<script defer src="/media-gallery-s3.js"></script>
+</head>
+<body data-skyhub-page="media-gallery">
+<a class="skip" href="#skyhubMain">Zum Inhalt springen</a>
+<header class="topbar">
+  <a class="brand" href="/" aria-label="SkyHub Next – Übersicht"><span class="brand-mark">✦</span> SkyHub <span>Next</span></a>
+  <nav class="global-nav" aria-label="SkyHub-Bereiche">
+    <a href="/">Übersicht</a>
+    <a href="/wpml-editor.html">Missionen</a>
+    <a href="/wpml-route-library.html">Routen</a>
+    <a href="/wpml-survey-preview.html">Survey</a>
+    <a href="/smart-farming.html">Smart Farming</a>
+    <a href="/media-gallery.html" aria-current="page">Medien</a>
+  </nav>
+</header>
+<main id="skyhubMain" tabindex="-1">
+  <div class="hero">
+    <div><p class="eyebrow">DJI MEDIA WORKSPACE / READ ONLY</p>
+      <h1>Medien<span>galerie</span></h1>
+      <p>Gesicherte DJI-Pilot-2-Registrierungen und gespeicherte MinIO-Objekte an einem Ort. Mit nachvollziehbarem Verifizierungsstatus, ohne ungeprüfte Bilddaten als Originale auszugeben.</p>
+    </div>
+    <div class="hero-summary"><strong>Nur lesend</strong><span>Kein Upload · Kein Löschen · Keine Flugsteuerung</span></div>
+  </div>
+  <nav class="jump-nav" aria-label="Galerieansichten">
+    <a href="#verified-library">01 · Verifizierte Medien</a>
+    <a href="#storage-inspector">02 · MinIO-Objekte</a>
+    <span>Keine Bildvorschau ohne sicheren Medien-Auslieferungspfad</span>
+  </nav>
+  <section id="verified-library" class="panel" aria-labelledby="verified-title">
+    <div class="panel-heading"><div><p class="eyebrow">PILOT 2 / WORKSPACE-KATALOG</p>
+      <h2 id="verified-title">Verifizierte Medienregistrierungen</h2></div>
+      <span class="state" id="verified-state">NICHT VERBUNDEN</span>
+    </div>
+    <p class="help">Hier erscheinen nur in PostgreSQL registrierte, bei der Übernahme per S3-HEAD geprüfte Medien. Beim Auswählen erfolgt eine <strong>neue HEAD-Prüfung</strong>. Die Galerie zeigt keine Bildinhalte, GPS-Koordinaten, XMP-/EXIF-Rohwerte, CaptureUUIDs oder Objektpfade. Für diese API sind <strong>zwei unabhängige Berechtigungen</strong> nötig.</p>
+    <div class="controls">
+      <label>SkyHub View-Token <input type="password" id="verified-view-token" autocomplete="off" spellcheck="false" placeholder="Geschützter API-Zugriff" maxlength="512"></label>
+      <label>DJI Workspace-UUID <input type="text" id="verified-workspace" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="36" placeholder="xxxxxxxx-xxxx-4xxx-xxxx-xxxxxxxxxxxx"></label>
+      <label>Pilot-2-API-Token <input type="password" id="verified-token" autocomplete="off" spellcheck="false" maxlength="512" placeholder="Workspaceberechtigter Token"></label>
+      <button type="button" id="verified-connect">Registrierungen laden</button>
+      <button type="button" class="secondary" id="verified-clear">Zugang leeren</button>
+    </div>
+    <p id="verified-message" class="message" role="status" aria-live="polite">Kein Workspace angemeldet. Zugangsdaten bleiben nur im Speicher dieser geöffneten Seite; Anmeldung über HTTPS.</p>
+    <div class="result-layout">
+      <ul id="verified-list" class="card-grid" aria-label="Verifizierte DJI-Pilot-2-Medien"></ul>
+      <aside id="verified-detail" class="detail" aria-label="Aktuelle S3-HEAD-Prüfung">Wähle nach dem Laden einen Medieneintrag aus. Vorschauen und Downloads sind in diesem Sicherheitsstand nicht freigegeben.</aside>
+    </div>
+    <div class="footer-actions"><span id="verified-page">Keine Seite geladen</span>
+      <div><button type="button" class="secondary" id="verified-group" disabled>M3M-Gruppenhinweise</button>
+      <button type="button" id="verified-next" disabled hidden>Nächste Seite</button></div>
+    </div>
+  </section>
+  <section id="storage-inspector" class="panel" aria-labelledby="storage-title">
+    <div class="panel-heading"><div><p class="eyebrow">MINIO / BESTANDSÜBERSICHT</p>
+      <h2 id="storage-title">Objektspeicher durchsuchen</h2></div>
+      <span class="state" id="storage-state">NICHT VERBUNDEN</span>
+    </div>
+    <p class="help">Direkter, authentifizierter <strong>Inventarblick</strong> auf die vorhandenen S3-Buckets. Objektnamen, Größen und Zeitstempel sind keine verifizierten DJI-Mediendaten. Keine Metadaten-Extraktion, Datei-Downloads oder Massenabfragen.</p>
+    <div class="controls">
+      <label>SkyHub View-Token <input id="storage-token" type="password" autocomplete="off" spellcheck="false" maxlength="512" placeholder="Nur temporär im Seitenspeicher"></label>
+      <button id="storage-connect" type="button">MinIO verbinden</button>
+      <label>Bucket <select id="storage-bucket" aria-label="MinIO-Bucket"></select></label>
+      <label>Prefix (optional) <input id="storage-prefix" type="text" maxlength="512" autocomplete="off" spellcheck="false" placeholder="z. B. missions/"></label>
+      <button id="storage-load" type="button" disabled>Objekte anzeigen</button>
+      <button id="storage-clear" class="secondary" type="button">Zugang leeren</button>
+    </div>
+    <p id="storage-message" class="message" role="status" aria-live="polite">Medienzugriff erfordert einen gültigen View-Token; der tokenfreie LAN-Gerätezugriff reicht nicht.</p>
+    <ul id="storage-objects" class="card-grid storage-grid" aria-label="MinIO-Objekte"></ul>
+    <div class="footer-actions"><span id="storage-page">Noch keine Objekte geladen</span>
+      <button type="button" id="storage-next" disabled hidden>Nächste Seite</button></div>
+  </section>
+  <p class="disclaimer">Die Darstellung ist eine Metadaten-Galerie, noch kein Bildbetrachter. Dateiinhalt, Sensorherkunft, radiometrische Kalibrierung, NDVI/NDRE und vollständige Hardwareabnahme werden durch die Anzeige nicht bestätigt. Maximal 20 manuell angeforderte Seiten je Liste. Alle Anfragen sind GET und workspace-/tokengebunden.</p>
+</main>
+</body>
+</html>
