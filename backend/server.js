@@ -25,6 +25,7 @@ const {createPilotMediaLibraryRuntime}=require('./pilot-media-library-runtime');
 const {createMinioDrRouter}=require('./minio-dr-api');
 const {createSmartFarmingCatalogRouter}=require('./smart-farming-catalog');
 const {createHttpAuth}=require('./http-auth');
+const {mapPageReferrerPolicy}=require('./map-page-referrer');
 const {registerPilotRoutes,registerPilotAdminRoutes}=require('./pilot-routes');
 const {createMqttIngest}=require('./mqtt-ingest');
 const {createPilotAuth}=require('./pilot-auth');
@@ -78,6 +79,9 @@ app.use((req,res,next)=>{
   res.set('Cache-Control','no-store');
   next();
 });
+// Scope the OSM Referer exception to the two browser map documents only.
+// API, Pilot 2 and other routes retain the global no-referrer policy.
+app.use(mapPageReferrerPolicy);
 const {auth,socketAuth}=createHttpAuth({secret,lanAccess});
 io.use(socketAuth);
 io.on('connection',socket=>socket.emit('snapshot',registry.snapshot()));
