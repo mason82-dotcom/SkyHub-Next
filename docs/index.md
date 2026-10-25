@@ -50,7 +50,7 @@
 | Geodaten- und Datenbanktests | [Isolierte PostGIS-Validierung](postgis-isolated-validation.md), [DJI-Referenz-Roadmap](dji-reference-roadmap.md) |
 | Betriebssicherheit und Migration | [Skriptwirkung](scripts.md), [Host-InfluxDB absichern](pi-influxdb-hardening.md), [Legacy-Migration](legacy-migration.md), [Legacy-Dependency-Audit](legacy-dependency-audit.md), [Takeover/Rollback](skyhub-legacy-takeover.md) |
 | Frontend-Kontrakte | [UX-CONTRACT](../UX-CONTRACT.md), [DESIGN](../DESIGN.md) |
-| Offene Pull Requests – datierte Triage (Messung, kein Merge-Beschluss) | [PR-Triage vom 25.10.2026](pr-triage-2026-10-24.md), [aktuellerer GitHub-Stand](repository-status-2026-10-25.md) |
+| Offene Pull Requests – datierte Triage (Messung, kein Merge-Beschluss) | [Register und Triage (25.10., abends)](pr-dependency-register-2026-10-25.md), [früherer GitHub-Stand](repository-status-2026-10-25.md) |
 | FlightHub 2 Frontend – optionale Herstellerkomponenten, nur Referenz | [FH2-On-Premises-Komponenten und Sicherheitsgates](dji-flighthub2-frontend-components.md) |
 | FlightHub 2 On-Premises – Bewertung (Recherche, kein Test) | [Bezug, Anforderungen, Geräte, Frontend-Komponenten](dji-flighthub2-on-premises-bewertung.md) |
 | DJI-Cloud-API-Demo als lokaler Testweg (extern zum Repo, nur LAN) | [Stack, Absicherung, Offline-Karte, Grenzen](cloud-api-demo-lokal.md) |
@@ -66,7 +66,7 @@
 ## Historische Momentaufnahmen – nicht als Live-Betriebszustand verwenden
 
 - [Repository-Status 25.10.](repository-status-2026-10-25.md) und [Hygieneaudit 25.10.](repository-hygiene-2026-10-25.md) wurden auf **älteren Main-SHAs** erhoben; für den späteren `662cb94d`-Stand gilt der [aktuellere Audit](stand-2026-10-25-main-audit.md).
-- [PR-Triage 25.10.](pr-triage-2026-10-24.md): technische Momentaufnahme mit inzwischen veralteten PR-Zahlen, **keine Freigabe**.
+- [PR-Triage 24./25.10.](pr-triage-2026-10-24.md): nur noch ein Verweis auf das zusammengeführte Register.
 
 - [Entwicklungsplan 20.–21.10.2026](entwicklungsplan-2026-10-20.md)
 - [Storage-Audit 20.10.2026](storage-audit-2026-10-20.md)
@@ -75,7 +75,7 @@
 
 ## Aktueller PR-Abhängigkeitsgraph
 
-- [Abhängigkeitsregister 25.10.2026 – 37 Drafts, Main-Kandidaten, Smart-Farming-/Thermal-/Medienketten und Freigabegates](pr-dependency-register-2026-10-25.md). Die Zahlen sind eine neue GitHub-Momentaufnahme; der Original-[PR-Triagebericht](pr-triage-2026-10-24.md) bleibt historisch.
+- [Register und Triage 25.10.2026 (abends) – 34 Drafts, Gruppen nach Konflikt und Inhalt, Ketten, Freigabegates und Bearbeitungsreihenfolge](pr-dependency-register-2026-10-25.md). Die Zahlen sind eine Momentaufnahme; die Live-Liste steht auf GitHub.
 
 ## Feature-PRs lesen und bewerten
 
