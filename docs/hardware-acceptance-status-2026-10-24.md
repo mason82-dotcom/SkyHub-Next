@@ -72,6 +72,21 @@
 - State wird bei Änderung gesendet: Ein State-Alter von rund 170 bis 185 s am Boden ist kein Fehler.
 - Weiter offen: Kamera-/Stream-Felder (`cloud_control_auth` nur als Berechtigung), Wärmebild- und Laserfelder bei tatsächlich sendendem Sensor, HMS bei echtem Ereignis, Disconnect-/Reconnect-Sequenz, Abgleich mit gerätespezifischen DJI-1.18-Quellen.
 
+## Folgemessung 25.10.2026, 21:22:23 UTC / 22:22:23 MEZ: RC Plus 2 + M4T weiter live verbunden
+
+**Evidenz:** Vom Betreiber übermittelte anonymisierte Ausgabe des **realen Raspberry-Pi-5**-Aufrufs `SKYHUB_COMPOSE_DIR="$HOME/Projekte/SkyHub-Next" node scripts/pi-rc-plus2-m4t-check.js --json`. Zeitstempel des Belegs: `2026-10-25T21:22:23.845Z` (`diagnostic-host`); **Exit 0**, `result=TRANSPORT_SMOKE_OK`. Diese spätere Momentaufnahme ist von der vorhergehenden Messung um ca. 21:04 UTC getrennt zu verstehen; sie wurde nicht durch eine eigene SSH-Verbindung reproduziert.
+
+| Prüfaspekt | Folgemessung |
+| --- | --- |
+| Backend-Transport | `mqttConnected=true`, `subscribed=true`, `topologyAckEnabled=true`, `topologyAckConnected=true`, `transportPassed=true` |
+| Separate Pilot-2-Kopplung | Pairing-Übersicht verfügbar; `rcPlus2Registered=true`, `rcPlus2RecentlyUsed=true`, `independentlyConfirmed=true`. Dies ist eine serverseitige Token-Nutzung, **kein** kryptografischer physischer RC-Nachweis |
+| RC-/M4T-Paarung | `linkedPairs=1` |
+| RC Plus 2 | `seen=true`, `topologyOnline=true`, `osdFresh=true`, `osdAgeSeconds=1`, `stateObserved=true`, Feldinterface verfügbar; **21/54 dokumentierte statische Felder beobachtet, 14 frisch** |
+| Matrice 4T | `seen=true`, `topologyOnline=true`, `aircraftConnected=true`, `osdFresh=true`, `osdAgeSeconds=1`, `stateObserved=true`, Feldinterface verfügbar; **100/202 vorläufig katalogisierte statische Felder beobachtet, 91 frisch**; **5 dynamische Gimbal-Feldtypen** beobachtet |
+| Abnahmeschutz | `hardwareAcceptanceComplete=false`, `flightReady=false`, `dispatchAllowed=false` |
+
+**Vergleich zum vorherigen Live-Beleg:** RC Plus 2 weiter 21 beobachtete/14 frische Felder; Matrice 4T nun **100 statt 92 beobachtete** und weiterhin **91 frische** Felder. Beobachtet und frisch sind verschiedene Kategorien; aus dem Zuwachs folgt weder neue DJI-Firmware noch zusätzliche freigegebene Hardwarefunktion. Diese Momentaufnahme bestätigt den **Live-Transport-Smoke** erneut, nicht den gleichzeitigen Betrieb mit RC Pro/M3M, Thermal-/Laser-Qualität, Missionsausführung oder Flugtauglichkeit. **Kein Konfigurationswechsel oder Backend-Neustart aus dem Beleg ableiten.**
+
 ## Nachweise und Grenzen
 
 | Gerät/Funktion | Wirklich vorliegende Evidenz | Offen, nicht behaupten |
