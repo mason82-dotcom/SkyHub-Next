@@ -1,0 +1,485 @@
+{
+  "schema": "skyhub-dji-parity-fixtures-v1",
+  "provenance": {
+    "target": "DJI Cloud API 1.18; no full protocol certification",
+    "reference": "cdmiltd/dji-cloud-api-sdk",
+    "version": "1.18.0.2",
+    "commit": "73c977e526d39f410ccf112bfcfd79e090285640",
+    "referencePaths": [
+      "sdk/src/main/java/ltd/cdmi/dji/cloudapi/sdk/command/status/UpdateTopoData.java",
+      "sdk/src/main/java/ltd/cdmi/dji/cloudapi/sdk/command/status/UpdateTopoReplyData.java",
+      "sdk/src/main/java/ltd/cdmi/dji/cloudapi/sdk/protocol/envelope/ReplyEnvelope.java",
+      "sdk/src/main/java/ltd/cdmi/dji/cloudapi/sdk/protocol/envelope/FlatReplyEnvelope.java"
+    ],
+    "scope": "Synthetic protocol variants for SkyHub behavior; candidate reply variant is not hardware validated"
+  },
+  "cases": [
+    {
+      "id": "topology-rcplus2-m4t-complete",
+      "topic": "sys/product/SYNTHETIC_RC/status",
+      "now": 1792518001000,
+      "envelope": {
+        "tid": "6a7bfe89-c386-4043-b600-b518e10096cc",
+        "bid": "42a19f36-5117-4520-bd13-fd61d818d52e",
+        "timestamp": 1792518000000,
+        "method": "update_topo",
+        "data": {
+          "domain": "2",
+          "type": 174,
+          "sub_type": 0,
+          "thing_version": "1.18",
+          "device_secret": "DUMMY_ONLY",
+          "nonce": "DUMMY_ONLY",
+          "sub_devices": [
+            {
+              "sn": "SYNTHETIC_M4T",
+              "domain": "0",
+              "type": 99,
+              "sub_type": 1,
+              "index": "A",
+              "device_secret": "DUMMY_ONLY",
+              "nonce": "DUMMY_ONLY"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "channel": "status",
+        "intakeAccepted": true,
+        "transactionValid": true,
+        "gatewayModel": "DJI RC Plus 2 Enterprise",
+        "aircraftModel": "Matrice 4T",
+        "modelResolution": "resolved",
+        "replyEligible": true
+      }
+    },
+    {
+      "id": "topology-rcplus2-missing-domain",
+      "topic": "sys/product/SYNTHETIC_RC/status",
+      "now": 1792518001000,
+      "envelope": {
+        "tid": "6a7bfe89-c386-4043-b600-b518e10096cc",
+        "bid": "42a19f36-5117-4520-bd13-fd61d818d52e",
+        "timestamp": 1792518000000,
+        "method": "update_topo",
+        "data": {
+          "domain": "2",
+          "type": 174,
+          "sub_type": 0,
+          "thing_version": "1.18",
+          "device_secret": "DUMMY_ONLY",
+          "nonce": "DUMMY_ONLY",
+          "sub_devices": [
+            {
+              "sn": "SYNTHETIC_M4T",
+              "type": 99,
+              "sub_type": 1,
+              "device_secret": "DUMMY_ONLY",
+              "nonce": "DUMMY_ONLY"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "channel": "status",
+        "intakeAccepted": true,
+        "transactionValid": true,
+        "gatewayModel": "DJI RC Plus 2 Enterprise",
+        "aircraftModel": null,
+        "modelResolution": "unknown-domain",
+        "replyEligible": true
+      }
+    },
+    {
+      "id": "topology-numeric-domain-version",
+      "topic": "sys/product/SYNTHETIC_RC/status",
+      "now": 1792518001000,
+      "envelope": {
+        "tid": "6a7bfe89-c386-4043-b600-b518e10096cc",
+        "bid": "42a19f36-5117-4520-bd13-fd61d818d52e",
+        "timestamp": 1792518000000,
+        "method": "update_topo",
+        "data": {
+          "domain": 2,
+          "type": 174,
+          "sub_type": 0,
+          "device_secret": "DUMMY_ONLY",
+          "nonce": "DUMMY_ONLY",
+          "sub_devices": [
+            {
+              "sn": "SYNTHETIC_M4T",
+              "domain": 0,
+              "type": 99,
+              "sub_type": 1,
+              "index": "A",
+              "device_secret": "DUMMY_ONLY",
+              "nonce": "DUMMY_ONLY"
+            }
+          ],
+          "version": 118
+        }
+      },
+      "expect": {
+        "channel": "status",
+        "intakeAccepted": true,
+        "transactionValid": true,
+        "gatewayModel": "DJI RC Plus 2 Enterprise",
+        "aircraftModel": "Matrice 4T",
+        "modelResolution": "resolved",
+        "replyEligible": true
+      }
+    },
+    {
+      "id": "topology-invalid-transaction",
+      "topic": "sys/product/SYNTHETIC_RC/status",
+      "now": 1792518001000,
+      "envelope": {
+        "tid": "bad",
+        "bid": "42a19f36-5117-4520-bd13-fd61d818d52e",
+        "timestamp": 1792518000000,
+        "method": "update_topo",
+        "data": {
+          "domain": "2",
+          "type": 174,
+          "sub_type": 0,
+          "thing_version": "1.18",
+          "device_secret": "DUMMY_ONLY",
+          "nonce": "DUMMY_ONLY",
+          "sub_devices": [
+            {
+              "sn": "SYNTHETIC_M4T",
+              "domain": "0",
+              "type": 99,
+              "sub_type": 1,
+              "index": "A",
+              "device_secret": "DUMMY_ONLY",
+              "nonce": "DUMMY_ONLY"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "channel": "status",
+        "intakeAccepted": true,
+        "transactionValid": false,
+        "replyEligible": false,
+        "modelResolution": "resolved"
+      }
+    },
+    {
+      "id": "topology-empty-subdevices",
+      "topic": "sys/product/SYNTHETIC_RC/status",
+      "now": 1792518001000,
+      "envelope": {
+        "tid": "6a7bfe89-c386-4043-b600-b518e10096cc",
+        "bid": "42a19f36-5117-4520-bd13-fd61d818d52e",
+        "timestamp": 1792518000000,
+        "method": "update_topo",
+        "data": {
+          "domain": "2",
+          "type": 174,
+          "sub_type": 0,
+          "thing_version": "1.18",
+          "device_secret": "DUMMY_ONLY",
+          "nonce": "DUMMY_ONLY",
+          "sub_devices": []
+        }
+      },
+      "expect": {
+        "channel": "status",
+        "intakeAccepted": true,
+        "transactionValid": true,
+        "modelResolution": "no-child",
+        "replyEligible": true,
+        "aircraftModel": null
+      }
+    },
+    {
+      "id": "topology-unknown-model",
+      "topic": "sys/product/SYNTHETIC_RC/status",
+      "now": 1792518001000,
+      "envelope": {
+        "tid": "6a7bfe89-c386-4043-b600-b518e10096cc",
+        "bid": "42a19f36-5117-4520-bd13-fd61d818d52e",
+        "timestamp": 1792518000000,
+        "method": "update_topo",
+        "data": {
+          "domain": "2",
+          "type": 174,
+          "sub_type": 0,
+          "thing_version": "1.18",
+          "device_secret": "DUMMY_ONLY",
+          "nonce": "DUMMY_ONLY",
+          "sub_devices": [
+            {
+              "sn": "SYNTHETIC_M4T",
+              "domain": "0",
+              "type": 555,
+              "sub_type": 1,
+              "index": "A",
+              "device_secret": "DUMMY_ONLY",
+              "nonce": "DUMMY_ONLY"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "channel": "status",
+        "intakeAccepted": true,
+        "transactionValid": true,
+        "modelResolution": "unknown-model",
+        "replyEligible": true,
+        "aircraftModel": null
+      }
+    },
+    {
+      "id": "topology-retained-packet",
+      "topic": "sys/product/SYNTHETIC_RC/status",
+      "now": 1792518001000,
+      "envelope": {
+        "tid": "6a7bfe89-c386-4043-b600-b518e10096cc",
+        "bid": "42a19f36-5117-4520-bd13-fd61d818d52e",
+        "timestamp": 1792518000000,
+        "method": "update_topo",
+        "data": {
+          "domain": "2",
+          "type": 174,
+          "sub_type": 0,
+          "thing_version": "1.18",
+          "device_secret": "DUMMY_ONLY",
+          "nonce": "DUMMY_ONLY",
+          "sub_devices": [
+            {
+              "sn": "SYNTHETIC_M4T",
+              "domain": "0",
+              "type": 99,
+              "sub_type": 1,
+              "index": "A",
+              "device_secret": "DUMMY_ONLY",
+              "nonce": "DUMMY_ONLY"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "channel": "status",
+        "intakeAccepted": false,
+        "transactionValid": true,
+        "modelResolution": "not-inspected",
+        "replyEligible": false
+      },
+      "retained": true
+    },
+    {
+      "id": "topology-stale-packet",
+      "topic": "sys/product/SYNTHETIC_RC/status",
+      "now": 1792518001000,
+      "envelope": {
+        "tid": "6a7bfe89-c386-4043-b600-b518e10096cc",
+        "bid": "42a19f36-5117-4520-bd13-fd61d818d52e",
+        "timestamp": 1792517501000,
+        "method": "update_topo",
+        "data": {
+          "domain": "2",
+          "type": 174,
+          "sub_type": 0,
+          "thing_version": "1.18",
+          "device_secret": "DUMMY_ONLY",
+          "nonce": "DUMMY_ONLY",
+          "sub_devices": [
+            {
+              "sn": "SYNTHETIC_M4T",
+              "domain": "0",
+              "type": 99,
+              "sub_type": 1,
+              "index": "A",
+              "device_secret": "DUMMY_ONLY",
+              "nonce": "DUMMY_ONLY"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "channel": "status",
+        "intakeAccepted": false,
+        "transactionValid": true,
+        "modelResolution": "not-inspected",
+        "replyEligible": false
+      }
+    },
+    {
+      "id": "topology-invalid-subdevices",
+      "topic": "sys/product/SYNTHETIC_RC/status",
+      "now": 1792518001000,
+      "envelope": {
+        "tid": "6a7bfe89-c386-4043-b600-b518e10096cc",
+        "bid": "42a19f36-5117-4520-bd13-fd61d818d52e",
+        "timestamp": 1792518000000,
+        "method": "update_topo",
+        "data": {
+          "domain": "2",
+          "type": 174,
+          "sub_type": 0,
+          "thing_version": "1.18",
+          "device_secret": "DUMMY_ONLY",
+          "nonce": "DUMMY_ONLY"
+        }
+      },
+      "expect": {
+        "channel": "status",
+        "intakeAccepted": true,
+        "transactionValid": true,
+        "modelResolution": "no-topology",
+        "replyEligible": false
+      }
+    },
+    {
+      "id": "service-result-only",
+      "topic": "thing/product/SYNTHETIC_RC/services_reply",
+      "now": 1792518001000,
+      "envelope": {
+        "tid": "6a7bfe89-c386-4043-b600-b518e10096cc",
+        "bid": "42a19f36-5117-4520-bd13-fd61d818d52e",
+        "timestamp": 1792518000000,
+        "method": "flighttask_prepare",
+        "data": {
+          "result": 0
+        }
+      },
+      "expect": {
+        "channel": "services_reply",
+        "intakeAccepted": true,
+        "transactionValid": true,
+        "replyShape": "result-only"
+      }
+    },
+    {
+      "id": "service-result-output",
+      "topic": "thing/product/SYNTHETIC_RC/services_reply",
+      "now": 1792518001000,
+      "envelope": {
+        "tid": "6a7bfe89-c386-4043-b600-b518e10096cc",
+        "bid": "42a19f36-5117-4520-bd13-fd61d818d52e",
+        "timestamp": 1792518000000,
+        "method": "flighttask_prepare",
+        "data": {
+          "result": 0,
+          "output": {
+            "status": "synthetic-only"
+          }
+        }
+      },
+      "expect": {
+        "channel": "services_reply",
+        "intakeAccepted": true,
+        "transactionValid": true,
+        "replyShape": "result-output"
+      }
+    },
+    {
+      "id": "service-result-flat",
+      "topic": "thing/product/SYNTHETIC_RC/services_reply",
+      "now": 1792518001000,
+      "envelope": {
+        "tid": "6a7bfe89-c386-4043-b600-b518e10096cc",
+        "bid": "42a19f36-5117-4520-bd13-fd61d818d52e",
+        "timestamp": 1792518000000,
+        "method": "flighttask_prepare",
+        "data": {
+          "result": 0,
+          "licenses": [],
+          "device_secret": "DUMMY_ONLY"
+        }
+      },
+      "expect": {
+        "channel": "services_reply",
+        "intakeAccepted": true,
+        "transactionValid": true,
+        "replyShape": "result-flat"
+      }
+    },
+    {
+      "id": "service-object-result-candidate",
+      "topic": "thing/product/SYNTHETIC_RC/services_reply",
+      "now": 1792518001000,
+      "envelope": {
+        "tid": "6a7bfe89-c386-4043-b600-b518e10096cc",
+        "bid": "42a19f36-5117-4520-bd13-fd61d818d52e",
+        "timestamp": 1792518000000,
+        "method": "flighttask_prepare",
+        "data": {
+          "result": {
+            "code": 0
+          }
+        }
+      },
+      "expect": {
+        "channel": "services_reply",
+        "intakeAccepted": true,
+        "transactionValid": true,
+        "replyShape": "object-result-candidate"
+      }
+    },
+    {
+      "id": "service-ambiguous-output",
+      "topic": "thing/product/SYNTHETIC_RC/services_reply",
+      "now": 1792518001000,
+      "envelope": {
+        "tid": "6a7bfe89-c386-4043-b600-b518e10096cc",
+        "bid": "42a19f36-5117-4520-bd13-fd61d818d52e",
+        "timestamp": 1792518000000,
+        "method": "flighttask_prepare",
+        "data": {
+          "result": 0,
+          "output": {},
+          "licenses": []
+        }
+      },
+      "expect": {
+        "channel": "services_reply",
+        "intakeAccepted": true,
+        "transactionValid": true,
+        "replyShape": "ambiguous-shape"
+      }
+    },
+    {
+      "id": "service-invalid-result-type",
+      "topic": "thing/product/SYNTHETIC_RC/services_reply",
+      "now": 1792518001000,
+      "envelope": {
+        "tid": "6a7bfe89-c386-4043-b600-b518e10096cc",
+        "bid": "42a19f36-5117-4520-bd13-fd61d818d52e",
+        "timestamp": 1792518000000,
+        "method": "flighttask_prepare",
+        "data": {
+          "result": "0"
+        }
+      },
+      "expect": {
+        "channel": "services_reply",
+        "intakeAccepted": true,
+        "transactionValid": true,
+        "replyShape": "invalid-shape"
+      }
+    },
+    {
+      "id": "service-untimed-no-correlation",
+      "topic": "thing/product/SYNTHETIC_RC/services_reply",
+      "now": 1792518001000,
+      "envelope": {
+        "tid": "6a7bfe89-c386-4043-b600-b518e10096cc",
+        "bid": "42a19f36-5117-4520-bd13-fd61d818d52e",
+        "method": "flighttask_prepare",
+        "data": {
+          "result": 0
+        }
+      },
+      "expect": {
+        "channel": "services_reply",
+        "intakeAccepted": true,
+        "transactionValid": false,
+        "replyShape": "invalid-transaction"
+      }
+    }
+  ]
+}
