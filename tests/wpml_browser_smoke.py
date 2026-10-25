@@ -74,7 +74,7 @@ def guard(page, base: str, *, real_map: bool, unexpected: list[str]) -> None:
             route.fulfill(path=str(LEAFLET_DIST / "images" / "marker-shadow.png"),
                           content_type="image/png")
             return
-        if real_map and url.startswith("https://") and ".tile.openstreetmap.org/" in url:
+        if real_map and url.startswith("https://tile.openstreetmap.org/"):
             route.fulfill(status=200, body=TILE, content_type="image/png")
             return
         if not real_map and url.startswith("https://unpkg.com/leaflet@1.9.4/"):
@@ -262,6 +262,9 @@ def main() -> None:
                     guard(page, base, real_map=True, unexpected=unexpected)
                     page.goto(base + "/wpml-editor.html", wait_until="load")
                     page.locator(".leaflet-container").wait_for()
+                    check(page.locator(".leaflet-tile").first.evaluate(
+                        "img => img.referrerPolicy") == "strict-origin-when-cross-origin",
+                        "WPML tile image must send origin-only Referer")
                     assert_light_theme(page, "/wpml-editor.html", "WPML editor desktop")
                     assert_skip_link(page, "WPML editor desktop")
                     assert_system_accessibility(page, "WPML editor desktop")
