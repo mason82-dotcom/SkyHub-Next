@@ -33,7 +33,7 @@ function createFlighttaskWorkspaceTransactions(pool,{authorize,dbRole}={}){
     catch(_error){allowed=false;}
     if(!allowed)throw deny();
 
-    let client,started=false;
+    let client,started=false,broken=false;
     try{
       client=await pool.connect();
       if(!client||typeof client.query!=='function'||typeof client.release!=='function')
@@ -57,11 +57,12 @@ function createFlighttaskWorkspaceTransactions(pool,{authorize,dbRole}={}){
       return value;
     }catch(_error){
       if(started&&client&&typeof client.query==='function'){
-        try{await client.query('ROLLBACK');}catch(_rollbackError){}
+        try{await client.query('ROLLBACK');}catch(_rollbackError){broken=true;}
       }
       throw storage();
     }finally{
-      if(client&&typeof client.release==='function')client.release();
+      // A failed ROLLBACK leaves the session in an unknown state: discard it, never pool it.
+      if(client&&typeof client.release==='function')client.release(broken||undefined);
     }
   }
   return Object.freeze({run});

@@ -124,6 +124,9 @@ sudo node scripts/pi-mosquitto-dedicated.js rollback        # Unit und /etc/skyh
 
 `apply` ändert weder `.env` noch das SkyHub-Backend. Die Umstellung der vier Werte erfolgt danach
 manuell mit `bash scripts/pi-preflight.sh --broker-kind mosquitto-dedicated --broker-port 1884` und
-`bash scripts/pi-update-backend.sh --apply`. Die Brokerprobe sendet je Lauf höchstens ein ungültiges
-`services_reply` für die Pseudo-Seriennummer `SKYHUBPROBE`. Firewall, DJI-Pilot-2-Annahme und echte
+`bash scripts/pi-update-backend.sh --apply`. Die Brokerprobe veröffentlicht nur Topics, die das Backend nicht abonniert
+(`status_reply`, `requests` und den Probe-Namensraum `skyhub/probe/#`, den nur der Reader lesen und nur das Pilot-Konto
+schreiben darf). Ein Test (`backend/test/mosquitto-dedicated-probe.test.js`) stellt sicher, dass kein Probe-Topic zu den
+Abos des Backends passt; andernfalls legt das Backend ein Geisterobjekt `SKYHUBPROBE` im Geräte-Register an.
+Nach einer Änderung am Skript oder an der ACL gilt die neue ACL erst nach erneutem `sudo node scripts/pi-mosquitto-dedicated.js apply`. Firewall, DJI-Pilot-2-Annahme und echte
 OSD-Verarbeitung bleiben ungeprüft, bis die RC nachweislich Telemetrie liefert.
