@@ -361,7 +361,7 @@ function update(){
     const state=document.createElement('span');state.className='state'+(fresh(d)&&d.aircraftConnected!==false?'':' stale');
     state.textContent=d.aircraftConnected===false?'● Fluggerät nicht verbunden':fresh(d)?(d.telemetryTimeVerified===false?
       '● OSD empfangen · Zeit ungeprüft':'● OSD frisch'):
-      d.topologyOnline===true?'● Topologie gemeldet · OSD veraltet':'● OSD veraltet';
+      d.topologyOnline===true?'○ Keine aktuellen Daten · Topologie zuletzt „online“':'● OSD veraltet';
     head.append(name,state);card.append(head);
     const t=d.telemetry||{};
     const quick=document.createElement('dl');quick.className='quick';

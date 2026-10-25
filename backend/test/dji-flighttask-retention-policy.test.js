@@ -14,7 +14,12 @@ function fixture({allowed=true,policy={enabled:true,legalHold:false,retentionDay
     if(dbError)throw Error('PRIVATE_DSN');
     return {rows:[{observation_id:'private'}]};
   }};
-  const journal=createPolicyBoundFlighttaskRetention(db,{
+  // Stand-in for createFlighttaskWorkspaceTransactions(): records the scoped call.
+  const transactions={async run(scope,work){
+    events.push({type:'tx',scope});
+    return work(db);
+  }};
+  const journal=createPolicyBoundFlighttaskRetention(transactions,{
     authorize:async(p,workspace,action)=>{
       events.push({type:'auth',workspace,action});
       return allowed&&p===principal&&workspace===A&&action==='prune';
@@ -89,7 +94,22 @@ test('invalid trusted clock and storage errors redact sensitive content',async()
     return true;
   });
 });
-test('constructor requires injected identity decision, policy and database',()=>{
+test('constructor requires injected identity decision, policy and workspace transactions',()=>{
+  const ok={authorize:async()=>true,resolvePolicy:async()=>({})};
   assert.throws(()=>createPolicyBoundFlighttaskRetention(null,{}),/trusted dependencies/);
-  assert.throws(()=>createPolicyBoundFlighttaskRetention({query:async()=>{}},{authorize:async()=>true}),/trusted dependencies/);
+  assert.throws(()=>createPolicyBoundFlighttaskRetention({run:async()=>{}},{authorize:async()=>true}),/trusted dependencies/);
+  // A raw pool or client would run the DELETE without the tenant scope: refuse it.
+  assert.throws(()=>createPolicyBoundFlighttaskRetention({query:async()=>{}},ok),/trusted dependencies/);
+  assert.throws(()=>createPolicyBoundFlighttaskRetention({connect:async()=>{}},ok),/trusted dependencies/);
+  assert.throws(()=>createPolicyBoundFlighttaskRetention({run:async()=>{},query:async()=>{}},ok),/trusted dependencies/);
+});
+test('the delete runs only inside the scoped prune transaction, never in a dry run',async()=>{
+  const dry=fixture();
+  await dry.journal.run({workspaceId:A,principal});
+  assert.equal(dry.events.filter(x=>x.type==='tx').length,0);
+  const f=fixture();
+  await f.journal.run({workspaceId:A,principal,execute:true});
+  const order=f.events.map(x=>x.type);
+  assert.ok(order.indexOf('tx')<order.indexOf('db'));
+  assert.deepEqual(f.events.find(x=>x.type==='tx').scope,{workspaceId:A,principal,action:'prune'});
 });

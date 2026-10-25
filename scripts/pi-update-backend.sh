@@ -97,6 +97,7 @@ if ! "${compose[@]}" exec -T postgres pg_dump -U skyhub_next -d skyhub_next -Fc 
   echo "REFUSED: Postgres backup failed. Existing containers unchanged." >&2;exit 1
 fi
 if [[ ! -s "$backup_dir/postgis.dump" ]];then
+  rm -f "$backup_dir/postgis.dump"
   echo "REFUSED: backup appears empty. Existing containers unchanged." >&2;exit 1
 fi
 

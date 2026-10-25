@@ -168,7 +168,8 @@ if(process.env.SKYHUB_M3M_CATALOG_ENABLED==='true'){
   }));
 }
 
-// MinIO disaster-recovery reports: read-only and disabled by default.
+// MinIO disaster-recovery reports: read-only, behind auth. Off unless explicitly enabled here;
+// the root Compose file enables it by default (reports are optional: status stays 'unavailable' without them).
 if(process.env.SKYHUB_MINIO_DR_ENABLED==='true'){
   const drDirectory=process.env.SKYHUB_MINIO_DR_REPORT_DIR;
   if(!drDirectory || !path.isAbsolute(drDirectory)){
@@ -189,7 +190,7 @@ if(process.env.SKYHUB_MEDIA_ENABLED==='true'){
 }
 
 app.get('/api/devices',(req,res)=>res.json(registry.snapshot()));
-app.get('/api/topology',(req,res)=>res.json(registry.snapshot().map(d=>({sn:d.sn,role:d.role,gatewaySn:d.gatewaySn,model:d.model,topologyOnline:d.topologyOnline,
+app.get('/api/topology',(req,res)=>res.json(registry.snapshot().map(d=>({sn:d.sn,role:d.role,gatewaySn:d.gatewaySn,model:d.model,topologyOnline:d.topologyOnline,online:d.online,
   lastTopologyAt:d.lastTopologyAt,topologyTimeVerified:d.topologyTimeVerified,children:d.children}))));
 app.get('/api/events',(req,res)=>res.json(registry.events()));
 registerPilotAdminRoutes(app,{pairing});

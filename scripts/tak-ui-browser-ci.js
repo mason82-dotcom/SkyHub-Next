@@ -10,7 +10,6 @@ const fs=require('node:fs');
 const path=require('node:path');
 const http=require('node:http');
 const os=require('node:os');
-const {once}=require('node:events');
 const root=path.resolve(__dirname,'..');
 const deps=process.env.SKYHUB_BROWSER_DEPS;
 if(!deps||!path.isAbsolute(deps))throw new Error('absolute SKYHUB_BROWSER_DEPS required');
