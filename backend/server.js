@@ -15,6 +15,7 @@ const {pilotConfiguration}=require('./pilot-config');
 const {createPilotPairing,redisStore}=require('./pilot-pairing');
 const {createTopologyStore}=require('./topology-store');
 const {createLanAccess}=require('./lan-access');
+const {parseTrustedProxyIps,isTrustedProxyIp}=require('./proxy-trust');
 const {createTrackPolicy}=require('./track-policy');
 const {createTrackStore,retentionDays}=require('./track-store');
 const {createTrackRecorder}=require('./track-recorder');
@@ -41,9 +42,10 @@ try {
   process.exit(1);
 }
 const pilot=pilotConfiguration(process.env);
-let lanAccess,trackRetentionDays;
+let lanAccess,trackRetentionDays,trustedProxyIps;
 try {
-  lanAccess=createLanAccess(process.env.SKYHUB_LAN_VIEW_CIDR);
+  trustedProxyIps=parseTrustedProxyIps(process.env.SKYHUB_TRUSTED_PROXY_IPS||'');
+  lanAccess=createLanAccess(process.env.SKYHUB_LAN_VIEW_CIDR,trustedProxyIps);
   trackRetentionDays=retentionDays(process.env.SKYHUB_TRACK_RETENTION_DAYS);
 } catch(err) {
   console.error('[config]',err.message);
@@ -51,9 +53,11 @@ try {
 }
 const app=express(),server=http.createServer(app);
 // Do not trust forged X-Forwarded-Proto when SkyHub occupies the legacy LAN port.
-// Trust proxy headers only when the backend is published exclusively on loopback.
+// Even with loopback-only host publication, sibling Docker containers can
+// reach the internal container port. Trust X-Forwarded-Proto only from the
+// explicitly named Caddy peer, never all private networks or Docker peers.
 if(['127.0.0.1','::1'].includes(process.env.SKYHUB_BIND_ADDRESS||'127.0.0.1')){
-  app.set('trust proxy',['loopback','linklocal','uniquelocal']);
+  app.set('trust proxy',ip=>isTrustedProxyIp(ip,trustedProxyIps));
 }
 // With the situation-awareness WebSocket enabled this process answers unknown upgrades itself.
 const tsaWanted=pilot.tsa.enabled;
