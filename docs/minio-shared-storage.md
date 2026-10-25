@@ -476,6 +476,8 @@ die manuelle Netzwerkzuordnung bei einem Recreate.
 
 ## 6. Daten- und Zugriffsstrategie
 
+**Tatsächlich vorhandene Buckets (Audit 25.10.2026):** `basemaps`, `dji-cloud`, `farming`, `mapping-results`, `pv-inspections`. Genau diese fünf liest die optionale Medien-API des Backends (`backend/s3-storage.js`, rein lesend). Dafür gilt die Policy `storage/policies/skyhub-backend-reader.json` (nur `s3:ListBucket` und `s3:GetObject`, nur diese Buckets). Die Vorlagen für das unten geplante `skyhub-*`-Layout gelten für **künftige** Buckets und dürfen nicht für das Backend vergeben werden: sie nennen Buckets, die es nicht gibt.
+
 Vorgesehene logisch getrennte Buckets (noch **nicht** angelegt):
 `skyhub-media-raw` für originale Mavic-3M-Multispektraldaten,
 `skyhub-media-derived` für NDVI/Orthomosaik/Ergebnisse und
@@ -501,6 +503,7 @@ keine öffentlichen Buckets oder pauschale `s3:*`-Freigaben.
 
 | Policy-Datei | Zugriff |
 |---|---|
+| `skyhub-backend-reader.json` | **Aktuell für das Backend:** die fünf vorhandenen Buckets nur lesen (`ListBucket`, `GetObject`), kein Schreiben, kein Löschen |
 | `skyhub-raw-ingest.json` | Originalbilder in `skyhub-media-raw` schreiben/lesen, **kein Löschen** |
 | `skyhub-derived-worker.json` | Originalbilder nur lesen, abgeleitete Produkte schreiben/lesen |
 | `skyhub-wpml-reader.json` | WPML-/KMZ-Daten nur lesen |

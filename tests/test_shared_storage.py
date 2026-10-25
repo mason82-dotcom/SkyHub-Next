@@ -4,6 +4,7 @@ These tests never access Docker or change the Raspberry Pi.
 """
 from pathlib import Path
 import json
+import re
 import subprocess
 import unittest
 
@@ -34,7 +35,10 @@ class SharedMinioStorageTest(unittest.TestCase):
 
     def test_s3_policies_are_bucket_scoped_with_no_public_all_access(self):
         files = sorted((ROOT / "storage/policies").glob("*.json"))
-        self.assertEqual(len(files), 4)
+        self.assertEqual(len(files), 5)
+        # The backend reads exactly these buckets (backend/s3-storage.js); templates for the planned
+        # skyhub-* layout and the backend reader are the only allowed resource families.
+        legacy = {"basemaps", "dji-cloud", "farming", "mapping-results", "pv-inspections"}
         for path in files:
             policy = json.loads(path.read_text(encoding="utf-8"))
             self.assertEqual(policy["Version"], "2012-10-17")
@@ -42,8 +46,19 @@ class SharedMinioStorageTest(unittest.TestCase):
                 self.assertEqual(statement["Effect"], "Allow")
                 self.assertNotIn("*", statement["Action"])
                 for resource in statement["Resource"]:
-                    self.assertTrue(resource.startswith("arn:aws:s3:::skyhub-"))
+                    bucket = resource.removeprefix("arn:aws:s3:::").split("/")[0]
+                    self.assertTrue(bucket.startswith("skyhub-") or bucket in legacy, resource)
                     self.assertNotEqual(resource, "arn:aws:s3:::*")
+        backend = json.loads((ROOT / "storage/policies/skyhub-backend-reader.json").read_text())
+        grants = [(a, r) for st in backend["Statement"] for a in st["Action"] for r in st["Resource"]]
+        self.assertEqual({a for a, _ in grants}, {"s3:ListBucket", "s3:GetObject"})
+        listed = {r.removeprefix("arn:aws:s3:::") for a, r in grants if a == "s3:ListBucket"}
+        objects = {r.removeprefix("arn:aws:s3:::").removesuffix("/*") for a, r in grants if a == "s3:GetObject"}
+        source = (ROOT / "backend/s3-storage.js").read_text(encoding="utf-8")
+        used = set(re.findall(r"'([a-z-]+)'", re.search(r"BUCKETS=Object\.freeze\(\[(.*?)\]\)", source, re.S).group(1)))
+        self.assertEqual(listed, used)
+        self.assertEqual(objects, used)
+        self.assertEqual(used, legacy)
         wpml = json.loads((ROOT / "storage/policies/skyhub-wpml-reader.json").read_text())
         actions = [a for s in wpml["Statement"] for a in s["Action"]]
         self.assertNotIn("s3:PutObject", actions)
