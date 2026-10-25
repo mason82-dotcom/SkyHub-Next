@@ -19,6 +19,8 @@ Das Root-Compose nutzt standardmäßig `emqx/1884`; die im Code geprüften Alter
 
 **SQL-Migrationen:** Das [neue statische Register](docs/sql-migration-inventory.md) unterscheidet DJI-Karten-, Pilot-Medien- und gesperrte WPML-Draftdateien. Die doppelte Dateinummer `003` ist keine globale Versionsreihenfolge; im Hauptbranch existiert kein durch dieses Register freigegebener produktiver SQL-Auto-Runner.
 
+**Offene Integrationen:** [PR-Abhängigkeitsgraph und priorisierte Gates (25.10.2026)](docs/pr-dependency-register-2026-10-25.md). Der Bericht unterscheidet sechs direkt auf `main` basierende Drafts und gestapelte Medien-, Thermal-, Smart-Farming- und TSA-Ketten. Er ist eine datierte Momentaufnahme, **keine** allgemeine Merge-Freigabe.
+
 ## Historischer Integrationsverlauf (ab 23.10.2026)
 
 **CI-Abnahme für M3M:** Der eigenständige [Raster-/Katalog-Prüfworkflow](.github/workflows/m3m-offline-acceptance.yml) ist durch PR #101 im Hauptbranch registriert und muss vor Zusammenführung dieser Komponenten auf genau dem finalen PR-Commit sowohl die echten NumPy-/Rasterio-Testfälle als auch die HTTP-/Berechtigungstests erfolgreich ausführen.
