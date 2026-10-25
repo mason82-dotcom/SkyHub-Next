@@ -1,6 +1,6 @@
 # DJI Pilot 2 – isolierte HTTPS-Medienendpunkte
 
-Stand: 25.10.2026. Isolierter Baustein auf der verifizierten PostgreSQL-Basis. **Kein Deployment, keine Änderung der produktiven Pi-Dienste.**
+Stand: 25.10.2026. Der hier beschriebene schreibende Callback-Router bleibt isoliert und ist nicht produktiv gemountet. Die zugrunde liegenden Tabellen 003/004 sind inzwischen auf `rpi5` als Voraussetzung der getrennten **lesenden** Bibliothek vorhanden; deren Aktivierung ist [separat dokumentiert](dji-pilot2-verified-media-library.md#pi-abnahme-vom-25102026).
 
 ## Umfang und Authentifizierung
 
@@ -17,7 +17,7 @@ Für jeden Request werden `req.secure === true`, exakt die konfigurierte Workspa
 
 `express.json({limit:'96kb',strict:true})` beschränkt JSON-Anfragen. Query-Parameter sind gesperrt. Serverseitige Ausnahmen und defekte JSON-Anfragen liefern ausschließlich redigierte DJI-Antworthüllen, keine Tokens, SQL-Ausdrücke, Seriennummern oder Credential-Daten. `Cache-Control: no-store` ist für erfolgreiche und fehlerhafte Ausgaben gesetzt.
 
-**Wichtige DJI-Kompatibilitätsgrenze:** Die aktuelle DJI-Webreferenz gibt für `fast-upload` nur die erfolgreiche, leere `data`-Hülle wieder, aber keinen eindeutigen Fehlstatus für noch nicht gespeicherte Dateien an. SkyHub liefert in diesem isolierten Staging-Baustein für nicht vorhandene Fingerprints `404` mit nicht-null Fehlercode, statt einen Upload fälschlich als bereits erfolgreich auszugeben. Exakte Interpretation durch die eingesetzte Pilot-2-Version muss am RC getestet werden, **bevor die Medienbibliothek aktiviert wird**.
+**Wichtige DJI-Kompatibilitätsgrenze:** Die aktuelle DJI-Webreferenz gibt für `fast-upload` nur die erfolgreiche, leere `data`-Hülle wieder, aber keinen eindeutigen Fehlstatus für noch nicht gespeicherte Dateien an. SkyHub liefert in diesem isolierten Staging-Baustein für nicht vorhandene Fingerprints `404` mit nicht-null Fehlercode, statt einen Upload fälschlich als bereits erfolgreich auszugeben. Exakte Interpretation durch die eingesetzte Pilot-2-Version muss am RC getestet werden, **bevor der Uploadpfad produktiv verdrahtet wird**. Die am 25.10.2026 auf `rpi5` aktivierte [lesende Bibliothek](dji-pilot2-verified-media-library.md#pi-abnahme-vom-25102026) zeigt aktuell null verifizierte Datensätze; sie aktiviert diesen Callback-Baustein nicht.
 
 ## Deduplizierung und Mediengruppen
 
@@ -31,7 +31,7 @@ Für jeden Request werden `req.secure === true`, exakt die konfigurierte Workspa
 
 ## Freigabegrenzen
 
-- `backend/server.js`, `pilot-routes.js`, Pilot-2-Webview, Caddy, EMQX, Docker Compose und Pi-Datenbank sind **unverändert**; die neuen Routen sind nicht produktiv gemountet.
+- Die in diesem Dokument beschriebenen Medien-Callback-Routen sind nicht produktiv gemountet. Auf `rpi5` sind die Tabellen aus 003/004 inzwischen vorhanden und der Caddy-Pfad der getrennten lesenden Bibliothek ist aktiv; das ist keine Freigabe des Upload-Routers.
 - Die STS-Ausstellung bleibt separat deaktiviert; `createRegisteredStsIssuer` aus `backend/pilot-media-store.js` muss beim späteren Mount explizit eingesetzt werden, damit ausgestellte Credentials erst nach dauerhaft gespeicherter Scope-Zuordnung die RC erreichen.
 - Ein HEAD/ETag ist keine kryptografische Datei-Verifikation; `fast-upload` und Gruppen-Reports greifen auf bestätigte Datenbankeinträge zurück und prüfen nicht vor jeder Auskunft erneut den aktuellen S3-Stand.
 - Es fehlen noch eine Versions-/TLS-/IAM-Abnahme auf dem Pi, die abschließende DJI-Pilot-2-Hardwareprüfung, produktive Reconciliation/Re-HEAD nach längerer Zeit, Multipart- und M3M-Metadatenanalyse sowie die bewusste Aktivierung der `api`- und `media`-Module in Pilot 2.

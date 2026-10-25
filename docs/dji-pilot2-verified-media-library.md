@@ -1,6 +1,6 @@
 # SkyHub Next – Verifizierte DJI-Pilot-2-Medienbibliothek (Read-only)
 
-Stand: 25.10.2026. Runtime-Anbindung vorbereitet, standardmäßig ausgeschaltet. Auf dem Pi ist bislang nur die ältere lesende `/api/media`-S3-API aktiv; das produktive Schema 003–005 fehlt dort. **Kein produktives Deployment dieser Bibliothek.**
+Stand: 25.10.2026. Der Code bleibt in neuen Installationen standardmäßig ausgeschaltet. Auf dem Pi `rpi5` ist die Bibliothek seit dem 25.10.2026 im getrennten Main-Checkout `SkyHub-Next-MinIO-Review-20261025` aktiviert. Die Migrationen 003–005 sind in der produktiven Datenbank angewandt; das laufende Backend-Image enthält das Bibliotheksmodul. Die bisherige `/api/media`-S3-API bleibt aktiv.
 
 ## Zweck und Herkunft
 
@@ -18,7 +18,7 @@ DJI belegt die CaptureUUID-v4-Gruppierung, EXIF/GPS/RTK-Daten und separaten RGB-
 - `backend/pilot-media-rate-limit.js`: erweitert den vorhandenen Redis-Limiter um `library_list`, `library_detail`, `library_m3m_group`. **Nur** diese drei Leseaktionen erlauben Operator-Principals; eine Operator-Rolle darf weiterhin keine Pilot-2-Upload-Callbacks schreiben.
 - `backend/pilot-media-library-runtime.js`: bindet die GET-Routen nur bei `SKYHUB_MEDIA_LIBRARY_ENABLED=true` ein. Erfordert aktivierte S3-Reader-API, Pilot-Workspace, Datenbank, Redis und ein eigenes 32-Byte-Cursor-Geheimnis als 64 Hex-Zeichen. Der S3-HEAD verwendet dasselbe Reader-Konto wie `/api/media`; es gibt keinen Objekt-Download.
 
-## API (vorbereitet, nicht produktiv freigeschaltet)
+## API (auf dem Pi aktiviert)
 
 | GET-Pfad | Abgesicherte Antwort |
 |---|---|
@@ -34,7 +34,7 @@ Der M3M-Report enthält nur Zähler und `classification: filename-hints-only`. K
 
 ## Sicherheit und Tests
 
-- **Keine** Migration beim Programmstart. Der HTTP-Mount ist ausschließlich bei explizitem Flag und vollständiger Startkonfiguration aktiv. Kein Pi-Deployment der Bibliothek.
+- **Keine** Migration beim Programmstart. Der HTTP-Mount ist ausschließlich bei explizitem Flag und vollständiger Startkonfiguration aktiv. Die Pi-Installation setzt `SKYHUB_MEDIA_LIBRARY_ENABLED=true` mit einem unabhängigen privaten Cursor-Geheimnis.
 - Zusätzlich zum bestehenden View-Bearer-Token verlangt der Bibliotheksrouter einen workspace-gebundenen Pilot-Token in `X-Auth-Token`; HTTP ohne vertrauenswürdige HTTPS-Proxy-Kennzeichnung wird abgelehnt. Zugangsdaten niemals in geteilten Logs oder URL-Parametern ausgeben.
 - Pro Lesevorgang Redis-Limit und append-only Audit (Workspace, Aktion, Ergebnis); bei Audit-/Redis-/Storage-Fehler keine erfolgreiche Antwort.
 - Neue Unit-Tests `backend/test/pilot-media-library.test.js` und `backend/test/pilot-media-library-http.test.js` für HMAC-Tampering, Sessiontrennung, Metadaten-Whitelist, Sicherheitsflags, HEAD-Recheck, Auth, Rollen, Fehlerredaktion und GET-API.
@@ -45,7 +45,7 @@ Der M3M-Report enthält nur Zähler und `classification: filename-hints-only`. K
 1. Noch kein EXIF-/XMP-Werte-Extractor mit separater Privacy- und Quellen-Freigabe – die bisherige M3M-Probe gibt nur Metadatenmarker und Gruppenzähler aus, was nicht überschrieben wird.
 2. Kein RTK-Qualitätsnachweis, keine photogrammetrische Bildzuordnung und keine sensor-kalibrierte NDVI-/NDRE-Verarbeitung.
 3. HEAD+ETag ist kein durchgehender kryptographischer Integritätsbeweis. Zwischen Detail-HEAD und späterem Download kann das Objekt wechseln; echte `VersionId`-/Checksum-Prüfung und kontrollierter Zugriff sind getrennt zu entwickeln.
-4. Für die spätere Frontend-Freigabe müssen echte Pilot-/Operator-Authentifizierung, Ratenbegrenzung, Migration-Rollback, TLS-Proxy, S3-Read-Rechte und eine explizite Pi-Abnahme verbunden werden.
+4. Die Pi-Abnahme belegte nur eine leere Liste; echte Pilot-Uploads, Detail-HEAD gegen ein verifiziertes Objekt, Operator-Identität und Frontend sind noch nicht anhand produktiver Medien abgenommen.
 
 ## Pi-Rollout: Reihenfolge und Freigabepunkte
 
@@ -53,3 +53,11 @@ Der M3M-Report enthält nur Zähler und `classification: filename-hints-only`. K
 2. `scripts/pi-migration-rehearsal.sh` auf einem aktuellen Prüf-Checkout mit genau `003_dji_pilot_media_verified.sql`, `004_dji_pilot_media_http.sql` und `005_dji_pilot_media_library.sql` ausführen. Der Probelauf stellt einen Dump in einem Wegwerf-Container wieder her und führt SQL dort zweimal aus. Ergebnis, Platzbedarf, Backup und tatsächlichen Restore vor produktiver DDL prüfen. Das Skript wendet **keine** SQL-Datei in Produktion an.
 3. Nach einem getrennten produktiven Migrationsplan und Wiederherstellungsnachweis die Familie in einer festgelegten Reihenfolge auf der Pi-Datenbank anwenden. Erst danach das aktuelle Backend-Image bauen und kontrolliert ersetzen. `SKYHUB_MEDIA_LIBRARY_ENABLED` bleibt beim ersten Image-Update `false`.
 4. Für die Aktivierung ein unabhängiges Cursor-Geheimnis mit `openssl rand -hex 32` privat in der lokalen `.env` hinterlegen, den Schlüssel genau einmal setzen und das Flag auf `true` ändern. Die effektive Compose-Konfiguration, die externe Netzzuordnung und den HTTPS-Proxy prüfen, bevor ausschließlich das Backend neu angelegt wird. Zwei authentifizierte Header sind erforderlich. Eine leere Liste nach erfolgreichem Schema-Rollout ist erwartbar, solange der STS-Issuer und Pilot-Uploadpfad nicht produktiv aktiviert wurden.
+
+### Pi-Abnahme vom 25.10.2026
+
+- Ein Pi-Dump wurde in einem Wegwerf-PostgreSQL mit sieben Bestandstabellen wiederhergestellt. Genau `003_dji_pilot_media_verified.sql`, `004_dji_pilot_media_http.sql` und `005_dji_pilot_media_library.sql` liefen dort jeweils zweimal ohne Fehler; die Bestandstabellen blieben unverändert. Vor der produktiven Transaktion wurde zusätzlich ein privater, dauerhafter Custom-Format-Dump geprüft. Die produktive Transaktion endete mit `COMMIT` und fünf vorhandenen Pilot-Medientabellen.
+- Das aktuelle Backend-Image aus Main `386c309` wurde nach Sicherung von Konfiguration, Datenbank und vorherigem Image aus dem getrennten Checkout erstellt. Der bestehende MinIO-Reader erreichte weiterhin alle fünf Buckets mit HEAD 200. Der Backend-Hostport blieb auf `127.0.0.1:4001`, das externe Netz `skyhub-storage-net` und der DR-Bind blieben erhalten.
+- Der erste Aktivierungstest lief unmittelbar nach dem Containerstart zu früh und wurde automatisch zurückgestellt. Der erneute Test wartete auf Backend und Redis: ohne HTTPS-Kennzeichnung 403, ohne Pilot-Token 401, mit beiden Tokens 200 und Schema `skyhub-pilot-media-library-v1`. Ein erfolgreicher Listen-Audit-Eintrag wurde in PostgreSQL nachgewiesen.
+- In der **lokalen** Caddy-Site `rpi5.fritz.box` wurde `/api/media-library/*` in den vorhandenen Pilot-Matcher für `127.0.0.1:4001` aufgenommen. Der Zugriffslogfilter entfernt `Authorization` und `X-Auth-Token`. Caddyfile-Backup, Validierung und Reload erfolgten vor dem HTTPS-Test. Mit explizit geprüftem öffentlichen Caddy-Root-Zertifikat ergab die HTTPS-Anfrage ohne Pilot-Token 401 und mit beiden Tokens 200; beide Token-Werte fehlten im passenden Zugriffseintrag. Die Pi-System- und DJI-WebView-Vertrauensstellung wurden dadurch nicht neu belegt.
+- Die Liste enthielt **0 verifizierte Medien**. Das belegt die funktionierende leere Projektion, noch keinen produktiven Upload, S3-HEAD einer Detailabfrage oder eine M3M-Gruppenantwort. Private `.env`-, Datenbank-, Image- und Caddyfile-Sicherungen bleiben ausschließlich auf dem Pi.

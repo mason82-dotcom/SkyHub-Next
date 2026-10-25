@@ -46,12 +46,12 @@ Diese Routen **existieren im Quellcode**, sind aber nicht sämtlich im Standard-
 | Methode | Route | Default / Schutz |
 | --- | --- | --- |
 | GET | `/api/media/status`, `/api/media/buckets`, `/api/media/objects`, `/api/media/m3m/inventory` | `SKYHUB_MEDIA_ENABLED=false`; View-Authentifizierung, explizite S3-Reader-Credentials, kein PUT/DELETE |
-| GET | `/api/media-library/v1/workspaces/:workspaceId/assets`, `/assets/:assetId`, `/groups/:groupId/m3m-hints` | `SKYHUB_MEDIA_LIBRARY_ENABLED=false`; zusätzlich View-Bearer und workspace-gebundener Pilot-Token, HTTPS, Redis-Limit, PostgreSQL-Leseaudit und Schema 003–005 erforderlich |
+| GET | `/api/media-library/v1/workspaces/:workspaceId/assets`, `/assets/:assetId`, `/groups/:groupId/m3m-hints` | Im Standard-Compose aus; auf `rpi5` seit 25.10.2026 mit Schema 003–005 aktiviert. Zusätzlich View-Bearer und workspace-gebundener Pilot-Token, HTTPS, Redis-Limit und PostgreSQL-Leseaudit. Bisher nur leere Liste über HTTPS abgenommen; Detail und Gruppenantwort ohne echte Datensätze nicht live geprüft |
 | GET | `/api/dr/minio/status`, `/api/dr/minio/reports` | `SKYHUB_MINIO_DR_ENABLED=true` im Root-Compose; View-Authentifizierung; ohne Reportdaten nicht einsatzbereit |
 | GET | `/api/dr/minio/composite` | Zusätzlich `SKYHUB_MINIO_DR_COMPOSITE_ENABLED=true` erforderlich; reiner Berichtszustand |
 | GET | `/api/smart-farming/candidates/`, `/api/smart-farming/candidates/:candidateId` | Nur bei `SKYHUB_M3M_CATALOG_ENABLED=true` **im Backend-Prozess**; nicht im unveränderten Root-Compose durchgereicht, Auth-/Transportprüfung, reine Kandidaten-Metadaten |
 
-Die Routen stehen in `backend/server.js`, `backend/media-api.js`, `backend/minio-dr-api.js` und `backend/smart-farming-catalog.js`. Die letzte Änderung bei Main-SHA `662cb94d` ergänzt isolierten Medien-Callback-Code, nicht automatisch eine Pilot-2-Upload- oder Missions-API.
+Die Routen stehen in `backend/server.js`, `backend/media-api.js`, `backend/pilot-media-library-runtime.js`, `backend/minio-dr-api.js` und `backend/smart-farming-catalog.js`. Der historische Code-Abgleich bei `662cb94d` beschreibt einen älteren Stand; die Runtime-Anbindung der Bibliothek wurde mit PR #181 in Main `386c309` ergänzt. Das aktiviert weder Pilot-Upload-Callbacks noch Missions-APIs automatisch. [Pi-Abnahme der Bibliothek](dji-pilot2-verified-media-library.md#pi-abnahme-vom-25102026).
 
 ## Socket.IO
 
