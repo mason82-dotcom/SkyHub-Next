@@ -32,7 +32,11 @@ rand() { python3 -c 'import secrets;print(secrets.token_hex(16))'; }
 envget() { grep -E "^$1=" "$ENV_FILE" 2>/dev/null | head -1 | cut -d= -f2-; }
 # Adresse, an die Web, Backend und MQTT gebunden werden: Standard ist die LAN-Adresse, nie 0.0.0.0.
 bind_addr() { local v; v="$(envget DEMO_BIND_ADDRESS)"; [[ -n "$v" ]] || v="$(envget LAN_IP)"; printf '%s' "$v"; }
-if [[ -f "$ENV_FILE" ]]; then export DEMO_BIND_ADDRESS="$(bind_addr)"; fi
+# Gleicher Ursprung (opt-in): Web und Backend hinter einer Adresse (nginx im Web-Container leitet die API und den
+# WebSocket weiter). Voraussetzung fuer die HTTPS-Route ueber Caddy; das Backend lauscht dann nur noch auf Loopback.
+same_origin() { [[ "$(envget DEMO_SAME_ORIGIN)" == "true" ]]; }
+backend_addr() { if same_origin; then printf '127.0.0.1'; else bind_addr; fi; }
+if [[ -f "$ENV_FILE" ]]; then export DEMO_BIND_ADDRESS="$(bind_addr)" DEMO_BACKEND_BIND="$(backend_addr)"; fi
 
 # sources.lock: "Verzeichnis URL Commit" je Zeile. Prueft Commit-Pin und unveraenderten Arbeitsbaum.
 lock_entries() { grep -vE '^[[:space:]]*(#|$)' "$STACK_DIR/sources.lock"; }
@@ -70,6 +74,7 @@ cmd_init() {
   add() { grep -q -E "^$1=" "$ENV_FILE" || { printf '%s=%s\n' "$1" "$2" >> "$ENV_FILE"; say "  neu: $1"; }; }
   add LAN_IP "${lan:-192.168.178.63}"
   add DEMO_BIND_ADDRESS "${lan:-192.168.178.63}"
+  add DEMO_SAME_ORIGIN "false"
   add DJI_APP_ID ""
   add DJI_APP_KEY ""
   add DJI_APP_LICENSE ""
@@ -192,6 +197,14 @@ write("acl.conf", """%% erzeugt von pi-cloud-api-demo.sh: alles nicht Genannte w
 {allow, {username, "pilot"}, all, ["thing/product/#", "sys/product/#"]}.
 {deny, all}.
 """)
+same_origin = e.get("DEMO_SAME_ORIGIN", "false").lower() == "true"
+if same_origin:
+    # Zur Laufzeit aus der Adresse der Seite abgeleitet: gleiches Bundle fuer http://<IP>:8081 und https://<Host>:4444.
+    base_url = "window.location.origin + '/'"
+    ws_url = "(window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + '/api/v1/ws'"
+else:
+    base_url = q("http://" + lan + ":6789/")
+    ws_url = q("ws://" + lan + ":6789/api/v1/ws")
 center = e.get("MAP_CENTER") or "10.4515,51.1657"
 try:
     map_lng, map_lat = [float(x) for x in center.split(",")]
@@ -244,8 +257,8 @@ write("web/config.ts", f"""export const CURRENT_CONFIG = {{
   appId: {q(e.get("DJI_APP_ID", ""))},
   appKey: {q(e.get("DJI_APP_KEY", ""))},
   appLicense: {q(e.get("DJI_APP_LICENSE", ""))},
-  baseURL: {q("http://" + lan + ":6789/")},
-  websocketURL: {q("ws://" + lan + ":6789/api/v1/ws")},
+  baseURL: {base_url},
+  websocketURL: {ws_url},
   rtmpURL: '',
   gbServerIp: '',
   gbServerPort: '',
@@ -272,13 +285,34 @@ shutil.copytree(overlay, os.path.join(rt, "web"), dirs_exist_ok=True)
 for root, dirs, files in os.walk(os.path.join(rt, "web")):
     for d in dirs: os.chmod(os.path.join(root, d), 0o755)
     for f in files: os.chmod(os.path.join(root, f), 0o644)
-write("web/nginx.conf", """server {
+# nginx im Web-Container. Gleicher Ursprung (opt-in): nur die Praefixe des Demo-Backends (url.*.prefix) und der
+# WebSocket gehen an das Backend, alles andere bleibt statisch.
+nginx_conf = """server {
   listen 80;
   root /usr/share/nginx/html;
   index index.html;
   add_header X-Content-Type-Options nosniff always;
   add_header Referrer-Policy no-referrer always;
-  # Offline-Karten (PMTiles): nur diese Dateien, Range-Anfragen, nie komprimieren
+"""
+if same_origin:
+    nginx_conf += """  client_max_body_size 200m;
+  location ~ ^/(manage|map|media|wayline|storage|control)/api/v1/ {
+    proxy_pass http://backend:6789;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+    proxy_read_timeout 120s;
+  }
+  location = /api/v1/ws {
+    proxy_pass http://backend:6789;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_read_timeout 3600s;
+  }
+"""
+nginx_conf += """  # Offline-Karten (PMTiles): nur diese Dateien, Range-Anfragen, nie komprimieren
   location ~ ^/basemaps/[^/]+\\.pmtiles$ {
     gzip off;
     add_header X-Content-Type-Options nosniff always;
@@ -287,7 +321,9 @@ write("web/nginx.conf", """server {
   location /basemaps/ { return 404; }
   location / { try_files $uri $uri/ /index.html; }
 }
-""")
+"""
+write("web/nginx.conf", nginx_conf)
+
 PY
   say "Konfiguration erzeugt in $RUNTIME (Verzeichnis nur fuer dich lesbar)."
 }
@@ -405,7 +441,7 @@ cmd_status() {
   "${compose[@]}" ps --format 'table {{.Service}}\t{{.Status}}\t{{.Ports}}' 2>/dev/null || true
   local lan; lan="$(envget LAN_IP)"
   printf 'Web      http://%s:8081/  -> HTTP %s\n' "$lan" "$(curl -s -m 4 -o /dev/null -w '%{http_code}' "http://$(bind_addr):8081/" || true)"
-  printf 'Backend  :6789            -> HTTP %s (404/401 ist ok: antwortet)\n' "$(curl -s -m 4 -o /dev/null -w '%{http_code}' "http://$(bind_addr):6789/manage/api/v1/login" || true)"
+  printf 'Backend  :6789            -> HTTP %s (404/401 ist ok: antwortet)\n' "$(curl -s -m 4 -o /dev/null -w '%{http_code}' "http://$(backend_addr):6789/manage/api/v1/login" || true)"
   printf 'MQTT     :18830           -> %s\n' "$(timeout 3 bash -c "exec 3<>/dev/tcp/$(bind_addr)/18830" 2>/dev/null && echo offen || echo zu)"
   docker stats --no-stream --format '{{.Name}}  {{.MemUsage}}  CPU {{.CPUPerc}}' $("${compose[@]}" ps -q 2>/dev/null) 2>/dev/null || true
 }

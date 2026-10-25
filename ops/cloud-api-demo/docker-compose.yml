@@ -85,7 +85,7 @@ services:
     volumes:
       - ./runtime/application.yml:/config/application.yml:ro
     ports:
-      - "${DEMO_BIND_ADDRESS}:6789:6789"
+      - "${DEMO_BACKEND_BIND:-${DEMO_BIND_ADDRESS}}:6789:6789"   # bei DEMO_SAME_ORIGIN=true nur Loopback
     mem_limit: 768m
 
   web:
@@ -95,6 +95,8 @@ services:
       dockerfile: ${STACK_DIR}/web.Dockerfile
       additional_contexts:
         overlay: ${STACK_DIR}/runtime/web
+    depends_on:
+      - backend   # nginx loest bei DEMO_SAME_ORIGIN=true den Namen "backend" beim Start auf
     image: cloudapidemo-web:local
     volumes:
       - ${PMTILES_DIR:-./runtime/no-basemaps}:/usr/share/nginx/html/basemaps:ro
