@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex,nofollow">
+<title>SkyHub Next · Offline-Routenbibliothek</title>
+<style>
+:root{color-scheme:dark;font:14px system-ui;background:#071525;color:#e4f4ff}
+*{box-sizing:border-box}body{margin:0}header{padding:14px 20px;border-bottom:1px solid #38546b}
+h1{font-size:19px;margin:0 0 6px}h2{font-size:16px}h3{font-size:14px}
+main{display:grid;grid-template-columns:minmax(270px,340px) minmax(330px,1fr);gap:16px;padding:16px}
+section{background:#12293e;border:1px solid #36556c;border-radius:12px;padding:16px}
+label{display:block;margin:10px 0 5px;color:#c3d8e8;font-size:12px}
+input,select,button{font:inherit;color:#ecf8ff;background:#1e3d55;border:1px solid #50718a;border-radius:7px;padding:8px}
+input,select{width:100%}button{cursor:pointer;background:#176c85}button:hover{background:#23809c}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #8de4f5}
+button:disabled{opacity:.4;cursor:not-allowed}.row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0;align-items:end}
+.row>button{flex-shrink:0}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.item{border:1px solid #44637a;border-radius:8px;padding:10px;margin:8px 0;background:#182f44}
+.item>strong{display:block;margin-bottom:6px}.caption{font-size:12px;line-height:1.5;color:#adcadb}
+.notice{color:#ffca8c}#status{white-space:pre-wrap;overflow-wrap:anywhere;min-height:42px}
+code{font-size:12px}a{color:#9de5fb}hr{border:0;border-top:1px solid #375b72;margin:18px 0}
+@media(max-width:850px){main{grid-template-columns:1fr}}
+</style>
+</head><body>
+<header>
+<h1>SkyHub Next · Lokale Routenbibliothek</h1>
+<div class="caption">P0 Missionsrevisionen · P1 geordnete Wegpunktaktionen · Kein DJI-Flugauftrag</div>
+<nav><a href="/wpml-editor.html">Zum einfachen Wegpunkteditor</a> · <a href="/">Dashboard</a></nav>
+</header>
+<main>
+<section aria-label="Routenverwaltung">
+<h2>P0 · Routenbibliothek</h2>
+<p class="caption">Nur nach Klick auf „Revision speichern“ werden Missionsdaten samt GPS-Koordinaten im <strong>lokalen Browser-Speicher im Klartext</strong> hinterlegt. Nicht auf gemeinsam genutzten Geräten verwenden. Keine Synchronisation mit SkyHub-Server oder DJI.</p>
+<label for="route-name">Missionsname</label><input id="route-name" maxlength="70" value="Neue WPML-Mission">
+<label for="route-folder">Ordner</label><input id="route-folder" maxlength="40" value="Allgemein">
+<div class="row">
+<button id="save" type="button">Revision lokal speichern</button>
+<button id="new" type="button">Neuen Entwurf beginnen</button>
+</div>
+<h3>Gespeicherte Routen</h3>
+<label for="filter">Ordnerfilter</label><input id="filter" placeholder="Alle Ordner" autocomplete="off">
+<div id="routes" role="list" aria-label="Lokale Routen"></div>
+<h3>Revision laden</h3>
+<label for="revision-select">Revision</label><select id="revision-select"></select>
+<div class="row">
+<button id="load" type="button">Ausgewählte Revision laden</button>
+<button id="compare-revision" type="button">Mit aktueller Revision vergleichen</button>
+<button id="restore-revision" type="button">Als neue Revision wiederherstellen</button>
+<button id="clone" type="button">Route duplizieren</button>
+<button id="delete" type="button">Route entfernen</button>
+<button id="clear-storage" type="button">Alle lokalen Daten löschen</button>
+</div>
+<p id="library-status" role="status" class="caption"></p>
+<p id="revision-diff" role="status" class="caption">Noch kein Revisionsvergleich. Keine Koordinaten werden in dieser Zusammenfassung ausgegeben.</p>
+<hr>
+<h3>Lokale Sicherung und Wiederherstellung</h3>
+<p class="notice">Achtung: Sicherungsdateien enthalten sämtliche GPS-Koordinaten und Missionsdetails <strong>unverschlüsselt</strong>. Nur auf einem vertrauenswürdigen Gerät sichern und sicher aufbewahren. Es findet kein Server-Upload statt.</p>
+<button id="backup-export" type="button">Bibliothek als JSON sichern</button>
+<label for="backup-file">Gesicherte lokale JSON-Datei wählen (max. 512 KiB)</label>
+<input id="backup-file" type="file" accept=".json,application/json">
+<p id="backup-preview" role="status" class="caption">Keine Sicherung vorgemerkt. Ein Dateiimport ersetzt niemals automatisch Daten.</p>
+<div class="row">
+<button id="backup-apply" type="button" disabled>Geprüfte Sicherung übernehmen (ersetzt Bibliothek)</button>
+<button id="backup-discard" type="button" disabled>Import verwerfen</button>
+</div>
+</section>
+<section aria-label="Missionseditor">
+<h2>P1 · Wegpunkte und Action Groups</h2>
+<div class="grid">
+<div><label for="model">DJI-Modell</label><select id="model">
+<option value="mavic3e">Mavic 3E</option><option value="mavic3t">Mavic 3T</option>
+<option value="mavic3m">Mavic 3M</option><option value="matrice4e">Matrice 4E</option>
+<option value="matrice4t">Matrice 4T</option>
+</select></div>
+<div><label for="speed">Geschwindigkeit (m/s)</label><input id="speed" type="number" value="5" min="0.2" max="15" step="any"></div>
+<div><label for="height">Höhe relativ zum Start (m)</label><input id="height" type="number" value="50" min="2" max="120" step="any"></div>
+<div><label for="takeoff">Sicherheitssteighöhe (m)</label><input id="takeoff" type="number" value="30" min="1.2" max="120" step="any"></div>
+</div>
+<label for="finish">Missionsende</label>
+<select id="finish"><option value="goHome">Zurück zum Start</option><option value="noAction">Keine Aktion</option></select>
+<h3>Wegpunkte</h3>
+<div id="waypoints" role="list" aria-label="Wegpunkte"></div>
+<div class="row"><button id="add-point" type="button">Wegpunkt hinzufügen</button></div>
+<p class="caption">Zunächst konstante relative Höhe. Ein eigener Vermessungsnachweis ist für andere Höhenmodelle erforderlich.</p>
+<h3>Geordnete Action Groups</h3>
+<p class="caption">Eine „reachPoint“-Gruppe je Wegpunkt mit höchstens acht geordneten Aktionen: Foto, Schweben, Yaw sowie Video Start/Stopp. Videoaufzeichnung muss entlang der Route vollständig geschlossen sein. Hardware-Semantik weiterhin ungeprüft.</p>
+<label for="group-index">Wegpunkt für neue Action Group</label><select id="group-index"></select>
+<button id="add-group" type="button">Action Group hinzufügen</button>
+<div id="groups" role="list" aria-label="Aktionsgruppen"></div>
+<h3>Aktionsvorlagen und Batch-Editing</h3>
+<p class="caption">Wegpunktnummern sind 1-basiert (z. B. 1,3-5); „Alle“ erfasst die gesamte Route. Vorlagen ersetzen oder ergänzen die geordneten Gruppen – Änderungen bleiben zunächst im Entwurf.</p>
+<label for="batch-indices">Wegpunktnummern (1,3-5 oder alle)</label>
+<input id="batch-indices" type="text" maxlength="120" value="alle" autocomplete="off">
+<div class="grid">
+<div><label for="batch-template">Aktionsvorlage</label><select id="batch-template">
+<option value="photo">Einzelbild</option>
+<option value="hoverPhoto">2 s schweben + Foto</option>
+<option value="yawPhoto">Yaw 0° + Foto</option>
+</select></div>
+<div><label for="batch-mode">Anwendung</label><select id="batch-mode">
+<option value="replace">Vorhandene Aktionen ersetzen</option>
+<option value="append">An vorhandene Aktionen anhängen</option>
+</select></div>
+</div>
+<div class="row">
+<button id="batch-apply" type="button">Vorlage anwenden</button>
+<button id="reverse" type="button">Flugroute umkehren (nur sichere Teilmenge)</button>
+</div>
+<p class="caption">Umkehr ist bei Video-Start/Stopp und Legacy-/Intervall-Auslösern gesperrt. Der neu erzeugte Entwurf verlangt eine erneute visuelle Prüfung von Höhe, Heading, Gimbal, Hindernissen, RTH und Aufnahmezielen. Keine Flugfreigabe.</p>
+<hr>
+<div class="row"><button id="review" type="button">WPML-Struktur lokal prüfen</button>
+<button id="export" type="button">Offline-KMZ exportieren</button></div>
+<div id="status" role="status" aria-live="polite" class="caption">Keine Flugfreigabe. Mindestens zwei Wegpunkte erforderlich.</div>
+<p class="notice">Der KMZ-Export enthält keine DJI-Gerätefreigabe, Hindernisprüfung oder RTH-Abnahme. Änderungen an gespeicherten Routen verändern frühere Revisionen nicht.</p>
+</section>
+</main>
+<script src="/wpml-interval-actions.js"></script>
+<script src="/wpml-action-draft.js"></script>
+<script src="/wpml-editor-core.js"></script>
+<script src="/wpml-route-library-core.js"></script>
+<script src="/wpml-waylines-reference.js"></script>
+<script src="/wpml-route-library-backup.js"></script>
+<script src="/wpml-route-library.js"></script>
+</body></html>

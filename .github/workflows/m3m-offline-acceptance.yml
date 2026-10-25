@@ -1,0 +1,72 @@
+name: M3M isolated offline acceptance
+
+# Registered on main before Smart Farming's release. This gate is selected
+# only for M3M source changes, not for the CI workflow registration PR itself.
+on:
+  pull_request:
+    paths:
+      - "backend/server.js"
+      - "backend/smart-farming-catalog.js"
+      - "backend/m3m-catalog-transport.js"
+      - "backend/test/smart-farming-*.test.js"
+      - "backend/test/m3m-catalog-transport.test.js"
+      - "backend/workers/m3m_*"
+      - "frontend/public/smart-farming*"
+      - "frontend/test/smart-farming-ui.test.js"
+      - "tests/test_m3m_*.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: m3m-offline-main-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  catalog-http-and-ui:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install pinned backend dependencies without scripts
+        run: npm ci --prefix backend --ignore-scripts --no-audit --no-fund
+      - name: Catalog read, auth, LAN rejection and view-model tests
+        run: |
+          node --test backend/test/smart-farming-catalog.test.js backend/test/smart-farming-catalog-http.test.js frontend/test/smart-farming-ui.test.js backend/test/m3m-catalog-transport.test.js
+      - name: Check default Compose has no active Smart Farming endpoint
+        run: |
+          docker compose --env-file .env.example config --quiet
+          node -e 'const {execFileSync}=require("node:child_process");const c=JSON.parse(execFileSync("docker",["compose","--env-file",".env.example","config","--format","json"],{encoding:"utf8"}));const e=c.services.backend.environment;if(e.SKYHUB_M3M_CATALOG_ENABLED==="true"||e.SKYHUB_M3M_CATALOG_ROOT||e.SKYHUB_M3M_CATALOG_SHA256||c.services.m3m)process.exit(1);'
+
+  raster-integrity-and-security:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # End-to-end tests call the checked-in Node catalog without networking.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install independent binary raster wheels
+        run: |
+          python -m pip install --only-binary=:all: -r backend/workers/m3m_requirements.txt
+      - name: Assert complete Python-and-Node M3M E2E prerequisites (no silent skips)
+        run: |
+          node --version
+          python -c 'import numpy, rasterio, shutil; assert shutil.which("node"), "Node catalog runtime missing"'
+      - name: Validate syntax and all synthetic M3M raster tests with dependencies
+        run: |
+          python -m py_compile backend/workers/m3m_*.py
+          python -m unittest discover -s tests -p 'test_m3m_*.py' -v
+      - name: Operator CLI help is safe and offline
+        run: |
+          python backend/workers/m3m_dedal_offline_pipeline.py --help
+          python backend/workers/m3m_raster_bundle_seal.py --help
+          python backend/workers/m3m_smart_farming_candidate.py --help

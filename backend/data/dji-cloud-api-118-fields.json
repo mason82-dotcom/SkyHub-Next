@@ -1193,8 +1193,8 @@
       "extensionSource": "https://developer.dji.com/doc/cloud-api-tutorial/en/api-reference/pilot-to-cloud/mqtt/aircraft/properties.html",
       "extensionSourceEdition": "2024-06-28",
       "extensionVerifiedAt": "2026-10-21",
-      "extensionEvidence": "Three OSD root names attributed to Mavic 3M (0:77:2) by validated SkyHub model-scoped MQTT shapes on 2026-10-21; nested field values and specific enumerations require live acceptance.",
-      "extensionStatus": "root-names-hardware-observed-values-unverified",
+      "extensionEvidence": "On 2026-10-21, model-scoped DJI MQTT OSD from real Mavic 3M (0:77:2) proved three root names; after deploying the provisional 150-path parser, all six added root/nested field paths were accepted as typed, in-range, fresh OSD values. Exact values were not output or independently inspected; semantics, safety-critical effects, firmware-wide coverage and boundary behavior remain unverified.",
+      "extensionStatus": "root-names-and-typed-values-hardware-accepted-semantics-unverified",
       "fields": [
         {
           "path": "distance_limit_status",
