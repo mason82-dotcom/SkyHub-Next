@@ -31,13 +31,14 @@ const data={
 };
 globalThis.fetch=async url=>{
   const endpoint=new URL(url).pathname;
-  const disabled=process.env.TEST_MISSING_PAIRINGS==='1'&&
-    endpoint==='/api/pilot-admin/pairings';
+  const disabled=(process.env.TEST_MISSING_PAIRINGS==='1'&&
+    endpoint==='/api/pilot-admin/pairings')||
+    process.env.TEST_MISSING_ENDPOINT===endpoint;
   return {ok:!disabled,json:async()=>data[endpoint]};
 };
 eval(args[scriptIndex+1]);
 `;
-function executePreflight(broken=false,json=false){
+function executePreflight(broken=false,json=false,missingEndpoint=''){
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'skyhub-hardware-preflight-'));
   try{
     const executable=path.join(dir,'docker');
@@ -45,7 +46,8 @@ function executePreflight(broken=false,json=false){
     return spawnSync(process.execPath,[cli,'--preflight',...(json?['--json']:[])],{
       cwd:dir,encoding:'utf8',timeout:10000,
       env:{...process.env,PATH:dir+path.delimiter+process.env.PATH,
-        SKYHUB_COMPOSE_DIR:dir,TEST_MISSING_PAIRINGS:broken?'1':'0'}
+        SKYHUB_COMPOSE_DIR:dir,TEST_MISSING_PAIRINGS:broken?'1':'0',
+        TEST_MISSING_ENDPOINT:missingEndpoint}
     });
   }finally{
     fs.rmSync(dir,{recursive:true,force:true});
@@ -88,4 +90,27 @@ test('preflight unavailable pairings gives JSON incomplete, never ready',()=>{
   assert.equal(data.result,'INCOMPLETE');
   assert.equal(data.checks.pairingsApi,false);
   assert.equal(data.hardwareAcceptanceComplete,false);
+});
+
+test('single failed preflight GET is reported as incomplete, never a generic crash',()=>{
+  for(const [endpoint,key,label] of [
+    ['/api/health','healthApi','Health-API'],
+    ['/api/devices','devicesApi','Devices-API'],
+    ['/api/diagnostics/mqtt-shapes','shapesApi','MQTT-Shapes-API']
+  ]){
+    const textResult=executePreflight(false,false,endpoint);
+    assert.equal(textResult.status,3,endpoint+' '+textResult.stderr);
+    assert.match(textResult.stdout,new RegExp(label+': NEIN'));
+    assert.match(textResult.stdout,/Pi-Backend-Voraussetzungen: UNVOLLSTÄNDIG/);
+    assert.doesNotMatch(textResult.stdout,/SECRET_|987654|49\\.123456/);
+    const jsonResult=executePreflight(false,true,endpoint);
+    assert.equal(jsonResult.status,3,endpoint+' '+jsonResult.stderr);
+    const receipt=JSON.parse(jsonResult.stdout);
+    assert.equal(receipt.result,'INCOMPLETE');
+    assert.equal(receipt.checks[key],false);
+    assert.equal(receipt.hardwareAcceptanceComplete,false);
+    assert.equal(receipt.flightReady,false);
+    assert.equal(receipt.dispatchAllowed,false);
+    assert.doesNotMatch(jsonResult.stdout,/SECRET_|987654|49\\.123456/);
+  }
 });

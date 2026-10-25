@@ -4,13 +4,14 @@
 // already running SkyHub Next backend. No service restart and no MQTT publish.
 const {spawnSync}=require('node:child_process');
 const path=require('node:path');
-const {makePreflightEvidence,validateLiveEvidenceReceipt}=
+const {makePreflightEvidence,makeRuntimeEvidence,validateLiveEvidenceReceipt}=
   require('../backend/rc-plus2-m4t-evidence');
 const {evaluateHardwareSession,formatReport}=
   require('../backend/rc-plus2-m4t-hardware-validation');
 
 function help(){
-  console.log('Nutzung: node scripts/pi-rc-plus2-m4t-check.js [--preflight] [--json]');
+  console.log('Nutzung: node scripts/pi-rc-plus2-m4t-check.js [--preflight | --runtime-check] [--json]');
+  console.log('--runtime-check: nur Verfügbarkeit zweier Live-JSON-Module im laufenden Backend.');
   console.log('--json: streng begrenzter JSON-Prüfbeleg auf stdout, keine Dateien.');
   console.log('--preflight: ausschließlich Backend-APIs, MQTT und ACK prüfen; kein DJI-Gerät nötig.');
   console.log('Leseprüfung: RC Plus 2 Enterprise + Matrice 4T (DJI Cloud API 1.18).');
@@ -18,13 +19,15 @@ function help(){
   console.log('Keine Seriennummern, Rohwerte, GPS-Koordinaten oder Tokens.');
   console.log('Bestehender Backend-Container wird weder neu gebaut noch gestartet.');
   console.log('SKYHUB_COMPOSE_DIR kann auf den bestehenden Compose-Ordner zeigen.');
-  console.log('Exit 0: aktueller Hardware-Smoketest; 3: unvollständig; 1: API-Fehler; 2: Parameter.');
+  console.log('Exit 0: jeweiliges begrenztes Prüf-Gate erfüllt; 3: unvollständig; 1: Fehler; 2: Parameter.');
 }
 const args=process.argv.slice(2);
 const preflight=args.includes('--preflight');
+const runtimeCheck=args.includes('--runtime-check');
 const json=args.includes('--json');
 const valid=args.length<=2&&new Set(args).size===args.length&&
-  args.every(a=>a==='--preflight'||a==='--json');
+  !(preflight&&runtimeCheck)&&
+  args.every(a=>a==='--preflight'||a==='--runtime-check'||a==='--json');
 if(args.length===1&&args[0]==='--help'){
   help();
 }else if(!valid){
@@ -35,8 +38,28 @@ if(args.length===1&&args[0]==='--help'){
   // is read there, never forwarded to or printed by the host shell.
   const inside=String.raw`'use strict';
 const PREFLIGHT=${preflight};
+const RUNTIME_CHECK=${runtimeCheck};
 const JSON_MODE=${json};
 (async()=>{
+  if(RUNTIME_CHECK){
+    // Require only two known local modules in the already running backend.
+    // Never inspect or export .env, credentials, source text, devices or logs.
+    const checks=[
+      ['evaluatorAvailable','./rc-plus2-m4t-hardware-validation',
+        ['evaluateHardwareSession']],
+      ['evidenceAvailable','./rc-plus2-m4t-evidence',
+        ['makeLiveEvidence','validateLiveEvidenceReceipt']]
+    ];
+    const output={schema:'skyhub-rcplus2-m4t-runtime-check-v1'};
+    for(const [key,moduleName,exportsRequired] of checks){
+      try{
+        const loaded=require(moduleName);
+        output[key]=exportsRequired.every(name=>typeof loaded?.[name]==='function');
+      }catch(_){output[key]=false;}
+    }
+    process.stdout.write(JSON.stringify(output));
+    return;
+  }
   const token=process.env.SKYHUB_VIEW_TOKEN;
   if(!token){process.exitCode=1;return;}
   async function get(uri,authorized){
@@ -48,11 +71,18 @@ const JSON_MODE=${json};
     return res.json();
   }
   try{
-    const [health,devices,shapes,pairings]=await Promise.all([
+    const requests=[
       get('/api/health',false),get('/api/devices',true),
       get('/api/diagnostics/mqtt-shapes',true),
-      get('/api/pilot-admin/pairings',true).catch(()=>null)
-    ]);
+      get('/api/pilot-admin/pairings',true)
+    ];
+    // Missing optional API endpoints are incomplete prerequisites, not an
+    // undiagnosable crash. Preflight and live JSON isolate every GET failure
+    // (the host reports them as exit 3); the human-readable mode stays strict.
+    const [health,devices,shapes,pairings]=await Promise.all(
+      requests.map((request,index)=>
+        (PREFLIGHT||JSON_MODE||index===3)?request.catch(()=>null):request)
+    );
     if(PREFLIGHT){
       // Preflight intentionally keeps full snapshots inside the container:
       // only a fixed, anonymized allowlist of booleans crosses stdout.
@@ -76,8 +106,14 @@ const JSON_MODE=${json};
       // Live JSON is evaluated inside the *running* backend container.
       // Do not transfer raw DJI device, GNSS, pairing or MQTT API snapshots.
       // If the runtime image lacks these modules, fail closed: no deployment.
-      const {evaluateHardwareSession}=require('./rc-plus2-m4t-hardware-validation');
-      const {makeLiveEvidence}=require('./rc-plus2-m4t-evidence');
+      const unavailable=reason=>process.stdout.write(JSON.stringify(
+        {schema:'skyhub-rcplus2-m4t-live-unavailable-v1',reason}));
+      let evaluateHardwareSession,makeLiveEvidence;
+      try{
+        ({evaluateHardwareSession}=require('./rc-plus2-m4t-hardware-validation'));
+        ({makeLiveEvidence}=require('./rc-plus2-m4t-evidence'));
+      }catch(_){return unavailable('modules-missing');}
+      if(!health||!Array.isArray(devices)||!Array.isArray(shapes))return unavailable('api');
       const report=evaluateHardwareSession(devices,health,shapes,Date.now(),pairings);
       process.stdout.write(JSON.stringify(makeLiveEvidence(report)));
       return;
@@ -98,7 +134,34 @@ const JSON_MODE=${json};
   }else{
     try{
       const data=JSON.parse(exec.stdout);
-      if(preflight){
+      if(json&&!runtimeCheck&&!preflight&&data?.schema==='skyhub-rcplus2-m4t-live-unavailable-v1'){
+        // Distinguish "backend image too old" and "API not answering" from a
+        // garbled reply; both are incomplete prerequisites (exit 3), no receipt.
+        console.error(data.reason==='modules-missing'
+          ?'Live-JSON nicht verfügbar: laufendes Backend-Image enthält die Evidence-Module nicht. Zuerst --runtime-check, dann Backend aktualisieren.'
+          :'Live-JSON nicht verfügbar: Health-, Devices- oder Shapes-API antwortet nicht. --preflight prüfen.');
+        process.exitCode=3;
+        return;
+      }
+      if(runtimeCheck){
+        const keys=['evaluatorAvailable','evidenceAvailable'];
+        if(data?.schema!=='skyhub-rcplus2-m4t-runtime-check-v1'||
+            Object.keys(data).length!==3||
+            keys.some(key=>typeof data[key]!=='boolean')){
+          throw Error('unrecognized runtime readiness reply');
+        }
+        const ready=keys.every(key=>data[key]);
+        if(json){
+          console.log(JSON.stringify(makeRuntimeEvidence(data)));
+        }else{
+          console.log('=== RC Plus 2/M4T – Backend-Live-JSON-Modulprüfung ===');
+          console.log('Live-Evaluator ladbar: '+(data.evaluatorAvailable?'JA':'NEIN'));
+          console.log('JSON-Evidence-Modul ladbar: '+(data.evidenceAvailable?'JA':'NEIN'));
+          console.log('Live-JSON-Module: '+(ready?'BEREIT':'UNVOLLSTÄNDIG'));
+          console.log('Kein DJI-Gerätenachweis, kein Backend-Deployment.');
+        }
+        process.exitCode=ready?0:3;
+      }else if(preflight){
         const keys=['healthApi','devicesApi','shapesApi','pairingsApi',
           'mqttConnected','subscribed','topologyAckEnabled','topologyAckConnected'];
         if(data?.schema!=='skyhub-rcplus2-m4t-preflight-v1'||

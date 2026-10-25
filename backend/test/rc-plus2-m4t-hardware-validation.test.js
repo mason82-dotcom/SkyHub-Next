@@ -216,6 +216,58 @@ test('pairing metadata verifies both independently paired controllers by count o
   assert.equal(report.pairingConfirmed,true);
   assert.equal(report.transportPassed,true);
 });
+test('real Pilot 2 uppercase RC PLUS 2 model is recognized as paired and recently used',()=>{
+  const actual={devices:[
+    {model:'DJI RC PLUS 2',createdAt:NOW-1000,lastUsedAt:NOW-500},
+    {model:'DJI RC PLUS 2',createdAt:NOW-10000,lastUsedAt:NOW-1000},
+    {model:'DJI RC PLUS 2',createdAt:NOW-3600000,lastUsedAt:NOW-2000},
+    {model:'DJI RC Pro Enterprise',createdAt:NOW-900000,lastUsedAt:null}
+  ],pending:[]};
+  const report=evaluateHardwareSession([rc,drone],health,shapes,NOW,actual);
+  assert.equal(report.pairing.available,true);
+  assert.equal(report.pairing.rcPlus2Paired,3);
+  assert.equal(report.pairing.rcPlus2RecentlyUsed,3);
+  assert.equal(report.pairing.rcPlus2Pending,0);
+  assert.equal(report.pairing.rcProPaired,1);
+  assert.equal(report.pairingConfirmed,true);
+  assert.equal(report.passed,true);
+  assert.equal(report.candidateCount.linkedPairs,1);
+  assert.equal(report.controller.osdFresh,true);
+  assert.equal(report.aircraft.osdFresh,true);
+});
+
+test('upper-case RC PLUS 2 label alone cannot override stale or missing hardware gates',()=>{
+  const actual={devices:[
+    {model:'DJI RC PLUS 2',lastUsedAt:NOW-500,createdAt:NOW-1000}
+  ],pending:[]};
+  const report=evaluateHardwareSession([rc,{
+    ...drone,topologyOnline:false,aircraftConnected:false,
+    fresh:false,lastTelemetryAt:NOW-40000
+  }],health,shapes,NOW,actual);
+  assert.equal(report.pairingConfirmed,true);
+  assert.equal(report.transportPassed,false);
+  assert.equal(report.passed,false);
+});
+
+test('only explicitly allowlisted RC Plus 2 model labels may confirm tokens',()=>{
+  const actual={devices:[
+    {model:'DJI RC PLUS 2 SECRET',lastUsedAt:NOW-500},
+    {model:'DJI RC PLUS 2 Enterprise UNKNOWN',lastUsedAt:NOW-500},
+    {model:'dji rc plus 2',lastUsedAt:NOW-500},
+    {model:'DJI RC PLUS 2',lastUsedAt:NOW+500},
+    {model:'DJI RC Plus 2',lastUsedAt:NOW-1800001},
+    {model:'DJI RC Plus 2 Enterprise',lastUsedAt:NOW-250}
+  ],pending:[{model:'DJI RC PLUS 2'},{model:'DJI RC PLUS 2 SECRET'}]};
+  const report=evaluateHardwareSession([rc,drone],health,shapes,NOW,actual);
+  assert.equal(report.pairing.rcPlus2Paired,3);
+  assert.equal(report.pairing.rcPlus2RecentlyUsed,1);
+  assert.equal(report.pairing.rcPlus2Pending,1);
+  assert.equal(report.pairingConfirmed,true);
+  assert.equal(report.passed,true);
+  assert.ok(!JSON.stringify(report).includes('SECRET'));
+  assert.ok(!JSON.stringify(report).includes('UNKNOWN'));
+});
+
 test('no pairing API is unknown, never misreported as zero pairings',()=>{
   const report=evaluateHardwareSession([rc,drone],health,shapes,NOW,null);
   assert.equal(report.transportPassed,true);

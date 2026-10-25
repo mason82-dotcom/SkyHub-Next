@@ -18,6 +18,12 @@ function measuredAtISOString(date){
 function boundedCount(value){
   return Number.isSafeInteger(value)&&value>=0&&value<=1000?value:null;
 }
+// OSD age is a duration, not a count: a stale device must stay distinguishable from
+// "never observed" (null). Only absurd values (> 1 year) are treated as unknown.
+const MAX_AGE_SECONDS=366*24*3600;
+function boundedAge(value){
+  return Number.isSafeInteger(value)&&value>=0&&value<=MAX_AGE_SECONDS?value:null;
+}
 function receiptBase(mode,date){
   return {
     schema:SCHEMA,mode,
@@ -41,6 +47,20 @@ function makePreflightEvidence(snapshot,date=new Date()){
     checks
   };
 }
+const RUNTIME_KEYS=['evaluatorAvailable','evidenceAvailable'];
+function makeRuntimeEvidence(snapshot,date=new Date()){
+  if(snapshot?.schema!=='skyhub-rcplus2-m4t-runtime-check-v1'||
+      RUNTIME_KEYS.some(key=>typeof snapshot[key]!=='boolean')||
+      Object.keys(snapshot).length!==RUNTIME_KEYS.length+1){
+    throw new TypeError('invalid runtime module check');
+  }
+  const checks=Object.fromEntries(RUNTIME_KEYS.map(key=>[key,snapshot[key]]));
+  return {
+    ...receiptBase('runtime-module-check',date),
+    result:RUNTIME_KEYS.every(key=>checks[key])?'READY':'INCOMPLETE',
+    checks
+  };
+}
 function summarizeDevice(device,includeAircraft){
   // Always return explicit null (not fabricated zero) for unsupported profiles.
   const fields=device?.fieldInterface===true?device.fields:null;
@@ -48,7 +68,7 @@ function summarizeDevice(device,includeAircraft){
     seen:device?.seen===true,
     topologyOnline:device?.topologyOnline===true,
     osdFresh:device?.osdFresh===true,
-    osdAgeSeconds:boundedCount(device?.osdAgeSeconds),
+    osdAgeSeconds:boundedAge(device?.osdAgeSeconds),
     stateObserved:device?.stateObserved===true,
     fieldInterface:device?.fieldInterface===true,
     staticFieldsDocumented:boundedCount(fields?.documented),
@@ -100,6 +120,9 @@ function keysExactly(value,keys){
 function isCountOrNull(value){
   return value===null||boundedCount(value)===value;
 }
+function isAgeOrNull(value){
+  return value===null||boundedAge(value)===value;
+}
 function isDeviceReceipt(value,aircraft){
   const base=['seen','topologyOnline','osdFresh','osdAgeSeconds',
     'stateObserved','fieldInterface','staticFieldsDocumented',
@@ -110,9 +133,12 @@ function isDeviceReceipt(value,aircraft){
     ...(aircraft?['aircraftConnected']:[])].some(key=>typeof value[key]!=='boolean')){
     return false;
   }
-  return ['osdAgeSeconds','staticFieldsDocumented','staticFieldsObserved',
-    'staticFieldsFresh',...(aircraft?['dynamicGimbalTypesObserved']:[])]
-    .every(key=>isCountOrNull(value[key]));
+  if(!isAgeOrNull(value.osdAgeSeconds))return false;
+  const counts=['staticFieldsDocumented','staticFieldsObserved','staticFieldsFresh',
+    ...(aircraft?['dynamicGimbalTypesObserved']:[])];
+  if(!counts.every(key=>isCountOrNull(value[key])))return false;
+  // Counts only exist for profiles with a field interface (summarizeDevice emits null otherwise).
+  return value.fieldInterface||counts.every(key=>value[key]===null);
 }
 function validateLiveEvidenceReceipt(value){
   const base=['schema','mode','measuredAt','measurementClock','classification',
@@ -143,13 +169,19 @@ function validateLiveEvidenceReceipt(value){
       !isDeviceReceipt(value.aircraft,true)){
     return false;
   }
-  if(value.result==='TRANSPORT_SMOKE_OK'&&(
-      !value.transport.transportPassed||!value.pairing.independentlyConfirmed||
-      value.linkedPairs!==1||
-      !value.controller.osdFresh||!value.aircraft.osdFresh||
-      !value.aircraft.aircraftConnected)){
-    return false;
-  }
+  const {transport,pairing,controller,aircraft}=value;
+  // Sub-facts must be consistent with the summary flags they feed.
+  if(transport.transportPassed&&!(transport.mqttConnected&&transport.subscribed&&
+      transport.topologyAckEnabled&&transport.topologyAckConnected&&
+      controller.topologyOnline&&aircraft.topologyOnline&&
+      controller.osdFresh&&aircraft.osdFresh&&aircraft.aircraftConnected&&
+      controller.fieldInterface&&aircraft.fieldInterface))return false;
+  if(pairing.independentlyConfirmed&&!(pairing.listingAvailable&&
+      pairing.rcPlus2Registered&&pairing.rcPlus2RecentlyUsed))return false;
+  // The result is exactly the conjunction of both gates, in both directions.
+  const passed=transport.transportPassed&&pairing.independentlyConfirmed;
+  if((value.result==='TRANSPORT_SMOKE_OK')!==passed)return false;
+  if(passed&&value.linkedPairs!==1)return false;
   return true;
 }
-module.exports={makePreflightEvidence,makeLiveEvidence,validateLiveEvidenceReceipt};
+module.exports={makePreflightEvidence,makeRuntimeEvidence,makeLiveEvidence,validateLiveEvidenceReceipt};

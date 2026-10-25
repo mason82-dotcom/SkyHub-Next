@@ -58,9 +58,54 @@ SKYHUB_COMPOSE_DIR="$HOME/Projekte/SkyHub-Next" \
 printf 'Exitstatus: %s\n' "$?"
 ```
 
-Nur acht festgelegte **Boolesche Statuswerte** verlassen bei `--preflight` den Backend-Container: GET-Health, GET-Devices, GET-MQTT-Shapes und GET-Pairings erreichbar, MQTT verbunden/subscribed und Topologie-ACK aktiviert/Publisher verbunden. Geräte-Snapshots, private Pairing-Einträge und MQTT-Rohwerte werden in diesem Modus **nicht** an die Host-Pipe weitergegeben. `0` = diese Pi-Backend-Voraussetzungen vorhanden; `3` = unvollständig (etwa lesende Pairing-API fehlt, MQTT nicht verbunden); `1` = Docker/API unerreichbar oder fehlerhafte Antwort; `2` = ungültiger Aufruf. **Ein Preflight mit Exit 0 ist ausdrücklich kein Live-Hardware-, DJI-Pilot-2-, M4T-Feld- oder Flugnachweis.**
+Nur acht festgelegte **Boolesche Statuswerte** verlassen bei `--preflight` den Backend-Container: GET-Health, GET-Devices, GET-MQTT-Shapes und GET-Pairings erreichbar, MQTT verbunden/subscribed und Topologie-ACK aktiviert/Publisher verbunden. Geräte-Snapshots, private Pairing-Einträge und MQTT-Rohwerte werden in diesem Modus **nicht** an die Host-Pipe weitergegeben. `0` = diese Pi-Backend-Voraussetzungen vorhanden; `3` = unvollständig (etwa einer der vier lesenden GET-Endpunkte fehlt/antwortet nicht oder MQTT ist nicht verbunden); `1` = Docker-Exec, Backend-View-Token oder Antwortverarbeitung grundsätzlich fehlgeschlagen; `2` = ungültiger Aufruf. Ein nicht erreichbarer GET-Endpunkt wird beim **Preflight** einzeln als `NEIN` markiert; die anderen GET-Prüfungen werden trotzdem ausgewertet. Ihre Fehlertexte oder sensiblen API-Antworten werden nicht ausgegeben. Der Live-Modus mit `--json` meldet einen nicht erreichbaren Health-, Devices- oder Shapes-Endpunkt ebenfalls als unvollständig (Exit `3`, kein Prüfbeleg); dasselbe gilt, wenn das laufende Backend-Image die Evidence-Module noch nicht enthält (Hinweis auf `--runtime-check`). Die menschenlesbare Ausgabe ohne `--json` behält die strengere Fehlerbehandlung (Exit `1`). **Ein Preflight mit Exit 0 ist ausdrücklich kein Live-Hardware-, DJI-Pilot-2-, M4T-Feld- oder Flugnachweis.**
 
 Bei einem bestehenden Checkout, der die Option nicht kennt, zuerst nur im **isolierten** Worktree den Quellstand kontrollieren; keinesfalls den Pi-Backend-Container für das Preflight-Skript automatisch neu deployen. Der reguläre Aufruf **ohne** `--preflight` bleibt der eigentliche Live-Smoke in Abschnitt 3.
+
+## 1b. Laufendes Backend-Image auf Live-JSON-Bereitschaft prüfen (24.10.2026)
+
+Der **reale Pi-Preflight vom 24.10.2026, 13:30 MESZ** hat alle acht API-/MQTT-/Topologie-ACK-Voraussetzungen mit Exit 0 erfüllt; zuvor bestanden 13/13 Offline-Sicherheitstests im isolierten Test-Worktree. [Datiertes Pi-Evidence-Protokoll](hardware-acceptance-status-2026-10-24.md#nachtrag-24102026-tatsächlicher-raspberry-pi-backend-preflight). Das bedeutet **nicht**, dass die RC Plus 2 oder Matrice 4T schon online gewesen wären oder dass das laufende Backend-Image die erst später ergänzten Live-JSON-Module bereits enthält.
+
+Die reproduzierbare Variante benutzt jetzt das einheitliche Diagnose-CLI im isolierten Test-Worktree, ohne DJI-Geräte, Cloud-Login, Backend-Neustart oder Modifikation der Berechtigungen:
+
+```bash
+cd ~/Projekte/SkyHub-RCPlus2-M4T-Test || exit 1
+SKYHUB_COMPOSE_DIR="$HOME/Projekte/SkyHub-Next" \
+  node scripts/pi-rc-plus2-m4t-check.js --runtime-check --json
+printf 'Modul-Exitstatus: %s\n' "$?"
+```
+
+Im JSON-Modus werden ausschließlich `evaluatorAvailable` und `evidenceAvailable` samt festgelegtem, anonymisiertem Schema ausgegeben. Der Lauf prüft, ob die Module **im bestehenden Backend-Container** geladen werden können und ob die drei benötigten Funktionen (`evaluateHardwareSession`, `makeLiveEvidence`, `validateLiveEvidenceReceipt`) vorhanden sind. `result=READY` mit Exit `0` bedeutet **nur Modulverfügbarkeit**, nicht, dass die Geräte verbunden sind oder eine Live-Diagnose bestanden haben. Fehlende Module/Funktionen ergeben `INCOMPLETE` (Exit `3`); Docker-Fehler Exit `1`; unzulässige Parameter Exit `2`. Keine Pfade, Ausnahmetexte, Schlüssel, Hardware-Snapshots oder Tokenwerte verlassen den Container.
+
+Der folgende direkte Node-Befehl bleibt als ältere Alternative ohne `--runtime-check`-Unterstützung dokumentiert. Er prüft nur, ob sich die Module laden lassen, nicht deren Exportfunktionen.
+
+Vor der echten Live-JSON-Abnahme den **bereits laufenden** Container ohne Neustart, Umkonfiguration oder Ausgabe von Zugangsdaten prüfen:
+
+```bash
+cd ~/Projekte/SkyHub-Next || exit 1
+docker compose -p skyhub-next exec -T backend node -e '
+for (const moduleName of [
+  "./rc-plus2-m4t-hardware-validation",
+  "./rc-plus2-m4t-evidence"
+]) {
+  try {
+    require(moduleName);
+    console.log(moduleName + ": LADBAR");
+  } catch (_) {
+    console.log(moduleName + ": FEHLT ODER NICHT LADBAR");
+    process.exitCode = 3;
+  }
+}'
+printf 'Modul-Exitstatus: %s\n' "$?"
+```
+
+Nur Modulnamen und `LADBAR`/`FEHLT ODER NICHT LADBAR` werden ausgegeben. Werden Module nicht geladen, bleibt die neue Live-JSON-Abnahme **blockiert**; das ist kein Nachweis eines DJI-Gerätefehlers. Der Pi-Quellstand im getrennten Worktree darf **nicht** mit dem tatsächlich laufenden Container-Image gleichgesetzt werden. Keine `docker compose up`-, Build-, Broker-, Neustart- oder Pairing-Kommandos als automatische Folge.
+
+### Pilot-2-Modellbezeichnung auf realer RC Plus 2 (24.10.2026)
+
+Ein vom Betreiber am 24.10.2026 übermittelter, anonymisierter Pi-Backend-Readout zeigte **drei registrierte Tokens mit Modellbezeichnung `DJI RC PLUS 2`**, davon zwei innerhalb von 30 Minuten angelegt und alle drei innerhalb dieser Zeit benutzt, sowie ein älteres `DJI RC Pro Enterprise`-Token. Die Autorisierung wurde also auf SkyHub-Seite abgeholt, **aber** der vorherige Hardwareprüfer erkannte die RC-Plus-2-Kopplungen nicht, weil er nur `DJI RC Plus 2` und `DJI RC Plus 2 Enterprise` akzeptierte. Die Fall-Schreibweise des von Pilot 2 übernommenen WebView-User-Agents ist damit ein nachgewiesener Diagnose-Sonderfall.
+
+Der Hardwareprüfer akzeptiert zusätzlich **exakt** `DJI RC PLUS 2` (Allowlist; keine unkontrollierte Teilstring-Suche, keine Änderung vorhandener Tokens). Dass mehrere Tokens registriert sind, beweist **nicht**, welches Token zu einer bestimmten physischen RC gehört; weder automatische Deregistrierung noch erneutes Pairing durchführen. **Neue Quelldatei/CI sind kein Pi-Deployment.** Auch bei korrekter Token-Erkennung bleiben frisches RC-/M4T-OSD, eindeutige Gateway-Kind-Zuordnung und `aircraftConnected=true` Pflicht für den Live-Transport-Smoke.
 
 ## 2. Einmalige Kopplung der **neuen** RC Plus 2
 
