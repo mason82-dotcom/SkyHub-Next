@@ -1,6 +1,6 @@
 # HTTP-, Socket.IO- und MQTT-Schnittstellen – verifizierte Main-Basis
 
-**Stand 23.10.2026 –** `main` @ `496a1f84f22b15f85ad5442965b2cd218a93969a`. Grundlage: `backend/server.js`, `backend/map-element-api.js`, `backend/lan-access.js`, `backend/pilot-config.js` und `docker-compose.yml`. Keine automatische Aussage über gestapelte Feature-PRs oder das aktuell laufende Pi-Image.
+**Historische Tabellenbasis 23.10.2026 –** `main` @ `496a1f84f22b15f85ad5442965b2cd218a93969a`. **Korrekturabgleich 25.10.2026:** [`main` @ `662cb94d`](stand-2026-10-25-main-audit.md). Grundlage: `backend/server.js`, `backend/map-element-api.js`, `backend/lan-access.js`, `backend/pilot-config.js` und `docker-compose.yml`. Keine automatische Aussage über gestapelte Feature-PRs oder das aktuell laufende Pi-Image.
 
 ## Authentifizierungsmodelle
 
@@ -35,10 +35,22 @@ Die Trennung ist im Code implementiert; produktive Proxy-/ACL- und Gerätefreiga
 | GET | `/api/pilot-admin/pairings` | View-Token; **nicht** durch LAN-Ausnahme freigegeben; Caddy-LAN-Site blockiert Pilot-Admin |
 | POST | `/api/pilot-admin/approve` | View-Token, explizite sechsstellige Pairing-Code-Freigabe; eine **echte Verwaltungsaktion** |
 | DELETE | `/api/pilot-admin/devices/:id` | View-Token; Widerruf bereits gekoppelter Geräte, **echte Verwaltungsaktion** |
-| POST | `/api/mission/create` | Authentifiziert; absichtlich **HTTP 501** – Missionsversand deaktiviert |
 | GET | `/map/api/v1/workspaces/:workspaceId/element-groups` | **Optionaler** Pilot-Karten-GET-Handler außerhalb des normalen `/api`-Auth-Pfads; erfordert `SKYHUB_DJI_MAP_ELEMENTS_ENABLED=true` *im Prozess*, vollständige Pilot-Konfiguration, HTTPS, `x-auth-token`, gebundenen Workspace und zulässigen `is_distributed`-Filter. Im unveränderten Root-Compose nicht durch `.env` allein aktivierbar |
 
 **Wichtig:** Das Wort „read-only“ bezeichnet den Telemetrie-/Flugsteuerungszweck, **nicht** jeden HTTP-Verb. Pairing-Freigabe, Geräte-Widerruf sowie optionale `status_reply`-Topologie-Publikation sind bewusst eingeschränkte zustandsändernde Vorgänge. Sie sind keine DJI-Flugsteuerung. `/api/pilot-admin/*` benötigt zusätzlich eine vertrauenswürdige Betreiber-Zugangsführung; das View-Token selbst ist nicht mit einer separaten rollenbasierten Benutzerverwaltung gleichzusetzen.
+
+## Zusätzliche Main-Routen mit Feature-Gates (25.10.2026)
+
+Diese Routen **existieren im Quellcode**, sind aber nicht sämtlich im Standard-Compose aktiviert. Sie bleiben hinter dem jeweiligen Auth- und Konfigurationsvertrag.
+
+| Methode | Route | Default / Schutz |
+| --- | --- | --- |
+| GET | `/api/media/status`, `/api/media/buckets`, `/api/media/objects`, `/api/media/m3m/inventory` | `SKYHUB_MEDIA_ENABLED=false`; View-Authentifizierung, explizite S3-Reader-Credentials, kein PUT/DELETE |
+| GET | `/api/dr/minio/status`, `/api/dr/minio/reports` | `SKYHUB_MINIO_DR_ENABLED=true` im Root-Compose; View-Authentifizierung; ohne Reportdaten nicht einsatzbereit |
+| GET | `/api/dr/minio/composite` | Zusätzlich `SKYHUB_MINIO_DR_COMPOSITE_ENABLED=true` erforderlich; reiner Berichtszustand |
+| GET | `/api/smart-farming/candidates/`, `/api/smart-farming/candidates/:candidateId` | Nur bei `SKYHUB_M3M_CATALOG_ENABLED=true` **im Backend-Prozess**; nicht im unveränderten Root-Compose durchgereicht, Auth-/Transportprüfung, reine Kandidaten-Metadaten |
+
+Die Routen stehen in `backend/server.js`, `backend/media-api.js`, `backend/minio-dr-api.js` und `backend/smart-farming-catalog.js`. Die letzte Änderung bei Main-SHA `662cb94d` ergänzt isolierten Medien-Callback-Code, nicht automatisch eine Pilot-2-Upload- oder Missions-API.
 
 ## Socket.IO
 
@@ -67,11 +79,11 @@ Optionale **separate** Publisher-Verbindung für `sys/product/{gateway_sn}/statu
 
 | Bereich | Nicht gemountet / nicht freigeschaltet |
 | --- | --- |
-| DJI-Medien | Im Integrationsstand optional `GET /api/media/{status,buckets,objects,m3m/inventory}` hinter View-Token; im Standard-Compose deaktiviert. Pilot-2-Media-HTTPS/STS, Schreib-Callbacks, STS-Credentials und HEAD-verifizierte Bibliothek sind **nicht produktiv integriert** |
+| DJI-Medien | Die vier oben genannten **read-only GET-Endpunkte** sind auf `main` optional vorhanden, aber standardmäßig aus; Pilot-2-Upload/STS und produktive Schreib-Callbacks sind **nicht aktiv gemountet** |
 | DJI Waylines | `/api/wpml/inspect` sowie reale Flugplan-Uploads/-Starts nicht in Main |
 | DJI-Kartenmutationen | Create/Update/Delete der Karte ausschließlich isolierter Vertrags-/Transaktionsentwurf |
 | Vision/Thermal | Kein HTTP-Endpoint für YOLO11, thermische Personendetektion oder Pixel→GPS |
-| Smart Farming | Keine produktive M3M-Rohbild-zu-Reflexionskalibrierung/registrierte NDVI-/NDRE-Automatik |
+| Smart Farming | Der begrenzte Kandidatenkatalog ist als **opt-in** Main-Code vorhanden; keine produktive M3M-Rohbild-zu-Reflexionskalibrierung, GIS-Tile-Auslieferung oder registrierte NDVI-/NDRE-Automatik |
 | Simulation | HiveMind-Lab läuft, soweit aufgerufen, isoliert im zugehörigen Feature-PR, nicht im Main-Compose |
 
 Für neue PRs gelten eigene Router-/Flag-/Lizenz- und Hardwarechecks. Nur ein erfolgreicher Integrationsmerge **plus** explizites Deployment kann die hier genannte Main-Schnittstellenmatrix verändern.
