@@ -14,8 +14,11 @@
   };
   if(typeof window.L==='object'&&typeof window.L.map==='function'){
     map=L.map('map').setView([50.5,10.4],6);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-      maxZoom:19,attribution:'© OpenStreetMap contributors'
+    // Keep document referrer private, but identify the page origin to OSM tiles.
+    // OSMF explicitly requires an HTTP Referer; Leaflet 1.9.4 supports this option.
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      maxZoom:19,attribution:'© OpenStreetMap contributors',
+      referrerPolicy:'strict-origin-when-cross-origin'
     }).addTo(map);
     map.on('click',event=>add(event.latlng.lat,event.latlng.lng));
   }else $('map').textContent='Keine Karte verfügbar. Bitte Koordinaten manuell eingeben.';
