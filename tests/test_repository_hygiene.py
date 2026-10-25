@@ -23,7 +23,7 @@ class RepositoryHygieneTest(unittest.TestCase):
             "frontend/public/index.html.bak-123", ".pytest_cache/status",
         ]
         findings = audit_paths(paths)
-        self.assertEqual(7, len(findings))
+        self.assertEqual(8, len(findings))
         self.assertTrue(any("private env" in item for item in findings))
         self.assertTrue(any("possible private key" in item for item in findings))
 
