@@ -26,7 +26,7 @@ services:
       retries: 5
   minio:
     profiles: ["media"]
-    image: minio/minio:RELEASE.2023-09-04T19-57-37Z
+    image: ${SKYHUB_MINIO_IMAGE:-minio/minio:RELEASE.2023-09-04T19-57-37Z}
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:

@@ -73,6 +73,20 @@ jobs:
         run: docker compose --env-file .env.example config --quiet
       - name: Validate explicit ARM64 PostGIS overlay
         run: docker compose -f docker-compose.yml -f docker-compose.arm64.yml --env-file .env.example config --quiet
+      - name: Validate opt-in shared MinIO overlay (configuration only)
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.storage.yml --profile media --env-file .env.example config --quiet
+          docker compose -f docker-compose.yml -f docker-compose.arm64.yml -f docker-compose.storage.yml --profile media --env-file .env.example config --quiet
+          docker compose -f docker-compose.yml -f docker-compose.storage.external.yml --env-file .env.example config --quiet
+      - name: Validate standalone copy-free SkyHub MinIO Compose (config only)
+        env:
+          SKYHUB_SHARED_MINIO_CREDENTIALS_FILE: .env.example
+        run: |
+          docker compose -f docker-compose.minio-shared.yml config --quiet
+          docker compose -f docker-compose.minio-shared.yml config --format json |
+            python3 -c 'import json,sys; cfg=json.load(sys.stdin); assert list(cfg["services"])==["minio"]; s=cfg["services"]["minio"]; assert not s.get("ports"); assert s["volumes"][0]["source"]=="/mnt/hc4backup/skyhub-next/minio"; assert s["volumes"][0]["bind"]["create_host_path"] is False'
+
+
       - name: Assert explicit legacy EMQX 1884 default
         run: |
           node -e 'const {execFileSync}=require("node:child_process"); const x=JSON.parse(execFileSync("docker",["compose","--env-file",".env.example","config","--format","json"],{encoding:"utf8"})); const b=x.services.backend.environment; if(b.MQTT_BROKER_URL!=="mqtt://host.docker.internal:1884" || b.SKYHUB_MQTT_BROKER_KIND!=="emqx" || b.SKYHUB_MQTT_REQUIRED_PORT!=="1884") process.exit(1);'

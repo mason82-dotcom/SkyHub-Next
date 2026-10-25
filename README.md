@@ -186,3 +186,17 @@ Der konsolidierte Root-Stack enthält die isoliert getesteten PostGIS- und Backu
 - [Entwicklungsplan und Fortschritt](docs/entwicklungsplan-2026-10-20.md)
 
 **Pi-Update:** Ein Git-Merge ist kein Deployment. Vor einem Update auf dem Pi lokale `.env`, Overrides und persistente PostGIS-Daten sichern, nur das bestehende Backend aktualisieren und danach über `/api/health` prüfen. Keine Compose-Volumes löschen, keine Legacy-Dienste starten und keine offenen DJI-Feature-Flags ungeprüft aktivieren.
+
+## Gemeinsamer MinIO-Speicher (opt-in)
+
+Das optionale MinIO-Profil kann mit `docker-compose.storage.yml` über das
+externe Docker-Netz `skyhub-storage-net` von ausgewählten Pi-Containern
+verwendet werden. **Kein automatisches Deployment und keine neuen S3-Uploads.**
+Der Betriebshelfer `scripts/pi-minio-network.sh` bietet einen lesenden
+`plan`, `apply` für ein neues SkyHub-MinIO, `adopt` für ein vorhandenes
+fremdes MinIO, explizites `attach` sowie lesendes `verify`. Der bisherige Root-MinIO-Datenträger bleibt erhalten.
+Die historische 2023er Image-Vorgabe wird für `apply` vorsorglich gesperrt.
+Dazu gehören getrennte, nicht automatisch aktivierte Bucket-IAM-Policies und
+ein authentifizierter S3-Test mit read-only Standard und optionalem
+PUT/GET/DELETE für ein isoliertes Testbucket.
+Siehe [Gemeinsamer MinIO-Objektspeicher](docs/minio-shared-storage.md).

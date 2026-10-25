@@ -19,6 +19,9 @@ frontend/public/*.before-*
 
 **/.skyhub-env-backups/
 
+# Local symlink to mounted NVMe MinIO data (never add bucket contents to Git)
+/storage/minio-data
+
 # Local disaster-recovery evidence (may contain internal infrastructure details)
 /dr-reports/
 
