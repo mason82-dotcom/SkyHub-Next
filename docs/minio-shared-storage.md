@@ -6,6 +6,8 @@ Pi-Compose-Stacks. Der bisherige optionale Root-Compose-Dienst `minio` mit
 `minio_data:/data` bleibt erhalten. Es findet **keine** automatische Migration,
 kein Löschen und kein Ersatz eines vorhandenen MinIO-Datenvolumes statt.
 
+> **Stand 25.10.2026 (lesender Audit auf dem Pi):** Der Datenumzug ist bereits erfolgt. Die Daten liegen unter `/mnt/hc4backup/skyhub-next/minio` (fünf Buckets: `basemaps`, `dji-cloud`, `farming`, `mapping-results`, `pv-inspections`; `.minio.sys` vorhanden), die Quelle `/mnt/hc4backup/aeronexus-data/minio` existiert nicht mehr, und es gibt keinen AeroNexus-MinIO-Container mehr. Es läuft **kein** MinIO, das Netz `skyhub-storage-net` und das Volume `skyhub-next_minio_data` fehlen. `pi-minio-shared-mount-check.sh` prüft deshalb den neuen Pfad (überschreibbar mit `SKYHUB_MINIO_DATA`). Die Abschnitte zum Umzug darunter sind historisch.
+
 ## Aktueller Pi: AeroNexus ist stillgelegt – Copy-free-Umzug nach SkyHub
 
 **Bereitgestellt, aber noch NICHT auf dem Raspberry Pi ausgeführt:**

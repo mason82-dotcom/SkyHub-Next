@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# Read-only preflight for the AeroNexus MinIO data bind mount discovered on Pi.
+# Read-only preflight for the shared SkyHub MinIO data directory on the Pi.
 # Does NOT start containers, mount disks, list buckets, or access S3 credentials.
+# The data was moved from /mnt/hc4backup/aeronexus-data/minio to the path below (same filesystem, no copy);
+# SKYHUB_MINIO_DATA overrides it for other layouts.
 set -Eeuo pipefail
-data="/mnt/hc4backup/aeronexus-data/minio"
+data="${SKYHUB_MINIO_DATA:-/mnt/hc4backup/skyhub-next/minio}"
 parent="/mnt/hc4backup"
-printf '%s\n' '=== AeroNexus shared MinIO storage check (read-only) ==='
+printf '%s\n' '=== Shared SkyHub MinIO storage check (read-only) ==='
 if [[ ! -d "$data" ]]; then
   echo "ERROR: expected MinIO data directory is missing: $data" >&2
   echo "Do NOT start MinIO: Docker may silently create a new empty bind directory." >&2
@@ -54,4 +56,4 @@ docker ps -a --format '{{.Names}}' | while IFS= read -r name; do
   esac
 done
 printf '%s\n' 'This check did not change any container, volume, network, or file.'
-printf '%s\n' 'Do NOT start both AeroNexus MinIO services on this shared directory.'
+printf '%s\n' 'Do NOT start two MinIO servers on this shared directory.'

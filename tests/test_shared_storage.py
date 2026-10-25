@@ -92,7 +92,8 @@ class SharedMinioStorageTest(unittest.TestCase):
         result = subprocess.run(["bash", "-n", str(helper)], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
         text = helper.read_text(encoding="utf-8")
-        self.assertIn("/mnt/hc4backup/aeronexus-data/minio", text)
+        # The data was moved here from aeronexus-data/minio; the check must follow it.
+        self.assertIn('data="${SKYHUB_MINIO_DATA:-/mnt/hc4backup/skyhub-next/minio}"', text)
         self.assertIn("findmnt --target", text)
         self.assertIn('mount_target" != "/"', text)
         for destructive in ("docker start ", "docker stop ", "docker rm ", "mkdir -p ", "sudo mount ", "docker network connect "):
