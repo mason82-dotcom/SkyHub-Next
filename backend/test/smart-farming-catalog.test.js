@@ -132,9 +132,10 @@ test('router registers auth before routes and returns redacted only',t=>{
   const auth=(req,res,next)=>next();
   assert.equal(createSmartFarmingCatalogRouter({express,auth,...f.options}),router);
   assert.equal(events[0][0],'use');assert.equal(events[0][1],auth);
-  assert.equal(events[2][1],'/');assert.equal(events[3][1],'/:candidateId');
+  assert.equal(events[1][0],'use'); // transport guard before response headers
+  assert.equal(events[3][1],'/');assert.equal(events[4][1],'/:candidateId');
   const res={statusCode:200, body:null, json(body){this.body=body;return this}, status(n){this.statusCode=n;return this},sendStatus(n){this.statusCode=n;return this}};
-  events[2][2]({},res);assert.equal(res.body.count,1);
+  events[3][2]({},res);assert.equal(res.body.count,1);
   assert.equal(JSON.stringify(res.body).includes('SENSITIVE'),false);
 });
 test('router does not expose missing or arbitrary candidate names',t=>{

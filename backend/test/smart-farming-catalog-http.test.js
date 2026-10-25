@@ -34,8 +34,9 @@ function fixture(t){
   const raw=JSON.stringify(manifest)+'\n';fs.writeFileSync(manifestPath,raw);
   return {root,candidateId,manifestPath,manifestSha256:sha(raw)};
 }
-async function serve(options,fn){
+async function serve(options,fn,trustLocalProxy=false){
   const app=express();
+  if(trustLocalProxy)app.set('trust proxy','loopback');
   // Exercise the real main HTTP auth middleware with a deliberately permissive
   // LAN view. The catalog still must NEVER bypass Bearer verification.
   const {auth}=createHttpAuth({secret,lanAccess:{allows:()=>true}});
@@ -123,4 +124,36 @@ test('main-server catalog mount is disabled by default and behind auth',()=>{
   const allowed=httpAuth.match(/const lanReadPaths=new Set\(\[([^\]]*)\]/);
   assert.ok(allowed,'Explicit LAN-view route allowlist is mandatory');
   assert.doesNotMatch(allowed[1],/smart-farming|candidates/);
+});
+
+test('real HTTP handler denies insecure forwarded requests even with valid bearer',async t=>{
+  const cfg=fixture(t),url='/api/smart-farming/candidates/';
+  const authHeader={Authorization:'Bearer '+secret};
+  await serve(cfg,async base=>{
+    for(const extra of [
+      {'X-Forwarded-For':'198.51.100.4'},
+      {'X-Forwarded-Proto':'http','X-Forwarded-For':'198.51.100.4'},
+      {'X-Forwarded-Proto':'https','X-Forwarded-For':'198.51.100.4'},
+      {'X-Forwarded-Proto':'https,http'}
+    ]){
+      const response=await fetch(base+url,{headers:{...authHeader,...extra}});
+      assert.equal(response.status,403,JSON.stringify(extra));
+      const text=await response.text();
+      assert.equal(text.includes(cfg.root),false);
+      assert.equal(text.includes(secret),false);
+    }
+    assert.equal((await fetch(base+url,{headers:authHeader})).status,200);
+  });
+});
+test('real HTTP handler permits explicitly trusted HTTPS loopback reverse proxy',async t=>{
+  const cfg=fixture(t),uri='/api/smart-farming/candidates/';
+  await serve(cfg,async base=>{
+    const authHeader={Authorization:'Bearer '+secret};
+    const secureProxy={'X-Forwarded-For':'198.51.100.4','X-Forwarded-Proto':'https'};
+    assert.equal((await fetch(base+uri,{headers:{...authHeader,...secureProxy}})).status,200);
+    const clearProxy={'X-Forwarded-For':'198.51.100.4','X-Forwarded-Proto':'http'};
+    assert.equal((await fetch(base+uri,{headers:{...authHeader,...clearProxy}})).status,403);
+    const ambiguous={'X-Forwarded-For':'198.51.100.4','X-Forwarded-Proto':'https,http'};
+    assert.equal((await fetch(base+uri,{headers:{...authHeader,...ambiguous}})).status,403);
+  },true);
 });
