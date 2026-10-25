@@ -3,6 +3,8 @@
 **GitHub-Repository:** https://github.com/mason82-dotcom/SkyHub-Next  
 **Hinweis:** Der frühere Repository-Slug `mason82-dotcom/SkyHub` leitet auf `SkyHub-Next` weiter. Das lokale Legacy-Verzeichnis `~/Projekte/SkyHub` ist weiterhin getrennt vom Entwicklungsverzeichnis `~/Projekte/SkyHub-Next` zu behandeln.
 
+**Statusprüfung 25.10.2026:** Der geprüfte GitHub-`main`-Stand ist `55815f348c2b7941c7f53dffea8d7bc568f89b81`; die Haupt-CI und der TAK-UI-Browsertest auf diesem Commit waren erfolgreich. **52 Pull Requests sind noch offen**, darunter **36 gestapelte PRs**. Die aktuelle [Repository-Hygiene-/PR-Bestandsaufnahme](docs/repository-hygiene-2026-10-25.md) ist für Wartungs- und Mergeplanung vorrangig. Datierte Abschnitte darunter sind historische Entwicklungsprotokolle; insbesondere früher als offen bezeichnete PRs können bereits gemergt sein. Kein Pi-Update und keine DJI-Hardwarefreigabe durch diese Statusprüfung.
+
 **Version 0.1.0 – Entwicklungsstand.** Die Branch-Suffixe v1/v2/v3/v4 sind keine Produktversionen.
 
 SkyHub Next ist die **aktive Entwicklungsbasis im Repository-Root**. Sie verarbeitet DJI-Cloud-API-Telemetrie mit Node.js/Express, Socket.IO, MQTT, Redis und PostGIS und stellt ein kompaktes statisches Live-Dashboard bereit. Der Integrationsstand enthält eine **optional aktivierbare, authentifizierte und nur lesende Medien-API**; sie ist im Standard-Compose nicht mit MinIO-Zugangsdaten verdrahtet. Ein produktionsreifer Missionseditor und echte Analyse-Worker sind nicht freigegeben. Der Root-Code ist **nicht automatisch identisch** mit dem aktuell auf dem Raspberry Pi betriebenen alten Dienst.

@@ -54,6 +54,9 @@ jobs:
       - name: Experimental M3M catalog UI contract
         run: node --test frontend/test/smart-farming-ui.test.js
 
+      - name: Check repository hygiene (read-only Git index)
+        run: python3 scripts/repository-hygiene.py
+
       - name: Validate staging helper and Python tests
         run: |
           python3 -m py_compile scripts/pi-prepare-staging-env.py
