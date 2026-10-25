@@ -83,7 +83,7 @@ an CI, backend/server.js, Docker Compose, MQTT, PostGIS, Redis, Caddy oder Pi n�
 | P1 | services_reply/DRC | Mit isoliertem SkyHub-RPC-Contract-Branch harmonisieren; vor Schreibfreigabe tid+bid+gateway, TTL, Replays, Methoden und Autorisierung prüfen |
 | P1 | Methodenabhängige Reply-Daten | Nur bestätigte Schemafamilien übernehmen; unbekannte Result-Formen markieren, nicht blind ausführen |
 | P2 | WPML | Feld-/Aktionstabellen mit dem isolierten, bounded WPML-Validator vergleichen; keine automatische Flugfreigabe |
-| P2 | RC Plus 2/M4T | Echten Read-only-Hardwaretest auf gesondertem Branch durchführen |
+| P2 | RC Plus 2/M4T | Echten Read-only-Hardwaretest durchführen. **Transport-Smoketest am 25.10.2026 bestanden** ([Nachweis](hardware-acceptance-status-2026-10-24.md)); gerätespezifische Feldfreigabe und Flugfunktionen bleiben offen |
 | P3 | DJI Cloud API 1.18 weitere Modelle und Dock/FTS | Geräte- und Firmware-Support separat prüfen, keine ungezielte Aktivierung |
 
 ### Sicherheits- und Betriebsgrenzen

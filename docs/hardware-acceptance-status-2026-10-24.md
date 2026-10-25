@@ -46,6 +46,32 @@
 
 **Nächstes Gate (read-only):** Vor dem Einschalten/Pairing zunächst im unveränderten **laufenden** Backend-Container prüfen, ob `./rc-plus2-m4t-hardware-validation` und `./rc-plus2-m4t-evidence` ladbar sind. Das vollständige, gerätebezogene `--json`-Smoketest-Protokoll darf bei fehlendem Modul kontrolliert scheitern; **kein automatischer Image-Rebuild oder Neustart**. Danach erst mit sicher am Boden stehender RC Plus 2/M4T die Live-Sitzung und den Parallelbetrieb getrennt prüfen.
 
+## Nachtrag 25.10.2026 (UTC 21:04): RC Plus 2 + Matrice 4T, Live-Transport-Smoketest bestanden
+
+**Evidenz:** Lesende Aufrufe der Projektskripte auf dem Pi in einer Sitzung mit eingeschalteter RC Plus 2 und M4T (nach Angabe des Betreibers online). Ausgeführt wurden `scripts/pi-rc-plus2-m4t-check.js` mit `--runtime-check`, `--preflight`, `--json` und ohne Argument. Kein Flug, kein Pairing, kein MQTT-Publish, kein Neustart; ausgegeben wurden keine Seriennummern, Codes, Tokens, Koordinaten oder Messwerte. Das laufende Backend entsprach dem damaligen `main` (Update um 20:40 UTC).
+
+| Prüfung | Ergebnis |
+| --- | --- |
+| Live-JSON-Module im laufenden Backend (`--runtime-check`) | beide ladbar, **BEREIT** |
+| Backend-Voraussetzungen (`--preflight`) | **8 von 8** (Health, Devices, MQTT-Shapes, Pairings, MQTT verbunden und abonniert, Topologie-ACK aktiviert und Publisher verbunden) |
+| JSON-Beleg (`--json`) | `TRANSPORT_SMOKE_OK`, `linkedPairs: 1`, Transport- und Pairing-Gate bestanden, `hardwareAcceptanceComplete: false`, `flightReady: false`, `dispatchAllowed: false` |
+| Lesbarer Bericht | **13 von 13 Kriterien bestätigt**, „Gesamtabnahme: BESTANDEN“ |
+| Topologie-Antworten | 5 gesendet, **0 Fehler** |
+| OSD-Pakete (backendweit) | 185 empfangen, 185 akzeptiert |
+| RC Plus 2 (2:174:0) | Gateway erkannt, OSD-Alter 0 bis 2 s; 54 dokumentierte Felder, 21 beobachtet, 14 frisch, 7 veraltet, 26 nicht beobachtet, 7 redigiert |
+| Matrice 4T (0:99:1) | Subdevice erkannt, verbunden, OSD-Alter 1 s; 202 dokumentierte Felder, 92 beobachtet, 91 frisch; dynamische Gimbal-Feldtypen 5 von 9 beobachtet |
+| Pilot-2-Geräte-Token | 3 RC-Plus-2-Token registriert, 1 in den letzten 30 Minuten verwendet |
+| Paar | RC Plus 2 und M4T eindeutig verknüpft (1 Kandidat je Seite) |
+
+**Einordnung:** Das schließt das offene Gate „reale RC-Plus-2-/M4T-Transportprüfung“ aus [PR #66](https://github.com/mason82-dotcom/SkyHub-Next/pull/66) und [PR #153](https://github.com/mason82-dotcom/SkyHub-Next/pull/153) für **Transport und Topologie**. Die RC Pro Enterprise und die Mavic 3M waren zu diesem Zeitpunkt nicht aktiv. Gleichzeitiger Betrieb beider Paare ist damit **nicht** geprüft.
+
+**Grenzen (nicht behaupten):**
+- Das ist ein Smoketest, **keine** vollständige Hardwareabnahme und keine Flugfreigabe.
+- Das M4T-Feldprofil ist `shared-aircraft-with-web-extensions-unverified`: 202 generische Pfade plus neun dynamische Gimbal-Typen, keine gerätespezifische DJI-1.18-Freigabe. Nicht beobachtete Felder belegen keine fehlende Hardwareunterstützung.
+- Zähler und Feldformen sind **backendweit**; sie belegen keine bestimmte physische RC. Das Modell der RC stammt aus dem User-Agent des Pilot-2-WebViews, ein registrierter und kürzlich benutzter Token ist keine eindeutige Geräteidentität.
+- State wird bei Änderung gesendet: Ein State-Alter von rund 170 bis 185 s am Boden ist kein Fehler.
+- Weiter offen: Kamera-/Stream-Felder (`cloud_control_auth` nur als Berechtigung), Wärmebild- und Laserfelder bei tatsächlich sendendem Sensor, HMS bei echtem Ereignis, Disconnect-/Reconnect-Sequenz, Abgleich mit gerätespezifischen DJI-1.18-Quellen.
+
 ## Nachweise und Grenzen
 
 | Gerät/Funktion | Wirklich vorliegende Evidenz | Offen, nicht behaupten |

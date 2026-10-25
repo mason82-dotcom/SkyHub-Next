@@ -184,6 +184,8 @@ werden nicht als Empfangsnachweis bestätigt. State ist kein OSD-Heartbeat.
 
 ## 5. Noch ausstehende echte Hardware-Nachweise
 
+> **Stand 25.10.2026:** Der Live-Transport-Smoketest (Schritte 1a, 1b und 3) ist mit eingeschalteter RC Plus 2 und M4T **bestanden**, siehe [Nachweis](hardware-acceptance-status-2026-10-24.md). Die Liste unten betrifft, was darüber hinaus noch offen ist; Kopplung und Token-Verwendung der RC Plus 2 sind darin bestätigt, der gleichzeitige Betrieb mit RC Pro/M3M nicht.
+
 - Einmaliges Pilot-2-Pairing der neuen RC Plus 2, Kontrolle des unabhängigen Geräte-Tokens und anschließende erneute Anmeldung nach manuellem Pilot-2-Neustart.
 - Gleichzeitiger Betrieb mit der RC Pro Enterprise / Mavic 3M ohne Verdrängung derselben MQTT-Client-ID.
 - RC-Plus-2-spezifische Kamera- und Streamfähigkeit, `wireless_link`, `drc_state` und `cloud_control_auth` (Berechtigung **ohne Inhalt** prüfen).
