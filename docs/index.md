@@ -2,15 +2,15 @@
 
 **Repository:** https://github.com/mason82-dotcom/SkyHub-Next. Historische GitHub-Links wurden auf den neuen Slug normalisiert; die lokalen Pi-Verzeichnisse `SkyHub` (Legacy) und `SkyHub-Next` (Entwicklung) bleiben unterschiedlich.
 
-**Repository- und PR-Abgleich vom 25.10.2026:** [Aktuelle Hygiene-/PR-Bestandsaufnahme](repository-hygiene-2026-10-25.md) – anfänglich 52 offene PRs, nach Schließung der ersetzten Drafts #88/#94 noch 50. Der frühere [PR-Triagebericht vom 24.10.](pr-triage-2026-10-24.md) ist ein historischer Snapshot und darf nicht zur aktuellen Anzahl/Mergefreigabe herangezogen werden.
+**Repository- und PR-Abgleich vom 25.10.2026:** [Aktuelle GitHub-Bestandsaufnahme](repository-status-2026-10-25.md) – `main` @ `db7c940`, 43 offene PRs (8 direkt, 35 gestapelt). Die [Hygieneprüfung vom früheren Tagesstand](repository-hygiene-2026-10-25.md) und der [PR-Triagebericht](pr-triage-2026-10-24.md) sind datierte Momentaufnahmen, keine Live-Zahlen oder Mergefreigaben.
 
 **Aktualisiert am 25.10.2026.** Diese Navigation gilt für den Root-Stack `skyhub-next`. Die wichtigste Unterscheidung ist die zwischen dem **Code auf `main`** und **noch nicht integrierten Entwicklungszweigen**.
 
 ## Zuerst lesen
 
-1. [README / Produktumfang und sichere lokale Checks](../README.md)
+1. [README / Produktumfang und sichere lokale Checks](../README.md) und [GitHub-Stand vom 25.10.2026](repository-status-2026-10-25.md)
 2. [Projektstand 23.10.2026 / verifizierter Main-SHA, PR-Status und Integrationsgates](projektstand-2026-10-23.md)
-   - [Priorisierte Integrationsstrategie: PR-Abhängigkeiten, Merge-Gates und neue Research-Zweige](integration-priorities-2026-10-23.md) – **maßgeblich für aktuelle Fortschrittsaussagen**
+   - [Priorisierte Integrationsstrategie: PR-Abhängigkeiten, Merge-Gates und neue Research-Zweige](integration-priorities-2026-10-23.md) – historischer Plan, gegen heutigen `main` neu prüfen
 3. [Architektur, Datenwege und API](architecture.md)
 4. [Sicherheitsmodell, Authentifizierung und LAN/TLS](security.md)
 5. [Betrieb, Checks und kontrolliertes Backend-Update](ops.md)
@@ -41,7 +41,7 @@
 | Geodaten- und Datenbanktests | [Isolierte PostGIS-Validierung](postgis-isolated-validation.md), [DJI-Referenz-Roadmap](dji-reference-roadmap.md) |
 | Betriebssicherheit und Migration | [Skriptwirkung](scripts.md), [Host-InfluxDB absichern](pi-influxdb-hardening.md), [Legacy-Migration](legacy-migration.md), [Legacy-Dependency-Audit](legacy-dependency-audit.md), [Takeover/Rollback](skyhub-legacy-takeover.md) |
 | Frontend-Kontrakte | [UX-CONTRACT](../UX-CONTRACT.md), [DESIGN](../DESIGN.md) |
-| Offene Pull Requests – Triage gegen den heutigen `main` (Messung, kein Merge-Beschluss) | [PR-Triage 24.10.2026](pr-triage-2026-10-24.md) |
+| Offene Pull Requests – datierte Triage (Messung, kein Merge-Beschluss) | [PR-Triage vom 25.10.2026](pr-triage-2026-10-24.md), [aktuellerer GitHub-Stand](repository-status-2026-10-25.md) |
 | FlightHub 2 Frontend – optionale Herstellerkomponenten, nur Referenz | [FH2-On-Premises-Komponenten und Sicherheitsgates](dji-flighthub2-frontend-components.md) |
 | FlightHub 2 On-Premises – Bewertung (Recherche, kein Test) | [Bezug, Anforderungen, Geräte, Frontend-Komponenten](dji-flighthub2-on-premises-bewertung.md) |
 | DJI-Cloud-API-Demo als lokaler Testweg (extern zum Repo, nur LAN) | [Stack, Absicherung, Offline-Karte, Grenzen](cloud-api-demo-lokal.md) |
