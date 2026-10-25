@@ -60,7 +60,7 @@ test('model scoped fields reject unsupported models, wrong roles and disconnecte
   const packet={channel:'osd',dataKeys:['mode_code','distance_limit_status','privacySecret']};
   for(const device of [
     null,{}, {...valid,role:'gateway'},
-    {...valid,model:{domain:'0',type:99,subType:1}},
+    {...valid,model:{domain:'0',type:99,subType:9}},
     {...valid,model:{domain:'0',type:77,subType:0}},
     {...valid,aircraftConnected:false}
   ])catalog.record(packet,device,1000);
@@ -83,4 +83,20 @@ test('model scoped field names are bounded by pinned schema and cannot echo keys
   assert.ok(!out.includes('operator@secret'));
   assert.ok(!out.includes('__proto__'));
   assert.ok(!out.includes('payloads'));
+});
+
+test('RC Plus 2 and Matrice 4T are model scoped with their own official profiles',()=>{
+  const catalog=createModelShapeCatalog();
+  const rc={model:{domain:'2',type:174,subType:0},role:'gateway'};
+  const air={model:{domain:'0',type:99,subType:1},role:'subdevice',aircraftConnected:true};
+  catalog.record({channel:'osd',dataKeys:['drc_state','wireless_link','SERIAL1234']},rc,100);
+  catalog.record({channel:'osd',dataKeys:['position_state','rth_mode','wpmz_version','SERIAL1234']},air,101);
+  catalog.record({channel:'osd',dataKeys:['position_state']},{...air,aircraftConnected:false},102);
+  catalog.record({channel:'osd',dataKeys:['drc_state']},{...rc,role:'subdevice'},103);
+  const snapshot=catalog.snapshot();
+  assert.deepEqual(snapshot.find(e=>e.model==='2:174:0').dataKeys,['drc_state','wireless_link']);
+  const aircraft=snapshot.find(e=>e.model==='0:99:1');
+  assert.deepEqual(aircraft.dataKeys,['position_state','rth_mode','wpmz_version']);
+  assert.equal(aircraft.count,1);
+  assert.ok(!JSON.stringify(snapshot).includes('SERIAL1234'));
 });

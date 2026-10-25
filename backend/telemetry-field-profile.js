@@ -90,7 +90,8 @@ function summarizeTelemetryFields(devices, now=Date.now()){
     }
     // Only fixed known model labels; do not reflect raw DJI fields/identifiers.
     const model=['DJI RC Pro Enterprise','DJI RC Plus 2 Enterprise','Mavic 3E',
-      'Mavic 3T','Mavic 3M','Matrice 4T'].includes(d.modelName)?
+      'Mavic 3T','Mavic 3M','Matrice 4T','DJI Dock','DJI Dock 2','DJI Dock 3',
+      'Matrice 3D','Matrice 3TD','Matrice 4D','Matrice 4TD'].includes(d.modelName)?
       d.modelName:'anderes Gerät';
     return {
       index:index+1,model,role,

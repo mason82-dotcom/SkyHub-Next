@@ -23,3 +23,44 @@ frontend/public/*.before-*
 simulators/hivemind/.upstream/
 simulators/hivemind/.m2-cache/
 simulators/hivemind/lab.env
+# Local symlink to mounted NVMe MinIO data (never add bucket contents to Git)
+/storage/minio-data
+
+# Local disaster-recovery evidence (may contain internal infrastructure details)
+/dr-reports/
+
+# Generated, validated MinIO DR status reports
+/dr-status/
+
+# Private locally supplied WPML/Pilot 2 evidence and exported route backups
+/.local-wpml-evidence/
+skyhub-local-routes-*.json
+
+# Unversioned development caches and editor state
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+.idea/
+.vscode/
+.coverage
+htmlcov/
+coverage/
+*.swp
+*.swo
+*.orig
+*.rej
+*.bak
+.DS_Store
+Thumbs.db
+
+# Transient local scratch/build outputs; never deployment state
+/tmp/
+/build/
+
+# DJI Cloud API Demo (lokaler Testweg): Geheimnisse, erzeugte Konfiguration und gepinnte Upstream-Klone
+/ops/cloud-api-demo/.env
+/ops/cloud-api-demo/runtime/
+/third_party/

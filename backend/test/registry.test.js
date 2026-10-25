@@ -207,3 +207,60 @@ test('read-only event history marks mission and media reports as unverified',()=
   assert.equal(stale.dropReason,'duplicate');
   assert.equal(registry.events().length,2);
 });
+
+test('at the device limit, a flood of invented serials cannot evict topology-confirmed devices',()=>{
+  const registry=createRegistry(4);
+  registry.ingest(topology(['AIR01']),1760000001000);
+  for(let i=0;i<60;i++){
+    // A forged `gateway` field makes the serial a "subdevice", but no gateway vouched for it.
+    registry.ingest(receive(`thing/product/FAKE${i}/osd`,{timestamp:1760000002000+i,gateway:'FAKEGW',
+      data:{latitude:1,longitude:1}}),1760000003000+i);
+  }
+  assert.equal(registry.count(),4);
+  assert.equal(registry.get('RC123')?.role,'gateway');
+  assert.equal(registry.get('AIR01')?.role,'subdevice');
+  assert.equal(registry.get('FAKE0')?.sn,undefined);
+  assert.equal(registry.get('FAKE59')?.role,'subdevice');
+});
+test('eviction removes the least recently seen unconfirmed device, not the oldest inserted one',()=>{
+  const registry=createRegistry(3);
+  registry.ingest(topology([]),1760000001000);
+  const osd=(sn,ts)=>receive(`thing/product/${sn}/osd`,{timestamp:ts,data:{latitude:1,longitude:1}});
+  registry.ingest(osd('OLD01',1760000002000),1760000002000);
+  registry.ingest(osd('OLD02',1760000003000),1760000003000);
+  registry.ingest(osd('OLD01',1760000004000),1760000004000); // OLD01 inserted first, but seen again
+  registry.ingest(osd('NEW01',1760000005000),1760000005000);
+  assert.equal(registry.count(),3);
+  assert.ok(registry.get('RC123'));
+  assert.ok(registry.get('OLD01'),'recently active device stays');
+  assert.equal(registry.get('OLD02')?.sn,undefined,'least recently seen device goes');
+  assert.ok(registry.get('NEW01'));
+});
+test('when only confirmed devices remain, the least recently seen one is evicted instead of refusing',()=>{
+  const registry=createRegistry(2);
+  registry.ingest(topology(['AIR01']),1760000001000); // RC123 seen, AIR01 never seen directly
+  registry.ingest(receive('thing/product/NEW01/osd',{timestamp:1760000002000,data:{latitude:1,longitude:1}}),1760000002000);
+  assert.equal(registry.count(),2);
+  assert.equal(registry.get('RC123')?.role,'gateway');
+  assert.equal(registry.get('AIR01')?.sn,undefined);
+  assert.ok(registry.get('NEW01'));
+});
+
+test('online needs fresh OSD: a stale topology fact alone never reads as connected',()=>{
+  const registry=createRegistry();
+  const t0=1760000001000;
+  registry.ingest(topology(['AIR01']),t0);
+  // Topology says online, but no telemetry has arrived yet.
+  assert.equal(registry.get('AIR01',t0).topologyOnline,true);
+  assert.equal(registry.get('AIR01',t0).online,false);
+  registry.ingest(receive('thing/product/AIR01/osd',{timestamp:t0,gateway:'RC123',
+    data:{latitude:49,longitude:8,height:10}}),t0+500);
+  assert.equal(registry.get('AIR01',t0+1000).online,true);
+  // Telemetry stops; the retained topology fact stays true, `online` does not.
+  const later=registry.get('AIR01',t0+60000);
+  assert.equal(later.topologyOnline,true);
+  assert.equal(later.online,false);
+  // A topology revocation always wins over fresh data.
+  registry.ingest(topology([],t0+2),t0+1500);
+  assert.equal(registry.get('AIR01',t0+2000).online,false);
+});

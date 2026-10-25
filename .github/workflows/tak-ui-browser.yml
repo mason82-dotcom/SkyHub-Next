@@ -1,0 +1,52 @@
+name: SkyHub TAK UI browser acceptance
+
+on:
+  push:
+    branches:
+      - main
+      - feature/tak-tab-mainbase-20261023
+  pull_request:
+    paths:
+      - "frontend/public/**"
+      - "scripts/tak-ui-browser-ci.js"
+      - ".github/workflows/tak-ui-browser.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tak-ui-browser-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  real-frontend-with-synthetic-backend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install isolated browser dependencies (no production dependency changes)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test_dir="$RUNNER_TEMP/skyhub-browser-acceptance"
+          mkdir -p "$test_dir"
+          npm install --prefix "$test_dir" --ignore-scripts --no-save --no-package-lock --no-audit --no-fund \
+            playwright@1.56.1 leaflet@1.9.4 socket.io@4.8.1
+          "$test_dir/node_modules/.bin/playwright" install --with-deps chromium
+          echo "SKYHUB_BROWSER_DEPS=$test_dir/node_modules" >> "$GITHUB_ENV"
+      - name: Browser acceptance against actual dashboard, real Leaflet and Socket.IO
+        env:
+          SKYHUB_BROWSER_ARTIFACTS: browser-evidence
+        run: node scripts/tak-ui-browser-ci.js
+      - name: Upload screenshots and acceptance report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: skyhub-tak-tabs-chromium-evidence
+          path: browser-evidence/
+          if-no-files-found: warn
+          retention-days: 14

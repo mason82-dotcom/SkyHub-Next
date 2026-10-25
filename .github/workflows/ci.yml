@@ -12,9 +12,11 @@ on:
 permissions:
   contents: read
 
-# Pull requests and their branch pushes should not consume two runners indefinitely.
+# Keep PR and branch-push runs in separate groups so a stalled cancelled
+# push worker cannot starve the required PR checks. Supersede older runs
+# within each event/ref group only.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.head.ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -37,7 +39,16 @@ jobs:
         run: npm ci --prefix backend --ignore-scripts --no-audit --no-fund
       - name: Validate delivered inline dashboard scripts
         run: node scripts/check-dashboard-inline.js
-      - name: Backend unit tests (no broker or DJI hardware)
+      # Throwaway loopback broker started by the tests themselves (random port, temp files).
+      # The installed system service is stopped: it is never used and must not occupy 1883.
+      - name: Install Mosquitto for the dedicated-broker integration test
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends mosquitto
+          sudo systemctl stop mosquitto || true
+      - name: Backend unit tests (no DJI hardware; real throwaway Mosquitto)
+        env:
+          SKYHUB_REQUIRE_MOSQUITTO: "1"
         run: node --test backend/test/*.test.js
 
       - name: Check lab-only DJI Dock mock contract without MQTT
@@ -47,6 +58,11 @@ jobs:
           node --check simulators/hivemind/mission-probe.js
           node --check simulators/hivemind/media-probe.js
           python3 -m py_compile simulators/hivemind/dock-smoke.py
+      - name: Experimental M3M catalog UI contract
+        run: node --test frontend/test/smart-farming-ui.test.js
+
+      - name: Check repository hygiene (read-only Git index)
+        run: python3 scripts/repository-hygiene.py
 
       - name: Validate staging helper and Python tests
         run: |
@@ -88,9 +104,31 @@ jobs:
 
       - name: Validate explicit ARM64 PostGIS overlay
         run: docker compose -f docker-compose.yml -f docker-compose.arm64.yml --env-file .env.example config --quiet
-      - name: Assert Pi MQTT endpoint on port 1884
+      - name: Validate opt-in shared MinIO overlay (configuration only)
         run: |
-          node -e 'const {execFileSync}=require("node:child_process"); const x=JSON.parse(execFileSync("docker",["compose","--env-file",".env.example","config","--format","json"],{encoding:"utf8"})); const b=x.services.backend.environment; if(b.MQTT_BROKER_URL!=="mqtt://host.docker.internal:1884" || b.SKYHUB_MQTT_REQUIRED_PORT!=="1884") process.exit(1);'
+          docker compose -f docker-compose.yml -f docker-compose.storage.yml --profile media --env-file .env.example config --quiet
+          docker compose -f docker-compose.yml -f docker-compose.arm64.yml -f docker-compose.storage.yml --profile media --env-file .env.example config --quiet
+          docker compose -f docker-compose.yml -f docker-compose.storage.external.yml --env-file .env.example config --quiet
+      - name: Validate standalone copy-free SkyHub MinIO Compose (config only)
+        env:
+          SKYHUB_SHARED_MINIO_CREDENTIALS_FILE: .env.example
+        run: |
+          docker compose -f docker-compose.minio-shared.yml config --quiet
+          docker compose -f docker-compose.minio-shared.yml config --format json |
+            python3 -c 'import json,sys; cfg=json.load(sys.stdin); assert list(cfg["services"])==["minio"]; s=cfg["services"]["minio"]; assert not s.get("ports"); assert s["volumes"][0]["source"]=="/mnt/hc4backup/skyhub-next/minio"; assert s["volumes"][0]["bind"]["create_host_path"] is False'
+
+
+      - name: Assert explicit legacy EMQX 1884 default
+        run: |
+          node -e 'const {execFileSync}=require("node:child_process"); const x=JSON.parse(execFileSync("docker",["compose","--env-file",".env.example","config","--format","json"],{encoding:"utf8"})); const b=x.services.backend.environment; if(b.MQTT_BROKER_URL!=="mqtt://host.docker.internal:1884" || b.SKYHUB_MQTT_BROKER_KIND!=="emqx" || b.SKYHUB_MQTT_REQUIRED_PORT!=="1884") process.exit(1);'
+      - name: Assert opt-in Mosquitto profile without external broker mutation
+        env:
+          SKYHUB_MQTT_BROKER_KIND: mosquitto
+          SKYHUB_MQTT_REQUIRED_PORT: "1883"
+          MQTT_BROKER_URL: mqtt://host.docker.internal:1883
+          SKYHUB_PILOT_MQTT_URL: mqtt://192.168.178.63:1883
+        run: |
+          node -e 'const {execFileSync}=require("node:child_process"); const x=JSON.parse(execFileSync("docker",["compose","--env-file",".env.example","config","--format","json"],{encoding:"utf8"})); const b=x.services.backend.environment; const p=x.services.backend.ports; if(b.MQTT_BROKER_URL!=="mqtt://host.docker.internal:1883" || b.SKYHUB_MQTT_BROKER_KIND!=="mosquitto" || b.SKYHUB_MQTT_REQUIRED_PORT!=="1883" || b.SKYHUB_PILOT_MQTT_URL!=="mqtt://192.168.178.63:1883" || b.SKYHUB_PILOT_ENABLED!=="false" || p[0].host_ip!=="127.0.0.1" || Number(p[0].published)!==4001 || x.services.emqx || x.services.mosquitto) process.exit(1);'
       - name: Assert SkyHub Next remains isolated from the existing Pi backend
         run: |
           node -e 'const {execFileSync}=require("node:child_process"); const x=JSON.parse(execFileSync("docker",["compose","--env-file",".env.example","config","--format","json"],{encoding:"utf8"})); const p=x.services.backend.ports; if(x.name!=="skyhub-next"||p.length!==1||Number(p[0].published)!==4001||Number(p[0].target)!==4000||p[0].host_ip!=="127.0.0.1"||x.services.emqx) process.exit(1);'
@@ -103,7 +141,39 @@ jobs:
       - name: Smoke-test bundled runtime modules in the image
         run: |
           docker run --rm --network none --entrypoint node skyhub-next:test \
-            -e '["./catalog","./dji","./registry","./mqtt-config","./mqtt-metrics","./pilot-config","./topology-ack","./mqtt-shape","./pilot-pairing","./topology-store","./hms-catalog","./track-policy","./track-store","./track-recorder","./lan-access","./message-guard","./map-element-api","./map-element-contract","./map-element-store","./map-element-permissions","./map-element-mutation"].forEach(require)'
+            -e '["./catalog","./dji","./registry","./mqtt-config","./mqtt-metrics","./pilot-config","./topology-ack","./mqtt-shape","./pilot-pairing","./topology-store","./hms-catalog","./track-policy","./track-store","./track-recorder","./lan-access","./message-guard","./map-element-api","./map-element-contract","./map-element-store","./map-element-permissions","./map-element-mutation","./hardware-validation","./m3m-gap-classifier","./rc-plus2-m4t-hardware-validation","./m3m-media-inventory","./m3m-s3-read-contract","./m3m-s3-inventory"].forEach(require)'
+
+  # This explicit required job intentionally installs actual raster dependencies:
+  # the general Python smoke run above may skip rasterio if it is unavailable.
+  # No DJI devices, Pi services, MQTT publishers or runtime writes are used.
+  m3m-raster-integration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # The cross-language offline acceptance runs the real Node catalog from Python.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install independent binary raster libraries
+        run: |
+          python -m pip install --only-binary=:all: -r backend/workers/m3m_requirements.txt
+      - name: Check M3M worker syntax
+        run: python -m py_compile backend/workers/m3m_*.py
+      - name: Assert complete Python-and-Node M3M E2E prerequisites (no silent skips)
+        run: |
+          node --version
+          python -c 'import numpy, rasterio, shutil; assert shutil.which("node"), "Node catalog runtime missing"'
+      - name: Run all offline M3M raster and integrity security tests
+        run: python -m unittest discover -s tests -p 'test_m3m_*.py' -v
+      - name: Verify offline CLIs expose safe help paths
+        run: |
+          python backend/workers/m3m_dedal_offline_pipeline.py --help
+          python backend/workers/m3m_raster_bundle_seal.py --help
+          python backend/workers/m3m_smart_farming_candidate.py --help
 
   isolated-postgis-integration:
     runs-on: ubuntu-latest
@@ -116,7 +186,8 @@ jobs:
           POSTGRES_PASSWORD: local_ci_only
           POSTGRES_DB: skyhub_test
         ports:
-          - 55432:5432
+          # Allocate a runner-specific host port: parallel CI runners may share a Docker host.
+          - 5432/tcp
         options: >-
           --health-cmd "pg_isready -U skyhub_test -d skyhub_test"
           --health-interval 5s
@@ -131,8 +202,8 @@ jobs:
         run: npm ci --prefix backend --ignore-scripts --no-audit --no-fund
       - name: Run real SQL and PostGIS integration in dedicated test database
         env:
-          SKYHUB_TEST_DATABASE_URL: postgresql://skyhub_test:local_ci_only@127.0.0.1:55432/skyhub_test
-        run: node --test backend/test/postgis.integration.test.js backend/test/map-element-mutation.integration.test.js
+          SKYHUB_TEST_DATABASE_URL: postgresql://skyhub_test:local_ci_only@127.0.0.1:${{ job.services.postgis.ports[5432] }}/skyhub_test
+        run: node --test backend/test/postgis.integration.test.js backend/test/map-element-mutation.integration.test.js backend/test/dji-flighttask-journal.integration.test.js backend/test/dji-flighttask-journal-retention.integration.test.js backend/test/wpml-route-schema.integration.test.js backend/test/dji-flighttask-multimission-router.integration.test.js backend/test/dji-flighttask-workspace-rls.integration.test.js
 
   isolated-postgis-backup-restore:
     runs-on: ubuntu-latest
