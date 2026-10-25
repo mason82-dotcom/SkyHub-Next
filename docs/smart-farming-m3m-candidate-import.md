@@ -1,6 +1,6 @@
 # SkyHub-Next Smart Farming – verifizierte experimentelle Kartenkandidaten
 
-**Sicherheitsnachtrag 24.10.2026 (Draft, noch nicht in `main`):**
+**Sicherheitsnachtrag 24.10.2026 (in `main` seit PR #140):**
 Der Python-Kandidatenworker veröffentlicht sein privates Ergebnis unter
 Linux jetzt mit `renameat2(RENAME_NOREPLACE)`. Anders als das bisherige
 `os.rename()` darf dieser atomare Systemaufruf **auch ein zwischenzeitlich
