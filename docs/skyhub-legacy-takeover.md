@@ -1,5 +1,8 @@
 # SkyHub – kontrollierte Übernahme des bisherigen Dienstes (Port 4000)
 
+> **Stichtagsabgrenzung 23.10.2026:** Das folgende Runbook enthält historische Planungs- und Pi-Beobachtungen. Es darf **nicht** ohne neues read-only-Audit, vollständiges Backup, getestete Rückfallstrategie und ausdrückliche Freigabe als Live-Cutover-Anweisung ausgeführt werden. Das Main-Root-Compose belegt weiterhin standardmäßig `127.0.0.1:4001`; der archivierte Legacy-Stack wird nicht gestartet. [Projektstand](projektstand-2026-10-23.md), [Konfiguration](config-reference.md).
+
+
 Status am 20.10.2026: **Historischer Cutover-Entwurf, keine aktuelle Ausführungsanweisung.** SkyHub Next läuft inzwischen auf `127.0.0.1:4001` mit eigenen Postgres- und Redis-Containern; `skyhub_backend` erschien bei der letzten lesenden Containerliste nicht. Der genaue Zustand von Port 4000 und des alten Containers muss vor jeder weiteren Planung neu ermittelt werden. Die folgenden Audit- und Staging-Befunde entstanden vor dem Start von SkyHub Next und sind ausdrücklich keine Aussagen über die aktuelle `.env`, Broker-ACL oder Datenbestände. Siehe [Bestandsaufnahme](entwicklungsplan-2026-10-20.md).
 
 ## Ziel

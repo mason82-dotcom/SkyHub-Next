@@ -1,6 +1,6 @@
 # DJI-Kartenelemente: Workspace-Rollen und Zugriffsgrenzen (P2)
 
-Stand: 21.10.2026. Umsetzung auf dem isolierten Feature-Branch. **Keine Freigabe produktiver Schreibaktionen.**
+Stand: 21.10.2026; Aktualisierung der Einordnung 23.10.2026. Der **Lese-/Rollenvertrag liegt auf Main** (Commit `4d878314f8345f8cd370f0004916426523e577c0`), nicht ausschließlich auf einem isolierten Feature-Branch. **Keine Freigabe produktiver Schreibaktionen.** Im unveränderten Main-Root-Compose wird `SKYHUB_DJI_MAP_ELEMENTS_ENABLED` nicht an den Backend-Container weitergegeben; allein die `.env`-Flag aktiviert die Route daher nicht. Siehe [aktueller Projektstand](projektstand-2026-10-23.md).
 
 ## Rollen- und Lesevertrag
 

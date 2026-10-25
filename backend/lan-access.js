@@ -28,11 +28,14 @@ function parseLanCidr(value){
   if(within(base,['172.16.0.0',12]))throw new Error('SKYHUB_LAN_VIEW_CIDR must not overlap Docker networks (172.16.0.0/12)');
   return [match[1],prefix];
 }
+// X-Forwarded-For is only believed from loopback and Docker bridge gateways (Caddy reaches the
+// backend through one of them). Other private peers (10/8, 192.168/16) are ordinary LAN hosts that
+// could forge the header to impersonate a client inside the allowed CIDR.
+const TRUSTED_PROXY_PEERS=[['127.0.0.0',8],['172.16.0.0',12]];
 // The direct peer is Docker's gateway or loopback; the client is Caddy's last XFF entry.
 function clientAddress(peer,forwardedFor){
   const direct=ipv4(peer);
-  const local=peer==='::1' || (direct!==null && (within(direct,['127.0.0.0',8]) ||
-    PRIVATE.some(net=>within(direct,net))));
+  const local=peer==='::1' || (direct!==null && TRUSTED_PROXY_PEERS.some(net=>within(direct,net)));
   if(local && typeof forwardedFor==='string' && forwardedFor.trim()){
     const hops=forwardedFor.split(',');
     return hops[hops.length-1].trim();
