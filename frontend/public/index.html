@@ -102,6 +102,7 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;margin:14px 0 8p
  .module-nav{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.module-nav a{color:#a8ecfc;font-size:12px;text-decoration:underline;text-underline-offset:3px}.module-nav a[aria-current=page]{font-weight:700;color:white}
 </style>
 <link rel="stylesheet" href="/skyhub-light.css">
+<link rel="stylesheet" href="/skyhub-cockpit.css">
 </head>
 <body data-skyhub-page="dashboard">
 <a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
@@ -143,6 +144,48 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;margin:14px 0 8p
       <div class="tile"><small>OSD &lt;15 s</small><strong id="live">0</strong></div>
       <div class="tile"><small>HMS Stufe 2</small><strong id="hmsCount">0</strong></div>
     </div>
+  <section id="cockpit" class="cockpit" aria-labelledby="cockpitTitle">
+    <div class="cockpit-top"><div><span class="cockpit-overline">OSD / Instrumente</span><h2 id="cockpitTitle">Fluginstrumente</h2></div><span class="cockpit-badge">Nur lesend</span></div>
+    <label for="cockpitDevice">Gerät für Instrumente</label>
+    <select id="cockpitDevice" disabled aria-describedby="cockpitHelp"><option value="">Warte auf Gerätedaten</option></select>
+    <p id="cockpitStatus" class="cockpit-status" role="status">Warte auf Gerätedaten.</p>
+    <section class="cockpit-quality" aria-labelledby="cockpitQualityTitle">
+      <h3 id="cockpitQualityTitle">Einzelwert-Qualität</h3>
+      <p id="cockpitQualitySummary">Noch keine Instrumentenfelder geprüft</p>
+      <dl class="cockpit-counts">
+        <div data-kind="current"><dt>Aktuell · geprüft</dt><dd id="cockpitQualityCurrent">—</dd></div>
+        <div data-kind="stale"><dt>Veraltet</dt><dd id="cockpitQualityStale">—</dd></div>
+        <div data-kind="unverified"><dt>Zeit ungeprüft</dt><dd id="cockpitQualityUnverified">—</dd></div>
+        <div data-kind="unknown"><dt>Zeit unbekannt</dt><dd id="cockpitQualityUnknown">—</dd></div>
+        <div data-kind="missing"><dt>Nicht empfangen</dt><dd id="cockpitQualityMissing">—</dd></div>
+      </dl>
+      <p class="cockpit-note">Prüfung der acht hier dargestellten Instrumentenwerte, nicht der Status der Drohne und keine Flugfreigabe.</p>
+    </section>
+    <div class="cockpit-dials" aria-label="Gemeldete Einzelwerte und Zeitprüfung">
+      <div class="cockpit-dial"><span class="cockpit-name">Akku</span><strong id="cockpitBattery" class="cockpit-value">—</strong><small id="cockpitBatteryAge" class="cockpit-age" data-kind="missing">Nicht empfangen</small><div class="cockpit-meter" aria-hidden="true"><span id="cockpitBatteryMeter"></span></div></div>
+      <div class="cockpit-dial"><span class="cockpit-name">Höhe relativ</span><strong id="cockpitAltitude" class="cockpit-value">—</strong><small id="cockpitAltitudeAge" class="cockpit-age" data-kind="missing">Nicht empfangen</small></div>
+      <div class="cockpit-dial"><span class="cockpit-name">Horizontaltempo</span><strong id="cockpitSpeed" class="cockpit-value">—</strong><small id="cockpitSpeedAge" class="cockpit-age" data-kind="missing">Nicht empfangen</small></div>
+      <div class="cockpit-dial"><span class="cockpit-name">Kurs / Heading</span><div class="cockpit-heading"><strong id="cockpitHeading" class="cockpit-value">—</strong><span id="cockpitCompass" class="cockpit-compass" aria-hidden="true" hidden><span id="cockpitNeedle" class="cockpit-needle"></span></span></div><small id="cockpitHeadingAge" class="cockpit-age" data-kind="missing">Nicht empfangen</small></div>
+      <div class="cockpit-dial"><span class="cockpit-name">Vertikaltempo</span><strong id="cockpitClimb" class="cockpit-value">—</strong><small id="cockpitClimbAge" class="cockpit-age" data-kind="missing">Nicht empfangen</small></div>
+      <div class="cockpit-dial"><span class="cockpit-name">SDR-Funkqualität</span><strong id="cockpitLink" class="cockpit-value">—</strong><small id="cockpitLinkAge" class="cockpit-age" data-kind="missing">Nicht empfangen</small><div class="cockpit-meter" aria-hidden="true"><span id="cockpitLinkMeter"></span></div></div>
+      <div class="cockpit-dial cockpit-attitude-dial">
+        <span class="cockpit-name">Lageanzeige / Attitude</span>
+        <div class="cockpit-attitude-layout">
+          <div id="cockpitAttitude" class="cockpit-attitude" aria-hidden="true" hidden>
+            <div id="cockpitAttitudePlane" class="cockpit-attitude-plane"><div class="cockpit-attitude-sky"></div><div class="cockpit-attitude-ground"></div><div class="cockpit-attitude-line"></div></div>
+            <span class="cockpit-attitude-marker"></span>
+          </div>
+          <div class="cockpit-attitude-readouts">
+            <div><span class="cockpit-name">Nickwinkel</span><strong id="cockpitPitch" class="cockpit-value">—</strong><small id="cockpitPitchAge" class="cockpit-age" data-kind="missing">Nicht empfangen</small></div>
+            <div><span class="cockpit-name">Rollwinkel</span><strong id="cockpitRoll" class="cockpit-value">—</strong><small id="cockpitRollAge" class="cockpit-age" data-kind="missing">Nicht empfangen</small></div>
+          </div>
+        </div>
+        <p class="cockpit-note">Schematisch. Der Horizont erscheint nur mit zwei aktuellen, zeitverifizierten Werten.</p>
+      </div>
+    </div>
+    <button id="cockpitLocate" type="button" disabled>Letzten Kartenstandort zeigen</button>
+    <p id="cockpitHelp" class="cockpit-note">DJI-OSD aus der vorhandenen Verbindung. Frische und Quellzeit werden je Feld geprüft. Keine Flugfreigabe.</p>
+  </section>
     <details class="health-panel">
       <summary>Datenpfad · <span id="healthSummary" role="status">wird geprüft</span></summary>
       <dl>
@@ -210,12 +253,14 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;margin:14px 0 8p
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script src="/telemetry-freshness.js"></script>
+<script src="/telemetry-cockpit.js"></script>
 <script src="/workspace-tabs.js"></script>
 <script>
 (function(){
 'use strict';
 const el=id=>document.getElementById(id);
 const fieldFreshness=window.SkyHubTelemetryFreshness;
+const cockpit=window.SkyHubCockpit?.mount({document,fieldFreshness,mapAvailable:()=>Boolean(map),onLocate:sn=>revealDevice(sn)});
 function fieldAge(element,d,key){
   const status=fieldFreshness.evaluateField(d,key);
   element.dataset.field=key;
@@ -316,6 +361,7 @@ function fitDevices(){
 }
 function update(){
   const data=[...records.values()].sort((a,b)=>(b.lastSeenAt||0)-(a.lastSeenAt||0));
+  if(cockpit)cockpit.render(data,selectedSn,listState);
   const root=el('devices');
   const focusedSn=document.activeElement?.dataset?.focusSn;
   const focusedDetailsSn=document.activeElement?.dataset?.detailsSn;
