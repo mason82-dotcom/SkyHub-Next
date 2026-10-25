@@ -61,6 +61,10 @@ services:
       SKYHUB_S3_ENDPOINT: ${SKYHUB_S3_ENDPOINT:-}
       SKYHUB_S3_ACCESS_KEY: ${SKYHUB_S3_ACCESS_KEY:-}
       SKYHUB_S3_SECRET_KEY: ${SKYHUB_S3_SECRET_KEY:-}
+      # Pilot 2 verified library stays off until migrations 003-005 and the
+      # separate identity, backup and Pi acceptance gates have passed.
+      SKYHUB_MEDIA_LIBRARY_ENABLED: ${SKYHUB_MEDIA_LIBRARY_ENABLED:-false}
+      SKYHUB_MEDIA_LIBRARY_CURSOR_SECRET: ${SKYHUB_MEDIA_LIBRARY_CURSOR_SECRET:-}
       SKYHUB_BIND_ADDRESS: ${SKYHUB_BIND_ADDRESS:-127.0.0.1}
       SKYHUB_VIEW_TOKEN: ${SKYHUB_VIEW_TOKEN:?Set SKYHUB_VIEW_TOKEN}
       # EMQX/1884 by default; Mosquitto/1883 requires explicit opt-in in .env.

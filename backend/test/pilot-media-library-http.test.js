@@ -193,5 +193,5 @@ test('Express GET router works and does not add any production listener',async t
   const unauth=await fetch(url+'/assets');
   assert.equal(unauth.status,401);
   const source=fs.readFileSync(path.resolve(__dirname,'../server.js'),'utf8');
-  assert.doesNotMatch(source,/pilot-media-library/);
+  assert.match(source,/createPilotMediaLibraryRuntime/);
 });

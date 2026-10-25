@@ -155,9 +155,9 @@ test('append-only audit stores action and outcome, never object IDs or private m
   assert.equal(db.audits.length,1);
 });
 
-test('live server stays disconnected from the metadata library',()=>{
+test('library remains free of ambient credentials and object download commands',()=>{
   const server=fs.readFileSync(path.resolve(__dirname,'../server.js'),'utf8');
-  assert.doesNotMatch(server,/pilot-media-library/);
+  assert.match(server,/if\(mediaLibraryRouter\)app\.use\(mediaLibraryRouter\)/);
   const source=fs.readFileSync(path.resolve(__dirname,'../pilot-media-library.js'),'utf8');
   assert.doesNotMatch(source,/process\.env|console\.(log|error)|GetObjectCommand|PutObjectCommand/);
 });
