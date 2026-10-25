@@ -13,7 +13,7 @@
   let library=lib.blank(),selected=null,activeRouteId=null,points=[],groups=[],dirty=false;
   const message=(text,error=false)=>{
     $('status').textContent=text;
-    $('status').style.color=error?'#ffca8c':'#c4e8fa';
+    $('status').style.color=error?'var(--sky-warning)':'var(--sky-ink)';
   };
   const libraryMessage=text=>{$('library-status').textContent=text;};
   const make=(tag,text)=>{
@@ -369,7 +369,7 @@
     $('backup-apply').disabled=true;
     $('backup-discard').disabled=true;
     backupPreview.textContent=message;
-    backupPreview.style.color=error?'#ffca8c':'#adcadb';
+    backupPreview.style.color=error?'var(--sky-warning)':'var(--sky-muted)';
   }
   $('backup-export').addEventListener('click',()=>{
     if(!window.confirm('Sicherung enthält GPS-Koordinaten und Missionsdaten UNVERSCHLÜSSELT. JSON-Datei jetzt lokal exportieren?'))return;

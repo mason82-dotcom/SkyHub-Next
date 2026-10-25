@@ -7,7 +7,7 @@
 <meta name="robots" content="noindex,nofollow">
 <title>SkyHub Next · Offline-Routenbibliothek</title>
 <style>
-:root{color-scheme:dark;font:14px system-ui;background:#071525;color:#e4f4ff}
+:root{color-scheme:light;font:14px system-ui;background:#071525;color:#e4f4ff}
 *{box-sizing:border-box}body{margin:0}header{padding:14px 20px;border-bottom:1px solid #38546b}
 h1{font-size:19px;margin:0 0 6px}h2{font-size:16px}h3{font-size:14px}
 main{display:grid;grid-template-columns:minmax(270px,340px) minmax(330px,1fr);gap:16px;padding:16px}
@@ -24,14 +24,28 @@ button:disabled{opacity:.4;cursor:not-allowed}.row{display:flex;gap:8px;flex-wra
 code{font-size:12px}a{color:#9de5fb}hr{border:0;border-top:1px solid #375b72;margin:18px 0}
 @media(max-width:850px){main{grid-template-columns:1fr}}
 </style>
-</head><body>
+<link rel="stylesheet" href="/skyhub-light.css">
+</head><body data-skyhub-page="routes">
+<a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
 <header>
 <h1>SkyHub Next · Lokale Routenbibliothek</h1>
 <div class="caption">P0 Missionsrevisionen · P1 geordnete Wegpunktaktionen · Kein DJI-Flugauftrag</div>
-<nav><a href="/wpml-editor.html">Zum einfachen Wegpunkteditor</a> · <a href="/">Dashboard</a></nav>
+<nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
+  <a href="/">Übersicht</a>
+  <a href="/wpml-editor.html">Missionen</a>
+  <a href="/wpml-route-library.html" aria-current="page">Routen</a>
+  <a href="/wpml-survey-preview.html">Survey</a>
+  <a href="/smart-farming.html">Smart Farming</a>
+</nav>
 </header>
-<main>
-<section aria-label="Routenverwaltung">
+<nav class="skyhub-route-jumps" aria-label="Routen-Schnellzugriff">
+  <a href="#routeLibrarySection">Bibliothek</a>
+  <a href="#routeWaypoints">Wegpunkte</a>
+  <a href="#routeActions">Aktionen</a>
+  <a href="#routeExport">Export</a>
+</nav>
+<main id="skyhubMain" tabindex="-1">
+<section id="routeLibrarySection" tabindex="-1" aria-label="Routenverwaltung">
 <h2>P0 · Routenbibliothek</h2>
 <p class="caption">Nur nach Klick auf „Revision speichern“ werden Missionsdaten samt GPS-Koordinaten im <strong>lokalen Browser-Speicher im Klartext</strong> hinterlegt. Nicht auf gemeinsam genutzten Geräten verwenden. Keine Synchronisation mit SkyHub-Server oder DJI.</p>
 <label for="route-name">Missionsname</label><input id="route-name" maxlength="70" value="Neue WPML-Mission">
@@ -81,11 +95,11 @@ code{font-size:12px}a{color:#9de5fb}hr{border:0;border-top:1px solid #375b72;mar
 </div>
 <label for="finish">Missionsende</label>
 <select id="finish"><option value="goHome">Zurück zum Start</option><option value="noAction">Keine Aktion</option></select>
-<h3>Wegpunkte</h3>
+<h3 id="routeWaypoints" tabindex="-1">Wegpunkte</h3>
 <div id="waypoints" role="list" aria-label="Wegpunkte"></div>
 <div class="row"><button id="add-point" type="button">Wegpunkt hinzufügen</button></div>
 <p class="caption">Zunächst konstante relative Höhe. Ein eigener Vermessungsnachweis ist für andere Höhenmodelle erforderlich.</p>
-<h3>Geordnete Action Groups</h3>
+<h3 id="routeActions" tabindex="-1">Geordnete Action Groups</h3>
 <p class="caption">Eine „reachPoint“-Gruppe je Wegpunkt mit höchstens acht geordneten Aktionen: Foto, Schweben, Yaw sowie Video Start/Stopp. Videoaufzeichnung muss entlang der Route vollständig geschlossen sein. Hardware-Semantik weiterhin ungeprüft.</p>
 <label for="group-index">Wegpunkt für neue Action Group</label><select id="group-index"></select>
 <button id="add-group" type="button">Action Group hinzufügen</button>
@@ -111,7 +125,7 @@ code{font-size:12px}a{color:#9de5fb}hr{border:0;border-top:1px solid #375b72;mar
 </div>
 <p class="caption">Umkehr ist bei Video-Start/Stopp und Legacy-/Intervall-Auslösern gesperrt. Der neu erzeugte Entwurf verlangt eine erneute visuelle Prüfung von Höhe, Heading, Gimbal, Hindernissen, RTH und Aufnahmezielen. Keine Flugfreigabe.</p>
 <hr>
-<div class="row"><button id="review" type="button">WPML-Struktur lokal prüfen</button>
+<div id="routeExport" class="row" tabindex="-1"><button id="review" type="button">WPML-Struktur lokal prüfen</button>
 <button id="export" type="button">Offline-KMZ exportieren</button></div>
 <div id="status" role="status" aria-live="polite" class="caption">Keine Flugfreigabe. Mindestens zwei Wegpunkte erforderlich.</div>
 <p class="notice">Der KMZ-Export enthält keine DJI-Gerätefreigabe, Hindernisprüfung oder RTH-Abnahme. Änderungen an gespeicherten Routen verändern frühere Revisionen nicht.</p>

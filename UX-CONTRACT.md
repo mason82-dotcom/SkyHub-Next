@@ -4,7 +4,16 @@
 
 - Produkt- und Zugriffsgrenzen: [Sicherheitsmodell](docs/security.md), `backend/lan-access.js` und `backend/server.js`.
 - DJI-Fachreferenz und geplante Adapter: [DJI-Referenz-Roadmap](docs/dji-reference-roadmap.md).
-- Gilt für das ausgelieferte statische Dashboard `frontend/public/index.html`; die Pilot-2-Webview hat einen getrennten Kopplungsfluss.
+- Die folgenden fachlichen Interaktions- und Sicherheitsverträge gelten primär für das ausgelieferte `frontend/public/index.html`. Die Pilot-2-Webview besitzt einen getrennten Kopplungsfluss. Die ebenfalls statisch ausgelieferten Offline-/Experimentier-Ansichten behalten ihre jeweiligen gesonderten Sicherheitsgrenzen.
+
+## Light-UI-Vertrag (Entwicklungsbranch)
+
+- Die fünf Operator-Ansichten teilen eine sichtbare, vollständig per Tastatur erreichbare Navigation; nur die aktuelle Ansicht erhält `aria-current="page"`. Die kompakte Pilot-2-Webview enthält keine Operator-Navigation.
+- `frontend/public/skyhub-light.css` ist die gemeinsame visuelle Quelle der Light-Tokens. Die alte Inline-CSS-Schicht enthält vorerst Layoutregeln, darf aber keine neuen Dark-Theme-Werte erzeugen.
+- Fehlende Daten, veraltete Quellzeit, reine Offline-Entwürfe, eine nicht integrierte TAK-Schnittstelle und unkalibrierte Smart-Farming-Indexkandidaten bleiben explizit textlich gekennzeichnet; Farbe allein ist nie ein Statusnachweis.
+- Bei 320, 390, 834 und 1440 Pixeln dürfen Hauptnavigation, Inhaltsseiten und Geräteübersicht keinen ungewollten horizontalen Body-Overflow erzeugen. Die Karte ist nicht die einzige bedienbare Geräterepräsentation.
+- Keyboard-Fokus, Kontrast und dynamische Inhaltselemente sind getrennt zu prüfen. `scripts/tak-ui-browser-ci.js` muss die **tatsächliche** Light-CSS-Datei ausliefern und im Browser berechnete Farben/Styles prüfen; bloßer DOM-Test ohne geladenes Theme reicht nicht.
+- Visual-only: Keine Änderungen an MQTT, DJI-Kommandos, Freigabezuständen, API-Sicherheit oder Browser-Datenspeicherung allein durch das Theme.
 
 ## Kartenworkflow
 

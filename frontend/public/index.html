@@ -5,7 +5,7 @@
 <title>SkyHub Next · DJI Operations</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
-:root{color-scheme:dark;--bg:#07111e;--panel:#101f30;--edge:#2c4054;--muted:#94abc1;--blue:#47c3e7}
+:root{color-scheme:light;--bg:#07111e;--panel:#101f30;--edge:#2c4054;--muted:#94abc1;--blue:#47c3e7}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:#edf6ff;font:14px system-ui,sans-serif}
 header{height:66px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 18px;border-bottom:1px solid var(--edge)}
 h1{margin:0;font-size:20px;letter-spacing:.04em}h1 span{color:var(--blue)}small,.muted{color:var(--muted)}
@@ -101,11 +101,19 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;margin:14px 0 8p
 @media(min-width:600px) and (max-width:1100px){.tak-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
  .module-nav{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.module-nav a{color:#a8ecfc;font-size:12px;text-decoration:underline;text-underline-offset:3px}.module-nav a[aria-current=page]{font-weight:700;color:white}
 </style>
+<link rel="stylesheet" href="/skyhub-light.css">
 </head>
-<body>
+<body data-skyhub-page="dashboard">
+<a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
 <header>
-  <h1>SKY<span>HUB</span> NEXT <small>· read-only</small></h1>
-  <nav class="module-nav" aria-label="SkyHub-Module"><a href="/" aria-current="page">Live-Dashboard</a><a href="/smart-farming.html">Smart Farming <small>· Experimentell</small></a></nav>
+  <h1 class="skyhub-brand"><span class="brand-symbol" aria-hidden="true">✦</span>SkyHub <span>Next</span><small>READ ONLY</small></h1>
+  <nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
+  <a href="/" aria-current="page">Übersicht</a>
+  <a href="/wpml-editor.html">Missionen</a>
+  <a href="/wpml-route-library.html">Routen</a>
+  <a href="/wpml-survey-preview.html">Survey</a>
+  <a href="/smart-farming.html">Smart Farming</a>
+</nav>
   <div class="auth">
     <input id="token" type="password" placeholder="SkyHub Zugriffstoken" aria-label="Zugriffstoken" autocomplete="off">
     <button id="connect" type="button" disabled>Verbinden</button>
@@ -116,16 +124,19 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;margin:14px 0 8p
   <button id="tabOperations" class="workspace-tab" type="button" role="tab" aria-controls="operationsPanel" aria-selected="true" tabindex="0">01 · Operations</button>
   <button id="tabTak" class="workspace-tab" type="button" role="tab" aria-controls="takPanel" aria-selected="false" tabindex="-1">02 · TAK / CoT</button>
 </nav>
-<main id="skyhubMain">
+<main id="skyhubMain" tabindex="-1">
 <div id="operationsPanel" role="tabpanel" aria-labelledby="tabOperations">
+  <a class="skyhub-mobile-fleet-jump" href="#fleetPanel">Direkt zum Gerätestatus ↓</a>
   <section class="map-shell" aria-label="Drohnenkarte">
+    <div class="map-title" aria-hidden="true"><strong>Live-Lagebild</strong><span>Letzte gemeldete Gerätepositionen</span></div>
     <div id="map" aria-label="Karte mit zuletzt gemeldeten Gerätepositionen"></div>
     <div class="map-tools">
       <button id="fitDevices" type="button" disabled>Alle Positionen zeigen</button>
       <span id="mapNote" class="map-note" role="status">Warte auf Gerätepositionen.</span>
     </div>
   </section>
-  <aside>
+  <aside id="fleetPanel" tabindex="-1" aria-labelledby="fleetHeading">
+    <div class="sidebar-heading"><div><p class="skyhub-eyebrow">FLOTTE / TELEMETRIE</p><h2 id="fleetHeading">Gerätestatus</h2></div><span class="readonly-pill">Nur Lesen</span></div>
     <div class="notice">Lesende Ansicht · keine Flugsteuerung. Fehlende Werte: —. Karte benötigt Internet.</div>
     <div class="grid">
       <div class="tile"><small>Geräte</small><strong id="count">0</strong></div>
@@ -486,10 +497,10 @@ function update(){
     const t=d.telemetry||{};
     if(map && validPosition(d)){
       const pos=[t.latitude,t.longitude];
-      const markerColor=positionFresh(d)&&d.positionTimeVerified===true?'#47c3e7':'#748697';
+      const markerColor=positionFresh(d)&&d.positionTimeVerified===true?'#2458d3':'#687b92';
       // Ring colour shows the most severe active HMS alert; fill keeps position freshness.
       const level=worstHms(d);
-      const style={color:level===2?'#ff6b5b':level===1?'#f0b84a':markerColor,
+      const style={color:level===2?'#b42328':level===1?'#b46d12':markerColor,
         fillColor:markerColor,fillOpacity:.45,weight:selectedSn===d.sn?5:level>=1?4:2,
         radius:selectedSn===d.sn?11:7};
       if(!markers.has(d.sn)){
@@ -761,7 +772,7 @@ async function loadTracks({background=false}={}){
   for(const {device:d,points} of results){
     if(points.length<2){removeTrack(d.sn);continue;}
     const aircraft=d.deviceCategory==='aircraft';
-    const style={color:aircraft?'#47c3e7':'#9aa9b8',weight:aircraft?3:2,opacity:.85,dashArray:aircraft?null:'4 6'};
+    const style={color:aircraft?'#2458d3':'#7b8798',weight:aircraft?3:2,opacity:.85,dashArray:aircraft?null:'4 6'};
     if(!tracks.has(d.sn))tracks.set(d.sn,L.polyline(points,style).addTo(map));
     else tracks.get(d.sn).setLatLngs(points).setStyle(style);
     // Without a usable live position (e.g. 0/0 indoors), show the recorded track once.
