@@ -22,7 +22,7 @@ const air={
   role:'subdevice',model:{domain:'0',type:77,subType:2},
   modelName:'Mavic 3M',topologyOnline:true,aircraftConnected:true,
   lastTelemetryAt:now-1200,fresh:true,positionFresh:true,
-  propertyProfile:{name:'mavic3',confidence:'shared-family-unverified'},
+  propertyProfile:{name:'mavic3m',confidence:'shared-family-three-generic-roots-observed-values-unverified'},
   propertyObservedAt:{osd:now-1200,state:now-4200},
   propertyFieldObservedAt:{osd:{mode_code:now-1200,'battery.capacity_percent':now-1200},
     state:{firmware_version:now-4200}},
@@ -48,8 +48,8 @@ test('healthy paired RC Pro Enterprise and Mavic 3M are linked and have current 
   assert.equal(report.controller.osdFresh,true);
   assert.equal(report.aircraft.osdFresh,true);
   assert.equal(report.aircraft.aircraftConnected,true);
-  assert.equal(report.controller.propertyFields.documented,48);
-  assert.equal(report.aircraft.propertyFields.documented,144);
+  assert.equal(report.controller.propertyFields.documented,55);
+  assert.equal(report.aircraft.propertyFields.documented,150);
   assert.ok(report.aircraft.propertyFields.freshNames.includes('osd:mode_code'));
   const text=formatReport(report);
   assert.match(text,/RC Pro Enterprise \+ Mavic 3M/);
@@ -121,8 +121,8 @@ test('legacy backend without new DJI-property API remains transport-valid but fi
   assert.equal(report.aircraft.osdFresh,true);
   assert.equal(report.controller.propertyDiagnosticsAvailable,false);
   assert.equal(report.aircraft.propertyDiagnosticsAvailable,false);
-  assert.equal(report.controller.propertyFields.documented,48);
-  assert.equal(report.aircraft.propertyFields.documented,144);
+  assert.equal(report.controller.propertyFields.documented,55);
+  assert.equal(report.aircraft.propertyFields.documented,150);
   assert.equal(report.controller.propertyFields.observed,null);
   assert.equal(report.aircraft.propertyFields.missing,null);
   assert.ok(report.stages.filter(x=>x.step.includes('State-Daten empfangen'))
@@ -170,7 +170,7 @@ test('backend-wide generic aircraft property extensions are not misattributed to
     ['distance_limit_status','rth_altitude','rc_lost_action','payloads','wpmz_version']);
   assert.ok(report.notes.some(x=>x.includes('Globale MQTT-Shapes erlauben keine Gerätezuordnung')));
   assert.match(formatReport(report),/Kein M3M-Nachweis/);
-  assert.equal(report.aircraft.propertyFields.documented,144);
+  assert.equal(report.aircraft.propertyFields.documented,150);
   assert.ok(!report.aircraft.propertyFields.observedNames.includes('state:payloads'));
 });
 
@@ -234,4 +234,223 @@ test('model attribution is strictly whitelisted and ignores spoofed or unsupport
   assert.deepEqual(report.transport.m3mModelStateRoots,[]);
   assert.deepEqual(report.transport.rcModelStateRoots,['live_capacity']);
   assert.doesNotMatch(JSON.stringify(report),/SERIAL_FROM_INPUT|ANY_SECRET|__proto__/);
+});
+
+
+test('M3M extension audit has no value claims while only the old Pi profile is deployed',()=>{
+  const report=evaluateHardwareSession([rc,{...air,propertyProfile:{name:'mavic3',
+    confidence:'shared-family-unverified'}}],health,shapes,now);
+  assert.equal(report.aircraft.seen,true);
+  assert.equal(report.m3mExtensions.available,false);
+  assert.equal(report.m3mExtensions.unobserved,null);
+  assert.deepEqual(report.m3mExtensions.fields,[]);
+  assert.match(formatReport(report),/M3M-150-Feldparser: NICHT AKTIV/);
+});
+
+test('M3M extension audit reports accepted typed fields and age, never their values',()=>{
+  const obsAt=now-1200,oldAt=now-40000;
+  const extended={...air,
+    propertyProfile:{name:'mavic3m',
+      confidence:'shared-family-three-generic-roots-observed-values-unverified'},
+    deviceProperties:{osd:{
+      mode_code:4, rth_altitude:125, rc_lost_action:1,
+      distance_limit_status:{state:1,distance_limit:300,is_near_distance_limit:0}
+    },state:{}},
+    propertyFieldObservedAt:{osd:{
+      rth_altitude:obsAt,rc_lost_action:oldAt,
+      distance_limit_status:obsAt,
+      'distance_limit_status.state':obsAt,
+      'distance_limit_status.distance_limit':obsAt,
+      'distance_limit_status.is_near_distance_limit':obsAt
+    },state:{}}
+  };
+  const report=evaluateHardwareSession([rc,extended],health,shapes,now);
+  assert.equal(report.m3mExtensions.available,true);
+  assert.equal(report.m3mExtensions.accepted,6);
+  assert.equal(report.m3mExtensions.fresh,5);
+  assert.equal(report.m3mExtensions.stale,1);
+  assert.equal(report.m3mExtensions.unobserved,0);
+  assert.deepEqual(report.m3mExtensions.fields.map(f=>f.path),[
+    'distance_limit_status','distance_limit_status.state',
+    'distance_limit_status.distance_limit','distance_limit_status.is_near_distance_limit',
+    'rth_altitude','rc_lost_action'
+  ]);
+  const output=formatReport(report);
+  assert.match(output,/HISTORISCH\s+osd:rc_lost_action/);
+  assert.doesNotMatch(output,/125|300|PRIVATE|SECRET|49\.123456|8\.123456/);
+  assert.doesNotMatch(JSON.stringify(report),/125|300|PRIVATE|SECRET|49\.123456/);
+});
+
+test('typed M3M fields without accepted times or value are not reported as valid',()=>{
+  const input={...air,propertyProfile:{name:'mavic3m'},
+    deviceProperties:{osd:{rth_altitude:75,
+      distance_limit_status:{state:1}},state:{}},
+    propertyFieldObservedAt:{osd:{rth_altitude:now-2000,
+      distance_limit_status:now-2000,
+      'distance_limit_status.state':now+5000},state:{}}
+  };
+  const report=evaluateHardwareSession([rc,input],health,shapes,now);
+  assert.equal(report.m3mExtensions.available,true);
+  assert.equal(report.m3mExtensions.accepted,2);
+  assert.equal(report.m3mExtensions.fresh,2);
+  assert.equal(report.m3mExtensions.unobserved,4);
+  assert.equal(report.m3mExtensions.fields.find(x=>x.path==='distance_limit_status.state').status,
+    'NICHT BEOBACHTET');
+  assert.equal(report.m3mExtensions.fields.find(x=>x.path==='rc_lost_action').status,
+    'NICHT BEOBACHTET');
+});
+
+test('M3M gap audit reports each missing path exactly once and no hardware settings',()=>{
+  const report=evaluateHardwareSession([rc,air],health,shapes,now);
+  const p=report.aircraft.propertyFields;
+  assert.ok(p.m3mGapGroups);
+  assert.equal(p.m3mGapGroups.classified,p.missing);
+  assert.equal(Object.values(p.m3mGapGroups.groups).reduce((n,g)=>n+g.count,0),p.missing);
+  assert.ok(p.m3mGapGroups.groups.thermalCamera.count>0);
+  assert.ok(p.m3mGapGroups.groups.zoomCamera.count>0);
+  const printed=formatReport(report);
+  assert.match(printed,/M3M-Feldluecken nach Kamerafunktion/);
+  assert.match(printed,/KEINE thermische Waermebildmessung/);
+  assert.doesNotMatch(printed,/PRIVATE_AIR_SERIAL|PRIVATE_RC_SERIAL|49\\.123456|8\\.123456/);
+});
+
+test('missing M3M on an older backend is not invented as camera capability data',()=>{
+  const oldAir={...air,propertyProfile:undefined,deviceProperties:undefined,
+    propertyObservedAt:undefined,propertyFieldObservedAt:undefined};
+  const report=evaluateHardwareSession([rc,oldAir],health,shapes,now);
+  assert.equal(report.aircraft.propertyFields.m3mGapGroups,null);
+  assert.match(formatReport(report),/M3M-Feldluecken-Klassifikation: NICHT PRUEFBAR/);
+});
+
+
+test('State channel diagnostics distinguish zero deliveries from rejected and accepted messages',()=>{
+  const cases=[
+    {observed:0,accepted:0,status:'KEIN STATE-TOPIC BEOBACHTET'},
+    {observed:7,accepted:0,status:'STATE-TOPIC BEOBACHTET, NICHT ANGENOMMEN'},
+    {observed:9,accepted:2,status:'STATE ANGENOMMEN, NICHT RC/M3M ZUGEORDNET'}
+  ];
+  for(const c of cases){
+    const h={...health,
+      mqttObservedChannelCounts:{...health.mqttObservedChannelCounts,state:c.observed},
+      mqttChannelCounts:{state:c.accepted}};
+    const r=evaluateHardwareSession([rc,air],h,shapes,now,[]);
+    assert.equal(r.stateEvidence.observed,c.observed);
+    assert.equal(r.stateEvidence.accepted,c.accepted);
+    assert.equal(r.stateEvidence.status,c.status);
+    assert.equal(r.stateEvidence.modelRc,0);
+    assert.equal(r.stateEvidence.modelM3m,0);
+    assert.match(formatReport(r),/State auf MQTT-Topic beobachtet/);
+    assert.doesNotMatch(formatReport(r),/PRIVATE_AIR_SERIAL|PRIVATE_RC_SERIAL/);
+  }
+});
+
+test('State model evidence shows accepted packets separately from typed property acceptance',()=>{
+  const h={...health,mqttChannelCounts:{state:4}};
+  const modelShapes=[
+    {channel:'state',model:'2:144:0',count:1,dataKeys:['live_capacity','PRIVATE_RC_SERIAL']},
+    {channel:'state',model:'0:77:2',count:2,dataKeys:['firmware_version','PRIVATE_AIR_SERIAL']},
+    {channel:'state',model:'unknown',count:999,dataKeys:['SECRET_TOKEN']}
+  ];
+  const noTypedAir={...air,propertyObservedAt:{...air.propertyObservedAt,state:null}};
+  const r=evaluateHardwareSession([rc,noTypedAir],h,shapes,now,modelShapes);
+  assert.equal(r.stateEvidence.status,'STATE MODELLBEZOGEN BEOBACHTET');
+  assert.equal(r.stateEvidence.modelRc,1);
+  assert.equal(r.stateEvidence.modelM3m,2);
+  assert.equal(r.stateEvidence.rcTypedPropertiesObserved,true);
+  assert.equal(r.stateEvidence.m3mTypedPropertiesObserved,false);
+  assert.match(formatReport(r),/Geraeteseitige typisierte State-Feldannahme: RC ja \| M3M nein/);
+  assert.doesNotMatch(JSON.stringify(r),/PRIVATE|SECRET_TOKEN|unknown/);
+});
+
+test('State channel diagnostics remain non-speculative with older backend or incomplete health',()=>{
+  const h={...health,mqttChannelCounts:{state:3}};
+  const report=evaluateHardwareSession([rc,air],h,shapes,now);
+  assert.equal(report.stateEvidence.modelScopedAvailable,false);
+  assert.equal(report.stateEvidence.modelRc,null);
+  assert.equal(report.stateEvidence.status,'STATE ANGENOMMEN, MODELLZUORDNUNG UNBEKANNT');
+  const unavailable=evaluateHardwareSession([rc,air],{},[],now);
+  assert.equal(unavailable.stateEvidence.status,'NICHT PRUEFBAR');
+  assert.match(formatReport(unavailable),/State-Status: NICHT PRUEFBAR/);
+});
+
+
+test('realistic state-only rejected delta is attributed only with a complete balanced breakdown',()=>{
+  const h={...health,
+    mqttObservedChannelCounts:{osd:2052,state:18,status:2,events:1026,services_reply:0},
+    mqttChannelCounts:{osd:2052,state:13,status:2,events:1026,services_reply:0},
+    mqttRejectedMessages:5,
+    mqttDroppedByReason:{duplicate:3,stale:2}
+  };
+  const report=evaluateHardwareSession([rc,air],h,shapes,now,[]);
+  assert.deepEqual(report.stateDrops,{
+    available:true,attributed:true,stateNotAccepted:5,totalUnaccepted:5,
+    reasons:[{reason:'duplicate',count:3},{reason:'stale',count:2}]
+  });
+  assert.match(formatReport(report),/State-Pakete nicht angenommen \(Differenz\): 5/);
+  assert.match(formatReport(report),/Ablehnungsgruende dem State-Kanal zurechenbar: JA/);
+  assert.doesNotMatch(JSON.stringify(report),/PRIVATE_RC_SERIAL|PRIVATE_AIR_SERIAL|SECRET/);
+});
+
+test('rejection breakdown is not assigned to State when other channels also had drops',()=>{
+  const h={...health,
+    mqttObservedChannelCounts:{osd:20,state:18,status:2,events:10,services_reply:0},
+    mqttChannelCounts:{osd:19,state:13,status:2,events:10,services_reply:0},
+    mqttRejectedMessages:6,
+    mqttDroppedByReason:{duplicate:3,stale:3}
+  };
+  const report=evaluateHardwareSession([rc,air],h,shapes,now,[]);
+  assert.equal(report.stateDrops.available,true);
+  assert.equal(report.stateDrops.stateNotAccepted,5);
+  assert.equal(report.stateDrops.totalUnaccepted,6);
+  assert.equal(report.stateDrops.attributed,false);
+  assert.match(formatReport(report),/Ablehnungsgruende dem State-Kanal zurechenbar: NEIN/);
+});
+
+test('malformed or unavailable rejected metadata never leaks extra reason names',()=>{
+  const h={...health,
+    mqttObservedChannelCounts:{osd:20,state:8,status:0,events:0,services_reply:0},
+    mqttChannelCounts:{osd:20,state:3,status:0,events:0,services_reply:0},
+    mqttRejectedMessages:5,
+    mqttDroppedByReason:{'SECRET_PAYLOAD_XYZ':5}
+  };
+  const r=evaluateHardwareSession([rc,air],h,shapes,now);
+  assert.equal(r.stateDrops.attributed,false);
+  assert.equal(r.stateDrops.reasons.length,0);
+  assert.doesNotMatch(JSON.stringify(r),/SECRET_PAYLOAD_XYZ/);
+  assert.equal(evaluateHardwareSession([rc,air],health,shapes,now).stateDrops.available,false);
+});
+
+
+test('RC and M3M expose documented State field coverage without values or serials',()=>{
+  const report=evaluateHardwareSession([rc,air],health,shapes,now);
+  const rcState=report.controller.stateFields;
+  const m3State=report.aircraft.stateFields;
+  assert.ok(rcState.documented>0);
+  assert.ok(m3State.documented>0);
+  assert.equal(rcState.observed,1);
+  assert.equal(m3State.observed,1);
+  assert.equal(rcState.fresh,1);
+  assert.equal(m3State.fresh,1);
+  assert.ok(rcState.observedNames.includes('state:firmware_version'));
+  assert.ok(m3State.observedNames.includes('state:firmware_version'));
+  for(const sf of [rcState,m3State]){
+    assert.equal(sf.documented,
+      sf.observed+sf.notObserved+sf.redacted+sf.unsupported);
+    assert.equal(sf.observed,sf.fresh+sf.stale);
+    assert.ok(sf.observedNames.every(s=>s.startsWith('state:')));
+    assert.ok(sf.missingRootNames.every(s=>
+      s.startsWith('state:')&&!s.slice(6).includes('.')));
+  }
+  const printed=formatReport(report);
+  assert.match(printed,/--- DJI State-Feldabdeckung je Geraet/);
+  assert.match(printed,/M3M beobachtete State-Feldnamen: state:firmware_version/);
+  assert.doesNotMatch(printed,/PRIVATE_RC_SERIAL|PRIVATE_AIR_SERIAL|9\.8\.7|1\.2\.3/);
+});
+
+test('missing State property diagnostics cannot be counted as absent DJI capabilities',()=>{
+  const older={...air,propertyProfile:undefined,deviceProperties:undefined,
+    propertyObservedAt:undefined,propertyFieldObservedAt:undefined};
+  const report=evaluateHardwareSession([rc,older],health,shapes,now);
+  assert.equal(report.aircraft.stateFields,null);
+  assert.match(formatReport(report),/M3M: NICHT PRUEFBAR/);
 });

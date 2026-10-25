@@ -1,5 +1,7 @@
 # DJI Cloud API als Referenz für SkyHub Next
 
+> **Planungsabgleich 23.10.2026:** Die folgenden P1/P2-Aussagen dokumentieren den damaligen Hauptbranch/isolierte Entwürfe. Aktuelle Entwicklungen zu Medien-STS, WPML, Smart Farming, Thermal, YOLO11 und Simulator sind ausschließlich im [PR-/Integrationsregister](projektstand-2026-10-23.md) als offenen Branch-Stand ausgewiesen; sie sind nicht als produktive DJI-Funktion freigegeben.
+
 Stand: 21.10.2026. Ausgangspunkt ist die [DJI Tutorial Reading Map](https://developer.dji.com/doc/cloud-api-tutorial/en/tutorial-map.html#tutorial-overview). Diese Einstiegsseite ist ein Wegweiser durch die Cloud API, keine Spezifikation für Kartenelemente. Für konkrete Verträge gelten die jeweils verlinkten DJI-Funktions- und API-Seiten. SkyHub Next übernimmt daraus Funktionen gezielt für den Root-Stack; `stacks/legacy-skyhub/` bleibt Referenz.
 
 **Versionsreferenz:** [DJI Cloud API 1.18](https://developer.dji.com/doc/cloud-api-tutorial/cn/), veröffentlicht am 13.10.2026. Für künftige Arbeit zuerst die aktuelle offizielle Release-Seite und die zugehörigen Funktionsseiten prüfen; die englische Startseite zeigt noch einen älteren Stand. Die 1.18-Release-Liste nennt Ground-Station- und Dock-Erweiterungen, aber keine Änderung am Pilot-2-Kartenelementvertrag. Ein Pilot-Schreibpfad bleibt bis zur gesonderten Abnahme deaktiviert.

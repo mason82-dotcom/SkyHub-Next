@@ -23,3 +23,15 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+Update 2026-10-22: hms-texts.json is now built from the official hms.json that
+DJI links in its Cloud API documentation (feature set "HMS", copy-key lookup):
+https://terra-1-g.djicdn.com/fee90c2e03e04e8da67ea6f56365fc76/SDK%20%E6%96%87%E6%A1%A3/CloudAPI/hms.json
+(3,952 entries; 3,003 kept after the filters in scripts/build-hms-texts.js).
+DJI states no license for that file. It was included at the project owner's
+explicit decision on 2026-10-22 because DJI publishes it so that developers can
+show the alarm copy. If DJI's terms turn out to forbid redistribution, rebuild
+the file from the MIT-licensed Cloud-API-Demo hms.json (the previous source,
+2,288 entries, available in the Git history) or remove it.
