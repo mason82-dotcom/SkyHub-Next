@@ -2,8 +2,9 @@
 (function(){
 'use strict';
 const M=window.SkyhubMediaModel;
+const F=window.SkyhubGalleryControls;
 const el=id=>document.getElementById(id);
-let token=null,active=null,generation=0,seen=new Set(),nextCursor=null,pageNumber=0,busy=false;
+let token=null,active=null,generation=0,seen=new Set(),nextCursor=null,pageNumber=0,busy=false,currentPage=[];
 const headers=()=>token?{Authorization:'Bearer '+token}:{};
 function say(message){el('storage-message').textContent=message;}
 function setStatus(message){el('storage-state').textContent=message;}
@@ -14,7 +15,8 @@ function row(tag,className,value){
   return element;
 }
 function reset(){
-  nextCursor=null;pageNumber=0;seen=new Set();
+  nextCursor=null;pageNumber=0;seen=new Set();currentPage=[];
+  el('storage-filter-count').textContent='Noch keine Seite geladen';
   el('storage-objects').replaceChildren();
   el('storage-page').textContent='Noch keine Objekte geladen';
   el('storage-next').hidden=true;
@@ -101,10 +103,15 @@ async function connect(){
   }catch(error){if(id===generation)errorState(error);}
   finally{finish(id);}
 }
-function render(data){
+function renderCurrent(){
+  const filtered=F.view(currentPage,{
+    query:el('storage-search').value,type:el('storage-type').value,sort:el('storage-sort').value
+  });
+  el('storage-filter-count').textContent=filtered.shown+' von '+filtered.total+
+    ' Objekten dieser geladenen Seite sichtbar · Dateityp nur aus Namensendung';
   const list=el('storage-objects');
   list.replaceChildren();
-  for(const item of data.items){
+  for(const item of filtered.items){
     const entry=row('li','storage-object');
     entry.append(row('span','gallery-visual','▤'),
       row('strong','storage-object-name',item.name),
@@ -112,7 +119,12 @@ function render(data){
     entry.setAttribute('aria-label','S3-Objekt, nicht verifiziert: '+item.name);
     list.append(entry);
   }
-  if(!data.items.length)list.append(row('li','storage-empty','In diesem Bereich sind keine Objekte enthalten.'));
+  if(!filtered.items.length)list.append(row('li','storage-empty',filtered.total?
+    'Keine Treffer für die aktuellen Filter auf dieser Seite.':
+    'In diesem Bereich sind keine Objekte enthalten.'));
+}
+function render(data){
+  currentPage=data.items;renderCurrent();
   el('storage-page').textContent='Seite '+pageNumber+' · '+data.items.length+' S3-Objekte (max. 50 je Seite)';
   nextCursor=data.nextCursor;
   el('storage-next').hidden=!data.truncated;
@@ -159,6 +171,9 @@ function start(){
   });
   el('storage-bucket').addEventListener('change',()=>{cancelPending();reset();controls();});
   el('storage-prefix').addEventListener('input',()=>{cancelPending();reset();controls();});
+  el('storage-search').addEventListener('input',renderCurrent);
+  el('storage-type').addEventListener('change',renderCurrent);
+  el('storage-sort').addEventListener('change',renderCurrent);
   controls();
 }
 window.addEventListener('DOMContentLoaded',start);
