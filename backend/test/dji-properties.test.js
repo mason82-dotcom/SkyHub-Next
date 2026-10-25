@@ -65,8 +65,8 @@ test('M3M overlay inherits 144 DJI Mavic-3 roots and adds only 6 sourced extensi
   assert.equal(defs.fields.length,150);
   assert.match(defs.source,/dji-sdk\/Cloud-API-Doc\/blob\/4ec6b0c7/);
   assert.match(defs.extensionSource,/developer\.dji\.com\/doc\/cloud-api-tutorial/);
-  assert.match(defs.extensionEvidence,/root names attributed to Mavic 3M/);
-  assert.equal(defs.extensionStatus,'root-names-hardware-observed-values-unverified');
+  assert.match(defs.extensionEvidence,/real Mavic 3M.*proved three root names/);
+  assert.equal(defs.extensionStatus,'root-names-and-typed-values-hardware-accepted-semantics-unverified');
   for(const field of ['mode_code','battery.capacity_percent','cameras.recording_state',
     'distance_limit_status','distance_limit_status.distance_limit','rth_altitude','rc_lost_action'])
     assert.ok(defs.fields.some(item=>item.path===field),field);

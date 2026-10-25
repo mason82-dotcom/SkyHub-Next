@@ -176,3 +176,8 @@ Fluggerät mit den zuletzt bekannten Werten und `mode_code = 14`
 Position noch Flugspur; das Gerät erhält `aircraftConnected: false` und die
 Karte zeigt „Fluggerät nicht verbunden“. Das nächste OSD mit anderem
 `mode_code` hebt den Zustand auf.
+
+
+## Integrationsnotiz PR #24 (23.10.2026)
+
+Mit der Integration der Feature-Historie ändert sich der optionale Funktionsumfang: Nur bei aktivem `SKYHUB_MEDIA_ENABLED=true` ist eine authentifizierte, rein lesende MinIO-API vorhanden. Die S3-Objektinventur klassifiziert Dateinamen, die optionalen TIFF-Range- und XMP-Prüfer liefern anonymisierte Hinweise. Dies ist **kein** produktiver Medienupload und keine Freigabe von NDVI/NDRE, Reflexionskalibrierung oder Georeferenzierung. Der separate `backend/m3m-s3-read-contract.js` bleibt als expliziter, restriktiver List-only-Vertrag aus `main` erhalten. Kein Merge in GitHub startet Container oder DJI-Aktionen.

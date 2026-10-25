@@ -1,0 +1,27 @@
+{
+  "name": "WPML Testentwurf – kein Flugauftrag",
+  "model": "mavic3m",
+  "speed": 5,
+  "takeoffHeight": 30,
+  "finishAction": "goHome",
+  "waypoints": [
+    {
+      "lat": 48.13,
+      "lon": 11.58,
+      "height": 50,
+      "photo": true
+    },
+    {
+      "lat": 48.1304,
+      "lon": 11.5805,
+      "height": 50,
+      "photo": false
+    },
+    {
+      "lat": 48.1308,
+      "lon": 11.581,
+      "height": 50,
+      "photo": true
+    }
+  ]
+}
