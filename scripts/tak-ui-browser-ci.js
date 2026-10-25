@@ -87,7 +87,7 @@ const assertNoOverflow=async page=>{
      if(!nav)return false;
      const bound=nav.getBoundingClientRect();
      const links=[...nav.querySelectorAll('a')];
-     return links.length===5 && links.every(link=>{
+     return links.length===6 && links.every(link=>{
        const rect=link.getBoundingClientRect();
        return rect.left>=bound.left-1 && rect.right<=bound.right+1 &&
          rect.top>=bound.top-1 && rect.bottom<=bound.bottom+1;
@@ -102,7 +102,7 @@ const assertNoOverflow=async page=>{
  assert.equal(dimensions.mainCount,1,'one semantic main landmark');
  assert.equal(dimensions.tabs,2,'two accessible tabs');
  assert.equal(dimensions.allNavLinksVisible,true,
-   'five module links including the current module must all remain visible');
+   'six module links including the current module must all remain visible');
  assert.equal(dimensions.lightStylesheet,true,'light stylesheet must be loaded successfully');
  assert.equal(dimensions.colorScheme,'light','root color-scheme must remain light');
  assert.equal(dimensions.bodyBackground,'rgb(243, 246, 251)','light canvas must be rendered');
