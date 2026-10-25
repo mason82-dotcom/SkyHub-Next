@@ -1,0 +1,50 @@
+{
+  "schema": "skyhub-sql-migration-inventory-v1",
+  "auto_apply": false,
+  "entries": [
+    {
+      "id": "map-elements-001",
+      "family": "map-elements",
+      "order": 1,
+      "path": "backend/db/migrations/001_dji_map_elements.sql",
+      "status": "offline_only",
+      "requires": []
+    },
+    {
+      "id": "map-contract-002",
+      "family": "map-elements",
+      "order": 2,
+      "path": "backend/db/migrations/002_dji_map_mutation_contract.sql",
+      "status": "offline_only",
+      "requires": [
+        "map-elements-001"
+      ]
+    },
+    {
+      "id": "pilot-media-verified-003",
+      "family": "pilot-media",
+      "order": 3,
+      "path": "backend/db/migrations/003_dji_pilot_media_verified.sql",
+      "status": "offline_only",
+      "requires": []
+    },
+    {
+      "id": "wpml-library-draft-003",
+      "family": "wpml-draft",
+      "order": 3,
+      "path": "backend/db/migrations/003_wpml_route_library_draft.sql",
+      "status": "blocked_draft",
+      "requires": []
+    },
+    {
+      "id": "pilot-media-http-004",
+      "family": "pilot-media",
+      "order": 4,
+      "path": "backend/db/migrations/004_dji_pilot_media_http.sql",
+      "status": "offline_only",
+      "requires": [
+        "pilot-media-verified-003"
+      ]
+    }
+  ]
+}
