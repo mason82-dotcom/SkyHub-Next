@@ -3,9 +3,10 @@
 (function(){
 'use strict';
 const M=window.SkyhubVerifiedMediaModel;
+const F=window.SkyhubGalleryControls;
 const $=id=>document.getElementById(id);
 let workspace=null,token=null,viewToken=null,cursor=null,page=0,selectedId=null,selected=null;
-let pending=null,generation=0,busy=false;
+let pending=null,generation=0,busy=false,currentPage=[];
 const seen=new Set();
 function node(tag,text,cls){
   const item=document.createElement(tag);
@@ -16,7 +17,8 @@ function node(tag,text,cls){
 function status(text){$('verified-state').textContent=text;}
 function message(text){$('verified-message').textContent=text;}
 function clear(){
-  cursor=null;page=0;selected=null;selectedId=null;seen.clear();
+  cursor=null;page=0;selected=null;selectedId=null;seen.clear();currentPage=[];
+  $('verified-filter-count').textContent='Noch keine Seite geladen';
   $('verified-list').replaceChildren();
   $('verified-detail').replaceChildren();
   $('verified-page').textContent='Keine Seite geladen';
@@ -56,9 +58,17 @@ async function request(suffix,options,signal){
   if(!response.ok){const e=new Error('Media library unavailable');e.status=response.status;throw e;}
   return response.json();
 }
-function renderList(items){
+function renderList(){
+  const filtered=F.view(currentPage,{
+    query:$('verified-search').value,type:$('verified-type').value,sort:$('verified-sort').value
+  });
+  const items=filtered.items;
+  $('verified-filter-count').textContent=filtered.shown+' von '+filtered.total+
+    ' Einträgen dieser geladenen Seite sichtbar · Dateityp nur aus Namensendung';
   const ul=$('verified-list');ul.replaceChildren();
-  if(!items.length)ul.append(node('li','Keine registrierten Medien auf dieser Seite.','verified-empty'));
+  if(!items.length)ul.append(node('li',filtered.total?
+    'Keine Treffer für die aktuellen Filter auf dieser Seite.':
+    'Keine registrierten Medien auf dieser Seite.','verified-empty'));
   for(const x of items){
     const li=node('li',undefined,'verified-entry');
     const button=node('button',undefined,'verified-asset');
@@ -104,7 +114,7 @@ async function loadList(next=false){
     cursor=result.nextCursor;
     $('verified-page').textContent='Seite '+page+' · '+result.items.length+
       ' registrierte Medien (HEAD bei Registrierung, kein neuer Integritätscheck)';
-    renderList(result.items);status('REGISTRIERT');
+    currentPage=result.items;renderList();status('REGISTRIERT');
     message('Diese Einträge stammen aus der registrierten Medienbibliothek. Einzelne Assets müssen für aktuellen S3-HEAD-Nachweis geöffnet werden.');
   }catch(e){if(id===generation){cursor=null;error(e);}}
   finally{finish(id);}
@@ -174,6 +184,9 @@ function start(){
     status('NICHT VERBUNDEN');message('Sitzungsspeicher geleert.');controls();
   });
   $('verified-group').addEventListener('click',loadGroup);
+  $('verified-search').addEventListener('input',renderList);
+  $('verified-type').addEventListener('change',renderList);
+  $('verified-sort').addEventListener('change',renderList);
   controls();
 }
 window.addEventListener('DOMContentLoaded',start);
