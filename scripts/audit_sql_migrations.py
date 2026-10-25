@@ -82,7 +82,7 @@ def audit_inventory(root: Path = ROOT) -> list[str]:
         if name in paths:
             errors.append(f"Duplicate SQL file in inventory: {name}")
         paths.add(name)
-        if status not in STATUSES:
+        if not isinstance(status, str) or status not in STATUSES:
             errors.append(f"Unreviewed or deployable migration status: {ident}")
         if name.endswith("_draft.sql") != (status == "blocked_draft"):
             errors.append(f"Draft is not explicitly blocked: {ident}")
