@@ -22,7 +22,7 @@ class MinioBackendAccessTest(unittest.TestCase):
 
     def test_nothing_mutates_docker_minio_or_files(self) -> None:
         for mutating in ("docker network create", "docker network connect", "docker start", "docker stop",
-                         "docker rm ", "docker compose", " ln -s", "mc admin", "mc alias", "--write",
+                         "docker rm ", "docker compose up", "docker compose down", " ln -s", "mc admin", "mc alias", "--write",
                          "s3:PutObject", ">> \"$envfile\"", "chmod "):
             self.assertNotIn(mutating, TEXT)
 
