@@ -482,6 +482,30 @@ Für dauerhafte Compose-Netzmitgliedschaft müssen zukünftige Deployments
 Das ursprüngliche Backend-Update-Skript bleibt unverändert und verliert
 die manuelle Netzwerkzuordnung bei einem Recreate.
 
+## Backend-Zugang mit schreibgeschütztem S3-Konto (Stand 25.10.2026)
+
+Das Backend liest über `GET /api/media/*` ausschließlich lesend aus den fünf Buckets. Dafür gilt ein eigenes S3-Konto mit der Policy `skyhub-backend-reader.json`, **nie** die MinIO-Root-Zugangsdaten. Die Datei `~/.config/skyhub/minio-media-reader.env` (0600) enthält Schlüssel und Endpunkt dieses Kontos; im umgezogenen MinIO existiert das Konto bereits (die IAM-Daten liegen in `.minio.sys`).
+
+`scripts/pi-minio-backend-access.sh` hilft, ohne etwas zu ändern: `plan` zeigt Lücken (nur Namen, keine Werte), `check` prüft per `HEAD` jeden der fünf Buckets mit dem Reader-Konto in einem temporären, gehärteten Container, `override` gibt die lokale Compose-Datei aus, die das Backend im Speichernetz hält.
+
+**Hinweis zum Endpunkt:** Der Server heißt im Speichernetz `skyhub-minio`. Die Reader-Datei nennt noch den alten Dienstnamen `minio`; in der `.env` des Backends und im `check` gilt `http://skyhub-minio:9000`.
+
+Anbinden (jeweils einzeln, im SkyHub-Next-Ordner):
+
+```bash
+bash scripts/pi-minio-backend-access.sh plan
+bash scripts/pi-minio-backend-access.sh check                         # fünf Buckets, nur HEAD
+# Konto in die .env des Backends übernehmen, ohne Werte anzuzeigen (vorher plan: dürfen dort noch nicht stehen)
+{ echo 'SKYHUB_MEDIA_ENABLED=true'; echo 'SKYHUB_S3_ENDPOINT=http://skyhub-minio:9000';
+  grep -E '^SKYHUB_S3_(ACCESS|SECRET)_KEY=' ~/.config/skyhub/minio-media-reader.env; } >> .env
+bash scripts/pi-minio-backend-access.sh override > docker-compose.override.yml   # nur wenn die Datei noch nicht existiert
+bash scripts/pi-update-backend.sh --apply                              # Backend neu erzeugen: übernimmt .env und Netz
+bash scripts/pi-minio-backend-access.sh plan                           # erwartet: alles ok
+TOKEN=$(grep '^SKYHUB_VIEW_TOKEN=' .env | cut -d= -f2-); curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:4001/api/media/status
+```
+
+`/api/media/status` meldet `online` mit der Zahl der erreichbaren Buckets (erwartet 5). Rückweg: `SKYHUB_MEDIA_ENABLED` aus der `.env` entfernen und das Backend neu erzeugen; die Media-API ist dann wieder aus. Das Reader-Konto kann nichts schreiben oder löschen; ein Schreibtest ist hier absichtlich nicht vorgesehen.
+
 ## 6. Daten- und Zugriffsstrategie
 
 **Tatsächlich vorhandene Buckets (Audit 25.10.2026):** `basemaps`, `dji-cloud`, `farming`, `mapping-results`, `pv-inspections`. Genau diese fünf liest die optionale Medien-API des Backends (`backend/s3-storage.js`, rein lesend). Dafür gilt die Policy `storage/policies/skyhub-backend-reader.json` (nur `s3:ListBucket` und `s3:GetObject`, nur diese Buckets). Die Vorlagen für das unten geplante `skyhub-*`-Layout gelten für **künftige** Buckets und dürfen nicht für das Backend vergeben werden: sie nennen Buckets, die es nicht gibt.
