@@ -46,6 +46,7 @@ Diese Routen **existieren im Quellcode**, sind aber nicht sämtlich im Standard-
 | Methode | Route | Default / Schutz |
 | --- | --- | --- |
 | GET | `/api/media/status`, `/api/media/buckets`, `/api/media/objects`, `/api/media/m3m/inventory` | `SKYHUB_MEDIA_ENABLED=false`; View-Authentifizierung, explizite S3-Reader-Credentials, kein PUT/DELETE |
+| GET | `/api/media-library/v1/workspaces/:workspaceId/assets`, `/assets/:assetId`, `/groups/:groupId/m3m-hints` | `SKYHUB_MEDIA_LIBRARY_ENABLED=false`; zusätzlich View-Bearer und workspace-gebundener Pilot-Token, HTTPS, Redis-Limit, PostgreSQL-Leseaudit und Schema 003–005 erforderlich |
 | GET | `/api/dr/minio/status`, `/api/dr/minio/reports` | `SKYHUB_MINIO_DR_ENABLED=true` im Root-Compose; View-Authentifizierung; ohne Reportdaten nicht einsatzbereit |
 | GET | `/api/dr/minio/composite` | Zusätzlich `SKYHUB_MINIO_DR_COMPOSITE_ENABLED=true` erforderlich; reiner Berichtszustand |
 | GET | `/api/smart-farming/candidates/`, `/api/smart-farming/candidates/:candidateId` | Nur bei `SKYHUB_M3M_CATALOG_ENABLED=true` **im Backend-Prozess**; nicht im unveränderten Root-Compose durchgereicht, Auth-/Transportprüfung, reine Kandidaten-Metadaten |
