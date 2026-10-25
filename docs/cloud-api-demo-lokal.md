@@ -115,7 +115,7 @@ sed -i 's/^DEMO_SAME_ORIGIN=.*/DEMO_SAME_ORIGIN=true/' .env     # oder die Zeile
 bash pi-cloud-api-demo.sh preflight
 bash pi-cloud-api-demo.sh apply                                  # Web neu bauen, Backend nur noch auf Loopback
 sudo bash pi-caddy-cloud-api-demo.sh apply                       # Caddyfile sichern, :4444 ergänzen, validieren, neu laden
-bash pi-caddy-cloud-api-demo.sh check                            # erwartet: 200, 200/401/405, 403 von außen, 6789 geschlossen
+bash pi-caddy-cloud-api-demo.sh check                            # wartet bis zu 90 s auf das Backend; erwartet: 200, 200/401/405, 403 von außen, 6789 geschlossen
 ```
 
 `sudo bash pi-caddy-cloud-api-demo.sh rollback` stellt das Caddyfile von vor `apply` wieder her. Zurück zum alten Modus: `DEMO_SAME_ORIGIN=false` setzen und `pi-cloud-api-demo.sh apply` erneut ausführen. Nach dem Wechsel der Seitenadresse für die RC (`:6789` → `:8081`) muss die Demo-Seite dort einmal neu geöffnet werden; ein erneutes Anmelden kann nötig sein.
