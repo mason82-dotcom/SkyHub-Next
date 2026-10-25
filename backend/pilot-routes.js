@@ -16,7 +16,7 @@ function registerPilotRoutes(app,{pilot,pairing,redis,registry,pool,ack,pilotAut
     res.sendFile(path.resolve(__dirname,'../frontend/public/pilot-login.html'));
   });
   app.get('/api/pilot/status',(req,res)=>res.json({
-    configured:pilot.ready,missing:pilot.missing,mqttPort:1884,requiresHttps:true
+    configured:pilot.ready,missing:pilot.missing,mqttPort:pilot.mqttPort,requiresHttps:true
   }));
   function guard(req,res){
     if(!pilot.ready){res.status(503).json({error:'Pilot 2 not configured'});return false;}

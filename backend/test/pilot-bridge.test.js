@@ -31,7 +31,10 @@ async function createPilot(options={}){
     platformVerifyLicense:()=>JSON.stringify({code:0}),
     platformSetWorkspaceId:()=>JSON.stringify({code:0}),
     platformSetInformation:()=>JSON.stringify({code:0}),
-    platformLoadComponent(...args){calls.load.push(args);return JSON.stringify({code:0});},
+    platformLoadComponent(...args){calls.load.push(args);
+      return JSON.stringify({code:options.loadFails?.includes(args[0])?17:0});},
+    ...(options.loaded?{platformIsComponentLoaded:name=>JSON.stringify({code:0,data:options.loaded.includes(name)})}:{}),
+    wsGetConnectState:()=>JSON.stringify({code:0,data:true}),
     thingGetConnectState(){return response;},
     thingConnect(...args){calls.retry.push(args);return JSON.stringify({code:0});}
   };
@@ -43,7 +46,7 @@ async function createPilot(options={}){
     setTimeout(callback,ms){timers.push({callback,ms});return timers.length;},
     fetch:async function(url){
       if(url==='/api/pilot/status')return {ok:true,json:async()=>({configured:true,missing:[]})};
-      if(url==='/api/pilot/bootstrap')return {ok:true,json:async()=>bootstrap};
+      if(url==='/api/pilot/bootstrap')return {ok:true,json:async()=>options.bootstrap||bootstrap};
       throw new Error('unexpected fetch');
     }
   };
@@ -179,4 +182,51 @@ test('diagnostics redacts vendor errors and never reads thingGetConfigs credenti
 test('HTTPS advisory hidden on secure Pilot 2 page',async()=>{
   const pilot=await createPilot();
   assert.equal(pilot.el('security').hidden,true);
+});
+
+const withTsa={...bootstrap,tsa:{apiHost:'https://rpi5.fritz.box',wsHost:'wss://rpi5.fritz.box/ws/tsa'}};
+
+test('without a TSA configuration only the cloud module is loaded',async()=>{
+  const pilot=await createPilot();
+  await pilot.connect();
+  assert.deepEqual(pilot.calls.load.map(call=>call[0]),['thing']);
+  assert.doesNotMatch(pilot.el('diagnostics').textContent,/Lagebild/);
+});
+
+test('situation awareness loads api and ws before tsa, after the cloud module, with the session token',async()=>{
+  const pilot=await createPilot({bootstrap:withTsa});
+  await pilot.connect();
+  assert.deepEqual(pilot.calls.load.map(call=>call[0]),['thing','api','ws','tsa']);
+  assert.deepEqual(JSON.parse(pilot.calls.load[1][1]),{host:'https://rpi5.fritz.box',token:'placeholder-test-token'});
+  assert.deepEqual(JSON.parse(pilot.calls.load[2][1]),
+    {host:'wss://rpi5.fritz.box/ws/tsa',token:'placeholder-test-token',connectCallback:'skyhubPilotWsState'});
+  assert.equal(pilot.calls.load[3][1],'{}');
+  assert.equal(typeof pilot.win.skyhubPilotWsState,'function');
+  assert.match(pilot.el('diagnostics').textContent,/Lagebild \(TSA\): Module geladen/);
+  // The token goes to the bridge only, never into the visible page.
+  assert.doesNotMatch(pilot.el('diagnostics').textContent+pilot.el('result').textContent,/placeholder-test-token/);
+});
+
+test('modules Pilot 2 already holds are not loaded twice',async()=>{
+  const pilot=await createPilot({bootstrap:withTsa,loaded:['api','ws','tsa']});
+  await pilot.connect();
+  assert.deepEqual(pilot.calls.load.map(call=>call[0]),['thing']);
+});
+
+test('a failing TSA module never breaks the MQTT onboarding',async()=>{
+  const pilot=await createPilot({bootstrap:withTsa,loadFails:['ws']});
+  await pilot.connect();
+  assert.deepEqual(pilot.calls.load.map(call=>call[0]),['thing','api','ws']);
+  assert.match(pilot.el('diagnostics').textContent,/Lagebild \(TSA\): nicht geladen \(platformLoadComponent: DJI Bridge-Code 17\)/);
+  // The MQTT status check is still scheduled and works as before.
+  pilot.setMqttState(JSON.stringify({code:0,data:true}));
+  pilot.fireTimer();
+  assert.match(pilot.el('result').textContent,/VERBUNDEN/);
+});
+
+test('the ws state callback ignores its payload',async()=>{
+  const pilot=await createPilot({bootstrap:withTsa});
+  await pilot.connect();
+  pilot.win.skyhubPilotWsState({token:'SHOULD_NOT_DISPLAY'});
+  assert.doesNotMatch(pilot.el('diagnostics').textContent+pilot.el('result').textContent,/SHOULD_NOT_DISPLAY/);
 });

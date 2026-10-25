@@ -97,3 +97,44 @@ test('missing credentials are rejected',()=>{
     /S3 configuration incomplete/
   );
 });
+
+test('malformed ListObjectsV2 payloads fail closed',async()=>{
+  const invalid=[
+    null,
+    {},
+    {Contents:[],IsTruncated:'false'},
+    {Contents:[],IsTruncated:true},
+    {Contents:[],IsTruncated:true,NextContinuationToken:''},
+    {Contents:[],IsTruncated:false,NextContinuationToken:'unexpected'},
+    {Contents:[{Key:'outside/file.jpg'}],IsTruncated:false},
+    {Contents:[{Key:'safe/a.jpg'},{Key:'safe/a.jpg'}],IsTruncated:false},
+    {Contents:[{Key:'safe/control\\n.jpg'.replace('\\n','\n')}],IsTruncated:false},
+    {Contents:[{Key:'safe/'+ 'a'.repeat(1025)}],IsTruncated:false},
+    {Contents:[{Key:'safe/a.jpg',Size:-1}],IsTruncated:false},
+    {Contents:Array.from({length:201},(_,i)=>({Key:'safe/'+i})),
+      IsTruncated:false}
+  ];
+  for(const response of invalid){
+    const storage=createS3Storage({},{
+      async send(command){
+        assert.ok(command instanceof ListObjectsV2Command);
+        return response;
+      }
+    });
+    await assert.rejects(
+      storage.objects('dji-cloud',{prefix:'safe/',limit:200}),
+      /Invalid S3 listing/
+    );
+  }
+});
+
+test('valid final listing is not mistaken for a truncated listing',async()=>{
+  const storage=createS3Storage({},{
+    async send(){return {Contents:[{Key:'safe/photo.jpg',Size:0}],
+      IsTruncated:false};}
+  });
+  const report=await storage.objects('dji-cloud',{prefix:'safe/'});
+  assert.equal(report.truncated,false);
+  assert.equal(report.nextCursor,null);
+  assert.equal(report.objects[0].key,'safe/photo.jpg');
+});
