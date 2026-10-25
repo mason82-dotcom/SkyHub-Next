@@ -7,7 +7,10 @@ const ACTION_LIMITS=Object.freeze({
   tiny_fingerprints:60,
   fast_upload:120,
   upload_callback:120,
-  group_upload_callback:30
+  group_upload_callback:30,
+  library_list:60,
+  library_detail:120,
+  library_m3m_group:30
 });
 const LUA=String.raw`local count = redis.call('INCR', KEYS[1])
 if count == 1 then
@@ -18,9 +21,11 @@ function createPilotMediaRateLimiter(redis,{clock=()=>Date.now()}={}){
   if(!redis||typeof redis.eval!=='function'||typeof clock!=='function')
     throw new TypeError('Dedicated Redis rate limiter required');
   return async function allowRequest({workspace,principal,operation}={}){
-    if(!workspaceId(workspace)||!principal||principal.role!=='pilot'||
+    if(!workspaceId(workspace)||!principal||
       principal.workspaceId!==workspace||
-      !Object.prototype.hasOwnProperty.call(ACTION_LIMITS,operation))
+      !Object.prototype.hasOwnProperty.call(ACTION_LIMITS,operation)||
+      !(operation.startsWith('library_')?
+        ['pilot','operator'].includes(principal.role):principal.role==='pilot'))
       throw new TypeError('Invalid Pilot media rate limit scope');
     if(redis.status!=='ready')throw new Error('Rate limiter unavailable');
     const time=clock();

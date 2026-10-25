@@ -45,6 +45,16 @@
       "requires": [
         "pilot-media-verified-003"
       ]
+    },
+    {
+      "id": "pilot-media-library-005",
+      "family": "pilot-media",
+      "order": 5,
+      "path": "backend/db/migrations/005_dji_pilot_media_library.sql",
+      "status": "offline_only",
+      "requires": [
+        "pilot-media-http-004"
+      ]
     }
   ]
 }
