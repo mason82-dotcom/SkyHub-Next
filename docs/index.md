@@ -24,6 +24,8 @@
 
 ## Technische Referenz des Hauptbranches
 
+- [Telemetrie-Cockpit (Operations)](telemetry-cockpit.md) – acht OSD-Einzelwerte je Gerät, Frische pro Feld; rein lesend, keine Flugfreigabe.
+
 **Workspace-Isolation und Löschrichtlinie (neuer Offline-Entwurf):** [PostgreSQL-RLS, transaktionsgebundener Mandantenkontext und Legal-Hold-Gates](dji-flighttask-workspace-rls-retention-policy.md). Keine Migration, keine produktive Autorisierungsquelle.
 
 **DJI-Missionsbeobachtung: #74/#78/#83 und Multi-Missions-Router #108 in `main`:** [Statusautomat](dji-rpc-lifecycle-observation.md), [read-only Reply-Adapter](dji-flighttask-rpc-integration.md), [isoliertes CAS-Journal](dji-flighttask-durable-journal.md), [Offline-Retention](dji-flighttask-journal-retention.md) und [optionale Workspace-Autorisierung](dji-flighttask-journal-access.md) und [experimentelles Multi-Missions-Routing](dji-flighttask-multimission-router.md). Die Module sind **nicht in die aktive DJI-Laufzeit eingebunden**; kein produktives SQL-Deployment oder freigegebener Identity Provider.
