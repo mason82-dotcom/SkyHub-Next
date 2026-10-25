@@ -29,11 +29,39 @@ for cmd in docker curl git python3;do
   command -v "$cmd" >/dev/null || { echo "Missing prerequisite: $cmd" >&2;exit 2; }
 done
 docker info >/dev/null
-if ! bash scripts/pi-preflight.sh;then
-  echo "REFUSED: Pi preflight failed; existing services were not changed." >&2;exit 2
-fi
+# Resolve the EFFECTIVE, interpolated Compose profile without sourcing arbitrary .env
+# shell code or printing JSON containing credentials. This detects stale/mismatched
+# broker kind, required port, backend endpoint and enabled Pilot-2 endpoint.
 compose=(docker compose -p skyhub-next --env-file .env)
 "${compose[@]}" config --quiet
+if ! broker_choice="$("${compose[@]}" config --format json | python3 -c '
+import json,sys
+from urllib.parse import urlsplit
+try:
+    e=json.load(sys.stdin)["services"]["backend"]["environment"]
+    kind=e.get("SKYHUB_MQTT_BROKER_KIND","")
+    pin=str(e.get("SKYHUB_MQTT_REQUIRED_PORT",""))
+    expected={"emqx":"1884","mosquitto":"1883","mosquitto-dedicated":"1884"}
+    if kind not in expected or pin!=expected[kind]:
+        raise ValueError("invalid broker kind / required-port pairing")
+    url=urlsplit(e.get("MQTT_BROKER_URL",""))
+    if url.scheme not in ("mqtt","mqtts") or not url.hostname or url.username or url.password or url.port!=int(pin):
+        raise ValueError("broker URL and selected port mismatch")
+    if e.get("SKYHUB_PILOT_ENABLED")=="true":
+        pilot=urlsplit(e.get("SKYHUB_PILOT_MQTT_URL",""))
+        if pilot.scheme!="mqtt" or not pilot.hostname or pilot.port!=int(pin):
+            raise ValueError("enabled Pilot 2 MQTT endpoint must use the selected port")
+    print(kind,pin)
+except (ValueError,KeyError,TypeError,AttributeError):
+    print("REFUSED: effective Compose MQTT/Pilot profile is inconsistent.",file=sys.stderr)
+    sys.exit(2)
+')"; then
+  exit 2
+fi
+read -r broker_kind broker_port <<< "$broker_choice"
+if ! bash scripts/pi-preflight.sh --broker-kind "$broker_kind" --broker-port "$broker_port";then
+  echo "REFUSED: Pi preflight failed; existing services were not changed." >&2;exit 2
+fi
 backend_id="$("${compose[@]}" ps -q backend)"
 postgres_id="$("${compose[@]}" ps -q postgres)"
 redis_id="$("${compose[@]}" ps -q redis)"
@@ -69,10 +97,11 @@ if ! "${compose[@]}" exec -T postgres pg_dump -U skyhub_next -d skyhub_next -Fc 
   echo "REFUSED: Postgres backup failed. Existing containers unchanged." >&2;exit 1
 fi
 if [[ ! -s "$backup_dir/postgis.dump" ]];then
+  rm -f "$backup_dir/postgis.dump"
   echo "REFUSED: backup appears empty. Existing containers unchanged." >&2;exit 1
 fi
 
-echo "Building backend from the locked dependencies; Postgres, Redis and EMQX untouched."
+echo "Building backend from locked dependencies; Postgres, Redis and the selected external broker untouched."
 "${compose[@]}" build backend
 echo "Recreating the SkyHub Next backend only."
 "${compose[@]}" up -d --no-deps --no-build backend
@@ -93,6 +122,6 @@ if [[ "$ok" != 1 ]];then
   exit 1
 fi
 echo "SUCCESS: new SkyHub Next backend answers the read-only health endpoint."
-echo "Postgres, Redis, EMQX and Caddy were not recreated by this script."
+echo "Postgres, Redis, the external MQTT broker and Caddy were not recreated by this script."
 echo "Backup directory (PRIVATE): $backup_dir"
 echo "Previous backend image: $backup_tag"

@@ -109,10 +109,12 @@ test('invalid prefixes fail before S3 access', async () => {
   }
 });
 
-test('repeated continuation tokens fail closed', async () => {
+test('repeated continuation tokens fail closed with distinct page keys', async () => {
+  let calls = 0;
   const storage = {
     async objects() {
-      return page([FILES[0]], true, 'same-token');
+      calls++;
+      return page([FILES[calls - 1]], true, 'same-token');
     }
   };
 
@@ -120,6 +122,53 @@ test('repeated continuation tokens fail closed', async () => {
     inventoryM3MFromS3(storage, PREFIX),
     /Invalid S3 inventory pagination/
   );
+  assert.equal(calls, 2);
+});
+
+test('repeated S3 object keys across pages fail closed', async () => {
+  let calls = 0;
+  const storage = {
+    async objects() {
+      calls++;
+      return calls === 1 ?
+        page([FILES[0]], true, 'next-page') :
+        page([FILES[0], FILES[1]]);
+    }
+  };
+
+  await assert.rejects(
+    inventoryM3MFromS3(storage, PREFIX),
+    /Duplicate S3 inventory object key/
+  );
+  assert.equal(calls, 2);
+});
+
+test('repeated nested S3 object keys also fail closed', async () => {
+  let calls = 0;
+  const storage = {
+    async objects() {
+      calls++;
+      return calls === 1 ?
+        page(['nested/repeated.jpg'], true, 'next-page') :
+        page(['nested/repeated.jpg']);
+    }
+  };
+
+  await assert.rejects(
+    inventoryM3MFromS3(storage, PREFIX),
+    /Duplicate S3 inventory object key/
+  );
+});
+
+test('control-character and oversized S3 keys fail closed', async () => {
+  for (const name of ['bad\\nkey.jpg'.replace('\\n','\n'), 'x'.repeat(1025)]) {
+    await assert.rejects(
+      inventoryM3MFromS3({
+        objects: async () => page([name])
+      }, PREFIX),
+      /Invalid S3 inventory object/
+    );
+  }
 });
 
 test('malformed S3 results fail closed', async () => {

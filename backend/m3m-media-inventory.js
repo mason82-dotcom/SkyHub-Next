@@ -85,7 +85,7 @@ function inventoryMediaNames(names){
     const n=typeof value==='string'?value:null;
     const item=identify(n);
     if(!item){
-      if(n&&/^[\w.\-]{1,180}$/.test(n)){
+      if(n&&/^[\w.-]{1,180}$/.test(n)){
         unrecognized++;
         const format=unknownFormat(n);
         unrecognizedFormats[format]++;

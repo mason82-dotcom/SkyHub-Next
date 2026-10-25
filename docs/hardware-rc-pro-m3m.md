@@ -1,5 +1,7 @@
 # Hardwareabnahme: RC Pro Enterprise + Mavic 3M
 
+> **Einordnung vom 23.10.2026:** Dies ist ein datierter Hardware-Abnahmebericht. Die am **21.10.2026** beobachtete erfolgreiche typisierte Übernahme von **6/6 M3M-OSD-Erweiterungspfaden** aus [#21](https://github.com/mason82-dotcom/SkyHub-Next/pull/21) ist seit [#66](https://github.com/mason82-dotcom/SkyHub-Next/pull/66) in der Main-Provenienz und Offline-Diagnostik erfasst. Diese Beobachtung verifiziert **weder** die konkreten Einstellungen, RTH-/RC-Loss-Wirkungen, andere Firmwarestände noch eine erneute Hardwareabnahme nach dem Merge. Der Raspberry Pi wurde durch #66 nicht aktualisiert. [Aktuelle Integrationsübersicht](projektstand-2026-10-23.md).
+
 **Stand:** 21.10.2026. Dies ist eine **Leseprüfung**, kein Flugtest und kein Deployment.
 
 ## Voraussetzungen
@@ -237,6 +239,40 @@ noch nicht im Backend vorhanden, erscheint **NICHT VERFÜGBAR**.
 Eine neue Backend-Version wird erst nach Review, Merge und einem separat
 kontrollierten Pi-Update verfügbar. Bis dahin keine modellbezogene
 Zuordnung der zusätzlichen fünf Aircraft-Feldnamen behaupten.
+
+## Folgetest des neuen M3M-150-Feldparsers (21.10.2026)
+
+Nach dem kontrollierten Backend-Update wurde der Pi-Check erneut auf
+echter **RC Pro Enterprise + Mavic 3M (0:77:2)** ausgeführt:
+
+- **10/10 OSD-Pakete** backendweit verarbeitet; beide OSD-Zeitstempel
+  ungefähr eine Sekunde alt; RC und M3M erkannt/zugeordnet.
+- **M3M: 64/150** auswertbare Property-Pfade beobachtet und frisch.
+  Weitere 76 auswertbare Pfade nicht beobachtet, 8 redigiert und
+  2 untypisierte Arrays.
+- **RC Pro: 10/48** beobachtet und frisch; 32 nicht beobachtet,
+  6 absichtlich redigiert.
+- **M3M-Erweiterung: alle 6 von 6 Pfaden** im neuen typisierten Parser
+  mit akzeptiertem Feldwert und gültigem Beobachtungszeitstempel als
+  `FRISCH` markiert: `distance_limit_status`, dessen drei Kinder
+  `state`, `distance_limit`, `is_near_distance_limit`,
+  sowie `rth_altitude` und `rc_lost_action`.
+
+Dies ist ein hardwarebestätigter Parser-Annahme-Test **für Datentypen,
+generische Wertebereichs- und Enum-Filter**. Er beweist weder den
+konkreten Wert einer Flugkonfiguration noch RTH-/RC-Loss-Verhalten.
+Der Bericht gibt aus Sicherheits- und Datenschutzgründen ausschließlich
+Namen und Status, **keine Werte**, Kennungen oder Koordinaten, aus.
+
+`status=0`, `state=0` und `topologyReplySent=0` seit dem sehr
+frischen Backend-Neustart belegen **keinen Verbindungsfehler**.
+Die Zuordnung kann aus persistierter Topologie stammen, während
+die zeitnahe OSD-Telemetrie aktuell ist. Spätere State-Nachrichten
+werden ereignisgetrieben gesammelt.
+
+**Keine erneute DJI-Konfiguration, kein Flugtest und kein Backend-
+Neustart für diese Dokumentation.** Die sechs Feldpfade sind ein
+positiver, eng abgegrenzter Hardware-Abnahmebefund.
 
 ## 8. Falls die Verbindung fehlt
 
