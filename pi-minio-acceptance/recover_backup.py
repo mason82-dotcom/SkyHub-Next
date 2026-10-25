@@ -24,7 +24,7 @@ def checked_directory(path):
 
 
 def validate_identity(obj, marker):
-    if obj.get('Id') != marker.get('container_id') or obj.get('Name') != '/skyhub-next-minio-1':
+    if obj.get('Id') != marker.get('container_id') or obj.get('Name') != '/skyhub-shared-minio':
         raise ValueError('Container identity changed')
     if obj.get('Image') != IMAGE:
         raise ValueError('Image changed')
@@ -54,7 +54,7 @@ def recover(path):
         raise ValueError('Source resolves to unexpected filesystem')
     if Path(SOURCE).is_symlink() or not (Path(SOURCE)/'.minio.sys').is_dir():
         raise ValueError('Source metadata missing')
-    obj = json.loads(output('docker', 'inspect', 'skyhub-next-minio-1'))[0]
+    obj = json.loads(output('docker', 'inspect', 'skyhub-shared-minio'))[0]
     validate_identity(obj, marker)
     # Refuse a concurrent storage server or overlapping writer before restart.
     ids = output('docker', 'ps', '-q').split()
@@ -76,7 +76,7 @@ def recover(path):
     if not obj['State']['Running']:
         subprocess.run(['docker', 'start', obj['Id']], check=True,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60)
-    current = json.loads(output('docker', 'inspect', 'skyhub-next-minio-1'))[0]
+    current = json.loads(output('docker', 'inspect', 'skyhub-shared-minio'))[0]
     validate_identity(current, marker)
     if not current.get('State', {}).get('Running'):
         raise ValueError('Recovery did not reach running state')

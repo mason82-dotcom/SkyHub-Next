@@ -12,7 +12,7 @@ from urllib.parse import quote
 def main():
     mount, name, config = sys.argv[1:]
     runtime = json.loads((Path(mount)/'evidence/runtime.json').read_text())
-    server = next(x for x in runtime if x['Name'] == '/skyhub-next-minio-1')
+    server = next(x for x in runtime if x['Name'] == '/skyhub-shared-minio')
     backend = next(x for x in runtime if x['Name'] == '/skyhub-next-backend-1')
     def env_of(obj):
         return dict(x.split('=', 1) for x in obj['Config']['Env'] if '=' in x)

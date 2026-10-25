@@ -138,7 +138,7 @@ class AcceptancePreparationTests(unittest.TestCase):
         run.mkdir()
         (run/'restart-needed.json').write_text(json.dumps({'container_id': 'original-id'}))
         obj = {'Id': 'changed-id' if changed else 'original-id',
-               'Name': '/skyhub-next-minio-1', 'Image': recovery.IMAGE,
+               'Name': '/skyhub-shared-minio', 'Image': recovery.IMAGE,
                'Mounts': [{'Type': 'bind', 'Destination': '/data', 'Source': recovery.SOURCE}],
                'State': {'Running': running}}
         inspections = 0
@@ -150,7 +150,7 @@ class AcceptancePreparationTests(unittest.TestCase):
                 return 'other-id' if writer else ''
             if args == ('docker', 'inspect', 'other-id'):
                 return json.dumps([{'Id': 'other-id', 'Name': '/other-minio', 'Config': {'Image': 'minio'}, 'Mounts': []}])
-            if args == ('docker', 'inspect', 'skyhub-next-minio-1'):
+            if args == ('docker', 'inspect', 'skyhub-shared-minio'):
                 inspections += 1
                 value = dict(obj)
                 value['State'] = {'Running': running or inspections > 1}
@@ -201,6 +201,34 @@ class AcceptancePreparationTests(unittest.TestCase):
              patch.object(recovery, 'output') as read:
             recovery.recover(run)
             read.assert_not_called()
+
+
+    def test_every_script_targets_the_current_shared_minio(self):
+        for name in ('backup.sh', 'recover_backup.py', 'restore_probe.py', 'preflight.sh'):
+            text = (HERE/name).read_text()
+            self.assertNotIn('skyhub-next-minio-1', text, name)
+        self.assertIn('skyhub-shared-minio', (HERE/'backup.sh').read_text())
+        self.assertIn('docker-compose.minio-shared.yml', (HERE/'backup.sh').read_text())
+        self.assertNotIn('docker-compose.minio.yml', (HERE/'backup.sh').read_text())
+        self.assertIn('--filter network=skyhub-storage-net', (HERE/'preflight.sh').read_text())
+
+    def test_backup_capacity_gate_excludes_the_restore_space(self):
+        text = (HERE/'backup.sh').read_text()
+        self.assertNotIn('48*1024**3', text)
+        self.assertIn("required = total + image['Size'] + 10*1024**3 + entries*4096", text)
+
+    def test_restore_directory_is_whitelisted_and_measured_where_the_image_is_created(self):
+        text = (HERE/'restore.sh').read_text()
+        self.assertIn('/mnt/benz|/mnt/hc4backup/skyhub-restore)', text)
+        self.assertIn('! -L "$RESTORE_DIR"', text)
+        self.assertIn('shutil.disk_usage(sys.argv[2]).free < 58*1024**3', text)
+        self.assertIn('mktemp "$RESTORE_DIR/skyhub-restore-XXXXXXXX.luks"', text)
+        self.assertNotIn('mktemp /mnt/benz/skyhub-restore', text)
+        # Run as a normal user the script refuses before creating anything (root check precedes the directory check).
+        result = subprocess.run(['bash', str(HERE/'restore.sh'), '--execute-restore', '/mnt/benz/skyhub-backup-x'],
+                                capture_output=True, text=True, env={'PATH': '/usr/bin:/bin', 'SKYHUB_RESTORE_DIR': '/tmp'})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn('luks', result.stdout.lower())
 
 
 if __name__ == '__main__':

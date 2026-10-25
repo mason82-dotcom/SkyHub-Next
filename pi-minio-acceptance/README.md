@@ -1,6 +1,6 @@
 # SkyHub MinIO – ausführbare Backup-/Restore-Anleitung
 
-Stand: 22.10.2026, Europe/Berlin. **Vorbereitet, nicht auf dem Pi ausgeführt.**
+Stand: 25.10.2026, Europe/Berlin (angepasst an den laufenden gemeinsamen MinIO, siehe Abschnitt „Aktualisierung 25.10.2026“). **Vorbereitet, nicht auf dem Pi ausgeführt.**
 
 Dieses Paket ist eine Anleitung mit überprüfbaren Skripten. Zunächst waren nur
 lesende Pi-Checks und die Vorbereitung erlaubt. Der Nutzer hat anschließend
@@ -17,19 +17,19 @@ Aus den vom Nutzer übermittelten Terminalausgaben:
 |---|---|
 | Projekt | `/home/mason/Projekte/SkyHub-Next` |
 | Git | `feature/m3m-minio-integration-20261021`, zuletzt gemeldet `bbd0ea6d838afde9a863ab4f8a5dff76846b3969` |
-| MinIO | `skyhub-next-minio-1`, Compose-Projekt `skyhub-next` |
-| Compose | `docker-compose.yml` und lokale `docker-compose.minio.yml` |
+| MinIO | `skyhub-shared-minio`, Compose-Projekt `skyhub-storage` (früher `skyhub-next-minio-1`) |
+| Compose | `docker-compose.minio-shared.yml` (eigenständig) und `docker-compose.yml` für das Backend |
 | Lokales Overlay | Modus 0600, durch `.git/info/exclude` ausgeschlossen |
 | Image-ID | `sha256:117cf7edd050e6acd4a2d06be79b15eaecd5af76ad73e8927a4bf67528f19d10`, Linux/ARM64 |
 | Daten | `/mnt/hc4backup/skyhub-next/minio`, ext4 auf `/dev/nvme0n1p1` |
 | Daten-UUID | `ad583d3f-9bfe-4792-829c-1cc2b6738358` |
-| Netzwerk | `skyhub-next_default`, MinIO-Alias `minio`, keine Host-Portbindungen |
-| Autostart | `unless-stopped`; Docker wartet nur auf die andere NVMe unter `/mnt/data` |
+| Netzwerk | `skyhub-storage-net`, MinIO-Alias `skyhub-minio`, keine Host-Portbindungen |
+| Autostart | `restart: "no"`: nach einem Neustart des Pi startet MinIO nicht von selbst |
 | Backend-IAM | Aktiver Service-Account des Root-Kontos mit eigener Policy; ListBucket/GetObject auf fünf Buckets, keine Prefix-Begrenzung |
 | Buckets der bestätigten Policy | `basemaps`, `dji-cloud`, `farming`, `mapping-results`, `pv-inspections` |
 | Aktuelle Größe | logisch 32.773.347.410 Byte, belegt 32.991.449.088 Byte |
 | Historischer Mirror | 292 Dateien, 377.266.971 logische Byte; Erfolgsmarker 15.10.2026 03:15:03 +02:00; gleiche NVMe wie Original |
-| Sicherungsziel | `/mnt/benz`, NTFS/fuseblk, `/dev/nvme1n1p1`, zuletzt 110.410.846.208 Byte frei |
+| Sicherungsziel | `/mnt/benz`, NTFS/fuseblk, `/dev/nvme1n1p1`; am 25.10. noch 44,3 GiB frei (früher 110 GB) |
 
 PR #19 ist nicht identisch mit diesem laufenden Aufbau. Der dortige alternative
 Container `skyhub-shared-minio` wird hier nicht angelegt. Kein `move`, kein
@@ -371,3 +371,33 @@ entladen sein. Journal, Archiv-Abschlussmarker und Readiness gemeinsam prüfen.
 `systemctl reset-failed` ist kein Wiederherstellungsverfahren und wird hier nicht
 automatisiert. Bei fehlgeschlagenem Auftrag vor einem neuen Start die Ursache
 und den bestehenden MinIO-Zustand klären.
+
+## Aktualisierung 25.10.2026 (Anpassung an den laufenden Stand)
+
+Der Branch war 509 Commits hinter `main`. Seitdem wurde der MinIO als gemeinsamer Dienst neu gestartet
+(`skyhub-shared-minio`, Image-ID und Datenpfad unverändert). Angepasst wurde nur, was nicht mehr stimmte:
+
+- **Containername und Compose-Dateien** in `backup.sh`, `recover_backup.py`, `restore_probe.py`, `preflight.sh`
+  und den Tests (`skyhub-shared-minio`, `docker-compose.minio-shared.yml`, Netz `skyhub-storage-net`).
+- **Kapazitätsprüfung des Backups.** Sie rechnete das 48-GiB-Restore-Abbild mit ein und hätte auf dem Pi
+  abgebrochen. Gemessen am 25.10. (nur lesend): 54.860 Einträge, keine Symlinks, 30,5 GiB Daten, Image 0,18 GiB,
+  `/mnt/benz` 44,3 GiB frei. Altes Kriterium: 88,9 GiB nötig, **fällt durch**. Neues Kriterium (Archiv, Image,
+  10 GiB Reserve, 4 KiB je Eintrag): 40,9 GiB nötig, **besteht mit rund 3,4 GiB Spielraum**. Das Archiv ist
+  vermutlich kleiner als die Rohdaten, weil Kartenkacheln und Fotos kaum komprimieren, aber nicht größer als
+  geschätzt. Eine Prüfung läuft vor dem Stoppen des MinIO erneut.
+- **Restore-Verzeichnis.** Nach einem Backup bleiben auf `/mnt/benz` rund 14 GiB frei, zu wenig für das 48-GiB-Abbild.
+  `restore.sh` nimmt jetzt `SKYHUB_RESTORE_DIR` an, erlaubt sind nur `/mnt/benz` (Standard) und
+  `/mnt/hc4backup/skyhub-restore` (ext4, 402 GiB frei). Das Verzeichnis darf kein Symlink sein, die 58 GiB
+  werden dort gemessen, wo das Abbild entsteht. Anlegen: `sudo install -d -m 700 /mnt/hc4backup/skyhub-restore`.
+  Das Archiv selbst bleibt immer auf `/mnt/benz` (andere physische Platte). Der Restore-Test liegt dann auf der
+  Quellplatte; das prüft die Wiederherstellbarkeit, aber nicht den Ausfall dieser Platte.
+
+**Was ein Backup bedeutet:** Der MinIO wird für die Dauer des Laufs gestoppt (Offline-Konsistenz). In dieser Zeit
+liefert `/api/media/*` des Backends Fehler, alle anderen Funktionen laufen weiter. Bei 30,5 GiB, einem
+zstd-Thread und GPG ist mit deutlich mehr als einer halben Stunde zu rechnen. Der Wiederanlauf-Pfad startet
+anschließend ausschließlich denselben Container.
+
+**Nicht geändert und weiter offen:** Die Kombination aus transientem systemd-Dienst, Credentials und Recovery
+wurde nie auf dem Pi ausgeführt (kein echter SSH-Abbruch, kein SIGKILL-Test). `/mnt/benz` ist NTFS (`fuseblk`):
+Dateien und `sync -f` funktionieren, wie sich ein 48-GiB-Abbild darauf verhält, ist nicht geprüft; deshalb ist das
+Restore-Verzeichnis auf ext4 wählbar. Backup, Restore und Neustarttest bleiben freigabepflichtig.

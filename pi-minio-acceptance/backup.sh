@@ -21,9 +21,9 @@ for tool in python3 docker tar zstd gpg sha256sum findmnt; do command -v "$tool"
 [[ "$(findmnt -nr --mountpoint /mnt/benz -o SOURCE)" == /dev/nvme1n1p1 ]]
 [[ "$(findmnt -nr -T "$SOURCE" -o TARGET)" == /mnt/hc4backup ]]
 [[ -d "$SOURCE/.minio.sys" && ! -L "$SOURCE" ]]
-[[ "$(docker inspect -f '{{.State.Running}}' skyhub-next-minio-1)" == true ]]
-[[ "$(docker inspect -f '{{.Image}}' skyhub-next-minio-1)" == "$IMAGE" ]]
-[[ "$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Source}}{{end}}{{end}}' skyhub-next-minio-1)" == "$SOURCE" ]]
+[[ "$(docker inspect -f '{{.State.Running}}' skyhub-shared-minio)" == true ]]
+[[ "$(docker inspect -f '{{.Image}}' skyhub-shared-minio)" == "$IMAGE" ]]
+[[ "$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Source}}{{end}}{{end}}' skyhub-shared-minio)" == "$SOURCE" ]]
 python3 "$HERE/legacy_guard.py"
 python3 - "$SOURCE" "$IMAGE" <<'PY'
 import json, os, shutil, subprocess, sys
@@ -38,17 +38,18 @@ for current, dirs, files in os.walk(sys.argv[1], onerror=fail):
             raise SystemExit('ERROR: symlink found; manual review required')
     total += sum(os.lstat(os.path.join(current, n)).st_size for n in files)
 image = json.loads(subprocess.check_output(['docker', 'image', 'inspect', sys.argv[2]]))[0]
-required = total + image['Size'] + 48*1024**3 + 10*1024**3 + entries*4096
+# Backup phase only: the isolated restore needs its own space (restore.sh checks the restore directory separately).
+required = total + image['Size'] + 10*1024**3 + entries*4096
 if shutil.disk_usage('/mnt/benz').free < required:
-    raise SystemExit('ERROR: insufficient capacity including restore and reserve')
-print('Capacity preflight passed; no compression savings assumed.')
+    raise SystemExit('ERROR: insufficient capacity for the archive plus reserve on /mnt/benz')
+print('Backup capacity preflight passed (archive plus 10 GiB reserve; no compression savings assumed).')
 PY
 python3 - "$SOURCE" <<'PY'
 import json, pathlib, subprocess, sys
 source = pathlib.Path(sys.argv[1]).resolve()
 ids = subprocess.check_output(['docker', 'ps', '-q'], text=True).split()
 for obj in json.loads(subprocess.check_output(['docker', 'inspect', *ids])) if ids else []:
-    if obj['Name'] == '/skyhub-next-minio-1':
+    if obj['Name'] == '/skyhub-shared-minio':
         continue
     for mount in obj.get('Mounts', []):
         if mount.get('Type') != 'bind' or not mount.get('RW'):
@@ -95,9 +96,9 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 mkdir -m 700 "$STAGE/gnupg" "$STAGE/evidence" "$STAGE/evidence/config"
 # Capture runtime secrets only on tmpfs; archive them encrypted, never print them.
-docker inspect skyhub-next-minio-1 skyhub-next-backend-1 > "$STAGE/evidence/runtime.json"
+docker inspect skyhub-shared-minio skyhub-next-backend-1 > "$STAGE/evidence/runtime.json"
 docker image inspect "$IMAGE" > "$STAGE/evidence/image.json"
-for f in "$PROJECT/docker-compose.yml" "$PROJECT/docker-compose.minio.yml" \
+for f in "$PROJECT/docker-compose.yml" "$PROJECT/docker-compose.minio-shared.yml" \
          "$PROJECT/.env" /home/mason/.config/skyhub/minio-shared.env; do
   [[ -f "$f" && ! -L "$f" ]] || { echo 'ERROR: expected regular config file missing'; exit 2; }
   cp --parents --preserve=all "$f" "$STAGE/evidence/config/"
@@ -106,7 +107,7 @@ python3 - "$STAGE/evidence" <<'PY'
 import json, pathlib, sys
 p = pathlib.Path(sys.argv[1])
 runtime = json.loads((p/'runtime.json').read_text())
-server = next(x for x in runtime if x['Name'] == '/skyhub-next-minio-1')
+server = next(x for x in runtime if x['Name'] == '/skyhub-shared-minio')
 values = server['Config']['Env']
 if any('\n' in x or '\r' in x for x in values):
     raise SystemExit('ERROR: multiline Docker env requires manual review')
@@ -131,7 +132,7 @@ python3 - "$RUN" <<'PY'
 import json, os, pathlib, subprocess, sys
 p = pathlib.Path(sys.argv[1])
 container_id = subprocess.check_output(
-    ['docker', 'inspect', '-f', '{{.Id}}', 'skyhub-next-minio-1'], text=True).strip()
+    ['docker', 'inspect', '-f', '{{.Id}}', 'skyhub-shared-minio'], text=True).strip()
 marker = p/'restart-needed.json.tmp'
 with marker.open('x') as f:
     json.dump({'container_id': container_id}, f)
@@ -141,9 +142,9 @@ os.replace(marker, p/'restart-needed.json')
 PY
 STOPPED=1
 echo 'Phase: stopping existing MinIO; offline manifest and archive follow.'
-docker stop --time 120 skyhub-next-minio-1 >/dev/null
-[[ "$(docker inspect -f '{{.State.Running}}' skyhub-next-minio-1)" == false ]]
-[[ "$(docker inspect -f '{{.State.ExitCode}}' skyhub-next-minio-1)" == 0 ]] || {
+docker stop --time 120 skyhub-shared-minio >/dev/null
+[[ "$(docker inspect -f '{{.State.Running}}' skyhub-shared-minio)" == false ]]
+[[ "$(docker inspect -f '{{.State.ExitCode}}' skyhub-shared-minio)" == 0 ]] || {
   echo 'ERROR: MinIO did not stop cleanly; no data archive created'; exit 2;
 }
 echo 'Phase: creating offline SHA256 manifest (may take substantial time).'
