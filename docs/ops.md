@@ -20,6 +20,8 @@ Der Quellcodeabgleich bei [`main` @ `662cb94d`](stand-2026-10-25-main-audit.md) 
 
 Für MinIO müssen Root-`media`-Profil, private Shared-MinIO-Compose-Datei und mögliche Storage-Overrides **getrennt** bewertet werden. Ein Git-Merge führt keine Containeraktionen aus. Angaben zur Portbelegung, zum Pi-Stand und zu früheren Smoke-Tests bleiben historische Evidenz; neue Tests auf echter Hardware wurden im Rahmen dieser Dokumentationspflege **nicht** ausgeführt.
 
+**Sicherheitsentwurf 25.10.2026:** Die [künftige Proxy-Trust-Härtung](proxy-trust-rollout.md) ist nur im separaten Draft. Sie kann ohne explizite Freigabe der **tatsächlichen** Caddy-Socket-Peer-IP den Pilot-HTTPS- und LAN-View-Zugang unterbrechen; sie darf nicht blind aus einem grünen CI-Ergebnis heraus auf den Pi übernommen werden.
+
 ## Entwicklung auf dem Pi (nicht die produktive Python-Installation überschreiben!)
 
     # Nur bei einer echten Neuinstallation; vorhandenes Projekt NICHT überschreiben.

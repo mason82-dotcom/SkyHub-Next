@@ -2,6 +2,7 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const {createLanAccess,parseLanCidr,clientAddress}=require('../lan-access');
+const {parseTrustedProxyIps}=require('../proxy-trust');
 
 test('LAN view is off unless a CIDR is configured',()=>{
   const off=createLanAccess('');
@@ -17,12 +18,14 @@ test('only narrow private networks outside Docker ranges are accepted',()=>{
   }
 });
 
-test('client is the last X-Forwarded-For hop when the peer is Docker or loopback',()=>{
-  assert.equal(clientAddress('172.18.0.1','192.168.178.70'),'192.168.178.70');
+test('only exact trusted proxy socket peers may supply X-Forwarded-For',()=>{
+  const trusted=parseTrustedProxyIps('172.18.0.1');
+  assert.equal(clientAddress('172.18.0.1','192.168.178.70',trusted),'192.168.178.70');
   assert.equal(clientAddress('::ffff:127.0.0.1','8.8.8.8, 192.168.178.70'),'192.168.178.70');
-  assert.equal(clientAddress('172.18.0.1',undefined),'172.18.0.1');
-  // A public peer is never replaced by a header it supplied itself.
-  assert.equal(clientAddress('203.0.113.9','192.168.178.70'),'203.0.113.9');
+  assert.equal(clientAddress('172.18.0.1','192.168.178.70'),'172.18.0.1');
+  assert.equal(clientAddress('172.18.0.2','192.168.178.70',trusted),'172.18.0.2');
+  assert.equal(clientAddress('172.18.0.1',undefined,trusted),'172.18.0.1');
+  assert.equal(clientAddress('203.0.113.9','192.168.178.70',trusted),'203.0.113.9');
 });
 
 test('a LAN host cannot vouch for a forwarded client address',()=>{
@@ -37,14 +40,17 @@ test('a LAN host cannot vouch for a forwarded client address',()=>{
   // A host that really is inside the CIDR is the client itself, the header changes nothing.
   assert.equal(lan.allows('192.168.178.99',undefined),true);
   assert.equal(lan.allows('192.168.178.99','8.8.8.8'),true);
-  // Trusted proxies keep working, including IPv4-mapped IPv6 and loopback.
-  assert.equal(lan.allows('::ffff:172.18.0.1','192.168.178.70'),true);
+  // Loopback is the only implicit proxy. Docker bridge must be explicit.
+  assert.equal(lan.allows('::ffff:172.18.0.1','192.168.178.70'),false);
   assert.equal(lan.allows('127.0.0.1','192.168.178.70'),true);
   assert.equal(lan.allows('::1','192.168.178.70'),true);
+  const viaCaddy=createLanAccess('192.168.178.0/24',parseTrustedProxyIps('172.18.0.1'));
+  assert.equal(viaCaddy.allows('::ffff:172.18.0.1','192.168.178.70'),true);
+  assert.equal(viaCaddy.allows('172.18.0.2','192.168.178.70'),false);
 });
 
-test('home LAN clients via Caddy are allowed; SSH tunnel, Tailscale and other nets are not',()=>{
-  const lan=createLanAccess('192.168.178.0/24');
+test('home LAN clients via a pinned Caddy peer are allowed; unrelated Docker peers are not',()=>{
+  const lan=createLanAccess('192.168.178.0/24',parseTrustedProxyIps('172.18.0.1'));
   assert.equal(lan.enabled,true);
   assert.equal(lan.allows('172.18.0.1','192.168.178.70'),true);
   assert.equal(lan.allows('::ffff:172.18.0.1','192.168.178.63'),true);
@@ -54,5 +60,9 @@ test('home LAN clients via Caddy are allowed; SSH tunnel, Tailscale and other ne
   assert.equal(lan.allows('172.18.0.1','192.168.179.5'),false);
   // Spoofed earlier hop does not matter: Caddy's own entry is last.
   assert.equal(lan.allows('172.18.0.1','192.168.178.70, 8.8.8.8'),false);
+  // Docker siblings on the same bridge can reach the backend container directly.
+  // Neither sibling-supplied XFF nor a spoofed home-LAN address is trusted.
+  assert.equal(lan.allows('172.18.0.2','192.168.178.70'),false);
+  assert.equal(lan.allows('172.19.0.1','192.168.178.70'),false);
   assert.equal(lan.allows('172.18.0.1','fe80::1'),false);
 });

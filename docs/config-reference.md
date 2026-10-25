@@ -61,6 +61,10 @@
 
 **Weitere Feature-Flags** aus gestapelten Branches (STS, WPML-KMZ-Inspektion, produktive XMP-Verarbeitung, Simulator, YOLO/Thermal) existieren **nicht** im hier geprüften Main-Compose und dürfen nicht als sofort benutzbare `.env`-Einstellungen ausgegeben werden. Details in [PR-Register](projektstand-2026-10-23.md).
 
+## Sicherheitsentwurf für künftige Proxy-Umstellung (noch nicht in Main)
+
+Im separaten [Proxy-Trust-Draft](proxy-trust-rollout.md) wird `SKYHUB_TRUSTED_PROXY_IPS` als durch Compose übergebene Allowlist für **exakte private Socket-Peers** hinzugefügt. Nur nach gesonderter Freigabe und Übernahme des Drafts hat diese Variable eine Wirkung; auf dem hier beschriebenen `main` gilt weiterhin der ältere Vertrauenscode. Vor einem Pi-Upgrade die tatsächlich benutzte Caddy-Proxy-IP bestimmen und Pilot-HTTPS sowie LAN-View im Staging nachweisen. Es handelt sich **nicht** um die TSA-spezifische `SKYHUB_DJI_TSA_TRUSTED_PROXY_IPS`-Liste.
+
 ## Nicht-destruktive Prüfungen
 
 **Nur im dafür vorgesehenen SkyHub-Next-Checkout:**

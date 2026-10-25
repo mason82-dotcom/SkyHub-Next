@@ -6,6 +6,10 @@ Diese Regeln gelten für den aktiven Root-Stack. Die historische Konfiguration u
 
 **Weiterführend:** [MQTT/OSD und EMQX](mqtt-osd-integration.md), [Betrieb](ops.md), [Migration](legacy-migration.md).
 
+## Geplante Proxy-Trust-Härtung (separater Draft; 25.10.2026)
+
+Der [Code-Audit](engineering-audit-2026-10-25.md) zeigt eine breiter als nötig definierte `X-Forwarded-*`-Vertrauensgrenze im bis dahin gültigen `main`. Ein eigener **nicht gemergter** Sicherheitsbranch erprobt die Umstellung auf `SKYHUB_TRUSTED_PROXY_IPS` als explizite Liste exakter Caddy-Socket-Adressen. **Default nur Loopback.** Da bisher ein beliebiger Docker-Bridge-Peer als Header-Proxy gelten konnte, erfordert diese Korrektur vor jedem produktiven Pi-Update eine Prüfung der tatsächlichen Caddy-Peer-IP und der Pilot-/LAN-HTTPS-Erreichbarkeit. [Rollout-Gate](proxy-trust-rollout.md). Nicht mit dem gesonderten TSA-Trust-Flag verwechseln.
+
 ## Status und Sicherheitsabgrenzung (23.10.2026)
 
 Bezieht sich auf `main`, Commit `496a1f84f22b15f85ad5442965b2cd218a93969a`.
