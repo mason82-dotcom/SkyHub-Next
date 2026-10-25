@@ -25,6 +25,24 @@ test('client is the last X-Forwarded-For hop when the peer is Docker or loopback
   assert.equal(clientAddress('203.0.113.9','192.168.178.70'),'203.0.113.9');
 });
 
+test('a LAN host cannot vouch for a forwarded client address',()=>{
+  // Only loopback and Docker gateways are trusted proxies; a host on another private network that
+  // reaches the backend directly must not impersonate a client in the allowed CIDR.
+  assert.equal(clientAddress('192.168.1.5','192.168.178.70'),'192.168.1.5');
+  assert.equal(clientAddress('10.1.2.3','192.168.178.70'),'10.1.2.3');
+  assert.equal(clientAddress('172.32.0.1','192.168.178.70'),'172.32.0.1'); // outside 172.16.0.0/12
+  const lan=createLanAccess('192.168.178.0/24');
+  assert.equal(lan.allows('192.168.1.5','192.168.178.70'),false);
+  assert.equal(lan.allows('10.1.2.3','192.168.178.70'),false);
+  // A host that really is inside the CIDR is the client itself, the header changes nothing.
+  assert.equal(lan.allows('192.168.178.99',undefined),true);
+  assert.equal(lan.allows('192.168.178.99','8.8.8.8'),true);
+  // Trusted proxies keep working, including IPv4-mapped IPv6 and loopback.
+  assert.equal(lan.allows('::ffff:172.18.0.1','192.168.178.70'),true);
+  assert.equal(lan.allows('127.0.0.1','192.168.178.70'),true);
+  assert.equal(lan.allows('::1','192.168.178.70'),true);
+});
+
 test('home LAN clients via Caddy are allowed; SSH tunnel, Tailscale and other nets are not',()=>{
   const lan=createLanAccess('192.168.178.0/24');
   assert.equal(lan.enabled,true);

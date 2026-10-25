@@ -111,7 +111,7 @@ keine Cloud-API-Version.
 | HTTPS-Format | `{scheme}://{endpoint}/{module}/api/{version}/{resource}`, `https` Pflicht, Kopf `X-Auth-Token` | Karten-Endpunkt `/map/api/v1/…` mit HTTPS-Pflicht und `X-Auth-Token`; `X-Device-ID`, `X-Firmware-Version` und `X-Request-ID` werden nicht gelesen (optional) |
 | HTTPS-Antwort | immer `{code, message, data}`; Pilot 2 zeigt bei 5xx „(resp.code)“ | **Korrigiert:** Fehlerantworten des Karten-Endpunkts haben jetzt `{code, message, data}` (`code` = HTTP-Status, `error` bleibt für bestehende Aufrufer). Vorher nur `{error}` |
 | HTTP-Status in Pilot 2 | 400 Parameterfehler, 401 Anmeldung ungültig (Abmeldung von der Cloud), 403 keine Berechtigung, 404 Ressource fehlt | deckt sich mit den gelieferten Statuscodes |
-| WebSocket | Pilot 2 verbindet sich mit der vom Server gelieferten URL; Push `{biz_code, version, timestamp, data}` (z. B. `device_topo_update`) | nicht umgesetzt; die Login-Seite lädt das `ws`-Modul nicht (siehe Pilot Feature Set oben) |
+| WebSocket | Pilot 2 verbindet sich mit der vom Server gelieferten URL; Push `{biz_code, version, timestamp, data}` (z. B. `device_topo_update`) | Lagebild (TSA) umgesetzt, standardmäßig aus: [Situation Awareness](dji-pilot-situation-awareness.md). Kartenelemente über den WebSocket fehlen weiterhin |
 | JSBridge | siehe Abschnitt Pilot Feature Set | unverändert |
 
 **Produktliste (`product-support`):** Die Aufzählung der Flugzeuge, Fernsteuerungen und Docks
@@ -139,3 +139,23 @@ Kameraken­nung `1/68/0` (unbestätigt, nicht in DJIs Liste) und die Anzeigename
 
 Node-JS-Parser- und Registrierungs-Tests sowie der Docker-Compose-/Container-Build laufen auf dem PR-Branch in GitHub Actions.
 Ohne tatsächliche Pilot-2-/Aircraft-/Dock-Hardware bleibt die Protokollvalidierung unvollständig.
+
+
+## Statuskorrektur (23.10.2026)
+
+**Quelle der Runtime-Aussage:** `main` @ `399e18900db11d976b61cc59a5cd8b081b6570e1`. Die Datumsangaben früherer Hardwaretests bleiben historische Evidenz.
+Mit [#15](https://github.com/mason82-dotcom/SkyHub-Next/pull/15),
+[#17](https://github.com/mason82-dotcom/SkyHub-Next/pull/17) und
+[#20](https://github.com/mason82-dotcom/SkyHub-Next/pull/20) wurden der
+typisierte Feldkatalog, die RC-Pro/M3M-Diagnostik und die zusätzlichen
+M3M-OSD-Feldpfade in Main integriert. Vorläufige Katalogpfade sind keine
+durch Hardware bestätigten Messwerte. Einzelheiten: [Hardwarebericht](hardware-rc-pro-m3m.md).
+
+**In Main – rein lesende Diagnostik:** Mit [#66](https://github.com/mason82-dotcom/SkyHub-Next/pull/66) sind die M3M-Kamerafeld-/State-Lückenklassifikation und der RC-Plus-2/M4T-Offline-Prüfer mit synthetischer Integration verfügbar. 54 statische RC-Plus-2- und 199 vorläufige M4T-Feldpfade (neun dynamische Gimbal-Feldtypen) sind Katalogumfang, **kein realer M4T-Hardware-Nachweis**. Die echten Geräte müssen separat geprüft werden.
+
+**Weiterhin außerhalb von Main:** Die historischen Abnahmezweige [#18](https://github.com/mason82-dotcom/SkyHub-Next/pull/18), [#21](https://github.com/mason82-dotcom/SkyHub-Next/pull/21), [#22](https://github.com/mason82-dotcom/SkyHub-Next/pull/22) und [#27](https://github.com/mason82-dotcom/SkyHub-Next/pull/27) bleiben als Quell-/Evidenzgeschichte offen, jedoch selektiv durch #66 ersetzt; [WPML #16](https://github.com/mason82-dotcom/SkyHub-Next/pull/16) und [HiveMind-Labor #46](https://github.com/mason82-dotcom/SkyHub-Next/pull/46) sind getrennte offene Feature-Entwicklungen. Der [DJI-1.18-Paritätsaudit #47](https://github.com/mason82-dotcom/SkyHub-Next/pull/47) ist **nach Main gemergt**, prüft aber ausschließlich 16 synthetische Status-/Service-Reply-Fälle ohne Live-MQTT oder DJI-Hardware. Simulation mit SDK 1.16.1.3
+oder 16 synthetische Protokoll-Fixtures belegen keine Cloud-API-1.18-
+Hardwarekonformität. Ein erfolgreiches M3M-OSD-Ereignis belegt ebenso wenig
+Pilot-2-Medien-HTTPS, WPML-Missionsausführung oder Multispektral-Radiometrie.
+[Komplettes Statusregister](projektstand-2026-10-23.md).
+

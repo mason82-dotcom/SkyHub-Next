@@ -3,6 +3,7 @@
 // Input comes from existing, authorized read-only backend endpoints.
 // Never print serial numbers, GPS coordinates, measurement values or secrets.
 const {summarizeTelemetryFields}=require('./telemetry-field-profile');
+const {classifyM3MGaps,GROUPS}=require('./m3m-gap-classifier');
 const catalog=require('./data/dji-cloud-api-118-fields.json');
 // Never echo unrecognized MQTT property keys: a producer can encode an ID
 // or arbitrary secret as an object key. Show only documented root names.
@@ -101,15 +102,34 @@ function m3mExtensionAudit(device,now){
     unobserved:fields.filter(f=>f.status==='NICHT BEOBACHTET').length,
     fields};
 }
+// Catalog-filtered, value-free state path coverage. Snapshot values and
+// serials never enter the result. State event arrival is not the same as
+// a currently fresh property; do not erase historical observations.
+function statePathSummary(audit){
+  const stateOnly=key=>audit[key].filter(path=>path.startsWith('state:'));
+  const observed=stateOnly('observedDocumented');
+  const fresh=stateOnly('freshDocumented');
+  const stale=stateOnly('staleDocumented');
+  const missing=stateOnly('notObservedDocumented');
+  const redacted=stateOnly('redactedDocumented');
+  const unsupported=stateOnly('unsupportedDocumented');
+  return {documented:observed.length+missing.length+redacted.length+unsupported.length,
+    observed:observed.length,fresh:fresh.length,stale:stale.length,
+    notObserved:missing.length,redacted:redacted.length,unsupported:unsupported.length,
+    observedNames:observed.slice(0,48),
+    missingRootNames:missing.filter(path=>!path.slice(6).includes('.')).slice(0,48)};
+}
 function deviceSummary(device,now){
   if(!device)return {seen:false,modelConfirmed:false,role:null,topologyOnline:null,
     osdFresh:false,osdAgeSeconds:null,stateObserved:false,stateAgeSeconds:null,
-    propertyDiagnosticsAvailable:false,
+    propertyDiagnosticsAvailable:false,stateFields:null,
     propertyFields:{documented:0,inspectable:null,observed:null,fresh:null,stale:null,
       missing:null,redacted:null,untyped:null,observedNames:[],freshNames:[]}};
   const capable=hasPropertyDiagnostics(device);
   const [audit]=summarizeTelemetryFields([device],now);
   const rootGaps=capable?rootGapSummary(audit):null;
+  const m3mGapGroups=capable&&keyOf(device)===M3M?
+    classifyM3MGaps(audit.notObservedDocumented):null;
   const stateAge=capable?age(device.propertyObservedAt?.state,now):null;
   return {
     seen:true,modelConfirmed:true,
@@ -120,6 +140,7 @@ function deviceSummary(device,now){
     stateObserved:stateAge!==null,
     stateAgeSeconds:stateAge,
     propertyDiagnosticsAvailable:capable,
+    stateFields:capable?statePathSummary(audit):null,
     aircraftConnected:device.aircraftConnected===true,
     positionFixFresh:device.positionFresh===true,
     fieldProfileConfidence:device.propertyProfile?.confidence??null,
@@ -136,9 +157,79 @@ function deviceSummary(device,now){
       freshNames:capable?audit.freshDocumented.slice(0,60):[],
       missingRoots:rootGaps?.absentRoots??null,
       missingNestedUnderObservedRoot:rootGaps?.nestedUnderSeenRoot??null,
-      missingNestedWithAbsentRoot:rootGaps?.nestedWithAbsentRoot??null
+      missingNestedWithAbsentRoot:rootGaps?.nestedWithAbsentRoot??null,
+      m3mGapGroups
     }
   };
+}
+// Classify observation layers without collecting raw MQTT payloads, IDs or
+// per-device values. The backend health counts are process-local; per-model
+// shape counts start at backend boot too and require confirmed topology.
+const DROP_REASON_KEYS=Object.freeze([
+  'malformed','retained','stale','future','invalid','duplicate',
+  'missing_timestamp_after_verified'
+]);
+// Reject reasons are process-wide in current backend. Attribute them to State
+// ONLY if all other known channels had zero missed deliveries and the total
+// received-minus-accepted equals the sum of bounded rejection reasons.
+function stateDropEvidence(health){
+  const o=health?.mqttObservedChannelCounts;
+  const a=health?.mqttChannelCounts;
+  const raw=health?.mqttDroppedByReason;
+  if(!isObject(o)||!isObject(a)||!isObject(raw))
+    return {available:false,attributed:false,stateNotAccepted:null,
+      totalUnaccepted:null,reasons:[]};
+  const channels=['osd','state','status','events','services_reply'];
+  if(channels.some(c=>!Number.isSafeInteger(o[c])||o[c]<0||
+      !Number.isSafeInteger(a[c])||a[c]<0||a[c]>o[c]))
+    return {available:false,attributed:false,stateNotAccepted:null,
+      totalUnaccepted:null,reasons:[]};
+  const reasons=[];
+  for(const reason of DROP_REASON_KEYS){
+    const count=raw[reason];
+    if(count!==undefined){
+      if(!Number.isSafeInteger(count)||count<0)
+        return {available:false,attributed:false,stateNotAccepted:null,
+          totalUnaccepted:null,reasons:[]};
+      if(count>0)reasons.push({reason,count});
+    }
+  }
+  const stateNotAccepted=o.state-a.state;
+  const totalUnaccepted=channels.reduce((v,c)=>v+o[c]-a[c],0);
+  const totalReasons=reasons.reduce((sum,item)=>sum+item.count,0);
+  const allKnownReasons=Object.keys(raw).every(x=>DROP_REASON_KEYS.includes(x));
+  const otherChannelsFull=channels.every(c=>c==='state'||o[c]===a[c]);
+  const totalRejected=health?.mqttRejectedMessages;
+  const validRejected=Number.isSafeInteger(totalRejected)&&totalRejected>=0;
+  const attributed=otherChannelsFull&&allKnownReasons&&validRejected&&
+    totalRejected===totalUnaccepted&&totalReasons===totalUnaccepted;
+  return {available:true,attributed,stateNotAccepted,totalUnaccepted,
+    reasons:reasons.sort((x,y)=>x.reason.localeCompare(y.reason))};
+}
+function stateChannelEvidence(health,modelShapes,controller,aircraft){
+  const raw=health?.mqttObservedChannelCounts?.state;
+  const accepted=health?.mqttChannelCounts?.state;
+  const observed=Number.isSafeInteger(raw)&&raw>=0?raw:null;
+  const passed=Number.isSafeInteger(accepted)&&accepted>=0?accepted:null;
+  const available=Array.isArray(modelShapes);
+  const countFor=model=>available?modelShapes.reduce((sum,item)=>
+    item&&item.channel==='state'&&item.model===model&&
+      Number.isSafeInteger(item.count)&&item.count>0?
+      sum+item.count:sum,0):null;
+  const rc=countFor(RC),m3m=countFor(M3M);
+  let status='NICHT PRUEFBAR';
+  if(observed===0)status='KEIN STATE-TOPIC BEOBACHTET';
+  else if(observed>0&&passed===0)status='STATE-TOPIC BEOBACHTET, NICHT ANGENOMMEN';
+  else if(passed>0&&available&&rc===0&&m3m===0)
+    status='STATE ANGENOMMEN, NICHT RC/M3M ZUGEORDNET';
+  else if(passed>0&&available&&(rc>0||m3m>0))
+    status='STATE MODELLBEZOGEN BEOBACHTET';
+  else if(passed>0)status='STATE ANGENOMMEN, MODELLZUORDNUNG UNBEKANNT';
+  return {status,observed,accepted:passed,
+    modelScopedAvailable:available,
+    modelRc:rc,modelM3m:m3m,
+    rcTypedPropertiesObserved:controller.stateObserved,
+    m3mTypedPropertiesObserved:aircraft.stateObserved};
 }
 function evaluateHardwareSession(devices,health,shapes,now=Date.now(),modelShapes=null){
   const list=Array.isArray(devices)?devices:[];
@@ -195,6 +286,8 @@ function evaluateHardwareSession(devices,health,shapes,now=Date.now(),modelShape
   const controller=deviceSummary(rc,now);
   const aircraft=deviceSummary(air,now);
   const m3mExtensions=m3mExtensionAudit(air,now);
+  const stateEvidence=stateChannelEvidence(health,modelShapes,controller,aircraft);
+  const stateDrops=stateDropEvidence(health);
   // DJI pushMode=1 is event-driven: state is pushed on change, unlike
   // fixed-frequency OSD. A state packet that is 16 s old is evidence that
   // the channel works, not an indication of failed controller/aircraft.
@@ -213,12 +306,12 @@ function evaluateHardwareSession(devices,health,shapes,now=Date.now(),modelShape
     {step:'M3M State-Daten empfangen (bei Änderung)',status:stateStatus(aircraft)}
   ];
   return {target:'DJI RC Pro Enterprise + Mavic 3M',mode:'nur Lesen',
-    transport,controller,aircraft,m3mExtensions,linked,stages,
+    transport,controller,aircraft,m3mExtensions,stateEvidence,stateDrops,linked,stages,
     notes:[
       'MQTT- und Shape-Zähler gelten backendweit, nicht individuell für die RC/M3M.',
       'Globale MQTT-Shapes erlauben keine Gerätezuordnung. Nur der optionale modellbezogene Katalog nach akzeptiertem Paket und bestätigter Topologie kann Rootfelder der M3M zurechnen.',
       'Nicht beobachtet ist kein Beweis für eine von DJI nicht unterstützte Eigenschaft.',
-      'M3M (0:77:2) nutzt das vorläufige Mavic-3-Profil mit drei hardwarebeobachteten generischen OSD-Rootnamen; deren Wertebereiche sind noch nicht mit echter M3M validiert.',
+      'M3M (0:77:2): drei generische OSD-Rootnamen und sechs typisierte Feldpfade auf echter Hardware vom Parser angenommen; die konkreten Werte, Grenzfälle und sicherheitsrelevanten Funktionen sind nicht unabhängig validiert.',
       'DJI State (pushMode 1) wird bei Zustandsänderung gesendet. Ältere State-Zeitstempel bedeuten nicht automatisch einen Kommunikationsfehler.',
       'Ohne deviceProperties, propertyProfile und propertyFieldObservedAt kann der Container keine feldgenaue 1.18-Abnahme liefern.',
       'Ein Hardwaretest erfordert echte, zeitnahe Pilot-2-MQTT-Meldungen; synthetische Tests sind kein Ersatz.'
@@ -264,6 +357,51 @@ function formatReport(r){
       (p.missingNestedUnderObservedRoot.slice(0,40).join(', ')||'keine'));
     lines.push('Nicht beobachtete Unterfelder ohne beobachtetes Root ('+
       p.missingNestedWithAbsentRoot.length+'); keine unabhängige Sensor-Nichtverfügbarkeit ableiten.');
+  }
+  lines.push('--- DJI State-Feldabdeckung je Geraet (nur validierte Feldnamen) ---');
+  for(const [name,device] of [['RC Pro',r.controller],['M3M',r.aircraft]]){
+    const sf=device?.stateFields;
+    if(!sf){lines.push(name+': NICHT PRUEFBAR');continue;}
+    lines.push(name+': dokumentiert='+sf.documented+' | beobachtet='+sf.observed+
+      ' | frisch='+sf.fresh+' | historisch='+sf.stale+
+      ' | nicht beobachtet='+sf.notObserved+' | redigiert='+sf.redacted+
+      ' | nicht typisiert='+sf.unsupported);
+    lines.push(name+' beobachtete State-Feldnamen: '+(sf.observedNames.join(', ')||'keine'));
+    lines.push(name+' fehlende State-Rootnamen: '+(sf.missingRootNames.join(', ')||'keine'));
+  }
+  const state=r.stateEvidence;
+  lines.push('--- DJI State-Kanalanalyse (nur Zaehlwerte, keine Nutzdaten) ---');
+  lines.push('State auf MQTT-Topic beobachtet: '+(state.observed??'nicht ermittelbar')+
+    ' | nach Pruefung angenommen: '+(state.accepted??'nicht ermittelbar'));
+  lines.push('State-MQTT-Modellzuordnung: '+
+    (state.modelScopedAvailable?'verfuegbar':'NICHT VERFUEGBAR')+
+    ' | RC: '+(state.modelRc??'n/v')+' | M3M: '+(state.modelM3m??'n/v'));
+  lines.push('State-Status: '+state.status);
+  lines.push('Geraeteseitige typisierte State-Feldannahme: RC '+
+    (state.rcTypedPropertiesObserved?'ja':'nein')+
+    ' | M3M '+(state.m3mTypedPropertiesObserved?'ja':'nein'));
+  lines.push('HINWEIS: State wird bei Aenderung gesendet. 0 empfangene State-Topics sind kein Beweis eines Defekts, sollten bei laengerem Betrieb jedoch geprueft werden.');
+  const drop=r.stateDrops;
+  if(drop?.available){
+    lines.push('State-Pakete nicht angenommen (Differenz): '+drop.stateNotAccepted);
+    lines.push('Backendweit verworfene Nachrichten nach Grund: '+
+      (drop.reasons.map(item=>item.reason+'='+item.count).join(', ')||'keine'));
+    lines.push('Ablehnungsgruende dem State-Kanal zurechenbar: '+
+      (drop.attributed?'JA (alle anderen beobachteten Kanaele vollstaendig angenommen, Bilanz stimmt)':
+        'NEIN (backendweite Statistik reicht nicht fuer genaue Zuordnung)'));
+  }else{
+    lines.push('Ablehnungsgruende: NICHT PRUEFBAR (backendweite Metrik unvollstaendig).');
+  }
+  lines.push('--- M3M-Feldluecken nach Kamerafunktion und MQTT-Kanal (nur Namen) ---');
+  const gaps=r.aircraft?.propertyFields?.m3mGapGroups;
+  if(!gaps){
+    lines.push('M3M-Feldluecken-Klassifikation: NICHT PRUEFBAR (Feldschnittstelle nicht vorhanden).');
+  }else{
+    lines.push('M3M klassifizierte, nicht beobachtete auswertbare Pfade: '+gaps.classified);
+    for(const {key} of GROUPS)
+      lines.push('  '+gaps.groups[key].label+': '+gaps.groups[key].count);
+    lines.push('  Hinweis: NIR-Multispektralkanaele sind KEINE thermische Waermebildmessung.');
+    lines.push('  Alle Pfade bleiben im 150-Feld-Schema enthalten. Keine Kompatibilitaet allein aus Abwesenheit ableiten.');
   }
   lines.push('--- M3M-Erweiterung: typisierte OSD-Wertannahme (ohne Werte) ---');
   if(!r.m3mExtensions?.available){

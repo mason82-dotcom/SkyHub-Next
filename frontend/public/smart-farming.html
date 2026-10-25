@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>SkyHub-Next · Smart Farming (experimentell)</title>
+<style>
+:root{color-scheme:dark;--bg:#07111e;--panel:#102134;--card:#182b41;--line:#334c63;--accent:#57d2d2;--muted:#b1c2d2}
+*{box-sizing:border-box}
+body{font:15px/1.55 system-ui,-apple-system,sans-serif;margin:0;color:#ecf5fd;background:var(--bg)}
+a{color:#a3ebff}
+:focus-visible{outline:2px solid #a3ebff;outline-offset:3px}
+[hidden]{display:none!important}
+header{border-bottom:1px solid var(--line);padding:18px clamp(16px,4vw,44px);display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+header h1{font-size:clamp(21px,3vw,29px);margin:0}
+nav{display:flex;gap:16px;flex-wrap:wrap}
+nav a{font-weight:600}
+main{max-width:1220px;margin:0 auto;padding:22px clamp(16px,4vw,44px) 80px}
+.intro{max-width:75ch;color:var(--muted)}
+.tag{display:inline-block;color:#fde2a9;border:1px solid #735c37;border-radius:100px;padding:3px 10px;font-size:12px;margin-bottom:8px}
+.warning{border:1px solid #866b3d;background:#281f17;padding:16px;border-radius:12px;line-height:1.65}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;margin-top:22px}
+.panel h2{font-size:19px;margin:0 0 14px}
+label{display:block;font-weight:600;margin:12px 0 7px}
+.form{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+input,button{font:inherit;color:inherit;padding:10px 14px;border-radius:9px;border:1px solid #476077}
+input{background:#081524;min-width:min(260px,100%);flex:1;max-width:480px}
+button{background:#12697f;cursor:pointer;font-weight:600}
+button:hover{background:#1c839c}button:disabled{opacity:.6;cursor:wait}
+button.secondary{background:#243b51}
+#catalogStatus{margin:14px 0 2px;min-height:26px;color:var(--muted)}
+#catalogStatus[data-kind="error"]{color:#ffbeae}
+.layout{display:grid;grid-template-columns:minmax(260px,1fr) minmax(0,2.2fr);gap:20px}
+.candidate-button{width:100%;text-align:left;background:#132b3d;margin:4px 0;overflow-wrap:anywhere;font:13px ui-monospace,monospace}
+.candidate-button[aria-pressed="true"]{border-color:var(--accent);background:#18495a}
+.metric-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.metric-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.metric-card h3{color:#a9f1e4;margin:0 0 8px}
+.metric-stats{display:grid;grid-template-columns:1fr auto;gap:5px 12px;margin:0}
+.metric-stats dt{color:var(--muted)}.metric-stats dd{margin:0;font-variant-numeric:tabular-nums;font-weight:600}
+.metric-note,.empty-state,.fine{color:var(--muted);font-size:13px}
+.metric-note{margin:14px 0 0}
+small{color:var(--muted)}
+@media(max-width:800px){.layout{grid-template-columns:1fr}.metric-grid{grid-template-columns:1fr}header{align-items:flex-start}}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <span class="tag">Experimentell · Nicht kalibriert</span>
+    <h1>SkyHub-Next · Smart Farming</h1>
+  </div>
+  <nav aria-label="Projektmodule">
+    <a href="/">Live-Dashboard</a>
+    <a href="/smart-farming.html" aria-current="page">Smart Farming</a>
+  </nav>
+</header>
+<main>
+  <p class="intro">Read-only-Übersicht für geprüfte, aber wissenschaftlich noch nicht freigegebene Mavic-3M-Indexkandidaten. Die Katalogschnittstelle ist standardmäßig deaktiviert.</p>
+  <section class="warning" aria-label="Sicherheitshinweis">
+    <strong>Keine kalibrierte Vegetationskarte.</strong>
+    Die Ergebnisse sind ausschließlich experimentelle Metadaten. Es gibt weder GIS-/Kartenkacheln noch bestätigte Reflexionskalibrierung, Düngeempfehlungen, Ausbringkarten, Flugmissionen oder Agras-Ansteuerung.
+    Ein gültiger Kataloghash bestätigt nur die Kandidatendaten am Lesezeitpunkt; keine erneute Rasterprüfung.
+  </section>
+  <section class="panel" aria-labelledby="accessHeading">
+    <h2 id="accessHeading">Privaten Katalog lesen</h2>
+    <label for="catalogToken">SkyHub-Zugriffstoken</label>
+    <div class="form">
+      <input id="catalogToken" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Bearer-Token, nur temporär">
+      <button id="loadCatalog" type="button">Katalog laden</button>
+      <button id="clearCatalog" type="button" class="secondary">Ansicht leeren</button>
+    </div>
+    <p class="fine">Der Token wird nur für die aktuelle HTTPS-Anfrage verwendet; er wird weder in URLs noch in Browser-Speicher geschrieben und nach dem Abruf aus dem Eingabefeld gelöscht.</p>
+    <p id="catalogStatus" data-kind="normal" role="status" aria-live="polite">Kein Katalog geladen.</p>
+  </section>
+  <section class="layout" aria-label="Experimentelle Analysen">
+    <div class="panel">
+      <h2>Registrierte Kandidaten (<span id="catalogCount">—</span>)</h2>
+      <div id="candidateList" aria-label="Kandidaten-Auswahl"></div>
+    </div>
+    <div class="panel" id="candidateDetails" hidden>
+      <h2>Indexkennzahlen</h2>
+      <p id="candidateName" class="fine"></p>
+      <div class="metric-grid" id="layerGrid"></div>
+      <p class="fine">NDVI, NDRE, GNDVI und OSAVI sind dimensionslose Indexwerte. Die Pixelanzahl bezeichnet gültige Analysepixel, nicht die abgedeckte Feldfläche.</p>
+    </div>
+  </section>
+</main>
+<script src="/smart-farming-ui.js"></script>
+<script>
+'use strict';
+if(window.SkyHubSmartFarming)window.SkyHubSmartFarming.mount(document);
+</script>
+</body>
+</html>
