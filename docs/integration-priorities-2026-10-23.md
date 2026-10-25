@@ -1,5 +1,7 @@
 # Integrationsstrategie und Merge-Gates für SkyHub Next
 
+> **Korrektur 24.10.2026:** [#24](https://github.com/mason82-dotcom/SkyHub-Next/pull/24) wurde am 23.10.2026 um 11:19 UTC als `aa459bf` nach `main` gemergt. Aussagen unten, die #24 als offen, „zu zerlegen“ oder als P2-Kandidat beschreiben, sind überholt und die geplante Zerlegung ist hinfällig. Die tabellarische Messung der übrigen offenen PRs gegen den heutigen `main` steht in der [PR-Triage vom 24.10.2026](pr-triage-2026-10-24.md). Der historische Text darunter wurde bewusst nicht rückwirkend umgeschrieben.
+
 > **Fortschreibung zum PR-#24-Integrationskandidaten:** Der zuvor empfohlene Verzicht auf einen Direktmerge bezog sich auf den **unbereinigten** 96-Commit-Branch. Inzwischen wurde ein eigener Merge-Kandidat mit dem neueren `main` erstellt und der DJI-Feldkatalog samt Hardwaretests, S3-Cursorschutz, Auth- und Sicherheitsdokumentation konsolidiert. Ein Merge ist erst nach **erneut vollständig grüner CI des exakt geprüften Git-Trees und unveränderter Main-Basis** zulässig. Die ältere Prioritätstabelle ist als historische Risikoanalyse zu lesen; weder STS/Upload noch Pi-Deployment werden dadurch freigegeben.
 
 **Repository-Abgleich:** 23.10.2026 (GitHub-Prüfung). **Codebasis (fortgeschrieben am 23.10.2026):** `main` @ `64e427c3d9488da80a391cd43d0308771f480955`. Die PR-Stände sind eine datierte Momentaufnahme, keine automatische Live-Synchronisierung. [Projektstatus](projektstand-2026-10-23.md) · [API-Vertrag](api-reference.md) · [Sicherheitsmodell](security.md).
