@@ -9,6 +9,21 @@ services:
       SKYHUB_TOPOLOGY_ACK_ENABLED: "false"
       SKYHUB_TRACK_RECORDING_ENABLED: "false"
       SKYHUB_LAN_VIEW_CIDR: ""
+      SKYHUB_MEDIA_ENABLED: "false"
+      SKYHUB_MINIO_DR_ENABLED: "false"
+      SKYHUB_MINIO_DR_COMPOSITE_ENABLED: "false"
+      SKYHUB_DJI_MAP_ELEMENTS_ENABLED: "false"
+      SKYHUB_DJI_TSA_ENABLED: "false"
+      SKYHUB_S3_ENDPOINT: ""
+      SKYHUB_S3_ACCESS_KEY: ""
+      SKYHUB_S3_SECRET_KEY: ""
+      SKYHUB_PILOT_ACCESS_TOKEN: ""
+      SKYHUB_PILOT_MQTT_URL: ""
+      SKYHUB_PILOT_MQTT_USER: ""
+      SKYHUB_PILOT_MQTT_PASSWORD: ""
+      SKYHUB_DJI_APP_ID: ""
+      SKYHUB_DJI_APP_KEY: ""
+      SKYHUB_DJI_APP_LICENSE: ""
     depends_on:
       hivemind-broker:
         condition: service_started

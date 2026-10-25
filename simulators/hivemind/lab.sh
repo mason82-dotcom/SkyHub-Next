@@ -53,33 +53,43 @@ EOF
 esac
 
 command -v docker >/dev/null || { echo "docker is required" >&2; exit 2; }
-if [[ ! -f "$ENV_FILE" ]]; then
+if [[ ! -f "$ENV_FILE" || -L "$ENV_FILE" ]]; then
   echo "No lab.env found. Run: bash simulators/hivemind/lab.sh init-env" >&2
   exit 2
 fi
-# Reject a copied production .env. Never load this file with 'source' or print secrets.
-for expected in \
-  'MQTT_BROKER_URL=mqtt://hivemind-broker:1884' \
-  'SKYHUB_HTTP_PORT=14001' \
-  'SKYHUB_BIND_ADDRESS=127.0.0.1' \
-  'SKYHUB_PILOT_ENABLED=false' \
-  'SKYHUB_TOPOLOGY_ACK_ENABLED=false' \
-  'SKYHUB_TRACK_RECORDING_ENABLED=false'; do
-  if ! grep -Fxq -- "$expected" "$ENV_FILE"; then
-    echo "Lab isolation guard failed (missing expected lab setting)" >&2
-    exit 2
-  fi
-done
-# Shell variables override Compose env-file values; force all isolation-sensitive settings.
-export MQTT_BROKER_URL=mqtt://hivemind-broker:1884
-export SKYHUB_HTTP_PORT=14001 SKYHUB_BIND_ADDRESS=127.0.0.1
-export SKYHUB_PILOT_ENABLED=false SKYHUB_TOPOLOGY_ACK_ENABLED=false
-export SKYHUB_TRACK_RECORDING_ENABLED=false SKYHUB_LAN_VIEW_CIDR=
-unset SKYHUB_VIEW_TOKEN SKYHUB_DB_PASSWORD SKYHUB_MINIO_USER SKYHUB_MINIO_PASSWORD
-unset MQTT_USER MQTT_PASSWORD COMPOSE_PROFILES
+# Only a private, generated lab.env with exactly these keys is accepted.
+# Never source it or echo values: a copied production env must fail closed.
+[[ $(stat -c %u "$ENV_FILE") == "$(id -u)" ]] || { echo "Lab env owner mismatch" >&2; exit 2; }
+mode=$(stat -c %a "$ENV_FILE")
+(( (8#$mode & 077) == 0 )) || { echo "Lab env permissions too broad" >&2; exit 2; }
+declare -A seen=()
+while IFS= read -r line || [[ -n "$line" ]]; do
+  [[ -z "$line" || "$line" == \#* ]] && continue
+  [[ "$line" == *=* ]] || { echo "Invalid lab env entry" >&2; exit 2; }
+  key=${line%%=*}; value=${line#*=}
+  case "$key" in
+    SKYHUB_VIEW_TOKEN|SKYHUB_DB_PASSWORD|SKYHUB_MINIO_PASSWORD)
+      [[ "$value" =~ ^[0-9a-f]{64}$ ]] || { echo "Invalid lab secret format" >&2; exit 2; } ;;
+    SKYHUB_MINIO_USER) [[ "$value" == lab_minio ]] || exit 2 ;;
+    MQTT_BROKER_URL) [[ "$value" == mqtt://hivemind-broker:1884 ]] || exit 2 ;;
+    MQTT_USER|MQTT_PASSWORD|SKYHUB_LAN_VIEW_CIDR) [[ -z "$value" ]] || exit 2 ;;
+    SKYHUB_HTTP_PORT) [[ "$value" == 14001 ]] || exit 2 ;;
+    SKYHUB_BIND_ADDRESS) [[ "$value" == 127.0.0.1 ]] || exit 2 ;;
+    SKYHUB_PILOT_ENABLED|SKYHUB_TOPOLOGY_ACK_ENABLED|SKYHUB_TRACK_RECORDING_ENABLED)
+      [[ "$value" == false ]] || exit 2 ;;
+    *) echo "Unexpected lab env key" >&2; exit 2 ;;
+  esac
+  [[ ! -v seen[$key] ]] || { echo "Duplicate lab env key" >&2; exit 2; }
+  seen[$key]=1
+done < "$ENV_FILE"
+[[ ${#seen[@]} -eq 13 ]] || { echo "Incomplete lab env" >&2; exit 2; }
+
+# Ignore ambient Compose/DJI/S3 credentials and force a local Docker socket.
+# The only interpolation inputs are the validated lab.env entries.
 
 cd "$ROOT"
-compose=(docker compose --project-name "$PROJECT" --env-file "$ENV_FILE" \
+compose=(env -i PATH="$PATH" HOME="$HOME" docker --host unix:///var/run/docker.sock \
+  compose --project-name "$PROJECT" --env-file "$ENV_FILE" \
   -f docker-compose.yml -f simulators/hivemind/compose.lab.yml)
 case "$1" in
   config)

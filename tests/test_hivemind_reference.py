@@ -2,7 +2,10 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
 import re
+import subprocess
+import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -40,10 +43,56 @@ class HivemindReferenceLabTest(unittest.TestCase):
         self.assertIn('PROJECT="skyhub-hivemind-lab"', wrapper)
         self.assertIn("MQTT_BROKER_URL=mqtt://hivemind-broker:1884", wrapper)
         self.assertIn("SKYHUB_HTTP_PORT=14001", wrapper)
-        self.assertIn("docker compose --project-name", wrapper)
+        self.assertIn('docker --host unix:///var/run/docker.sock', wrapper)
         self.assertIn('if [[ -e "$ENV_FILE" ]]', wrapper)
         self.assertIn("openssl rand -hex 32", wrapper)
         self.assertNotIn("down -v", wrapper)
+
+    def test_wrapper_rejects_extra_keys_and_ambient_credentials(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            lab = root / "simulators" / "hivemind"
+            lab.mkdir(parents=True)
+            script = lab / "lab.sh"
+            script.write_text((LAB / "lab.sh").read_text())
+            binary = root / "bin"
+            binary.mkdir()
+            docker = binary / "docker"
+            docker.write_text('#!/bin/sh\nprintf "args:%s\\n" "$*"\n'
+                              'printf "ambient:%s\\n" "${SKYHUB_DJI_APP_KEY-unset}"\n')
+            docker.chmod(0o755)
+            env = {**os.environ, "PATH": f"{binary}:{os.environ['PATH']}",
+                   "HOME": str(root), "SKYHUB_DJI_APP_KEY": "REAL_SECRET",
+                   "COMPOSE_PROFILES": "media"}
+            generated = "# Disposable lab only\n" + "\n".join([
+                "SKYHUB_VIEW_TOKEN=" + "a" * 64,
+                "SKYHUB_DB_PASSWORD=" + "b" * 64,
+                "SKYHUB_MINIO_USER=lab_minio",
+                "SKYHUB_MINIO_PASSWORD=" + "c" * 64,
+                "MQTT_BROKER_URL=mqtt://hivemind-broker:1884",
+                "MQTT_USER=", "MQTT_PASSWORD=", "SKYHUB_HTTP_PORT=14001",
+                "SKYHUB_BIND_ADDRESS=127.0.0.1", "SKYHUB_PILOT_ENABLED=false",
+                "SKYHUB_TOPOLOGY_ACK_ENABLED=false",
+                "SKYHUB_TRACK_RECORDING_ENABLED=false", "SKYHUB_LAN_VIEW_CIDR=",
+            ]) + "\n"
+            envfile = lab / "lab.env"
+            def run(contents, mode=0o600):
+                envfile.write_text(contents)
+                envfile.chmod(mode)
+                return subprocess.run(["bash", str(script), "config"], env=env,
+                                      text=True, capture_output=True, check=False)
+            accepted = run(generated)
+            self.assertEqual(accepted.returncode, 0, accepted.stderr)
+            self.assertIn("--host unix:///var/run/docker.sock", accepted.stdout)
+            self.assertIn("ambient:unset", accepted.stdout)
+            for contents, mode in [
+                (generated + "SKYHUB_DJI_APP_KEY=REAL_SECRET\n", 0o600),
+                (generated + "SKYHUB_VIEW_TOKEN=" + "d" * 64 + "\n", 0o600),
+                (generated, 0o644),
+            ]:
+                rejected = run(contents, mode)
+                self.assertNotEqual(rejected.returncode, 0)
+                self.assertNotIn("REAL_SECRET", rejected.stderr)
 
     def test_minimal_lab_runtime_is_unprivileged_and_no_ffmpeg(self):
         dockerfile = (LAB / "Dockerfile.lab").read_text()

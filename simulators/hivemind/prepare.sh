@@ -44,7 +44,7 @@ fi
 
 # Compile in an ephemeral Java 21 / Maven container; no local JDK required.
 mkdir -p -- "$CACHE"
-docker run --rm \
+docker --host unix:///var/run/docker.sock run --rm \
   --user "$(id -u):$(id -g)" \
   --volume "$SOURCE:/workspace" \
   --volume "$CACHE:/m2" \
