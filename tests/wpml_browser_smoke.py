@@ -682,15 +682,26 @@ def main() -> None:
                             ("/wpml-route-library.html", "Route library"),
                             ("/wpml-survey-preview.html", "Survey"),
                             ("/smart-farming.html", "Smart Farming"),
+                            ("/media-gallery.html", "Media gallery"),
                             ("/wpml-editor.html", "WPML editor")
                         ]
                         for target, title in journey:
                             nav_page.locator(
                                 '.skyhub-global-nav a[href="' + target + '"]').click()
                             nav_page.wait_for_url(base + target, wait_until="load")
-                            assert_light_theme(
-                                nav_page, target,
-                                "Navigation " + title + " " + str(nav_width))
+                            if target == "/media-gallery.html":
+                                check(nav_page.locator("#verified-library").count() == 1,
+                                      "Missing verified media section")
+                                check(nav_page.locator("#storage-inspector").count() == 1,
+                                      "Missing S3 inventory section")
+                                check(nav_page.locator("#verified-connect").is_enabled(),
+                                      "Media gallery connection action not available")
+                                check(nav_page.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 2"),
+                                      "Media gallery overflows narrow viewport")
+                            else:
+                                assert_light_theme(
+                                    nav_page, target,
+                                    "Navigation " + title + " " + str(nav_width))
                             check(nav_page.locator('a[aria-current="page"]').count() == 1,
                                   "Exactly one nav item must be selected after click")
                             check(nav_page.locator('main#skyhubMain').count() == 1,
