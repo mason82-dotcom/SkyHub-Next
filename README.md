@@ -9,7 +9,15 @@
 
 SkyHub Next ist die **aktive Entwicklungsbasis im Repository-Root**. Sie verarbeitet DJI-Cloud-API-Telemetrie mit Node.js/Express, Socket.IO, MQTT, Redis und PostGIS und stellt ein kompaktes statisches Live-Dashboard bereit. Der Integrationsstand enthält eine **optional aktivierbare, authentifizierte und nur lesende Medien-API**; sie ist im Standard-Compose nicht mit MinIO-Zugangsdaten verdrahtet. Ein produktionsreifer Missionseditor und echte Analyse-Worker sind nicht freigegeben. Der Root-Code ist **nicht automatisch identisch** mit dem aktuell auf dem Raspberry Pi betriebenen alten Dienst.
 
-## Aktueller Projektstand (23.10.2026)
+## Einstieg: verifizierter GitHub-Main-Stand vom 25.10.2026
+
+Die maßgebliche neue Quelltextaufnahme ist der [Main-Audit bei `662cb94d`](docs/stand-2026-10-25-main-audit.md). Dazu gehören die [thematische Dokumentationsnavigation](docs/index.md) und die [Regeln zur Dokumentationspflege](docs/dokumentationspflege.md). Die unten stehenden Integrationsnotizen dokumentieren den **jeweiligen historischen Zeitpunkt**, keine aktuelle Liste offener PRs.
+
+Zum Prüfzeitpunkt: **36 offene Draft-PRs**, davon **5 direkt auf `main` und 31 gestapelt**. Eine aktuelle Liste steht ausschließlich unter [GitHub Pull Requests](https://github.com/mason82-dotcom/SkyHub-Next/pulls). Der Main-Code hat eine authentifizierte, optional gemountete **read-only S3-Medien-API** (`SKYHUB_MEDIA_ENABLED=false` im Root-Compose), einen geschützten **MinIO-DR-Berichtsrouter** und einen optionalen M3M-Metadatenkatalog. Offline-WPML-Bibliothek, experimentelle M3M-Rasterwerkzeuge und Missionsbeobachtung belegen **keine** aktive DJI-Missionsausführung, reale Reflexionskalibrierung oder Pi-Produktivfreigabe.
+
+Das Root-Compose nutzt standardmäßig `emqx/1884`; die im Code geprüften Alternativen sind `mosquitto/1883` und `mosquitto-dedicated/1884`. Die reale Brokerart auf dem Raspberry Pi muss vor jeder Änderung lokal bestätigt werden. MinIO-Profile und der separate Shared-Storage-Stack dürfen nicht ohne Betriebsprüfung kombiniert werden.
+
+## Historischer Integrationsverlauf (ab 23.10.2026)
 
 **CI-Abnahme für M3M:** Der eigenständige [Raster-/Katalog-Prüfworkflow](.github/workflows/m3m-offline-acceptance.yml) ist durch PR #101 im Hauptbranch registriert und muss vor Zusammenführung dieser Komponenten auf genau dem finalen PR-Commit sowohl die echten NumPy-/Rasterio-Testfälle als auch die HTTP-/Berechtigungstests erfolgreich ausführen.
 

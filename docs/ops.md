@@ -2,9 +2,9 @@
 
 **Wichtig:** Die folgenden Pi-Zustände und Portbelegungen wurden am 20.10.2026 dokumentiert; sie ersetzen keine erneute Prüfung am Zielsystem. Dieser Text unterscheidet zwischen lesenden Diagnosebefehlen und Befehlen, die Container/Dateien verändern. Ein Git-Checkout oder ein Merge nimmt **keinen** automatischen Cutover vor.
 
-**Repository-Stichtag:** [Projektstand 23.10.2026](projektstand-2026-10-23.md), Main-Commit `496a1f84f22b15f85ad5442965b2cd218a93969a`. Die bis dahin hinzugekommenen Feature-PRs und in den Integrationsbranch übernommenen UI-PRs sind **kein** automatisches Upgrade dieser Root-Compose-Installation. Die folgenden historischen Hardwareangaben behalten ihr jeweiliges Datum.
+**Historischer Repository-Stichtag:** [Projektstand 23.10.2026](projektstand-2026-10-23.md), Main-Commit `496a1f84f22b15f85ad5442965b2cd218a93969a`. Die bis dahin hinzugekommenen Feature-PRs und in den Integrationsbranch übernommenen UI-PRs sind **kein** automatisches Upgrade dieser Root-Compose-Installation. Die folgenden historischen Hardwareangaben behalten ihr jeweiliges Datum.
 
-**Betriebsgrenzen:****Opt-in-Brokerprofil:** [Anleitung EMQX/1884 oder Mosquitto/1883](pi-mosquitto-migration.md). Im Code existiert nun ein explizites Mosquitto-Profil mit Port-/Pilot-Konsistenzprüfung. Historische EMQX-Beobachtungen in diesem Dokument bleiben historische Nachweise, keine aktuelle Pi-Bestätigung. Für manuelle Mosquitto-Prüfung `bash scripts/pi-preflight.sh --broker-kind mosquitto --broker-port 1883` verwenden. Das Backend-Updateskript bestimmt das Profil aus dem gerenderten Compose und startet keinen Broker.
+**Betriebsgrenzen – Opt-in-Brokerprofil:** [Anleitung EMQX/1884 oder Mosquitto/1883](pi-mosquitto-migration.md). Im Code existiert nun ein explizites Mosquitto-Profil mit Port-/Pilot-Konsistenzprüfung. Historische EMQX-Beobachtungen in diesem Dokument bleiben historische Nachweise, keine aktuelle Pi-Bestätigung. Für manuelle Mosquitto-Prüfung `bash scripts/pi-preflight.sh --broker-kind mosquitto --broker-port 1883` verwenden. Das Backend-Updateskript bestimmt das Profil aus dem gerenderten Compose und startet keinen Broker.
 
 **Aktualisierungswarnung 23.10.2026:** Nach dem zuletzt vom Betreiber gemeldeten Stand wurde EMQX auf dem Raspberry Pi entfernt; Mosquitto lauscht auf Port 1883. Das vorliegende `main` verlangt dagegen weiterhin EMQX auf 1884: `scripts/pi-preflight.sh` prüft zusätzlich den Containernamen `skyhub_emqx`, und `scripts/pi-update-backend.sh --apply` ruft diesen Preflight auf. Dieser Konflikt ist durch die GitHub-Merges #89/#65 **nicht** behoben. Vor einem Live-Backend-Rebuild Broker-/Topic-/ACL-Vertrag und tatsächliche Pi-Listener erneut prüfen; bei Fehlschlag nur Git und nichtschreibende Tests aktualisieren. Nicht durch Starten des archivierten EMQX oder ungetestetes Umschalten der Ports umgehen.
 
@@ -13,6 +13,12 @@
 **Wirkung von Pi-Skripten und Freigaben:** [Betriebswerkzeuge](scripts.md). `apply`-, `rollback`- und Kopplungsaufrufe nicht mit lesenden Diagnosen verwechseln.
 
 **Querverweise:** [Sicherheit](security.md), [Architektur](architecture.md), [Konfiguration](config-reference.md), [API-Referenz](api-reference.md), [MQTT/OSD](mqtt-osd-integration.md), [kontrollierte Migration](legacy-migration.md).
+
+## Neuere Code-Klarstellung (25.10.2026)
+
+Der Quellcodeabgleich bei [`main` @ `662cb94d`](stand-2026-10-25-main-audit.md) ergänzt die älteren Betriebsmessungen: `backend/mqtt-config.js` akzeptiert **`emqx/1884`**, **`mosquitto/1883`** und **`mosquitto-dedicated/1884`**. Die unten stehenden EMQX-Aussagen beziehen sich nur auf ihren genannten Pi-Stichtag. Das tatsächliche aktuelle Brokerprofil kann **nicht** aus GitHub abgeleitet werden. Vor einem Update zuerst Prozess, Listener, tatsächliche Compose-Dateien, `.env` und DJI-ACL **lesend** prüfen. Das Root-Compose installiert keinen Broker.
+
+Für MinIO müssen Root-`media`-Profil, private Shared-MinIO-Compose-Datei und mögliche Storage-Overrides **getrennt** bewertet werden. Ein Git-Merge führt keine Containeraktionen aus. Angaben zur Portbelegung, zum Pi-Stand und zu früheren Smoke-Tests bleiben historische Evidenz; neue Tests auf echter Hardware wurden im Rahmen dieser Dokumentationspflege **nicht** ausgeführt.
 
 ## Entwicklung auf dem Pi (nicht die produktive Python-Installation überschreiben!)
 

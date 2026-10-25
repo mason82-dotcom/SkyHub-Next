@@ -4,11 +4,11 @@
 
 **Repository und PRs:** [Offene Pull Requests](https://github.com/mason82-dotcom/SkyHub-Next/pulls) und [`main`](https://github.com/mason82-dotcom/SkyHub-Next/tree/main) sind die Live-Ansichten. Die [GitHub-Bestandsaufnahme vom 25.10.2026](repository-status-2026-10-25.md), die [Hygieneprüfung](repository-hygiene-2026-10-25.md) und der [PR-Triagebericht](pr-triage-2026-10-24.md) sind datierte Momentaufnahmen, keine Live-Zahlen oder Mergefreigaben.
 
-**Aktualisiert am 25.10.2026.** Diese Navigation gilt für den Root-Stack `skyhub-next`. Die wichtigste Unterscheidung ist die zwischen dem **Code auf `main`** und **noch nicht integrierten Entwicklungszweigen**.
+**Aktualisiert am 25.10.2026.** Primäre Einstiegspunkte sind der [neue Main-Audit mit geprüftem Commit](stand-2026-10-25-main-audit.md) und die [Dokumentationspflege](dokumentationspflege.md). Die bisherige Repository-Statusdatei und die umfangreichen PR-Triageberichte sind ältere Messungen **desselben Tages** und kein Ersatz für eine aktuelle GitHub-Abfrage. Diese Navigation gilt für den Root-Stack `skyhub-next`. Die wichtigste Unterscheidung ist die zwischen dem **Code auf `main`** und **noch nicht integrierten Entwicklungszweigen**.
 
 ## Zuerst lesen
 
-1. [README / Produktumfang und sichere lokale Checks](../README.md) und [GitHub-Stand vom 25.10.2026](repository-status-2026-10-25.md)
+1. [README / Produktumfang](../README.md), [Main-Audit 25.10.2026](stand-2026-10-25-main-audit.md), [Dokumentationsregeln](dokumentationspflege.md) und [Live-PRs](https://github.com/mason82-dotcom/SkyHub-Next/pulls)
 2. [Projektstand 23.10.2026 / verifizierter Main-SHA, PR-Status und Integrationsgates](projektstand-2026-10-23.md)
    - [Priorisierte Integrationsstrategie: PR-Abhängigkeiten, Merge-Gates und neue Research-Zweige](integration-priorities-2026-10-23.md) – historischer Plan, gegen heutigen `main` neu prüfen
 3. [Architektur, Datenwege und API](architecture.md)
@@ -55,6 +55,9 @@
 [Konsolidierung und Freigabegrenzen](smart-farming-m3m-consolidation-review-2026-10-23.md) · [geschützter Kandidatenkatalog](smart-farming-m3m-auth-readonly-catalog.md) · [UI-Status](smart-farming-m3m-ui.md). Keine operative Vegetationskarte oder Flugfreigabe.
 
 ## Historische Momentaufnahmen – nicht als Live-Betriebszustand verwenden
+
+- [Repository-Status 25.10.](repository-status-2026-10-25.md) und [Hygieneaudit 25.10.](repository-hygiene-2026-10-25.md) wurden auf **älteren Main-SHAs** erhoben; für den späteren `662cb94d`-Stand gilt der [aktuellere Audit](stand-2026-10-25-main-audit.md).
+- [PR-Triage 25.10.](pr-triage-2026-10-24.md): technische Momentaufnahme mit inzwischen veralteten PR-Zahlen, **keine Freigabe**.
 
 - [Entwicklungsplan 20.–21.10.2026](entwicklungsplan-2026-10-20.md)
 - [Storage-Audit 20.10.2026](storage-audit-2026-10-20.md)
