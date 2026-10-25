@@ -17,7 +17,8 @@
 | --- | --- | --- |
 | `SKYHUB_VIEW_TOKEN` | Pflicht, mindestens 24 Zeichen; kein `REPLACE_` | Schutz der regulären HTTP- und Socket.IO-APIs; gilt **nicht** als Pilot-/Admin-Identität |
 | `MQTT_BROKER_URL` | Pflicht, Docker-Beispiel `mqtt://host.docker.internal:1884` | Empfang über ausgewählten bestehenden Broker; kein Broker in Root-Compose |
-| `SKYHUB_MQTT_BROKER_KIND` | `emqx`, `mosquitto` oder `mosquitto-dedicated` | Strenge Paarung mit 1884, 1883 bzw. 1884; keine automatische Brokerumschaltung |\n| `SKYHUB_MQTT_REQUIRED_PORT` | **`1884` standardmäßig, `1883` mit `mosquitto` oder `1884` mit `emqx`/`mosquitto-dedicated`**, jetzt aus `.env` durchgereicht | Start-Validierung verweigert andere Zielports |
+| `SKYHUB_MQTT_BROKER_KIND` | `emqx`, `mosquitto` oder `mosquitto-dedicated` | Strenge Paarung mit 1884, 1883 bzw. 1884; keine automatische Brokerumschaltung |
+| `SKYHUB_MQTT_REQUIRED_PORT` | **`1884` standardmäßig, `1883` mit `mosquitto` oder `1884` mit `emqx`/`mosquitto-dedicated`**, jetzt aus `.env` durchgereicht | Start-Validierung verweigert andere Zielports |
 | `MQTT_USER` / `MQTT_PASSWORD` | Bei Bedarf gesetzt, Compose-Default leer | **Lese-Subscriber**; nicht für Pilot oder Topologie-Publisher wiederverwenden |
 | `SKYHUB_BIND_ADDRESS` | `127.0.0.1` | Host-Bindung; **keinen öffentlichen Bind** für Pilot-HTTPS-Onboarding verwenden |
 | `PORT` | Container fest `4000` | Innerer Express-Port; Host-Port über `SKYHUB_HTTP_PORT` |
