@@ -8,13 +8,14 @@ const operator={id:'synthetic-operator',workspaceId:A,role:'operator'};
 const admin={id:'synthetic-admin',workspaceId:A,role:'admin'};
 const viewer={id:'synthetic-viewer',workspaceId:A,role:'viewer'};
 function fixture({authorize=async()=>true,role={rolname:'skyhub_test_worker',rolsuper:false,rolbypassrls:false},
-  fail,commitFail=false}={}){
+  fail,commitFail=false,rollbackFail=false}={}){
   const calls=[],connection={released:0,async query(sql,params){
     calls.push([sql,params]);
     if(fail===sql||(commitFail&&sql==='COMMIT'))throw Error('PRIVATE_DATABASE_DSN');
+    if(rollbackFail&&sql==='ROLLBACK')throw Error('PRIVATE_DATABASE_DSN');
     if(sql.startsWith('SELECT rolname,rolsuper'))return {rows:[role]};
     return {rows:[]};
-  },release(){this.released++}};
+  },release(destroy){this.released++;this.destroyed=destroy}};
   const pool={async connect(){calls.push(['connect']);return connection}};
   const transactions=createFlighttaskWorkspaceTransactions(pool,{authorize,dbRole:'skyhub_test_worker'});
   return {calls,connection,transactions};
@@ -97,4 +98,14 @@ test('constructor refuses untrusted role names or absent callbacks',()=>{
   assert.throws(()=>createFlighttaskWorkspaceTransactions({connect:async()=>{}},{dbRole:'worker'}),/requires/);
   assert.throws(()=>createFlighttaskWorkspaceTransactions({connect:async()=>{}},{
     authorize:async()=>true,dbRole:'worker"; DROP TABLE users;--'}),/requires/);
+});
+test('a failed ROLLBACK discards the connection instead of returning it to the pool',async()=>{
+  const f=fixture({commitFail:true,rollbackFail:true});
+  await assert.rejects(f.transactions.run({workspaceId:A,principal:operator,action:'observe'},async()=>{}),
+    /transaction unavailable/);
+  assert.equal(f.connection.released,1);
+  assert.equal(f.connection.destroyed,true);
+  const ok=fixture();
+  await ok.transactions.run({workspaceId:A,principal:operator,action:'observe'},async()=>{});
+  assert.ok(!ok.connection.destroyed);
 });

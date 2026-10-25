@@ -133,3 +133,37 @@ test('opt-in Mosquitto profile requires a LAN-reachable matching Pilot 2 1883 en
     assert.throws(()=>result.bootstrap(),/not configured/);
   }
 });
+
+test('pilot status reports the configured RC MQTT port, or null while unusable',()=>{
+  assert.equal(pilotConfiguration(configured).mqttPort,1884);
+  const mosquitto=pilotConfiguration({...configured,SKYHUB_MQTT_BROKER_KIND:'mosquitto',
+    SKYHUB_MQTT_REQUIRED_PORT:'1883',SKYHUB_PILOT_MQTT_URL:'mqtt://192.168.178.63:1883'});
+  assert.equal(mosquitto.mqttPort,1883);
+  for(const url of ['mqtt://127.0.0.1:1884','mqtt://host.docker.internal:1884','mqtt://192.168.178.63:1883','mqtts://192.168.178.63:1884']){
+    assert.equal(pilotConfiguration({...configured,SKYHUB_PILOT_MQTT_URL:url}).mqttPort,null,url);
+  }
+  assert.equal(pilotConfiguration({...configured,SKYHUB_PILOT_MQTT_URL:''}).mqttPort,null);
+});
+
+test('dedicated authenticated Mosquitto profile hands the RC the matching 1884 LAN endpoint',()=>{
+  const dedicated={
+    ...configured,
+    SKYHUB_MQTT_BROKER_KIND:'mosquitto-dedicated',
+    SKYHUB_MQTT_REQUIRED_PORT:'1884',
+    SKYHUB_PILOT_MQTT_URL:'mqtt://192.168.178.63:1884'
+  };
+  const c=pilotConfiguration(dedicated);
+  assert.equal(c.ready,true);
+  assert.equal(c.bootstrap().mqtt.host,'tcp://192.168.178.63:1884');
+  for(const patch of [
+    {SKYHUB_PILOT_MQTT_URL:'mqtt://192.168.178.63:1883'},
+    {SKYHUB_MQTT_REQUIRED_PORT:'1883'},
+    {SKYHUB_MQTT_BROKER_KIND:'mosquitto'},
+    {SKYHUB_PILOT_MQTT_URL:'mqtt://host.docker.internal:1884'},
+    {SKYHUB_PILOT_MQTT_URL:'mqtt://127.0.0.1:1884'}
+  ]){
+    const result=pilotConfiguration({...dedicated,...patch});
+    assert.equal(result.ready,false,JSON.stringify(patch));
+    assert.throws(()=>result.bootstrap(),/not configured/);
+  }
+});

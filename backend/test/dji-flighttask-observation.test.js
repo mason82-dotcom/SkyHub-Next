@@ -11,7 +11,6 @@ const ids={gatewaySn:'GATEWAY_SYNTHETIC',tid:'11111111-2222-4333-8444-5555555555
   bid:'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',flightId:'MISSION_SYNTHETIC',
   method:'flighttask_execute',sentAt:now-10000};
 const topic='thing/product/GATEWAY_SYNTHETIC/events';
-const clean=x=>JSON.parse(JSON.stringify(x));
 function start(){return beginFlighttaskObservation(ids);}
 function reply(changes={}){
   return {...ids,gatewaySn:ids.gatewaySn,method:ids.method,

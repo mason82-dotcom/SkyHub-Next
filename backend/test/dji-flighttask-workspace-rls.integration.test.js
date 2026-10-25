@@ -136,21 +136,27 @@ test('real PostgreSQL: enforced RLS, forced role, local scope and policy-bound r
 
     // Strict policy, trusted server clock, dry-run default, explicit hold.
     const calls=[];
-    const retention=(client,held)=>createPolicyBoundFlighttaskRetention(client,{
+    // The policy gets the transaction factory itself (never a pool/client); the
+    // wrapper only adds the test schema search_path before the DELETE runs.
+    const scoped={run:(args,fn)=>tx.run(args,async c=>{
+      await c.query('SET LOCAL search_path TO '+q(schema)+',public');
+      return fn(c);
+    })};
+    const retention=held=>createPolicyBoundFlighttaskRetention(scoped,{
       authorize,clock:()=>now,
       resolvePolicy:async (p,ws)=>{
         calls.push(ws);
         return {enabled:true,legalHold:held,retentionDays:30,maxBatch:10};
       }
     });
-    const dryRun=await withScope(A,actors.A,'prune',c=>
-      retention(c,false).run({workspaceId:A,principal:actors.A}));
+    // A raw pool is refused outright instead of silently matching no rows.
+    assert.throws(()=>createPolicyBoundFlighttaskRetention(pool,{
+      authorize,resolvePolicy:async()=>({})}),/trusted dependencies/);
+    const dryRun=await retention(false).run({workspaceId:A,principal:actors.A});
     assert.equal(dryRun.executed,false);
-    const blocked=withScope(B,actors.B,'prune',c=>
-      retention(c,true).run({workspaceId:B,principal:actors.B,execute:true}));
-    await assert.rejects(blocked,/transaction unavailable/);
-    const deleted=await withScope(A,actors.A,'prune',c=>
-      retention(c,false).run({workspaceId:A,principal:actors.A,execute:true}));
+    await assert.rejects(retention(true).run({workspaceId:B,principal:actors.B,execute:true}),
+      /not enabled/);
+    const deleted=await retention(false).run({workspaceId:A,principal:actors.A,execute:true});
     assert.equal(deleted.deletedCount,1);
     assert.equal(deleted.executed,true);
     const stateA=await withScope(A,actors.A,'summary',async c=>{

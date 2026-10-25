@@ -3,7 +3,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
-const {normalizeCatalog,format,mount,allowsBearerOrigin}=require('../public/smart-farming-ui');
+const {normalizeCatalog,format,allowsBearerOrigin}=require('../public/smart-farming-ui');
 const id='m3m-exp-'+('a'.repeat(24));
 const base=()=>({
   schema:'skyhub-m3m-smart-farming-catalog-api-v1',
