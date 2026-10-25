@@ -59,7 +59,25 @@ restore() { cat "$1" > "$CADDYFILE"; }
 
 code() { curl -sk -o /dev/null -m 6 -w '%{http_code}' "$@" || true; }
 
+# Das Java-Backend braucht nach einem Neustart rund 20 s: bis dahin liefert der nginx-Proxy 502/504. Die Pruefung
+# wartet daher (hoechstens WAIT_SECONDS) auf eine Antwort des Backends ueber den Web-Port, ohne etwas zu aendern.
+WAIT_SECONDS="${WAIT_SECONDS:-90}"
+wait_for_backend() {
+  local waited=0 c
+  while :; do
+    c="$(code "http://${UPSTREAM}/manage/api/v1/login")"
+    case "$c" in 200|401|403|405) return 0 ;; esac
+    if [ "$waited" -ge "$WAIT_SECONDS" ]; then
+      echo "Hinweis: Backend antwortet nach ${WAIT_SECONDS} s noch nicht (zuletzt HTTP ${c}); die Pruefung kann 502 melden."
+      return 1
+    fi
+    [ "$waited" -eq 0 ] && echo "Warte auf das Backend ueber ${UPSTREAM} (bis ${WAIT_SECONDS} s) ..."
+    sleep 3; waited=$((waited + 3))
+  done
+}
+
 check() {
+  wait_for_backend || true
   echo "Web ueber HTTPS aus dem LAN (${PI_IP}:${PORT}):                 HTTP $(code "https://${PI_IP}:${PORT}/") (erwartet 200)"
   echo "API ueber denselben Ursprung (Anmelde-Endpunkt):               HTTP $(code "https://${PI_IP}:${PORT}/manage/api/v1/login") (200/401/405: Backend antwortet; 404 = nginx-Proxy fehlt)"
   echo "WebSocket-Pfad (Upgrade-Anfrage ohne Token):                   HTTP $(code -H 'Connection: Upgrade' -H 'Upgrade: websocket' -H 'Sec-WebSocket-Version: 13' -H 'Sec-WebSocket-Key: c2t5aHViY2hlY2s=' "https://${PI_IP}:${PORT}/api/v1/ws") (101/400/401/403: Backend antwortet; 404 = Proxy fehlt)"

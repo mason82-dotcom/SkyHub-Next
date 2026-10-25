@@ -119,6 +119,9 @@ class CloudApiDemoHttpsTest(unittest.TestCase):
         self.assertIn("before-cloud-api-demo", text)  # backup name used by apply and rollback
         self.assertIn("restore \"$backup\"", text)
         self.assertIn('[ "$(id -u)" -eq 0 ]', text)
+        # check waits (bounded) for the slow-starting Java backend instead of reporting a transient 502.
+        self.assertIn("wait_for_backend", text)
+        self.assertRegex(text, r'WAIT_SECONDS="\$\{WAIT_SECONDS:-\d+\}"')
 
 
 if __name__ == "__main__":
