@@ -2,6 +2,8 @@
 
 **Stand:** 24.10.2026 · **Repository:** mason82-dotcom/SkyHub-Next · **Reviewbasis:** main bei bb73341d04c8c8fc044c1a46caf944e0acdf773f · **Status:** Planung, keine Betriebsfreigabe.
 
+> **Nachtrag 25.10.2026:** Der Entwurfs-PR #104 ist geschlossen und durch den gemergten PR #100 ersetzt; die Zeilen dieses Dokuments, die „offenen Draft-PR #104“ nennen, beschreiben den Stand vom 24.10. Vor jeder Planung zuerst den aktuellen `main` und das [PR-Triage-Dokument](pr-triage-2026-10-24.md) prüfen. Die Reviewbasis `bb73341` ist überholt.
+
 ## 1. Ziel und maßgebliche Architekturentscheidung
 
 SkyHub Smart Farming wird als eigenständiger, wissenschaftlich überprüfbarer Analysebereich für DJI Mavic 3 Multispectral (M3M) entwickelt. Primäre Datenbasis sind unveränderte Originaldateien, kalibrierungsrelevante Metadaten und numerische, nachvollziehbare Rasterprodukte. Kolorierte NDVI-/NDRE-Karten sind **abgeleitete Ansichten**, keine ersatzfähige Messdatenquelle. DJI SmartFarm dient als Funktions- und Agras-Workflow-Referenz; DJI Terra und OpenDroneMap/QGIS als technische Referenzen für Rasterprodukte. Der SmartFarm-Export numerischer Einzelbänder oder Indexraster bleibt **ungeklärt**, bis eine authentifizierte Version mit Testdatensatz geprüft ist.

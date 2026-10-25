@@ -18,7 +18,7 @@
 ## Smart Farming – neue Fach-Roadmap (24.10.2026)
 
 - [Smart-Farming-Roadmap 2.1: quantitative M3M-Messdaten, wissenschaftliche QA, GIS, Agronomie und Release-Gates](smart-farming-roadmap-2026-10-24.md) – **Planung, keine Produktivfreigabe**.
-- [Experimentelle M3M-Konsolidierung PR #104](https://github.com/mason82-dotcom/SkyHub-Next/pull/104) – **Draft; CI und reale Kalibrierungsabnahme offen**.
+- [Experimentelle M3M-Konsolidierung PR #104](https://github.com/mason82-dotcom/SkyHub-Next/pull/104) – **geschlossen, ersetzt durch den gemergten PR #100; reale Kalibrierungsabnahme offen**.
 
 ## Technische Referenz des Hauptbranches
 
