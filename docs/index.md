@@ -75,7 +75,7 @@
 
 ## Aktueller PR-Abhängigkeitsgraph
 
-- [Register und Triage 25.10.2026 (abends) – 34 Drafts, Gruppen nach Konflikt und Inhalt, Ketten, Freigabegates und Bearbeitungsreihenfolge](pr-dependency-register-2026-10-25.md). Die Zahlen sind eine Momentaufnahme; die Live-Liste steht auf GitHub.
+- [Register und Triage 25.10.2026 (nach den Schließungen) – 22 Drafts, Gruppen nach Konflikt und Inhalt, Ketten, Freigabegates und Bearbeitungsreihenfolge](pr-dependency-register-2026-10-25.md). Die Zahlen sind eine Momentaufnahme; die Live-Liste steht auf GitHub.
 
 ## Feature-PRs lesen und bewerten
 
