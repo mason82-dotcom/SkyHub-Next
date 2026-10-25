@@ -68,6 +68,10 @@
 - Die Pi-Port-/Broker- und Hardwarediagnosen in den betroffenen Runbooks nennen ausdrücklich ihr Aufnahmedatum.
 - [Archivierter Legacy-Snapshot](../stacks/README.md) dient dem Vergleich und darf **nicht** parallel zur laufenden Installation gestartet werden.
 
+## Aktueller PR-Abhängigkeitsgraph
+
+- [Abhängigkeitsregister 25.10.2026 – 37 Drafts, Main-Kandidaten, Smart-Farming-/Thermal-/Medienketten und Freigabegates](pr-dependency-register-2026-10-25.md). Die Zahlen sind eine neue GitHub-Momentaufnahme; der Original-[PR-Triagebericht](pr-triage-2026-10-24.md) bleibt historisch.
+
 ## Feature-PRs lesen und bewerten
 
 Der [Projektstand](projektstand-2026-10-23.md) verlinkt die Entwicklungsketten für WPML, Command Center, MinIO und Pilot-2-Medien, Multispektral-Auswertung, YOLO11, Thermal-Geolokalisierung und HiveMind. Viele PRs nutzen **andere PR-Branches als Base**. Deshalb befinden sich die zugehörigen Dateien noch nicht im Main-Dateibaum; deren Fach-/Lizenzdokumentation kann in der GitHub-Oberfläche im jeweiligen PR-Branch eingesehen werden.
