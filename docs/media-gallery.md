@@ -17,6 +17,12 @@ Die verifizierte Bibliothek ist seit 25.10.2026 auf dem Pi mit migrations 003–
 
 Die bestehende `SKYHUB_MEDIA_ENABLED`-S3-API bleibt unverändert. Der S3-Modus zeigt ausschließlich Metadaten; Objektschlüssel können private Dateinamen/Pfade enthalten und sollten nicht in öffentliche Screenshots kopiert werden.
 
+## Galerie-Navigation (lokale Seitenfilter)
+
+Beide Bereiche bieten eine **Sofortsuche nach Namen**, Auswahl nach **Dateiendung** (JPEG/PNG/WebP, TIFF, MP4/MOV, Sonstige) sowie Sortierung nach Name und Objektgröße. Die Kategorie ist eine **unverifizierte Dateinamen-Endung, kein per MIME-Sniffing validierter Medientyp**. Weder die Suche noch das Sortieren lösen S3- oder Pilot-2-HTTP-Abfragen aus; beides wirkt ausschließlich auf die **aktuell geladene Seite** (verifizierte Bibliothek maximal 20 Einträge, S3 maximal 50 Einträge). Nicht geladene Seiten werden explizit nicht als durchsucht dargestellt. Neue Seiten werden weiterhin erst durch eine eigene Benutzeraktion angefordert.
+
+Die zwei getrennten Quellen bleiben strikt getrennt. Keine Bilder, Videos, Rohpixel, Bucket-Objektpfade für die verifizierte Bibliothek oder vorzeitig als überprüft behauptete Medien werden aus der reinen Dateiendung erzeugt. Es gibt weiterhin **keinen Download oder Thumbnail-Endpunkt**. Die Filter-Eingaben bleiben allein im Browser-Dokument; sie werden weder als URL-Parameter an die API gesendet noch in Browser-Storage gespeichert.
+
 ## Sicherheitsarchitektur
 
 - Alle Lesevorgänge erfolgen per `GET` und `cache:'no-store'`; die UI stellt keine Kamera-, Flug-, Upload- oder Schreibfunktionen bereit.
@@ -32,6 +38,7 @@ Die bestehende `SKYHUB_MEDIA_ENABLED`-S3-API bleibt unverändert. Der S3-Modus z
 ```bash
 cd ~/Projekte/SkyHub-Next
 node --test backend/test/media-gallery-ui.test.js
+node --check frontend/public/media-gallery-controls.js
 node --check frontend/public/media-gallery-verified.js
 node --check frontend/public/media-gallery-s3.js
 ```

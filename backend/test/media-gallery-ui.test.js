@@ -8,6 +8,7 @@ const ROOT=path.resolve(__dirname,'../../frontend/public');
 const file=name=>fs.readFileSync(path.join(ROOT,name),'utf8');
 const V=require('../../frontend/public/media-gallery-verified-model');
 const S=require('../../frontend/public/media-gallery-s3-model');
+const F=require('../../frontend/public/media-gallery-controls');
 const WORKSPACE='e3dea0f5-37f2-4d79-ae58-490af3228069';
 const ASSET='33670000-0000-4000-8000-000000000001';
 function asset(status='head-at-ingestion'){
@@ -105,6 +106,53 @@ test('standalone gallery requires both authorizations, uses GET only and no cred
     assert.match(source,/cache:'no-store'/);
     assert.doesNotMatch(source,/localStorage|sessionStorage|innerHTML|eval\s*\(|method:'POST'|method:'DELETE'/);
   }
+  assert.doesNotMatch(html,/<img\b|type="file"|<iframe\b/i);
+});
+
+test('page-only media name search, filename extensions and stable sorting',()=>{
+  const items=[
+    {name:'sessions/DCIM/A.TIF',bytes:400},
+    {name:'video/b.MP4',bytes:500},
+    {name:'photos/c.JpG',bytes:100},
+    {name:'photos/other.bin',bytes:300},
+    {name:'photos/x.jpeg',bytes:150}
+  ];
+  assert.equal(F.kind('Folder/IMG_0001.TIFF'),'tiff');
+  assert.equal(F.kind('IMG_0002.MOV'),'video');
+  assert.equal(F.kind('IMG_0003.webp'),'image');
+  assert.equal(F.kind('something.jpeg.exe'),'other');
+  assert.equal(F.kind('a.folder/noextension'),'other');
+  assert.deepEqual(F.view(items,{query:'PHOTO',type:'image',sort:'name'})
+    .items.map(item=>item.name),['photos/c.JpG','photos/x.jpeg']);
+  assert.deepEqual(F.view(items,{type:'all',sort:'size-desc'})
+    .items.map(item=>item.bytes),[500,400,300,150,100]);
+  assert.deepEqual(F.view(items,{sort:'recent'}).items,items);
+  assert.equal(F.view(items,{query:'xyz'}).shown,0);
+  assert.equal(F.view(items).total,5);
+  for(const bad of [{type:'all?client=evil'},{sort:'download'}, {query:'x'.repeat(129)}]){
+    assert.throws(()=>F.view(items,bad));
+  }
+  assert.throws(()=>F.view(new Array(101).fill(items[0])));
+  assert.throws(()=>F.view([{name:'image.jpg',bytes:-1}]));
+});
+
+test('both panels filter loaded pages only; no unverified preview or server search',()=>{
+  const html=file('media-gallery.html'),controls=file('media-gallery-controls.js');
+  const verified=file('media-gallery-verified.js'),raw=file('media-gallery-s3.js');
+  for(const prefix of ['verified','storage']){
+    for(const suffix of ['search','type','sort','filter-count'])
+      assert.match(html,new RegExp('id="'+prefix+'-'+suffix+'"'));
+  }
+  assert.match(html,/media-gallery-controls\.js/);
+  assert.match(html,/Dateityp nur aus Namensendung|Namensendung \(unverifiziert\)/);
+  new vm.Script(controls);
+  for(const source of [verified,raw]){
+    assert.match(source,/F\.view\(currentPage/);
+    assert.match(source,/addEventListener\('input',render/);
+    assert.match(source,/addEventListener\('change',render/);
+    assert.doesNotMatch(source,/innerHTML|URL\.createObjectURL|new Image\(/);
+  }
+  assert.doesNotMatch(controls,/fetch\s*\(|XMLHttpRequest|localStorage|sessionStorage|innerHTML/);
   assert.doesNotMatch(html,/<img\b|type="file"|<iframe\b/i);
 });
 

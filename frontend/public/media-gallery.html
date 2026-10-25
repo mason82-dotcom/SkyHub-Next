@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="/media-gallery.css">
 <script defer src="/media-gallery-verified-model.js"></script>
 <script defer src="/media-gallery-s3-model.js"></script>
+<script defer src="/media-gallery-controls.js"></script>
 <script defer src="/media-gallery-verified.js"></script>
 <script defer src="/media-gallery-s3.js"></script>
 </head>
@@ -36,7 +37,7 @@
   <nav class="jump-nav" aria-label="Galerieansichten">
     <a href="#verified-library">01 · Verifizierte Medien</a>
     <a href="#storage-inspector">02 · MinIO-Objekte</a>
-    <span>Keine Bildvorschau ohne sicheren Medien-Auslieferungspfad</span>
+    <span>Suche und Filter wirken nur auf die aktuell geladene Seite; keine Bildvorschau ohne sicheren Auslieferungspfad</span>
   </nav>
   <section id="verified-library" class="panel" aria-labelledby="verified-title">
     <div class="panel-heading"><div><p class="eyebrow">PILOT 2 / WORKSPACE-KATALOG</p>
@@ -52,6 +53,12 @@
       <button type="button" class="secondary" id="verified-clear">Zugang leeren</button>
     </div>
     <p id="verified-message" class="message" role="status" aria-live="polite">Kein Workspace angemeldet. Zugangsdaten bleiben nur im Speicher dieser geöffneten Seite; Anmeldung über HTTPS.</p>
+    <div class="browse-controls" aria-label="Aktuelle Medien-Registrierungsseite durchsuchen">
+      <label>Auf dieser Seite suchen <input id="verified-search" type="search" maxlength="128" placeholder="Dateiname, nur geladene Seite" autocomplete="off"></label>
+      <label>Namensendung (unverifiziert) <select id="verified-type"><option value="all">Alle</option><option value="image">JPEG / PNG / WebP</option><option value="tiff">TIFF</option><option value="video">MP4 / MOV</option><option value="other">Andere</option></select></label>
+      <label>Sortierung <select id="verified-sort"><option value="recent">Server-Reihenfolge</option><option value="name">Dateiname A–Z</option><option value="size-desc">Größe absteigend</option><option value="size-asc">Größe aufsteigend</option></select></label>
+      <span id="verified-filter-count" class="filter-count" aria-live="polite">Noch keine Seite geladen</span>
+    </div>
     <div class="result-layout">
       <ul id="verified-list" class="card-grid" aria-label="Verifizierte DJI-Pilot-2-Medien"></ul>
       <aside id="verified-detail" class="detail" aria-label="Aktuelle S3-HEAD-Prüfung">Wähle nach dem Laden einen Medieneintrag aus. Vorschauen und Downloads sind in diesem Sicherheitsstand nicht freigegeben.</aside>
@@ -76,6 +83,12 @@
       <button id="storage-clear" class="secondary" type="button">Zugang leeren</button>
     </div>
     <p id="storage-message" class="message" role="status" aria-live="polite">Medienzugriff erfordert einen gültigen View-Token; der tokenfreie LAN-Gerätezugriff reicht nicht.</p>
+    <div class="browse-controls" aria-label="Aktuelle MinIO-Objektseite durchsuchen">
+      <label>Auf dieser Seite suchen <input id="storage-search" type="search" maxlength="128" placeholder="Objektname, nur geladene Seite" autocomplete="off"></label>
+      <label>Namensendung (unverifiziert) <select id="storage-type"><option value="all">Alle</option><option value="image">JPEG / PNG / WebP</option><option value="tiff">TIFF</option><option value="video">MP4 / MOV</option><option value="other">Andere</option></select></label>
+      <label>Sortierung <select id="storage-sort"><option value="recent">S3-Reihenfolge</option><option value="name">Objektname A–Z</option><option value="size-desc">Größe absteigend</option><option value="size-asc">Größe aufsteigend</option></select></label>
+      <span id="storage-filter-count" class="filter-count" aria-live="polite">Noch keine Seite geladen</span>
+    </div>
     <ul id="storage-objects" class="card-grid storage-grid" aria-label="MinIO-Objekte"></ul>
     <div class="footer-actions"><span id="storage-page">Noch keine Objekte geladen</span>
       <button type="button" id="storage-next" disabled hidden>Nächste Seite</button></div>
