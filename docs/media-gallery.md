@@ -33,6 +33,14 @@ Die zwei getrennten Quellen bleiben strikt getrennt. Keine Bilder, Videos, Rohpi
 - M3M-Dateinamenhinweise sind nie Bestätigungen von CaptureUUID, Bandregistrierung, Reflektanz, NDVI oder NDRE.
 - Seitenweises Laden nur nach Benutzeraktion; pro Anmeldesitzung maximal 20 Seiten, maximal 20 verifizierte oder 50 S3-Objekte pro Seite. Keine rekursiven Bucket-Vollscans.
 
+## Raspberry-Pi-Image-Build: Dateirechte (25.10.2026)
+
+Beim isolierten Pi-Kandidaten `skyhub-next-backend:maps-media-candidate` lagen `/app/backend/map-page-referrer.js` und die neuen Medien-Skripte zwar im Image, aber `node --check` als der vorgesehene Docker-Benutzer `node` endete mit **EACCES**. Der vorangestellte `test -f` prüft nur Existenz und war daher kein ausreichender Nachweis. Der Betreiber hat das Image nicht als laufenden Backend-Container bestätigt; die HTTP-Seiten im alten Container lieferten für die WPML-Karten weiter `Referrer-Policy: no-referrer` und für die Galerie `404`.
+
+Das Backend-Dockerfile normalisiert daher die **Lese-/Traverse-Rechte** der kopierten Quellen nach sämtlichen `COPY`-Schritten und vor `USER node`, ohne Dateien schreibbar zu machen. Die CI simuliert restriktive `0600`-Modi von Pi-Quelldateien **vor** dem Build und führt `node --check` mit dem nichtprivilegierten Benutzer **im gebauten Image ohne Netzwerk** aus.
+
+Vor einer produktiven Umschaltung ausschließlich das separate Kandidaten-Image neu bauen und dessen Readability-Check unter `--network none` erneut ausführen. **Weder `git pull` noch Docker-Build allein sind ein Deployment.** Der Backend-Tausch unterbricht aktive DJI-/MQTT-Sitzungen und ist unabhängig vom CI-Erfolg nur in einem explizit abgestimmten Wartungsfenster vorgesehen. Ein Image mit `EACCES` niemals produktiv aktivieren. Für die Galerie ist keine Datei `media-gallery.js` vorgesehen: Die Seite lädt bewusst `media-gallery-verified.js` und `media-gallery-s3.js` samt Modellen.
+
 ## Lokale Offline-Prüfung und Rollout-Grenzen
 
 ```bash
