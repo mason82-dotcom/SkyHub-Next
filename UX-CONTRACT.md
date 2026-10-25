@@ -2,7 +2,7 @@
 
 ## Quellen und Geltung
 
-- Produkt- und Zugriffsgrenzen: [README](README.md#sicherheitsmodell), `backend/lan-access.js` und `backend/server.js`.
+- Produkt- und Zugriffsgrenzen: [Sicherheitsmodell](docs/security.md), `backend/lan-access.js` und `backend/server.js`.
 - DJI-Fachreferenz und geplante Adapter: [DJI-Referenz-Roadmap](docs/dji-reference-roadmap.md).
 - Gilt für das ausgelieferte statische Dashboard `frontend/public/index.html`; die Pilot-2-Webview hat einen getrennten Kopplungsfluss.
 

@@ -299,3 +299,158 @@ test('typed M3M fields without accepted times or value are not reported as valid
   assert.equal(report.m3mExtensions.fields.find(x=>x.path==='rc_lost_action').status,
     'NICHT BEOBACHTET');
 });
+
+test('M3M gap audit reports each missing path exactly once and no hardware settings',()=>{
+  const report=evaluateHardwareSession([rc,air],health,shapes,now);
+  const p=report.aircraft.propertyFields;
+  assert.ok(p.m3mGapGroups);
+  assert.equal(p.m3mGapGroups.classified,p.missing);
+  assert.equal(Object.values(p.m3mGapGroups.groups).reduce((n,g)=>n+g.count,0),p.missing);
+  assert.ok(p.m3mGapGroups.groups.thermalCamera.count>0);
+  assert.ok(p.m3mGapGroups.groups.zoomCamera.count>0);
+  const printed=formatReport(report);
+  assert.match(printed,/M3M-Feldluecken nach Kamerafunktion/);
+  assert.match(printed,/KEINE thermische Waermebildmessung/);
+  assert.doesNotMatch(printed,/PRIVATE_AIR_SERIAL|PRIVATE_RC_SERIAL|49\\.123456|8\\.123456/);
+});
+
+test('missing M3M on an older backend is not invented as camera capability data',()=>{
+  const oldAir={...air,propertyProfile:undefined,deviceProperties:undefined,
+    propertyObservedAt:undefined,propertyFieldObservedAt:undefined};
+  const report=evaluateHardwareSession([rc,oldAir],health,shapes,now);
+  assert.equal(report.aircraft.propertyFields.m3mGapGroups,null);
+  assert.match(formatReport(report),/M3M-Feldluecken-Klassifikation: NICHT PRUEFBAR/);
+});
+
+
+test('State channel diagnostics distinguish zero deliveries from rejected and accepted messages',()=>{
+  const cases=[
+    {observed:0,accepted:0,status:'KEIN STATE-TOPIC BEOBACHTET'},
+    {observed:7,accepted:0,status:'STATE-TOPIC BEOBACHTET, NICHT ANGENOMMEN'},
+    {observed:9,accepted:2,status:'STATE ANGENOMMEN, NICHT RC/M3M ZUGEORDNET'}
+  ];
+  for(const c of cases){
+    const h={...health,
+      mqttObservedChannelCounts:{...health.mqttObservedChannelCounts,state:c.observed},
+      mqttChannelCounts:{state:c.accepted}};
+    const r=evaluateHardwareSession([rc,air],h,shapes,now,[]);
+    assert.equal(r.stateEvidence.observed,c.observed);
+    assert.equal(r.stateEvidence.accepted,c.accepted);
+    assert.equal(r.stateEvidence.status,c.status);
+    assert.equal(r.stateEvidence.modelRc,0);
+    assert.equal(r.stateEvidence.modelM3m,0);
+    assert.match(formatReport(r),/State auf MQTT-Topic beobachtet/);
+    assert.doesNotMatch(formatReport(r),/PRIVATE_AIR_SERIAL|PRIVATE_RC_SERIAL/);
+  }
+});
+
+test('State model evidence shows accepted packets separately from typed property acceptance',()=>{
+  const h={...health,mqttChannelCounts:{state:4}};
+  const modelShapes=[
+    {channel:'state',model:'2:144:0',count:1,dataKeys:['live_capacity','PRIVATE_RC_SERIAL']},
+    {channel:'state',model:'0:77:2',count:2,dataKeys:['firmware_version','PRIVATE_AIR_SERIAL']},
+    {channel:'state',model:'unknown',count:999,dataKeys:['SECRET_TOKEN']}
+  ];
+  const noTypedAir={...air,propertyObservedAt:{...air.propertyObservedAt,state:null}};
+  const r=evaluateHardwareSession([rc,noTypedAir],h,shapes,now,modelShapes);
+  assert.equal(r.stateEvidence.status,'STATE MODELLBEZOGEN BEOBACHTET');
+  assert.equal(r.stateEvidence.modelRc,1);
+  assert.equal(r.stateEvidence.modelM3m,2);
+  assert.equal(r.stateEvidence.rcTypedPropertiesObserved,true);
+  assert.equal(r.stateEvidence.m3mTypedPropertiesObserved,false);
+  assert.match(formatReport(r),/Geraeteseitige typisierte State-Feldannahme: RC ja \| M3M nein/);
+  assert.doesNotMatch(JSON.stringify(r),/PRIVATE|SECRET_TOKEN|unknown/);
+});
+
+test('State channel diagnostics remain non-speculative with older backend or incomplete health',()=>{
+  const h={...health,mqttChannelCounts:{state:3}};
+  const report=evaluateHardwareSession([rc,air],h,shapes,now);
+  assert.equal(report.stateEvidence.modelScopedAvailable,false);
+  assert.equal(report.stateEvidence.modelRc,null);
+  assert.equal(report.stateEvidence.status,'STATE ANGENOMMEN, MODELLZUORDNUNG UNBEKANNT');
+  const unavailable=evaluateHardwareSession([rc,air],{},[],now);
+  assert.equal(unavailable.stateEvidence.status,'NICHT PRUEFBAR');
+  assert.match(formatReport(unavailable),/State-Status: NICHT PRUEFBAR/);
+});
+
+
+test('realistic state-only rejected delta is attributed only with a complete balanced breakdown',()=>{
+  const h={...health,
+    mqttObservedChannelCounts:{osd:2052,state:18,status:2,events:1026,services_reply:0},
+    mqttChannelCounts:{osd:2052,state:13,status:2,events:1026,services_reply:0},
+    mqttRejectedMessages:5,
+    mqttDroppedByReason:{duplicate:3,stale:2}
+  };
+  const report=evaluateHardwareSession([rc,air],h,shapes,now,[]);
+  assert.deepEqual(report.stateDrops,{
+    available:true,attributed:true,stateNotAccepted:5,totalUnaccepted:5,
+    reasons:[{reason:'duplicate',count:3},{reason:'stale',count:2}]
+  });
+  assert.match(formatReport(report),/State-Pakete nicht angenommen \(Differenz\): 5/);
+  assert.match(formatReport(report),/Ablehnungsgruende dem State-Kanal zurechenbar: JA/);
+  assert.doesNotMatch(JSON.stringify(report),/PRIVATE_RC_SERIAL|PRIVATE_AIR_SERIAL|SECRET/);
+});
+
+test('rejection breakdown is not assigned to State when other channels also had drops',()=>{
+  const h={...health,
+    mqttObservedChannelCounts:{osd:20,state:18,status:2,events:10,services_reply:0},
+    mqttChannelCounts:{osd:19,state:13,status:2,events:10,services_reply:0},
+    mqttRejectedMessages:6,
+    mqttDroppedByReason:{duplicate:3,stale:3}
+  };
+  const report=evaluateHardwareSession([rc,air],h,shapes,now,[]);
+  assert.equal(report.stateDrops.available,true);
+  assert.equal(report.stateDrops.stateNotAccepted,5);
+  assert.equal(report.stateDrops.totalUnaccepted,6);
+  assert.equal(report.stateDrops.attributed,false);
+  assert.match(formatReport(report),/Ablehnungsgruende dem State-Kanal zurechenbar: NEIN/);
+});
+
+test('malformed or unavailable rejected metadata never leaks extra reason names',()=>{
+  const h={...health,
+    mqttObservedChannelCounts:{osd:20,state:8,status:0,events:0,services_reply:0},
+    mqttChannelCounts:{osd:20,state:3,status:0,events:0,services_reply:0},
+    mqttRejectedMessages:5,
+    mqttDroppedByReason:{'SECRET_PAYLOAD_XYZ':5}
+  };
+  const r=evaluateHardwareSession([rc,air],h,shapes,now);
+  assert.equal(r.stateDrops.attributed,false);
+  assert.equal(r.stateDrops.reasons.length,0);
+  assert.doesNotMatch(JSON.stringify(r),/SECRET_PAYLOAD_XYZ/);
+  assert.equal(evaluateHardwareSession([rc,air],health,shapes,now).stateDrops.available,false);
+});
+
+
+test('RC and M3M expose documented State field coverage without values or serials',()=>{
+  const report=evaluateHardwareSession([rc,air],health,shapes,now);
+  const rcState=report.controller.stateFields;
+  const m3State=report.aircraft.stateFields;
+  assert.ok(rcState.documented>0);
+  assert.ok(m3State.documented>0);
+  assert.equal(rcState.observed,1);
+  assert.equal(m3State.observed,1);
+  assert.equal(rcState.fresh,1);
+  assert.equal(m3State.fresh,1);
+  assert.ok(rcState.observedNames.includes('state:firmware_version'));
+  assert.ok(m3State.observedNames.includes('state:firmware_version'));
+  for(const sf of [rcState,m3State]){
+    assert.equal(sf.documented,
+      sf.observed+sf.notObserved+sf.redacted+sf.unsupported);
+    assert.equal(sf.observed,sf.fresh+sf.stale);
+    assert.ok(sf.observedNames.every(s=>s.startsWith('state:')));
+    assert.ok(sf.missingRootNames.every(s=>
+      s.startsWith('state:')&&!s.slice(6).includes('.')));
+  }
+  const printed=formatReport(report);
+  assert.match(printed,/--- DJI State-Feldabdeckung je Geraet/);
+  assert.match(printed,/M3M beobachtete State-Feldnamen: state:firmware_version/);
+  assert.doesNotMatch(printed,/PRIVATE_RC_SERIAL|PRIVATE_AIR_SERIAL|9\.8\.7|1\.2\.3/);
+});
+
+test('missing State property diagnostics cannot be counted as absent DJI capabilities',()=>{
+  const older={...air,propertyProfile:undefined,deviceProperties:undefined,
+    propertyObservedAt:undefined,propertyFieldObservedAt:undefined};
+  const report=evaluateHardwareSession([rc,older],health,shapes,now);
+  assert.equal(report.aircraft.stateFields,null);
+  assert.match(formatReport(report),/M3M: NICHT PRUEFBAR/);
+});

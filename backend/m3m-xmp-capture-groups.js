@@ -132,8 +132,13 @@ function validateCaptureAggregate(report,expected){
   const sum=vals=>Object.values(vals).reduce((a,b)=>a+b,0);
   if(sum(report.status)!==expected||sum(report.bandHints)!==expected||
      report.withCaptureUuid+report.withoutCaptureUuid!==expected||
+     report.withCaptureUuid>report.status.ok||
      report.uniqueCaptureUuidGroups>report.withCaptureUuid||
      report.redNirCandidateGroups>report.uniqueCaptureUuidGroups||
+     report.redNirCandidateGroups>report.bandHints.R||
+     report.redNirCandidateGroups>report.bandHints.NIR||
+     report.fullFourBandHintGroups>report.bandHints.G||
+     report.fullFourBandHintGroups>report.bandHints.RE||
      report.fullFourBandHintGroups>report.redNirCandidateGroups||
      report.groupsWithDuplicateBands>report.uniqueCaptureUuidGroups||
      report.groupsWithUnresolvedBands>report.uniqueCaptureUuidGroups||
