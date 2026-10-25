@@ -110,8 +110,33 @@ jobs:
         run: |
           node -e 'const {execFileSync}=require("node:child_process"); const x=JSON.parse(execFileSync("docker",["compose","--env-file",".env.example","config","--format","json"],{encoding:"utf8"})); const e=x.services.backend.environment; if(e.SKYHUB_PILOT_ENABLED!=="false"||e.SKYHUB_PILOT_MQTT_URL!=="mqtt://192.168.178.63:1884"||e.SKYHUB_BIND_ADDRESS!=="127.0.0.1") process.exit(1);'
 
+      # Reproduce the restrictive file modes actually observed on the Pi.
+      # The image must remain runnable by USER node after Docker COPY.
+      - name: Reproduce restrictive Pi source modes before image build
+        run: |
+          chmod 600 backend/map-page-referrer.js \
+            frontend/public/media-gallery-verified.js \
+            frontend/public/media-gallery-s3.js
       - name: Build the SkyHub Next container
         run: docker build -f backend/Dockerfile -t skyhub-next:test .
+      - name: Verify copied maps and media are readable by the image's non-root user
+        run: |
+          docker run --rm --network none --entrypoint sh skyhub-next:test -ec '
+            test "$(id -u)" != "0"
+            cd /app/backend
+            node --check server.js
+            node --check map-page-referrer.js
+            for file in \
+              /app/frontend/public/media-gallery.html \
+              /app/frontend/public/media-gallery.css \
+              /app/frontend/public/media-gallery-verified.js \
+              /app/frontend/public/media-gallery-s3.js
+            do
+              test -r "$file"
+            done
+            node --check /app/frontend/public/media-gallery-verified.js
+            node --check /app/frontend/public/media-gallery-s3.js
+          '
       - name: Smoke-test bundled runtime modules in the image
         run: |
           docker run --rm --network none --entrypoint node skyhub-next:test \
