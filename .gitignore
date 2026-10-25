@@ -52,3 +52,8 @@ Thumbs.db
 # Transient local scratch/build outputs; never deployment state
 /tmp/
 /build/
+
+# DJI Cloud API Demo (lokaler Testweg): Geheimnisse, erzeugte Konfiguration und gepinnte Upstream-Klone
+/ops/cloud-api-demo/.env
+/ops/cloud-api-demo/runtime/
+/third_party/

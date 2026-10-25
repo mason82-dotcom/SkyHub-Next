@@ -6,39 +6,30 @@
 
 ## Wo liegt was
 
-Alles liegt **außerhalb dieses Repositories** unter `~/Projekte/Cloud-API-Demo-Local/` und ist nicht versioniert:
+Der Stack liegt **im Projektordner** unter `ops/cloud-api-demo/` (versioniert). Die MIT-lizenzierten Upstream-Quellen von DJI werden **nicht** eingecheckt, sondern per `sources.lock` auf feste Commits gepinnt und nach `third_party/dji-cloud-api-demo/` (per `.gitignore` ausgeschlossen) geklont.
 
 | Pfad | Inhalt |
 | --- | --- |
-| `DJI-Cloud-API-Demo/` | Backend-Quellen (`dji-sdk/DJI-Cloud-API-Demo`, Spring Boot 2.7, Java 11, Maven), unverändert |
-| `Cloud-API-Demo-Web/` | Frontend-Quellen (`dji-sdk/Cloud-API-Demo-Web`, Vue 3, Vite 2), unverändert |
-| `Cloud-API-Demo/` | Byte-identische Kopie des Frontends (gleicher Commit); kann gelöscht werden |
-| `stack/` | `docker-compose.yml`, zwei Dockerfiles, EMQX-Konfiguration, `pi-cloud-api-demo.sh`, `web-overlay/` (Karte), `.env` (nur für dich lesbar), `runtime/` (erzeugt) |
+| `ops/cloud-api-demo/docker-compose.yml`, `backend.Dockerfile`, `web.Dockerfile`, `emqx/emqx.conf` | Compose-Projekt `cloudapidemo` (eigenes Netz, eigene Volumes) |
+| `ops/cloud-api-demo/pi-cloud-api-demo.sh` | Verwaltung: `init`, `fetch-sources`, `preflight`, `build`, `apply`, `provision`, `status`, `logs`, `rollback` |
+| `ops/cloud-api-demo/web-overlay/` | Leaflet-Schicht und Koordinatenhilfe für die Karte |
+| `ops/cloud-api-demo/sources.lock` | Upstream-Repositories und feste Commits (`DJI-Cloud-API-Demo` `bef525c`, `Cloud-API-Demo-Web` `bfcf3ee`, beide Stand 10.04.2025) |
+| `ops/cloud-api-demo/.env`, `runtime/` | **Nur lokal**, nicht im Git: Zufallsgeheimnisse (600) und erzeugte Konfiguration (700) |
+| `third_party/dji-cloud-api-demo/` | Geklonte Quellen, nicht im Git, bei Abweichung vom Pin bricht `preflight` ab |
 
-Die Quellen werden im Build **nicht verändert**: Anpassungen entstehen nur im Build-Container oder als erzeugte Konfiguration unter `runtime/`.
-
-## Betrieb
-
-```bash
-cd ~/Projekte/Cloud-API-Demo-Local/stack
-bash pi-cloud-api-demo.sh init        # .env mit Zufallsgeheimnissen anlegen/ergänzen (überschreibt nichts)
-# DJI_APP_ID, DJI_APP_KEY, DJI_APP_LICENSE selbst in .env eintragen
-bash pi-cloud-api-demo.sh preflight   # Ports, Speicher, Quellen, Zugangsdaten (nur lesen)
-bash pi-cloud-api-demo.sh apply       # bauen, starten, EMQX-Benutzer anlegen, warten
-bash pi-cloud-api-demo.sh status | logs [dienst] | rollback [--purge]
-```
-
-`rollback` entfernt Container und Netz (Daten bleiben), `--purge` löscht zusätzlich Volumes, lokale Images und die erzeugte Konfiguration. Kein `sudo`, keine Änderung an SkyHub Next, Mosquitto, Caddy oder anderen Containern.
+Die Quellen werden im Build **nicht verändert**: Anpassungen entstehen nur im Build-Container oder als erzeugte Konfiguration unter `runtime/`. Das Skript verlangt unveränderte Arbeitsbäume.
 
 ## Dienste und Ports
 
 | Dienst | Image | Erreichbar | Speicherlimit |
 | --- | --- | --- | --- |
-| Web (nginx) | selbst gebaut | **LAN :8081** | 64 MB |
-| Backend | selbst gebaut | **LAN :6789** | 768 MB |
-| EMQX 5.3.0 | `emqx/emqx:5.3.0` | **LAN :18830** (MQTT), **:18084** (MQTT über WebSocket für DRC), Dashboard nur Loopback :18083 | 640 MB |
+| Web (nginx) | selbst gebaut | **LAN-Adresse :8081** | 64 MB |
+| Backend | selbst gebaut | **LAN-Adresse :6789** | 768 MB |
+| EMQX 5.3.0 | `emqx/emqx:5.3.0` | **LAN-Adresse :18830** (MQTT), **:18084** (MQTT über WebSocket für DRC), Dashboard nur Loopback :18083 | 640 MB |
 | MySQL 8.0 | `mysql:8.0` | nur Loopback :3307 | 512 MB |
 | Redis 7 | `redis:7-alpine` | nur Loopback :6380 | 96 MB |
+
+**Bindung:** Web, Backend und MQTT sind an `DEMO_BIND_ADDRESS` gebunden (Standard: die LAN-Adresse aus `LAN_IP`), **nicht** an `0.0.0.0`. Damit sind sie nicht über Tailscale oder andere Schnittstellen erreichbar. Der Port-Bereich ist gegen SkyHub Next getrennt (SkyHub: 4001, 4443, 1884). `preflight` bricht bei einer Wildcard-Adresse oder einer Adresse ab, die keiner Schnittstelle gehört. Die Backend-Konfiguration muss die LAN-Adresse behalten, weil das Backend sie den Clients als MQTT-Adresse zurückgibt.
 
 Gemessen im laufenden Betrieb: rund 600 MiB gesamt. **Nicht enthalten:** MinIO (Medien-Upload) und MediaMTX (Livestream); beides ist in dieser Phase aus.
 
@@ -60,7 +51,7 @@ Gemessen im laufenden Betrieb: rund 600 MiB gesamt. **Nicht enthalten:** MinIO (
 
 ## Karte: Leaflet statt AMap, komplett offline
 
-Die Demo benötigte einen AMap-Key (chinesische Plattform, Sicherheitsschlüssel seit 12/2021). Stattdessen ersetzt eine **Leaflet-Kompatibilitätsschicht** (`stack/web-overlay/leaflet-shim/`) per Vite-Alias den AMap-Loader und bildet nur die benutzte Teilmenge der AMap-API nach (Karte, Marker mit animiertem `moveTo`, Linie, Polygon, Kreis, Text, Zeichenwerkzeug). Koordinaten bleiben WGS-84 (die GCJ-02-Umrechnung der Demo ist die Identität).
+Die Demo benötigte einen AMap-Key (chinesische Plattform, Sicherheitsschlüssel seit 12/2021). Stattdessen ersetzt eine **Leaflet-Kompatibilitätsschicht** (`ops/cloud-api-demo/web-overlay/leaflet-shim/`) per Vite-Alias den AMap-Loader und bildet nur die benutzte Teilmenge der AMap-API nach (Karte, Marker mit animiertem `moveTo`, Linie, Polygon, Kreis, Text, Zeichenwerkzeug). Koordinaten bleiben WGS-84 (die GCJ-02-Umrechnung der Demo ist die Identität).
 
 Basiskarten aus `~/Projekte/SkyHub-Next-data/basemaps/` (PMTiles v3, schreibgeschützt in den Webserver gemountet, Auslieferung per HTTP-Range, nur `*.pmtiles`):
 
@@ -81,3 +72,34 @@ Startposition und Zoom: `MAP_CENTER`, `MAP_ZOOM` in `.env`. Fehlt `PMTILES_DIR`,
 **Nicht geprüft:** Kopplung der RC an `http://<Pi-IP>:8081/pilot-login`, ob die Demo die M3M erkennt (sie steht nicht namentlich in DJIs Produktliste; die in [DJI-Cloud-API-Kompatibilität](dji-cloud-api-compatibility.md) beschriebene `api.zip` enthält gepatchte Matrice-4-/RC-Plus-2-Gerätekennungen, was auf Lücken in den Gerätetabellen der Demo hindeutet), die Karte in der Pilot-2-Webview mit Touch, echte Gerätepositionen, Flugbereichs-Seiten, Livestream und Medien.
 
 **Wichtig:** Eine Fernsteuerung kann nur an **eine** Plattform gekoppelt sein. Solange sie an der Demo hängt, erhält SkyHub Next keine Telemetrie (und umgekehrt). Zurück zu SkyHub Next über dessen Pilot-Seite.
+
+## Prüfung vom 25.10.2026 (Code-Review des Stacks)
+
+Geprüft wurden Compose, beide Dockerfiles, EMQX-Konfiguration und ACL, das Verwaltungsskript, die erzeugte Konfiguration (ohne Geheimnisse), die Pins der Quellen und der laufende Zustand (nur lesend). In dieser Änderung behoben: Bindung an `0.0.0.0` statt an die LAN-Adresse, Quellen ohne Pin und außerhalb des Projekts, `RUNTIME`-Löschung ohne Pfadprüfung, unvollständige Schwärzung in `logs`, Statusabfragen über Loopback.
+
+**Offen, bewusst nicht geändert (Demo, nur LAN):**
+
+| Befund | Einordnung |
+| --- | --- |
+| Kein TLS: Anmeldung, JWT und MQTT-Zugangsdaten laufen im Klartext im LAN | Die RC akzeptiert die interne Caddy-CA (Chrome 95 lädt `https://rpi5.fritz.box`), eine HTTPS-Route für Web und REST wäre möglich. MQTT-TCP (18830) bleibt ohne Caddy-Layer-4-Modul Klartext. Eigene Entscheidung. |
+| Die DJI-App-ID, der Schlüssel und die Lizenz stehen im ausgelieferten Frontend-Bundle | Vom Demo-Design verlangt (JSBridge), für jeden im LAN lesbar. |
+| Backend nutzt den MySQL-`root`-Benutzer und sendet `Access-Control-Allow-Origin: *` | Upstream-Code (`CorsFilter`), im Build nicht geändert. |
+| EMQX-ACL: `pilot` darf `thing/product/#` und `sys/product/#` lesen und schreiben, also auch fremde Gerätethemen | Für eine einzelne RC unkritisch, bei mehreren Geräten einschränken (`thing/product/<SN>/#`). |
+| Eingestellte Software: Spring Boot 2.7, Java 11, Node 16 im Build; Basis-Images mit beweglichen Tags (`mysql:8.0`, `redis:7-alpine`, `nginx:1.27-alpine`, `node:16`, `maven:3.9`), npm-Lockfile über `npmmirror` | Prüfsummen sichern die Pakete. Keine Digest-Pins, bekannte Lücken in EOL-Komponenten möglich. Nur für den LAN-Test vertretbar. |
+| `restart: on-failure:3` | Nach einem Neustart des Pi startet die Demo nicht von selbst, das ist gewollt. |
+
+## Umzug vom alten Ort
+
+Der alte Stack unter `~/Projekte/Cloud-API-Demo-Local/stack/` läuft unverändert weiter, bis du umschaltest. Die Volumes (`cloudapidemo_mysql_data`, `cloudapidemo_emqx_data`) behalten ihre Daten, weil Projektname und Volume-Namen gleich bleiben:
+
+```bash
+cd ~/Projekte/SkyHub-Next && git pull --ff-only origin main
+mkdir -p third_party/dji-cloud-api-demo
+cp -p ~/Projekte/Cloud-API-Demo-Local/stack/.env ops/cloud-api-demo/.env        # Geheimnisse übernehmen (600)
+mv ~/Projekte/Cloud-API-Demo-Local/DJI-Cloud-API-Demo ~/Projekte/Cloud-API-Demo-Local/Cloud-API-Demo-Web third_party/dji-cloud-api-demo/
+cd ops/cloud-api-demo
+bash pi-cloud-api-demo.sh preflight        # nur lesen: Bindung, Quellen-Pin, Ports
+bash pi-cloud-api-demo.sh apply            # erzeugt die Konfiguration neu und startet die Container neu (kurze Unterbrechung)
+```
+
+Alte Pfade in der `.env` (`STACK_DIR`, `DEMO_*_DIR`) schaden nicht, das Skript setzt sie aus seinem Standort selbst. Danach kann `~/Projekte/Cloud-API-Demo-Local/` entfernt werden (die Kopie `Cloud-API-Demo/` ist doppelt). Zurück: `bash pi-cloud-api-demo.sh rollback` (Daten bleiben).
