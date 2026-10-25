@@ -15,7 +15,7 @@ input,button,select{padding:9px 11px;border:1px solid #40576d;border-radius:8px;
 button{background:#087d96;font-weight:700;cursor:pointer}button:hover{background:#099ab8}
 button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid #85e3fa;outline-offset:2px}
 button:disabled{cursor:not-allowed;opacity:.6}
-main{display:grid;grid-template-columns:minmax(0,1fr) 355px;height:calc(100vh - 66px)}
+main#skyhubMain{display:block;min-height:0}#operationsPanel{display:grid;grid-template-columns:minmax(0,1fr) 355px;height:calc(100vh - 118px)}
 #map{width:100%;height:100%;min-height:350px}
 .map-shell{position:relative;min-width:0;min-height:350px}
 .map-tools{position:absolute;z-index:500;top:12px;right:12px;display:grid;gap:7px;max-width:min(290px,calc(100% - 24px))}
@@ -79,19 +79,45 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;margin:14px 0 8p
 .events-list small{font-size:10px;white-space:nowrap}
 .events-note{margin:0;color:var(--muted);font-size:11px}
 .events-panel button{margin-top:8px;padding:4px 8px;font-size:11px;background:#203c50}
-@media(max-width:850px){header{height:auto;flex-direction:column;align-items:flex-start}main{grid-template-columns:1fr;height:auto}#map{height:clamp(300px,38vh,420px);min-height:300px}aside{border-left:0}.map-shell{min-height:300px}}
+@media(max-width:850px){header{height:auto;flex-direction:column;align-items:flex-start} #operationsPanel{grid-template-columns:1fr;height:auto}#map{height:clamp(300px,38vh,420px);min-height:300px}aside{border-left:0}.map-shell{min-height:300px}}
+/* Main tabs mirror the design reference; TAK remains a read-only, offline placeholder. */
+.workspace-tabs{display:flex;align-items:center;gap:8px;min-height:52px;padding:6px 18px;background:var(--bg);border-bottom:1px solid var(--edge)}
+.workspace-tab{min-height:40px;padding:8px 18px;border-radius:8px 8px 0 0;background:#17293a;color:#bdd2e5;border:1px solid var(--edge);font-size:14px}
+.workspace-tab[aria-selected="true"]{background:var(--panel);border-color:var(--blue);box-shadow:inset 0 -3px var(--blue);color:#e8f9ff}
+.workspace-tab[aria-selected="false"]{font-weight:500}
+#takPanel{min-height:calc(100vh - 118px);padding:24px 18px;background:var(--bg)}
+.tak-layout{width:100%;max-width:1170px;margin:0 auto;display:grid;gap:16px}
+.tak-heading{border:1px solid var(--edge);background:var(--panel);border-radius:10px;padding:20px}
+.tak-heading h2{font-size:22px;text-transform:none;letter-spacing:0;color:#edf6ff;margin:0 0 9px}
+.tak-heading p{color:var(--muted);margin:8px 0;line-height:1.55}
+.tak-status{display:inline-block;padding:6px 10px;border:1px solid #756342;border-radius:7px;color:#ffe1a6;background:#302a1d;font-weight:700;font-size:12px}
+.tak-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.tak-card{min-width:0;border:1px solid var(--edge);background:#14263a;border-radius:10px;padding:18px}
+.tak-card h3{margin:0 0 12px;font-size:15px}
+.tak-card dl{display:grid;grid-template-columns:minmax(110px,42%) 1fr;gap:10px;margin:0;font-size:13px}
+.tak-card dt{color:var(--muted)}.tak-card dd{margin:0;overflow-wrap:anywhere}
+.tak-note{border-left:3px solid var(--blue);padding:10px 14px;background:var(--panel);font-size:13px;line-height:1.55}
+@media(max-width:850px){.workspace-tabs{padding:6px 12px}.workspace-tab{min-height:44px;flex:1;padding:9px 10px}#takPanel{min-height:0;padding:14px 12px}.tak-cards{grid-template-columns:1fr}}
+@media(min-width:600px) and (max-width:1100px){.tak-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+ .module-nav{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.module-nav a{color:#a8ecfc;font-size:12px;text-decoration:underline;text-underline-offset:3px}.module-nav a[aria-current=page]{font-weight:700;color:white}
 </style>
 </head>
 <body>
 <header>
   <h1>SKY<span>HUB</span> NEXT <small>· read-only</small></h1>
+  <nav class="module-nav" aria-label="SkyHub-Module"><a href="/" aria-current="page">Live-Dashboard</a><a href="/smart-farming.html">Smart Farming <small>· Experimentell</small></a></nav>
   <div class="auth">
     <input id="token" type="password" placeholder="SkyHub Zugriffstoken" aria-label="Zugriffstoken" autocomplete="off">
     <button id="connect" type="button" disabled>Verbinden</button>
     <span id="message" role="status">Nicht verbunden</span>
   </div>
 </header>
-<main>
+<nav class="workspace-tabs" role="tablist" aria-label="SkyHub Hauptbereiche">
+  <button id="tabOperations" class="workspace-tab" type="button" role="tab" aria-controls="operationsPanel" aria-selected="true" tabindex="0">01 · Operations</button>
+  <button id="tabTak" class="workspace-tab" type="button" role="tab" aria-controls="takPanel" aria-selected="false" tabindex="-1">02 · TAK / CoT</button>
+</nav>
+<main id="skyhubMain">
+<div id="operationsPanel" role="tabpanel" aria-labelledby="tabOperations">
   <section class="map-shell" aria-label="Drohnenkarte">
     <div id="map" aria-label="Karte mit zuletzt gemeldeten Gerätepositionen"></div>
     <div class="map-tools">
@@ -143,10 +169,37 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;margin:14px 0 8p
     <p id="resultCount" class="result-count" role="status">0 Geräte</p>
     <div id="devices"><p class="muted">Mit Zugriffstoken verbinden.</p></div>
   </aside>
+</div>
+<section id="takPanel" role="tabpanel" aria-labelledby="tabTak" tabindex="0" hidden>
+  <div class="tak-layout">
+    <div class="tak-heading">
+      <h2>TAK / CoT · Interoperabilität</h2>
+      <span class="tak-status">TAK-Backend nicht integriert · Export AUS</span>
+      <p>TAK-/CloudTAK-Interoperabilität ist in separaten Entwicklungspaketen lokal untersucht. Diese Ansicht zeigt keine echten Freigaben, Gerätepositionen oder Übertragungen.</p>
+      <p>Es gibt hier bewusst keinen Export-Schalter und keine ausgehende Verbindung. Die vorhandene SkyHub-Gerätetelemetrie verbleibt im Tab Operations.</p>
+    </div>
+    <div class="tak-cards">
+      <article class="tak-card" aria-label="Exportstatus">
+        <h3>CoT-Export</h3>
+        <dl><dt>Status</dt><dd>Aus · nicht integriert</dd><dt>HTTPS-Ziel</dt><dd>Nicht konfiguriert</dd><dt>Letzte Übertragung</dt><dd>Kein bestätigter Export</dd></dl>
+      </article>
+      <article class="tak-card" aria-label="Berechtigungen">
+        <h3>Geräte und Workspace</h3>
+        <dl><dt>Workspace-Freigabe</dt><dd>Nicht verfügbar</dd><dt>Gerätefreigaben</dt><dd>Nicht verfügbar</dd><dt>Widerruf</dt><dd>Nur Entwurf</dd></dl>
+      </article>
+      <article class="tak-card" aria-label="TAK-Sicherheitsprüfung">
+        <h3>Sicherheit und Audit</h3>
+        <dl><dt>Signaturprüfung</dt><dd>Nicht angeschlossen</dd><dt>TAK-Audit</dt><dd>Nicht angeschlossen</dd><dt>Externer Audit-Anker</dt><dd>Nicht verifiziert</dd></dl>
+      </article>
+    </div>
+    <p class="tak-note">Vor einer Aktivierung erforderlich: geprüfte DJI-Gerätebindung, rollenbasierte Workspace-Freigabe, abgesicherter HTTPS-Transport, externe Audit-Sicherung und CloudTAK-Kompatibilitätstest. Keine DJI-Befehle oder automatischen Standortübertragungen aus dieser Ansicht.</p>
+  </div>
+</section>
 </main>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script src="/telemetry-freshness.js"></script>
+<script src="/workspace-tabs.js"></script>
 <script>
 (function(){
 'use strict';
@@ -175,6 +228,12 @@ const map=window.L?L.map('map').setView([51.1657,10.4515],6):null;
 // OSM's tile policy requires a Referer; the page itself stays on no-referrer.
 if(map)L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
   {attribution:'© OpenStreetMap',maxZoom:19,referrerPolicy:'strict-origin-when-cross-origin'}).addTo(map);
+window.SkyHubWorkspaceTabs.init({
+  document,
+  onOperationsShown:()=>{
+    if(map)requestAnimationFrame(()=>{if(!el('operationsPanel').hidden)map.invalidateSize({pan:false});});
+  }
+});
 const records=new Map(),markers=new Map(),tracks=new Map();
 let socket=null,centered=false,authToken=null,selectedSn=null,connectAttempt=0;
 let trackLoadId=0,trackController=null;
@@ -291,7 +350,7 @@ function update(){
     const state=document.createElement('span');state.className='state'+(fresh(d)&&d.aircraftConnected!==false?'':' stale');
     state.textContent=d.aircraftConnected===false?'● Fluggerät nicht verbunden':fresh(d)?(d.telemetryTimeVerified===false?
       '● OSD empfangen · Zeit ungeprüft':'● OSD frisch'):
-      d.topologyOnline===true?'● Topologie gemeldet · OSD veraltet':'● OSD veraltet';
+      d.topologyOnline===true?'○ Keine aktuellen Daten · Topologie zuletzt „online“':'● OSD veraltet';
     head.append(name,state);card.append(head);
     const t=d.telemetry||{};
     const quick=document.createElement('dl');quick.className='quick';

@@ -1,0 +1,45 @@
+name: WPML offline browser smoke
+
+on:
+  pull_request:
+    paths:
+      - "frontend/public/wpml-*"
+      - "backend/test/wpml-*"
+      - "tests/wpml_browser_smoke.py"
+      - ".github/workflows/wpml-browser-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wpml-browser-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  offline-editor-chromium:
+    # Pin runner because Playwright 1.56.0 browser installer does not support Ubuntu 26.04.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pinned browser driver and local Leaflet reference
+        run: |
+          python -m pip install --disable-pip-version-check "playwright==1.56.0"
+          python -m playwright install --with-deps chromium
+          npm install --no-save --no-package-lock --prefix "${{ runner.temp }}/skyhub-leaflet" "leaflet@1.9.4"
+      - name: Chromium UI test (real Leaflet, synthetic offline map tiles)
+        env:
+          SKYHUB_TEST_LEAFLET_DIST: ${{ runner.temp }}/skyhub-leaflet/node_modules/leaflet/dist
+        run: python tests/wpml_browser_smoke.py
+      - name: Attach synthetic-only browser screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wpml-browser-offline-screenshots
+          path: artifacts/wpml-browser/*.png
+          if-no-files-found: ignore
+          retention-days: 7

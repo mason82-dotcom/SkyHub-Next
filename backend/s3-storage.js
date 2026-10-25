@@ -71,17 +71,41 @@ function createS3Storage(env=process.env,client){
       ...(cursor?{ContinuationToken:cursor}:{})
     }));
 
-    return {
-      bucket,
-      prefix,
-      objects:(result.Contents||[]).map(item=>({
-        key:item.Key,
-        size:item.Size,
+    // Fail closed: a missing IsTruncated flag must not appear as a complete
+    // listing, and an invalid token must not silently end pagination.
+    const entries=result?.Contents??[];
+    if(!result||typeof result.IsTruncated!=='boolean'||
+       !Array.isArray(entries)||entries.length>limit||
+       (result.IsTruncated &&
+         (typeof result.NextContinuationToken!=='string'||
+          !result.NextContinuationToken||
+          result.NextContinuationToken.length>4096||
+          /[\x00-\x1f\x7f]/.test(result.NextContinuationToken)))||
+       (!result.IsTruncated&&Boolean(result.NextContinuationToken))){
+      throw new Error('Invalid S3 listing response');
+    }
+    const seen=new Set();
+    const objects=entries.map(item=>{
+      const key=item?.Key;
+      if(typeof key!=='string'||key.length>1024||
+         !key.startsWith(prefix)||/[\x00-\x1f\x7f]/.test(key)||
+         seen.has(key)||
+         (item.Size!==undefined&&
+           (!Number.isSafeInteger(item.Size)||item.Size<0))){
+        throw new Error('Invalid S3 listing object');
+      }
+      seen.add(key);
+      return {
+        key,size:item.Size,
         lastModified:item.LastModified?.toISOString?.()||null,
         etag:item.ETag||null
-      })),
-      truncated:Boolean(result.IsTruncated),
-      nextCursor:result.NextContinuationToken||null
+      };
+    });
+
+    return {
+      bucket,prefix,objects,
+      truncated:result.IsTruncated,
+      nextCursor:result.IsTruncated?result.NextContinuationToken:null
     };
   }
 

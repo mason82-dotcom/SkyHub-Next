@@ -1,5 +1,8 @@
 # SkyHub Next: Bestandsaufnahme und Entwicklungsplan (20.10.2026)
 
+> **Historisches Planungsdokument (Stand 20.–21.10.2026).** Maßgeblicher aktueller Repository-/PR-Abgleich: [Projektstand 23.10.2026](projektstand-2026-10-23.md). Neue offene und gestapelte Entwicklungs-PRs sind hier bewusst **nicht** als nach `main` integrierte oder auf dem Pi freigegebene Funktionen nachgetragen.
+
+
 ## Geltungsbereich und Schutzgrenzen
 
 Entwicklungsbasis ist ausschließlich der Stack im Repository-Root. `stacks/legacy-skyhub/` dient als Referenz. Der Istzustand wurde nur lesend geprüft; Dienste, MQTT-Konfiguration, `.env`, Volumes und Daten wurden nicht verändert. Änderungen an laufenden Containern, Deployments, Broker-ACLs, Cutover und Git-Push erfordern eine ausdrückliche Freigabe.

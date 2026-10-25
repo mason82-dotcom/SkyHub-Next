@@ -56,12 +56,18 @@ test('the helpers recognise DJI-style tokens and only trust proxy headers from l
   assert.equal(tokenFrom({url:'/ws/tsa?x-auth-token=',headers:{}}),null);
   assert.equal(tokenFrom({url:'/ws/tsa?x-auth-token='+'a'.repeat(257),headers:{}}),null);
   assert.equal(tokenFrom({url:'/ws/tsa',headers:{}}),null);
-  for(const ok of ['127.0.0.1','::1','::ffff:127.0.0.1','192.168.178.5','10.0.0.2','172.16.0.1','172.31.255.1'])
+  for(const ok of ['127.0.0.1','::1','::ffff:127.0.0.1'])
     assert.equal(trustedPeer(ok),true,ok);
-  for(const bad of ['8.8.8.8','172.32.0.1','100.64.0.1',undefined,null,''])assert.equal(trustedPeer(bad),false,String(bad));
+  for(const bad of ['8.8.8.8','192.168.178.5','10.0.0.2','172.16.0.1','172.31.255.1',
+                    '172.32.0.1','100.64.0.1',undefined,null,''])
+    assert.equal(trustedPeer(bad),false,String(bad));
+  assert.equal(trustedPeer('::ffff:172.18.0.1',['172.18.0.1']),true);
+  assert.equal(trustedPeer('172.18.0.2',['172.18.0.1']),false);
   const req=(proto,addr)=>({socket:{remoteAddress:addr},headers:{'x-forwarded-proto':proto}});
   assert.equal(secure(req('https','127.0.0.1')),true);
-  assert.equal(secure(req('https, http','127.0.0.1')),true);
+  assert.equal(secure(req('https, http','127.0.0.1')),false);
+  assert.equal(secure(req('https','192.168.178.5')),false);
+  assert.equal(secure(req('https','172.18.0.1'),['172.18.0.1']),true);
   assert.equal(secure(req('http','127.0.0.1')),false);
   assert.equal(secure(req('https','8.8.8.8')),false,'forwarded header from a public peer must be ignored');
 });
@@ -125,6 +131,24 @@ test('a new position is pushed once as device_osd; repeats and invalid positions
     t.registry.devices=[device('RC01'),device('AIR01',{lastPositionAt:3000,telemetry:{latitude:0,longitude:0}})];
     t.hub.tick();await settle();
     assert.deepEqual(c.messages,[]);
+  }finally{await t.stop();}
+});
+
+test('late TSA client receives fresh positions without duplicating other clients',async()=>{
+  const t=await setup();
+  try{
+    t.hub.tick(); // a position was processed before there were any clients
+    const first=await t.connect();
+    assert.equal(first.outcome,'open');
+    assert.equal(await waitFor(()=>first.messages.length===2),true);
+    assert.deepEqual(first.messages.map(x=>x.biz_code),['device_osd','device_osd']);
+    const second=await t.connect();
+    assert.equal(second.outcome,'open');
+    assert.equal(await waitFor(()=>second.messages.length===2),true);
+    assert.equal(first.messages.length,2,'new connection must not rebroadcast to others');
+    t.hub.tick();await settle();
+    assert.equal(first.messages.length,2);
+    assert.equal(second.messages.length,2);
   }finally{await t.stop();}
 });
 
@@ -209,7 +233,8 @@ test('the hub requires a registry, an authorizer and a workspace UUID',()=>{
 
 // ---- GET /manage/api/v1/workspaces/{id}/devices/topologies
 function res(){return {statusCode:200,body:null,status(code){this.statusCode=code;return this;},json(body){this.body=body;return this;}};}
-const req=(over={})=>({secure:true,headers:{'x-auth-token':GOOD},params:{workspaceId:WS_ID},...over});
+const req=(over={})=>({socket:{remoteAddress:'127.0.0.1'},secure:true,
+  headers:{'x-auth-token':GOOD,'x-forwarded-proto':'https'},params:{workspaceId:WS_ID},...over});
 
 test('the topology list needs HTTPS, a valid token and the right workspace',async()=>{
   const registry={snapshot:()=>[device('RC01'),device('AIR01')]};
@@ -220,8 +245,10 @@ test('the topology list needs HTTPS, a valid token and the right workspace',asyn
   assert.equal(ok.body.code,0);
   assert.equal(ok.body.data.list[0].hosts[0].sn,'AIR01');
   for(const [r,status] of [
-    [req({secure:false}),403],[req({headers:{}}),401],[req({headers:{'x-auth-token':'nope'}}),401],
-    [req({headers:{'x-auth-token':'other'}}),404],[req({params:{workspaceId:OTHER_WS}}),404]]){
+    [req({headers:{'x-auth-token':GOOD,'x-forwarded-proto':'http'}}),403],
+    [req({socket:{remoteAddress:'192.168.178.5'}}),403],
+    [req({headers:{'x-forwarded-proto':'https'}}),401],[req({headers:{'x-auth-token':'nope','x-forwarded-proto':'https'}}),401],
+    [req({headers:{'x-auth-token':'other','x-forwarded-proto':'https'}}),404],[req({params:{workspaceId:OTHER_WS}}),404]]){
     const out=res();await handler(r,out);
     assert.equal(out.statusCode,status);
     assert.equal(out.body.code,status);

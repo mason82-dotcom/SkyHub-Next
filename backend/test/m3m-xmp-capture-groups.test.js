@@ -70,6 +70,9 @@ test('capture aggregate receiver refuses identifiers, extra fields, impossible o
     {...r,captureUuid:idA},
     {...r,redNirCandidateGroups:2},
     {...r,fullFourBandHintGroups:1},
+    {...r,bandHints:{...r.bandHints,R:0,unknown:1}},
+    {...r,bandHints:{...r.bandHints,NIR:0,unknown:1}},
+    {...r,status:{...r.status,ok:1,xmpTagMissing:1}},
     {...r,uniqueCaptureUuidGroups:3},
     {...r,withoutCaptureUuid:2},
     {...r,bandHints:{...r.bandHints,G:1}},
@@ -82,4 +85,26 @@ test('capture aggregate receiver refuses identifiers, extra fields, impossible o
     assert.throws(()=>validateCaptureAggregate(value,2),RangeError);
   assert.throws(()=>summarizeCaptureGroups(Array(13).fill(row(idA,'R'))),RangeError);
   assert.throws(()=>summarizeCaptureGroups([row('SECRET_FILE_ID','R')]),RangeError);
+});
+
+
+test('capture aggregate cannot claim full four-band set without Green/RedEdge hints',()=>{
+  const r=summarizeCaptureGroups([row(idA,'R'),row(idA,'NIR'),
+    row(idB,'unknown'),row(null,'unknown')]);
+  const invalid={...r,fullFourBandHintGroups:1,
+    redNirCandidateGroups:1,
+    incompleteBandHintGroups:r.incompleteBandHintGroups-1};
+  assert.throws(()=>validateCaptureAggregate(invalid,r.examined),RangeError);
+});
+
+test('capture UUID is not counted for failed XMP reads',()=>{
+  const r=summarizeCaptureGroups([
+    row(idA,'unknown','rangeNotHonored'),
+    row(idA,'R'),
+    row(null,'NIR','ok')
+  ]);
+  assert.equal(r.withCaptureUuid,1);
+  assert.equal(r.withoutCaptureUuid,2);
+  assert.equal(r.redNirCandidateGroups,0);
+  assert.deepEqual(validateCaptureAggregate(r,3),r);
 });

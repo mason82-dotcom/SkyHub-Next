@@ -21,6 +21,7 @@ const {createTrackRecorder}=require('./track-recorder');
 const {createS3Storage}=require('./s3-storage');
 const {createMediaRouter}=require('./media-api');
 const {createMinioDrRouter}=require('./minio-dr-api');
+const {createSmartFarmingCatalogRouter}=require('./smart-farming-catalog');
 const {createHttpAuth}=require('./http-auth');
 const {registerPilotRoutes,registerPilotAdminRoutes}=require('./pilot-routes');
 const {createMqttIngest}=require('./mqtt-ingest');
@@ -34,7 +35,7 @@ if(!secret || secret.length<24 || secret.startsWith('REPLACE_')){
 }
 let broker;
 try {
-  broker=validateBrokerConfig(process.env.MQTT_BROKER_URL,process.env.SKYHUB_MQTT_REQUIRED_PORT);
+  broker=validateBrokerConfig(process.env.MQTT_BROKER_URL,process.env.SKYHUB_MQTT_REQUIRED_PORT,process.env.SKYHUB_MQTT_BROKER_KIND);
 } catch(err) {
   console.error('[mqtt config]',err.message);
   process.exit(1);
@@ -119,7 +120,8 @@ setInterval(pruneTracks,3600000).unref();
 
 const pilotAuth=createPilotAuth({pilot,pairing,redis});
 // DJI Pilot 2 situation awareness: fleet positions and presence pushed to paired RCs (read-only).
-const tsaHub=tsaActive?createTsaHub({registry,authorize:pilotAuth.principal,workspaceId:pilot.workspaceId}):null;
+const tsaHub=tsaActive?createTsaHub({registry,authorize:pilotAuth.principal,
+  workspaceId:pilot.workspaceId,trustedProxyIps:pilot.tsa.trustedProxyIps}):null;
 
 let ingest;
 try{
@@ -134,7 +136,8 @@ const {state:mqttState,ack}=ingest;
 registerPilotRoutes(app,{pilot,pairing,redis,registry,pool,ack,pilotAuth});
 if(tsaHub){
   app.get('/manage/api/v1/workspaces/:workspaceId/devices/topologies',createTopologyListHandler({
-    registry,workspaceId:pilot.workspaceId,authorize:pilotAuth.principal
+    registry,workspaceId:pilot.workspaceId,authorize:pilotAuth.principal,
+    trustedProxyIps:pilot.tsa.trustedProxyIps
   }));
   server.on('upgrade',(req,socket,head)=>{
     if(tsaHub.matches(req))return tsaHub.handleUpgrade(req,socket,head);
@@ -156,7 +159,17 @@ app.get('/api/health',(req,res)=>res.json({
 }));
 app.use('/api',auth);
 
-// MinIO disaster-recovery reports: read-only and disabled by default.
+// Disabled by default; authenticated bounded M3M candidate metadata only.
+// No public LAN exception, no pixel delivery, no GIS tiles and no DJI actions.
+if(process.env.SKYHUB_M3M_CATALOG_ENABLED==='true'){
+  app.use('/api/smart-farming/candidates',createSmartFarmingCatalogRouter({
+    express,auth,root:process.env.SKYHUB_M3M_CATALOG_ROOT,
+    manifestSha256:process.env.SKYHUB_M3M_CATALOG_SHA256
+  }));
+}
+
+// MinIO disaster-recovery reports: read-only, behind auth. Off unless explicitly enabled here;
+// the root Compose file enables it by default (reports are optional: status stays 'unavailable' without them).
 if(process.env.SKYHUB_MINIO_DR_ENABLED==='true'){
   const drDirectory=process.env.SKYHUB_MINIO_DR_REPORT_DIR;
   if(!drDirectory || !path.isAbsolute(drDirectory)){
@@ -177,7 +190,7 @@ if(process.env.SKYHUB_MEDIA_ENABLED==='true'){
 }
 
 app.get('/api/devices',(req,res)=>res.json(registry.snapshot()));
-app.get('/api/topology',(req,res)=>res.json(registry.snapshot().map(d=>({sn:d.sn,role:d.role,gatewaySn:d.gatewaySn,model:d.model,topologyOnline:d.topologyOnline,
+app.get('/api/topology',(req,res)=>res.json(registry.snapshot().map(d=>({sn:d.sn,role:d.role,gatewaySn:d.gatewaySn,model:d.model,topologyOnline:d.topologyOnline,online:d.online,
   lastTopologyAt:d.lastTopologyAt,topologyTimeVerified:d.topologyTimeVerified,children:d.children}))));
 app.get('/api/events',(req,res)=>res.json(registry.events()));
 registerPilotAdminRoutes(app,{pairing});

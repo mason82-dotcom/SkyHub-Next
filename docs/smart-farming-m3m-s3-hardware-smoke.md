@@ -697,3 +697,100 @@ Ohne G und RE gibt es auch keinen vollständigen Vierband-Satz.
 **Die reale Pi-Abnahme dieser zusätzlichen UUID-Gruppierung steht
 noch aus.** Der vorausgegangene Acht-TIFF-Test wird nicht als
 Gruppen- oder NDVI-Abnahme interpretiert.
+
+
+## Sicherheitsnachprüfung vor realer Capture-UUID-Abnahme (23.10.2026)
+
+Die DJI-Mavic-3M-Anleitung dokumentiert `Capture UUID` als
+UUID-v4-Kennung einer Aufnahme (Mavic 3M Image Processing Guide,
+Seite 4). In der aktuellen Implementierung werden nur eindeutige,
+RFC-4122-kompatible UUID-v4-Werte aus dem bekannten
+`drone-dji`-XMP-Namespace für den **internen Vergleich**
+zugelassen. Die Kennungen bleiben ausschließlich im
+Backend-Container und erscheinen nicht in den Aggregaten.
+
+Der bisher reale Acht-TIFF-Test (`R=4`, `NIR=4`,
+`G=RE=0`) **hat die Aufnahmezuordnung noch nicht geprüft**.
+Der separate Test `--capture-groups-first-page` ist
+genau dafür vorgesehen und bleibt in seiner Aussage auf
+*XMP-basierte Kandidatengruppen* beschränkt.
+
+Zusätzlicher Konsistenzschutz im Berichtsempfänger:
+`redNirCandidateGroups` darf nicht größer als die einzelnen
+R- und NIR-Zähler sein, `fullFourBandHintGroups`
+nicht größer als G oder RE. Ferner kann die Zahl der
+intern akzeptierten Capture-UUIDs nicht größer als die Zahl
+erfolgreicher XMP-Auswertungen sein. Falsche Zähler werden
+vor einer Terminalausgabe zurückgewiesen.
+
+### Nächste reine Pi-Abnahme
+
+    cd ~/Projekte/SkyHub-Next || exit 1
+    test "$(git branch --show-current)" = \
+      "feature/m3m-minio-integration-20261021" || exit 1
+    test -z "$(git status --porcelain)" || exit 1
+    git pull --ff-only origin feature/m3m-minio-integration-20261021 || exit 1
+    node --test \
+      backend/test/m3m-xmp-capture-groups.test.js \
+      backend/test/pi-m3m-xmp-markers.test.js || exit 1
+
+    SKYHUB_COMPOSE_DIR="$HOME/Projekte/SkyHub-Next" \
+      node scripts/pi-m3m-xmp-markers-check.js \
+      --capture-groups-first-page
+
+Das letzte Kommando liest, wie beim bisherigen XMP-Test,
+maximal 12 TIFFs aus einem eingeschränkten Prefix mit
+höchstens 3 Range-GETs pro Objekt und zusammen maximal
+33.808 angeforderten Bytes pro TIFF.
+Es folgt kein Produktionsdeployment, keine Modifikation
+der MinIO-Objekte und keine Drohnensteuerung.
+
+**Wichtig:** Auch ein positiver Kandidat bedeutet nicht,
+dass Bilder vollständig lesbar, geometrisch registriert,
+radiometrisch kalibriert oder für NDVI/NDRE einsatzbereit sind.
+
+
+## Repository-Umbenennung und PR-#24-Integrationsgates (23.10.2026)
+
+**Kanonisches GitHub-Repository:** https://github.com/mason82-dotcom/SkyHub-Next
+
+Die Umbenennung von `mason82-dotcom/SkyHub` nach `mason82-dotcom/SkyHub-Next`
+betrifft die GitHub-Remote-URL, **nicht** das lokale Altprojekt
+`~/Projekte/SkyHub`. Es darf weder mit dem aktiven Next-Checkout
+`~/Projekte/SkyHub-Next` verwechselt noch unkontrolliert überschrieben werden.
+
+Einmalige Remote-Prüfung nur im Next-Checkout:
+
+```bash
+cd ~/Projekte/SkyHub-Next || exit 1
+git remote -v
+git remote set-url origin https://github.com/mason82-dotcom/SkyHub-Next.git
+git fetch origin
+git status --short --branch
+```
+
+**Wichtig:** Die URLs allein sind kein Merge-/Deployment-Nachweis.
+Für PR #24 müssen vor einer Freigabe alle folgenden Gates erfüllt sein:
+
+1. Vollständig grüne GitHub-CI **für den aktuellen Head nach allen Änderungen**;
+   eine frühere grüne CI gilt nicht für neue Test-/Quellcode-Commits.
+2. Konfliktfreie Drei-Wege-Integration der aktuellen `main`-Änderungen
+   (`backend/server.js`, M3M-Inventur, streng begrenzter
+   `backend/m3m-s3-read-contract.js`, DJI-Feldkatalog und HTTP-Tests),
+   ohne auf `main` eingeführte Sicherheitsprüfungen zurückzunehmen.
+3. Überlappungen mit PR #19 (Storage/Migration) und #23 (Offline-Inventur)
+   explizit bereinigen, ohne unbeabsichtigt Pi-Storage, IAM oder Credentials
+   zu verändern. Historische Hardwarebeobachtungen nicht auf neue Branches
+   oder Containerdeployments übertragen.
+4. API-Authentisierung und nur lesende Medien-Endpunkte validieren; die
+   S3-Inventur muss bei doppelten Schlüsseln und wiederholten Cursorn
+   jeweils vollständig und ohne Teilreport abbrechen.
+5. Der optionale `--capture-groups-first-page`-Hardwaretest benötigt eine
+   separate ausdrückliche Ausführung am Pi. Ohne diesen Live-Nachweis
+   keine Behauptung über UUID-basierte Aufnahmepaare. Auch positive
+   Kandidatengruppen beweisen keine Radiometrie, Bandregistrierung,
+   gültige Reflektanz oder NDVI-/NDRE-Bereitschaft.
+
+**Status bei Dokumentationsergänzung:** Der PR ist noch Draft;
+weder Merge noch weiterer Produktions-Rollout ist durch dieses Kapitel
+autorisiert. Ein erneuter CI-Test und die Konfliktauflösung sind erforderlich.
