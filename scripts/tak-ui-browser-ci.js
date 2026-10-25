@@ -306,7 +306,7 @@ async function run(){
       assert.equal(visual.panelBg,'rgb(255, 255, 255)',filename+' white panel');
       assert.equal(visual.scheme,'light',filename+' color scheme');
       assert.ok(visual.scrollWidth<=visual.width+1,filename+' overflow: '+JSON.stringify(visual));
-      assert.equal(visual.menuLinks,pageType==='pilot'?0:5,filename+' operator navigation');
+      assert.equal(visual.menuLinks,pageType==='pilot'?0:6,filename+' operator navigation');
       assert.equal(visual.navLinksVisible,true,filename+' all nav links must remain visible');
       if(pageType==='pilot'){
         assert.equal(visual.pilotBridge,false,'synthetic Pilot 2 has no device bridge');
