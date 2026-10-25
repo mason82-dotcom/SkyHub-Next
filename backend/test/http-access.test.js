@@ -98,7 +98,10 @@ test('Pilot bootstrap requires HTTPS and the Pilot token',async()=>{
   assert.equal(response.status,200);
   assert.equal((await response.json()).license,LICENSE);
   const status=await request('/api/pilot/status');
-  assert.equal((await status.text()).includes(LICENSE),false);
+  const statusText=await status.text();
+  assert.equal(statusText.includes(LICENSE),false);
+  // Reports the port actually configured for the RC, not a fixed number.
+  assert.equal(JSON.parse(statusText).mqttPort,1884);
 });
 
 test('DJI map-group route requires HTTPS, the configured workspace and x-auth-token',async()=>{

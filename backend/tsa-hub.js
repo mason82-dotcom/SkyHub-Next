@@ -22,15 +22,17 @@ function tokenFrom(req){
 }
 // The backend listens on loopback behind a TLS proxy (Caddy). Trust X-Forwarded-Proto only
 // from a loopback or private peer, exactly like Express's `req.secure` for the HTTP routes.
-function trustedPeer(address){
-  if(typeof address!=='string')return false;
-  const a=address.replace(/^::ffff:/i,'');
-  return a==='::1'||/^127\./.test(a)||/^10\./.test(a)||/^192\.168\./.test(a)||/^172\.(1[6-9]|2\d|3[01])\./.test(a);
+function normalizeIp(address){
+  return typeof address==='string'?address.toLowerCase().replace(/^::ffff:/,''):null;
 }
-function secure(req){
-  if(!trustedPeer(req.socket?.remoteAddress))return false;
-  const proto=String(req.headers?.['x-forwarded-proto']||'').split(',')[0].trim().toLowerCase();
-  return proto==='https';
+// Trust exact immediate proxy addresses, never entire private networks.
+function trustedPeer(address,allowed=['127.0.0.1','::1']){
+  const peer=normalizeIp(address);
+  return Boolean(peer)&&Array.isArray(allowed)&&allowed.some(ip=>normalizeIp(ip)===peer);
+}
+function secure(req,allowed){
+  return trustedPeer(req.socket?.remoteAddress,allowed) &&
+    req.headers?.['x-forwarded-proto']==='https';
 }
 function reject(socket,status,text){
   if(socket.destroyed)return;
@@ -41,7 +43,7 @@ function reject(socket,status,text){
 // WebSocket push for DJI Pilot 2 situation awareness. Read-only: it sends fleet positions and
 // presence to authenticated RCs of the same workspace and ignores everything the client sends.
 function createTsaHub({registry,authorize,workspaceId,path='/ws/tsa',intervalMs=1000,pingMs=30000,
-  maxClients=20,now=Date.now}={}){
+  maxClients=20,now=Date.now,trustedProxyIps=['127.0.0.1','::1']}={}){
   if(!registry||typeof registry.snapshot!=='function')throw new TypeError('Registry required');
   if(typeof authorize!=='function')throw new TypeError('Authorization function required');
   if(typeof workspaceId!=='string'||!UUID.test(workspaceId))throw new TypeError('Workspace UUID required');
@@ -112,7 +114,7 @@ function createTsaHub({registry,authorize,workspaceId,path='/ws/tsa',intervalMs=
 
   async function handleUpgrade(req,socket,head){
     socket.on('error',()=>{});
-    if(!secure(req)){stats.rejected++;return reject(socket,'403','Forbidden');}
+    if(!secure(req,trustedProxyIps)){stats.rejected++;return reject(socket,'403','Forbidden');}
     const token=tokenFrom(req);
     if(!token){stats.rejected++;return reject(socket,'401','Unauthorized');}
     if(clients.size>=maxClients){stats.rejected++;return reject(socket,'503','Service Unavailable');}
@@ -129,6 +131,17 @@ function createTsaHub({registry,authorize,workspaceId,path='/ws/tsa',intervalMs=
       ws.on('message',()=>{});
       ws.on('error',()=>{});
       ws.on('close',()=>{clients.delete(ws);});
+      // A tick can consume a position before this client connects.
+      // Replay only processed, still-fresh positions to the new client.
+      for(const device of registry.snapshot().slice(0,MAX_DEVICES)){
+        if(!device.positionFresh||!Number.isFinite(device.lastPositionAt)||
+            lastOsd.get(device.sn)!==device.lastPositionAt)continue;
+        const message=osdMessage(device,now());
+        if(!message)continue;
+        if(ws.bufferedAmount>MAX_BUFFERED){stats.skippedBackpressure++;break;}
+        ws.send(JSON.stringify(message),error=>{if(error)ws.terminate();});
+        stats.sent++;
+      }
     });
   }
 
@@ -148,10 +161,10 @@ function createTsaHub({registry,authorize,workspaceId,path='/ws/tsa',intervalMs=
 
 // GET /manage/api/v1/workspaces/{workspace_id}/devices/topologies (Pilot 2 calls it on connect
 // and after every device_online/offline/update_topo push).
-function createTopologyListHandler({registry,workspaceId,authorize}){
+function createTopologyListHandler({registry,workspaceId,authorize,trustedProxyIps=['127.0.0.1','::1']}){
   if(typeof authorize!=='function')throw new TypeError('Authorization function required');
   return async function topologies(req,res){
-    if(!req.secure)return fail(res,403,'HTTPS required');
+    if(!secure(req,trustedProxyIps))return fail(res,403,'HTTPS required');
     let principal=null;
     try{principal=await authorize(req.headers?.['x-auth-token']);}
     catch(_err){return fail(res,503,'Authorization unavailable');}
