@@ -34,9 +34,9 @@ function validateBrokerConfig(rawUrl, requiredPortRaw = '', brokerKindRaw = '') 
   }
   const kind = String(brokerKindRaw ?? '').trim();
   if (kind) {
-    const expectedPorts = Object.freeze({emqx:1884, mosquitto:1883});
+    const expectedPorts = Object.freeze({emqx:1884, mosquitto:1883, 'mosquitto-dedicated':1884});
     if (!Object.hasOwn(expectedPorts, kind)) {
-      throw new Error('SKYHUB_MQTT_BROKER_KIND must be emqx or mosquitto');
+      throw new Error('SKYHUB_MQTT_BROKER_KIND must be emqx, mosquitto or mosquitto-dedicated');
     }
     if (!required || Number(required) !== expectedPorts[kind]) {
       throw new Error('MQTT broker kind ' + kind + ' requires SKYHUB_MQTT_REQUIRED_PORT=' + expectedPorts[kind]);

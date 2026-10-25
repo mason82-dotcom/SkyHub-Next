@@ -47,9 +47,17 @@ class PiBrokerPreflightTests(unittest.TestCase):
     def test_explicit_mosquitto_1883_with_non_loopback_listener_passes(self):
         result = self.check_profile("mosquitto", 1883)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn("Mosquitto service is active", result.stdout)
+        self.assertIn("Mosquitto service mosquitto is active", result.stdout)
         self.assertNotIn("skyhub_emqx container mapping is absent", result.stderr)
         self.assertIn("does NOT establish MQTT auth", result.stdout)
+
+    def test_dedicated_mosquitto_1884_checks_its_own_unit(self):
+        result = self.check_profile("mosquitto-dedicated", 1884)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("Mosquitto service skyhub-mosquitto is active", result.stdout)
+        inactive = self.check_profile("mosquitto-dedicated", 1884, active=False)
+        self.assertNotEqual(inactive.returncode, 0)
+        self.assertIn("skyhub-mosquitto is not confirmed active", inactive.stderr)
 
     def test_legacy_emqx_1884_still_passes(self):
         result = self.check_profile("emqx", 1884)
@@ -58,7 +66,8 @@ class PiBrokerPreflightTests(unittest.TestCase):
 
     def test_mismatched_or_unknown_profiles_fail_closed(self):
         for kind, port in [("mosquitto", 1884), ("emqx", 1883),
-                           ("mosquitto", 1885), ("unknown", 1883)]:
+                           ("mosquitto", 1885), ("unknown", 1883),
+                           ("mosquitto-dedicated", 1883)]:
             with self.subTest(kind=kind, port=port):
                 result = self.check_profile(kind, port)
                 self.assertEqual(result.returncode, 2)

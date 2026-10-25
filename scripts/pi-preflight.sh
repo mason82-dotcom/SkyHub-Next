@@ -9,12 +9,12 @@ if [[ "$#" -eq 4 && "${1:-}" == "--broker-kind" && "${3:-}" == "--broker-port" ]
   broker_kind="$2"
   broker_port="$4"
 elif [[ "$#" -ne 0 ]]; then
-  echo 'Usage: pi-preflight.sh [--broker-kind emqx --broker-port 1884 | --broker-kind mosquitto --broker-port 1883]' >&2
+  echo 'Usage: pi-preflight.sh [--broker-kind emqx --broker-port 1884 | --broker-kind mosquitto --broker-port 1883 | --broker-kind mosquitto-dedicated --broker-port 1884]' >&2
   exit 2
 fi
 case "$broker_kind/$broker_port" in
-  emqx/1884|mosquitto/1883) ;;
-  *) echo 'REFUSED: broker kind and port must be emqx/1884 or mosquitto/1883.' >&2; exit 2 ;;
+  emqx/1884|mosquitto/1883|mosquitto-dedicated/1884) ;;
+  *) echo 'REFUSED: broker kind and port must be emqx/1884, mosquitto/1883 or mosquitto-dedicated/1884.' >&2; exit 2 ;;
 esac
 for executable in ss docker; do
   if ! command -v "$executable" >/dev/null 2>&1; then
@@ -67,12 +67,14 @@ else
   printf 'ERROR: Configured broker TCP %s is not listening.\n' "$broker_port" >&2
   result=1
 fi
-if [[ "$broker_kind" == mosquitto ]]; then
-  if ! command -v systemctl >/dev/null 2>&1 || ! systemctl is-active --quiet mosquitto; then
-    echo 'ERROR: Host Mosquitto service is not confirmed active.' >&2
+if [[ "$broker_kind" == mosquitto || "$broker_kind" == mosquitto-dedicated ]]; then
+  mosquitto_unit=mosquitto
+  [[ "$broker_kind" == mosquitto-dedicated ]] && mosquitto_unit=skyhub-mosquitto
+  if ! command -v systemctl >/dev/null 2>&1 || ! systemctl is-active --quiet "$mosquitto_unit"; then
+    printf 'ERROR: Host Mosquitto service %s is not confirmed active.\n' "$mosquitto_unit" >&2
     result=1
   else
-    echo 'OK: systemd Mosquitto service is active.'
+    printf 'OK: systemd Mosquitto service %s is active.\n' "$mosquitto_unit"
   fi
   if listening_non_loopback "$broker_port"; then
     echo 'OK: MQTT has a non-loopback listener (Docker access still unverified).'

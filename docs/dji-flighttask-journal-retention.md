@@ -64,6 +64,8 @@ Datenbankadapters und der Autorisierungsfunktion werden redigiert.
   `isolated-postgis-integration` gegen `skyhub_test` aus.
   Die Testfunktion ist ohne `SKYHUB_TEST_DATABASE_URL` übersprungen.
 
+**Forschungsnachtrag 24.10.2026:** Für spätere Produktionsintegration bietet der [isolierte Policy-gesteuerte Retention-Entwurf](dji-flighttask-workspace-rls-retention-policy.md) eine Admin-/Workspace-Autorisierung, serverseitig aufgelöste Fristen und einen fail-closed Legal-Hold je Workspace. Ohne `execute:true` wird nicht gelöscht. Der ältere `createFlighttaskRetention`-Adapter bleibt ein **internes** Primitive mit direkt übergebenen `retentionDays`/`now` und darf nicht unmittelbar an HTTP oder Kundenparameter angebunden werden.
+
 ## Offene Produktionsgates
 
 Vor einer echten Aktivierung fehlen: verifizierte RBAC-/Workspace-Bindung,

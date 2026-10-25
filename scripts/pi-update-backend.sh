@@ -41,7 +41,7 @@ try:
     e=json.load(sys.stdin)["services"]["backend"]["environment"]
     kind=e.get("SKYHUB_MQTT_BROKER_KIND","")
     pin=str(e.get("SKYHUB_MQTT_REQUIRED_PORT",""))
-    expected={"emqx":"1884","mosquitto":"1883"}
+    expected={"emqx":"1884","mosquitto":"1883","mosquitto-dedicated":"1884"}
     if kind not in expected or pin!=expected[kind]:
         raise ValueError("invalid broker kind / required-port pairing")
     url=urlsplit(e.get("MQTT_BROKER_URL",""))
@@ -97,6 +97,7 @@ if ! "${compose[@]}" exec -T postgres pg_dump -U skyhub_next -d skyhub_next -Fc 
   echo "REFUSED: Postgres backup failed. Existing containers unchanged." >&2;exit 1
 fi
 if [[ ! -s "$backup_dir/postgis.dump" ]];then
+  rm -f "$backup_dir/postgis.dump"
   echo "REFUSED: backup appears empty. Existing containers unchanged." >&2;exit 1
 fi
 

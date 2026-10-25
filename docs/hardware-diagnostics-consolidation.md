@@ -1,5 +1,7 @@
 # Gemeinsame Hardwarediagnose – 22.10.2026
 
+> **Statusabgleich 24.10.2026:** Die selektive Diagnosekonsolidierung wurde am 23.10.2026 mit [PR #66](https://github.com/mason82-dotcom/SkyHub-Next/pull/66) nach `main` gemergt. Dieser Text beschreibt überwiegend den damaligen **Entwicklungs- und synthetischen Teststand**. Er ist **kein** neuer Raspberry-Pi-Lauf und keine RC-Plus-2-/M4T-Liveabnahme. Verbindliche datierte Zuordnung von Realbefunden, GitHub-CI und offenen Gates: [Hardware-Evidence-Index vom 24.10.2026](hardware-acceptance-status-2026-10-24.md). Ein GitHub-Merge installiert nichts auf dem Pi.
+
 ## Ergebnis
 
 **Neu integriert am 23.10.2026:** Die aus dem historischen Branch

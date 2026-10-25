@@ -215,3 +215,97 @@ test('duplicate or invalid input never mutates durable snapshot revision',async(
   assert.equal((await j.read(key)).revision,1);
   await assert.rejects(j.apply(key,'clock',{now:NaN}),/Invalid flighttask journal clock/);
 });
+
+
+test('JSONB snapshots reject array-coerced IDs instead of treating them as strings',async()=>{
+  const {db,j}=fixture();await start(j);
+  const entry=[...db.rows.values()][0];
+  const original=JSON.parse(JSON.stringify(entry.snapshot));
+  const samples=[
+    ['gatewaySn',[req.gatewaySn]],['tid',[req.tid]],
+    ['bid',[req.bid]],['flightId',[req.flightId]],
+    ['gatewaySn',{toString:req.gatewaySn}],['tid',null],['bid',42]
+  ];
+  for(const [field,value] of samples){
+    entry.snapshot=JSON.parse(JSON.stringify(original));
+    entry.snapshot.request[field]=value;
+    assert.equal(validateSnapshot(entry.snapshot),false,field);
+    await assert.rejects(j.read(key),/stored snapshot invalid/,field);
+  }
+  entry.snapshot=original;
+  assert.equal((await j.read(key)).revision,1);
+});
+
+test('restored ACK and progress times must be within request temporal window',async()=>{
+  const {db,j}=fixture();await start(j);
+  await apply(j,'service_reply',service());
+  await apply(j,'flighttask_progress',progress());
+  const entry=[...db.rows.values()][0];
+  const original=JSON.parse(JSON.stringify(entry.snapshot));
+  for(const [field,value] of [
+    ['reply',req.sentAt-1],
+    ['reply',original.request.expiresAt+30001],
+    ['progress',req.sentAt-1],
+    ['progress',original.request.expiresAt+30001]
+  ]){
+    entry.snapshot=JSON.parse(JSON.stringify(original));
+    entry.snapshot[field].timestamp=value;
+    assert.equal(validateSnapshot(entry.snapshot),false,field);
+    await assert.rejects(j.read(key),/stored snapshot invalid/,field);
+  }
+  entry.snapshot=original;
+  assert.equal((await j.read(key)).revision,3);
+});
+
+test('malformed SELECT responses fail closed with one fixed diagnostic',async()=>{
+  for(const response of [null,{}, {rows:null},{rows:{}},
+    {rows:[{},{}]}, {rows:[] ,rowCount:999,secret:'PRIVATE'}]){
+    const db={query:async()=>response};
+    const j=createFlighttaskJournal(db);
+    if(response?.rows?.length===0){
+      assert.equal(await j.read(key),null);
+    }else{
+      await assert.rejects(j.read(key),err=>{
+        assert.equal(err.message,'Flighttask journal invalid storage response');
+        return true;
+      });
+    }
+  }
+});
+
+test('corrupted or noncanonical PostgreSQL revisions cannot be restored',async()=>{
+  const {db,j}=fixture();await start(j);
+  const entry=[...db.rows.values()][0];
+  for(const v of ['01','1.0','1e0','-1','0','9007199254740992','SECRET',NaN,0,-1]){
+    entry.revision=v;
+    await assert.rejects(j.read(key),/stored snapshot invalid/,String(v));
+  }
+  entry.revision=1;
+  assert.equal((await j.read(key)).revision,1);
+});
+
+test('INSERT without canonical revision 1 is never reported as created',async()=>{
+  for(const rows of [null,{},[{revision:'2'}],[{revision:'01'}],[{}],
+    [{revision:'1'},{revision:'1'}]]){
+    const j=createFlighttaskJournal({query:async()=>({rows})});
+    await assert.rejects(start(j),/invalid storage response/);
+  }
+});
+
+test('CAS UPDATE revision must advance by exactly one',async()=>{
+  for(const rows of [null,{},[{revision:'3'}],[{revision:'01'}],[{}],
+    [{revision:'2'},{revision:'2'}]]){
+    const db=fakePg();
+    const j=createFlighttaskJournal({
+      query:async(sql,params)=>{
+        if(sql.startsWith('UPDATE dji_flighttask_observation_snapshots'))
+          return {rows};
+        return db.query(sql,params);
+      }
+    });
+    await start(j);
+    await assert.rejects(apply(j,'service_reply',service()),/invalid storage response/);
+    assert.equal((await j.read(key)).revision,1);
+    assert.equal((await j.read(key)).state.phase,'awaiting_reply');
+  }
+});

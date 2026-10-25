@@ -46,3 +46,16 @@ test('legacy EMQX pairing remains strict when broker kind is provided', () => {
   assert.equal(validateBrokerConfig('mqtt://host.docker.internal:1884','1884','emqx').port,1884);
   assert.throws(()=>validateBrokerConfig('mqtt://host.docker.internal:1883','1884','emqx'),/requires port 1884/);
 });
+
+test('dedicated authenticated Mosquitto profile is bound to port 1884 and its own kind', () => {
+  const c=validateBrokerConfig('mqtt://host.docker.internal:1884','1884','mosquitto-dedicated');
+  assert.equal(c.port,1884);
+  for (const [url,pin,kind] of [
+    ['mqtt://host.docker.internal:1883','1883','mosquitto-dedicated'],
+    ['mqtt://host.docker.internal:1883','1884','mosquitto-dedicated'],
+    ['mqtt://host.docker.internal:1884','1883','mosquitto-dedicated'],
+    ['mqtt://host.docker.internal:1884','','mosquitto-dedicated']
+  ]) {
+    assert.throws(()=>validateBrokerConfig(url,pin,kind),/requires port|requires SKYHUB_MQTT_REQUIRED_PORT/);
+  }
+});

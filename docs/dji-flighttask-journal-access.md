@@ -36,6 +36,8 @@ Die Rückgabe des injizierten Callbacks muss der boolesche Wert
 `true` sein. Objekte wie `{allowed:true}`, Exceptions,
 fehlende Rückgaben oder falsche Workspace-IDs verweigern den Zugriff.
 
+**Forschungsnachtrag 24.10.2026:** Der eigenständige [RLS-/Workspace-Transaktionsentwurf](dji-flighttask-workspace-rls-retention-policy.md) kann einen Datenbankkontext zusätzlich einschränken und prüft die Nicht-Superuser-Rolle. Er ist nicht mit dieser API-Hülle oder der produktiven Datenbank verdrahtet. Eine clientseitig behauptete Rolle oder PostgreSQL-GUC ist weiterhin **kein** Identitätsnachweis.
+
 ## Least-Privilege-Matrix
 
 | Operation | Aktion für `authorize` | Zulässige Rollen nach Vorprüfung |

@@ -22,6 +22,8 @@
 
 ## Technische Referenz des Hauptbranches
 
+**Workspace-Isolation und Löschrichtlinie (neuer Offline-Entwurf):** [PostgreSQL-RLS, transaktionsgebundener Mandantenkontext und Legal-Hold-Gates](dji-flighttask-workspace-rls-retention-policy.md). Keine Migration, keine produktive Autorisierungsquelle.
+
 **DJI-Missionsbeobachtung: #74/#78/#83 und Multi-Missions-Router #108 in `main`:** [Statusautomat](dji-rpc-lifecycle-observation.md), [read-only Reply-Adapter](dji-flighttask-rpc-integration.md), [isoliertes CAS-Journal](dji-flighttask-durable-journal.md), [Offline-Retention](dji-flighttask-journal-retention.md) und [optionale Workspace-Autorisierung](dji-flighttask-journal-access.md) und [experimentelles Multi-Missions-Routing](dji-flighttask-multimission-router.md). Die Module sind **nicht in die aktive DJI-Laufzeit eingebunden**; kein produktives SQL-Deployment oder freigegebener Identity Provider.
 
 | Bereich | Dokumente |
@@ -30,16 +32,23 @@
 | DJI Cloud API 1.18 – rein synthetischer Offline-Abgleich | [Paritätsaudit #47](dji-protocol-parity-audit.md), [isolierter Diagnosefix #61](https://github.com/mason82-dotcom/SkyHub-Next/pull/61) |
 | S3-Vertrag (nur isolierte synthetische Leseversuche; kein realer Client) | [M3M-S3-ListObjectsV2-Scopes und Pagination](m3m-s3-read-contract.md) |
 | M3M-Dateinamen-Inventur (nur offline; kein Bild- oder S3-Zugriff) | [Phase 1: Datei-/Band-Namen und Grenzen](m3m-offline-media-inventory.md) |
-| Geräte-/Feldabdeckung | [DJI 1.18-Feldkatalog](dji-118-field-audit.md), [RC Pro + M3M Hardwarebefund](hardware-rc-pro-m3m.md), [M3M-Kamera-/State-Feldlücken](m3m-camera-gap-analysis.md), [RC Plus 2/M4T-Diagnose](hardware-rc-plus2-m4t.md), [gemeinsame Offline-Konsolidierung](hardware-diagnostics-consolidation.md) |
-| DJI-Kartenelemente (GET, interner Schreibentwurf) | [Feld-/Schnittstellenvertrag](dji-map-element-contract.md), [Berechtigungen](dji-map-access.md), [Mutationsvertrag – nicht live](dji-map-mutation-contract.md) |
+| Geräte-/Feldabdeckung | [DJI 1.18-Feldkatalog](dji-118-field-audit.md), [Hardware-Abnahmestatus 24.10.2026](hardware-acceptance-status-2026-10-24.md), [RC Pro + M3M Hardwarebefund](hardware-rc-pro-m3m.md), [M3M-Kamera-/State-Feldlücken](m3m-camera-gap-analysis.md), [RC Plus 2/M4T-Diagnose](hardware-rc-plus2-m4t.md), [gemeinsame Offline-Konsolidierung](hardware-diagnostics-consolidation.md) |
+| DJI-Kartenelemente (GET, interner Schreibentwurf) | [Feld-/Schnittstellenvertrag](dji-map-element-contract.md), [Berechtigungen](dji-map-access.md), [Mutationsvertrag – nicht live](dji-map-mutation-contract.md), [Aktivierungsstand 24.10.2026](dji-map-elements-aktivierung-2026-10-24.md) |
 | Geodaten- und Datenbanktests | [Isolierte PostGIS-Validierung](postgis-isolated-validation.md), [DJI-Referenz-Roadmap](dji-reference-roadmap.md) |
-| Betriebssicherheit und Migration | [Skriptwirkung](scripts.md), [Legacy-Migration](legacy-migration.md), [Legacy-Dependency-Audit](legacy-dependency-audit.md), [Takeover/Rollback](skyhub-legacy-takeover.md) |
+| Betriebssicherheit und Migration | [Skriptwirkung](scripts.md), [Host-InfluxDB absichern](pi-influxdb-hardening.md), [Legacy-Migration](legacy-migration.md), [Legacy-Dependency-Audit](legacy-dependency-audit.md), [Takeover/Rollback](skyhub-legacy-takeover.md) |
 | Frontend-Kontrakte | [UX-CONTRACT](../UX-CONTRACT.md), [DESIGN](../DESIGN.md) |
+| Offene Pull Requests – Triage gegen den heutigen `main` (Messung, kein Merge-Beschluss) | [PR-Triage 24.10.2026](pr-triage-2026-10-24.md) |
 | FlightHub 2 Frontend – optionale Herstellerkomponenten, nur Referenz | [FH2-On-Premises-Komponenten und Sicherheitsgates](dji-flighthub2-frontend-components.md) |
+| FlightHub 2 On-Premises – Bewertung (Recherche, kein Test) | [Bezug, Anforderungen, Geräte, Frontend-Komponenten](dji-flighthub2-on-premises-bewertung.md) |
+| DJI-Cloud-API-Demo als lokaler Testweg (extern zum Repo, nur LAN) | [Stack, Absicherung, Offline-Karte, Grenzen](cloud-api-demo-lokal.md) |
 
 ## Passiver DJI Flight-Area-Laborstand
 
 [Event-Inspector](dji-flight-area-integration.md) · [Offline-Zielrevisionsmonitor](dji-flight-area-sync-monitor.md). Ausschließlich gelesene, begrenzte Daten; keine aktiven Fluggebietsänderungen, kein Pi-Hardwarebeleg.
+
+## Experimentelle M3M-Smart-Farming-Komponenten
+
+[Konsolidierung und Freigabegrenzen](smart-farming-m3m-consolidation-review-2026-10-23.md) · [geschützter Kandidatenkatalog](smart-farming-m3m-auth-readonly-catalog.md) · [UI-Status](smart-farming-m3m-ui.md). Keine operative Vegetationskarte oder Flugfreigabe.
 
 ## Historische Momentaufnahmen – nicht als Live-Betriebszustand verwenden
 

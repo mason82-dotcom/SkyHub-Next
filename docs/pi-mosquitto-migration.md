@@ -88,3 +88,45 @@ weder Mosquitto noch EMQX. Ein Rollback darf den vorab dokumentierten Broker,
 die zugehörige private `.env` und die RC-Konfiguration nicht auseinanderziehen.
 Kein `docker compose down -v`, kein Neustart des Legacy-Compose, kein
 fliegerischer Funktionstest und kein stilles Umschalten von DJI Pilot 2.
+
+
+## Profil `mosquitto-dedicated`: eigene authentifizierte Instanz auf 1884
+
+**Stand 24.10.2026 · Opt-in.** Der bestehende Host-Mosquitto auf 1883 (Xiaozhi, `allow_anonymous true`)
+bleibt unverändert. Zusätzlich läuft eine **zweite, eigene Mosquitto-Instanz** (systemd-Unit
+`skyhub-mosquitto`, Konfiguration unter `/etc/skyhub-mosquitto`) auf TCP **1884** mit Passwortdatei
+(PBKDF2-SHA512) und Topic-ACL. Der Port passt zu bereits ausgelieferten RC-Konfigurationen.
+
+| Konfiguration | Wert |
+| --- | --- |
+| `SKYHUB_MQTT_BROKER_KIND` | `mosquitto-dedicated` |
+| `SKYHUB_MQTT_REQUIRED_PORT` | `1884` |
+| `MQTT_BROKER_URL` | `mqtt://host.docker.internal:1884` |
+| `SKYHUB_PILOT_MQTT_URL` | `mqtt://<Pi-LAN-IP>:1884` |
+
+Die Rollen entsprechen der EMQX-Härtung: `MQTT_USER` (nur die fünf SkyHub-Abos), Topologie-Publisher
+(nur `sys/product/+/status_reply`) und Pilot-Konto (Gerät → Cloud schreiben, Cloud → Gerät lesen).
+Alles Übrige ist verweigert.
+
+**Wichtig:** Mosquitto (`acl_file`) quittiert Wildcard-Subscriptions mit Erfolg und filtert erst bei der
+Zustellung. SUBACK-Codes beweisen deshalb keine ACL. `verify` prüft daher die tatsächliche Zustellung
+(alle drei Rollen abonnieren `#`, jede darf nur ihre Lese-Topics erhalten).
+
+```bash
+cd ~/Projekte/SkyHub-Next
+node scripts/pi-mosquitto-dedicated.js plan                 # ACL ohne Geheimnisse
+node scripts/pi-mosquitto-dedicated.js init-env             # Trockenlauf; --write ergänzt MQTT_USER/MQTT_PASSWORD
+sudo node scripts/pi-mosquitto-dedicated.js apply           # Unit anlegen, prüfen, bei Fehler Rollback
+node scripts/pi-mosquitto-dedicated.js verify               # Login- und Zustellprobe aus dem Backend-Container
+sudo node scripts/pi-mosquitto-dedicated.js status          # Verbindungen je Benutzer/IP der letzten 30 min
+sudo node scripts/pi-mosquitto-dedicated.js rollback        # Unit und /etc/skyhub-mosquitto entfernen
+```
+
+`apply` ändert weder `.env` noch das SkyHub-Backend. Die Umstellung der vier Werte erfolgt danach
+manuell mit `bash scripts/pi-preflight.sh --broker-kind mosquitto-dedicated --broker-port 1884` und
+`bash scripts/pi-update-backend.sh --apply`. Die Brokerprobe veröffentlicht nur Topics, die das Backend nicht abonniert
+(`status_reply`, `requests` und den Probe-Namensraum `skyhub/probe/#`, den nur der Reader lesen und nur das Pilot-Konto
+schreiben darf). Ein Test (`backend/test/mosquitto-dedicated-probe.test.js`) stellt sicher, dass kein Probe-Topic zu den
+Abos des Backends passt; andernfalls legt das Backend ein Geisterobjekt `SKYHUBPROBE` im Geräte-Register an.
+Nach einer Änderung am Skript oder an der ACL gilt die neue ACL erst nach erneutem `sudo node scripts/pi-mosquitto-dedicated.js apply`. Firewall, DJI-Pilot-2-Annahme und echte
+OSD-Verarbeitung bleiben ungeprüft, bis die RC nachweislich Telemetrie liefert.

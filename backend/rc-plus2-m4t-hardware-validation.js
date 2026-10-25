@@ -83,7 +83,12 @@ function pairingSummary(pairings,now){
     return {available:false,rcPlus2Paired:null,rcProPaired:null,
       rcPlus2RecentlyUsed:null,rcPlus2Pending:null};
   }
-  const plusModel=name=>name==='DJI RC Plus 2 Enterprise'||name==='DJI RC Plus 2';
+  // Pilot 2 also emits the observed upper-case model label "DJI RC PLUS 2".
+  // Use exact allowlisted labels only: no substring or generic case-folded match.
+  const plusModels=new Set([
+    'DJI RC Plus 2 Enterprise','DJI RC Plus 2','DJI RC PLUS 2'
+  ]);
+  const plusModel=name=>typeof name==='string'&&plusModels.has(name);
   const proModel=name=>name==='DJI RC Pro Enterprise';
   const plus=pairings.devices.filter(d=>isObject(d)&&plusModel(d.model)).slice(0,200);
   const pro=pairings.devices.filter(d=>isObject(d)&&proModel(d.model)).slice(0,200);

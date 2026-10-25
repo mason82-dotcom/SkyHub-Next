@@ -21,6 +21,7 @@ const {createTrackRecorder}=require('./track-recorder');
 const {createS3Storage}=require('./s3-storage');
 const {createMediaRouter}=require('./media-api');
 const {createMinioDrRouter}=require('./minio-dr-api');
+const {createSmartFarmingCatalogRouter}=require('./smart-farming-catalog');
 const {createHttpAuth}=require('./http-auth');
 const {registerPilotRoutes,registerPilotAdminRoutes}=require('./pilot-routes');
 const {createMqttIngest}=require('./mqtt-ingest');
@@ -158,6 +159,15 @@ app.get('/api/health',(req,res)=>res.json({
 }));
 app.use('/api',auth);
 
+// Disabled by default; authenticated bounded M3M candidate metadata only.
+// No public LAN exception, no pixel delivery, no GIS tiles and no DJI actions.
+if(process.env.SKYHUB_M3M_CATALOG_ENABLED==='true'){
+  app.use('/api/smart-farming/candidates',createSmartFarmingCatalogRouter({
+    express,auth,root:process.env.SKYHUB_M3M_CATALOG_ROOT,
+    manifestSha256:process.env.SKYHUB_M3M_CATALOG_SHA256
+  }));
+}
+
 // MinIO disaster-recovery reports: read-only and disabled by default.
 if(process.env.SKYHUB_MINIO_DR_ENABLED==='true'){
   const drDirectory=process.env.SKYHUB_MINIO_DR_REPORT_DIR;
@@ -179,7 +189,7 @@ if(process.env.SKYHUB_MEDIA_ENABLED==='true'){
 }
 
 app.get('/api/devices',(req,res)=>res.json(registry.snapshot()));
-app.get('/api/topology',(req,res)=>res.json(registry.snapshot().map(d=>({sn:d.sn,role:d.role,gatewaySn:d.gatewaySn,model:d.model,topologyOnline:d.topologyOnline,
+app.get('/api/topology',(req,res)=>res.json(registry.snapshot().map(d=>({sn:d.sn,role:d.role,gatewaySn:d.gatewaySn,model:d.model,topologyOnline:d.topologyOnline,online:d.online,
   lastTopologyAt:d.lastTopologyAt,topologyTimeVerified:d.topologyTimeVerified,children:d.children}))));
 app.get('/api/events',(req,res)=>res.json(registry.events()));
 registerPilotAdminRoutes(app,{pairing});

@@ -48,6 +48,14 @@ unzulässige Readiness-Flags, beschädigte JSONB-Struktur und
 nicht korrelierbare Nachrichten werden zurückgewiesen. Datenbankfehler
 werden gegenüber dem Aufrufer redigiert.
 
+## Snapshot-Validierung (Hardening 24.10.2026)
+
+Beim erneuten Laden werden Gateway-, Flight-, TID- und BID-Felder nicht mehr nur per Regex, sondern **zuerst strikt als primitive Strings** geprüft. Dadurch werden manipulierte JSONB-Werte wie `gatewaySn:["SYNTHETIC_RC"]` oder `tid:["..."]` trotz der impliziten JavaScript-String-Konvertierung zurückgewiesen. Reply-/Fortschritt-Zeitstempel dürfen nicht vor dem Sendezeitpunkt bzw. außerhalb des gesendeten TTL-Fensters einschließlich der bisherigen 30-Sekunden-Skew-Toleranz liegen.
+
+Die Datenbank-Antworten für `SELECT`, `INSERT` und revisionsgesicherte `UPDATE` werden strukturell auf ein gültiges `rows`-Array und höchstens die erwartete Zeilenzahl geprüft. Eine positive Neuerstellung muss Revision 1 liefern; ein angewandtes CAS-Update exakt `vorherigeRevision+1`. PostgreSQL-Revisionen werden nur als kanonische positive Ganzzahlen im sicheren JavaScript-Zahlenbereich eingelesen; Zeichenfolgen wie `01`, `1.0` oder exponentielle Schreibweisen werden verworfen. Für fehlerhafte Datenbankantworten wird eine feststehende, von potentiellen Secrets bereinigte Fehlermeldung verwendet.
+
+Die zusätzlichen Unit-Regressionen betreffen ausschließlich synthetische Snapshots und gefälschte DB-Adapter. Das Hardening **führt keine neue Datenbankmigration, kein Live-Routing, kein MQTT und keinen Missionsbefehl** ein.
+
 ## Datenminimierung und Sicherheitsgrenzen
 
 Persistiert werden **nur** die zugelassenen Felder:
