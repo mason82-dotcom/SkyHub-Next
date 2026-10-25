@@ -19,7 +19,7 @@ Das Root-Compose nutzt standardmäßig `emqx/1884`; die im Code geprüften Alter
 
 **SQL-Migrationen:** Das [neue statische Register](docs/sql-migration-inventory.md) unterscheidet DJI-Karten-, Pilot-Medien- und gesperrte WPML-Draftdateien. Die doppelte Dateinummer `003` ist keine globale Versionsreihenfolge; im Hauptbranch existiert kein durch dieses Register freigegebener produktiver SQL-Auto-Runner.
 
-**Offene Integrationen:** [PR-Register und Triage (25.10.2026, abends)](docs/pr-dependency-register-2026-10-25.md). Der Bericht unterscheidet vier direkt auf `main` basierende Drafts und gestapelte Medien-, Thermal-, Smart-Farming- und TSA-Ketten. Er ist eine datierte Momentaufnahme, **keine** allgemeine Merge-Freigabe.
+**Offene Integrationen:** [PR-Register und Triage (25.10.2026, nach den Schließungen)](docs/pr-dependency-register-2026-10-25.md). Der Bericht unterscheidet vier direkt auf `main` basierende Drafts und gestapelte Medien-, Thermal-, Smart-Farming- und TSA-Ketten. Er ist eine datierte Momentaufnahme, **keine** allgemeine Merge-Freigabe.
 
 ## Historischer Integrationsverlauf (ab 23.10.2026)
 
