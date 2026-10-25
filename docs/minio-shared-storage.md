@@ -482,6 +482,43 @@ Für dauerhafte Compose-Netzmitgliedschaft müssen zukünftige Deployments
 Das ursprüngliche Backend-Update-Skript bleibt unverändert und verliert
 die manuelle Netzwerkzuordnung bei einem Recreate.
 
+## Backend-Zugang mit schreibgeschütztem S3-Konto (Stand 25.10.2026)
+
+Das Backend liest über `GET /api/media/*` ausschließlich lesend aus den fünf Buckets. Dafür gilt ein eigenes S3-Konto mit der Policy `skyhub-backend-reader.json`, **nie** die MinIO-Root-Zugangsdaten. Die Datei `~/.config/skyhub/minio-media-reader.env` (0600) enthält Schlüssel und Endpunkt dieses Kontos; im umgezogenen MinIO existiert das Konto bereits (die IAM-Daten liegen in `.minio.sys`).
+
+`scripts/pi-minio-backend-access.sh` hilft, ohne etwas zu ändern: `plan` zeigt Lücken (nur Namen, keine Werte), `check` prüft per `HEAD` jeden der fünf Buckets mit dem Reader-Konto in einem temporären, gehärteten Container, `override` gibt die lokale Compose-Datei aus, die das Backend im Speichernetz hält.
+
+**Hinweis zum Endpunkt:** Der Server heißt im Speichernetz `skyhub-minio`. Die Reader-Datei nennt noch den alten Dienstnamen `minio`; in der `.env` des Backends und im `check` gilt `http://skyhub-minio:9000`.
+
+Anbinden, **erst nach Merge und Synchronisierung des Pi-Checkouts auf `main`**. Die folgenden Schritte ändern die lokale Konfiguration und starten beim Backend-Update dessen Container neu. Vorher das vorhandene `.env` und gegebenenfalls `docker-compose.override.yml` privat sichern und prüfen.
+
+```bash
+cd ~/Projekte/SkyHub-Next
+bash scripts/pi-minio-backend-access.sh check     # nur HEAD auf fünf Buckets
+```
+
+Die bestehende `.env` mit einem Editor öffnen. `SKYHUB_MEDIA_ENABLED` genau einmal auf `true` und `SKYHUB_S3_ENDPOINT` genau einmal auf `http://skyhub-minio:9000` setzen. `SKYHUB_S3_ACCESS_KEY` und `SKYHUB_S3_SECRET_KEY` jeweils genau einmal mit den Werten des dedizierten Reader-Kontos aus der privaten Datei `~/.config/skyhub/minio-media-reader.env` belegen. Vorhandene Werte ersetzen, **keine Zeilen anhängen**. Die Reader-Datei nicht mit `source` als Shell-Code ausführen, Werte nicht in Terminalausgaben oder Chat kopieren. Die Projekt-`.env` auf private Dateirechte prüfen (`chmod 600 .env`).
+
+`docker-compose.override.yml` zuerst öffnen, falls sie bereits existiert: andere lokale Änderungen beibehalten und das Backend mit dem externen Netz `skyhub-storage-net` ergänzen. Nur wenn die Datei **nicht** existiert, die vorgeschlagene Konfiguration erzeugen:
+
+```bash
+if test ! -e docker-compose.override.yml; then
+  bash scripts/pi-minio-backend-access.sh override > docker-compose.override.yml
+  chmod 600 docker-compose.override.yml
+fi
+bash scripts/pi-minio-backend-access.sh plan
+docker compose --env-file .env config --quiet
+```
+
+`plan` muss jeden Schlüssel genau einmal, den korrekten Endpunkt und das **wirksame** externe Backend-Netz bestätigen. Erst danach den regulären, auf `main` beschränkten Backend-Update-Weg mit dessen Backup und Preflight verwenden:
+
+```bash
+bash scripts/pi-update-backend.sh --apply
+bash scripts/pi-minio-backend-access.sh plan
+```
+
+Die Medien-Statusroute `GET /api/media/status` anschließend mit einem bereits eingerichteten authentifizierten Client abfragen; Zugangs-Token nicht in einen `curl`-Befehlsparameter oder in geteilte Ausgaben schreiben. `online` und fünf erreichbare Buckets sind der erwartete Befund. Rückweg: `SKYHUB_MEDIA_ENABLED` in der `.env` wieder auf `false` setzen und das Backend über den geprüften Update-Weg neu erzeugen. Das Reader-Konto soll nur lesen können; der Bucket-`HEAD`-Test belegt keine vollständige IAM-Prüfung oder Sicherung der Medien.
+
 ## 6. Daten- und Zugriffsstrategie
 
 **Tatsächlich vorhandene Buckets (Audit 25.10.2026):** `basemaps`, `dji-cloud`, `farming`, `mapping-results`, `pv-inspections`. Genau diese fünf liest die optionale Medien-API des Backends (`backend/s3-storage.js`, rein lesend). Dafür gilt die Policy `storage/policies/skyhub-backend-reader.json` (nur `s3:ListBucket` und `s3:GetObject`, nur diese Buckets). Die Vorlagen für das unten geplante `skyhub-*`-Layout gelten für **künftige** Buckets und dürfen nicht für das Backend vergeben werden: sie nennen Buckets, die es nicht gibt.
