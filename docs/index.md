@@ -6,6 +6,11 @@
 
 **Aktualisiert am 25.10.2026.** Primäre Einstiegspunkte sind der [neue Main-Audit mit geprüftem Commit](stand-2026-10-25-main-audit.md) und die [Dokumentationspflege](dokumentationspflege.md). Die bisherige Repository-Statusdatei und die umfangreichen PR-Triageberichte sind ältere Messungen **desselben Tages** und kein Ersatz für eine aktuelle GitHub-Abfrage. Diese Navigation gilt für den Root-Stack `skyhub-next`. Die wichtigste Unterscheidung ist die zwischen dem **Code auf `main`** und **noch nicht integrierten Entwicklungszweigen**.
 
+## Sicherheit und Engineering-Review
+
+- [Technischer Main-Review und offene Integrationsgates (25.10.2026)](engineering-audit-2026-10-25.md) – beobachtete Proxy-Trust-Risiken und kontrollierter Sicherheitsentwurf, **noch nicht auf Main**.
+- [Exakte Caddy/HTTP-Proxy-Peers (Draft): Migration, Abnahme, Rollback](proxy-trust-rollout.md) – ohne reale Caddy-Peer-IP **nicht deployen**.
+
 ## Zuerst lesen
 
 1. [README / Produktumfang](../README.md), [Main-Audit 25.10.2026](stand-2026-10-25-main-audit.md), [Dokumentationsregeln](dokumentationspflege.md) und [Live-PRs](https://github.com/mason82-dotcom/SkyHub-Next/pulls)
