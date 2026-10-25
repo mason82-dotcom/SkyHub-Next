@@ -168,7 +168,8 @@ if(process.env.SKYHUB_M3M_CATALOG_ENABLED==='true'){
   }));
 }
 
-// MinIO disaster-recovery reports: read-only and disabled by default.
+// MinIO disaster-recovery reports: read-only, behind auth. Off unless explicitly enabled here;
+// the root Compose file enables it by default (reports are optional: status stays 'unavailable' without them).
 if(process.env.SKYHUB_MINIO_DR_ENABLED==='true'){
   const drDirectory=process.env.SKYHUB_MINIO_DR_REPORT_DIR;
   if(!drDirectory || !path.isAbsolute(drDirectory)){
