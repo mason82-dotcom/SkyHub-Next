@@ -21,6 +21,7 @@ const {createTrackStore,retentionDays}=require('./track-store');
 const {createTrackRecorder}=require('./track-recorder');
 const {createS3Storage}=require('./s3-storage');
 const {createMediaRouter}=require('./media-api');
+const {createPilotMediaLibraryRuntime}=require('./pilot-media-library-runtime');
 const {createMinioDrRouter}=require('./minio-dr-api');
 const {createSmartFarmingCatalogRouter}=require('./smart-farming-catalog');
 const {createHttpAuth}=require('./http-auth');
@@ -188,10 +189,16 @@ if(process.env.SKYHUB_MINIO_DR_ENABLED==='true'){
       : {})
   }));
 }
-if(process.env.SKYHUB_MEDIA_ENABLED==='true'){
-  const mediaStorage=createS3Storage(process.env);
+const mediaStorage=process.env.SKYHUB_MEDIA_ENABLED==='true'?
+  createS3Storage(process.env):null;
+if(mediaStorage){
   app.use('/api/media',createMediaRouter(mediaStorage));
 }
+const mediaLibraryRouter=createPilotMediaLibraryRuntime({
+  env:process.env,db:pool,redis,authorize:pilotAuth.principal,
+  storage:mediaStorage,pilot
+});
+if(mediaLibraryRouter)app.use(mediaLibraryRouter);
 
 app.get('/api/devices',(req,res)=>res.json(registry.snapshot()));
 app.get('/api/topology',(req,res)=>res.json(registry.snapshot().map(d=>({sn:d.sn,role:d.role,gatewaySn:d.gatewaySn,model:d.model,topologyOnline:d.topologyOnline,online:d.online,

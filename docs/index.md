@@ -22,6 +22,10 @@
 6. [Konfigurationsreferenz: Compose, Env und Feature-Flags](config-reference.md)
 7. [API-Referenz: HTTP, Socket.IO, MQTT, Autorisierung](api-reference.md)
 
+## Datenbank-Migrationsregister (statisch, keine Freigabe)
+
+- [SQL-Inventar, eindeutige Familien-IDs, gesperrter WPML-Draft und Migration-Gates](sql-migration-inventory.md) – kein SQL-Runner, keine produktive Migration; [Issue #177](https://github.com/mason82-dotcom/SkyHub-Next/issues/177).
+
 ## Smart Farming – neue Fach-Roadmap (24.10.2026)
 
 - [Smart-Farming-Roadmap 2.1: quantitative M3M-Messdaten, wissenschaftliche QA, GIS, Agronomie und Release-Gates](smart-farming-roadmap-2026-10-24.md) – **Planung, keine Produktivfreigabe**.
@@ -68,6 +72,10 @@
 - [Storage-Audit 20.10.2026](storage-audit-2026-10-20.md)
 - Die Pi-Port-/Broker- und Hardwarediagnosen in den betroffenen Runbooks nennen ausdrücklich ihr Aufnahmedatum.
 - [Archivierter Legacy-Snapshot](../stacks/README.md) dient dem Vergleich und darf **nicht** parallel zur laufenden Installation gestartet werden.
+
+## Aktueller PR-Abhängigkeitsgraph
+
+- [Abhängigkeitsregister 25.10.2026 – 37 Drafts, Main-Kandidaten, Smart-Farming-/Thermal-/Medienketten und Freigabegates](pr-dependency-register-2026-10-25.md). Die Zahlen sind eine neue GitHub-Momentaufnahme; der Original-[PR-Triagebericht](pr-triage-2026-10-24.md) bleibt historisch.
 
 ## Feature-PRs lesen und bewerten
 

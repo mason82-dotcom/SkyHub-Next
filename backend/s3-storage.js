@@ -5,6 +5,7 @@ const {
   HeadBucketCommand,
   ListObjectsV2Command
 }=require('@aws-sdk/client-s3');
+const {createPilotMediaHead}=require('./pilot-media-head');
 
 const BUCKETS=Object.freeze([
   'basemaps',
@@ -109,7 +110,7 @@ function createS3Storage(env=process.env,client){
     };
   }
 
-  return {buckets,objects};
+  return {buckets,objects,headObject:createPilotMediaHead(s3)};
 }
 
 module.exports={createS3Storage,BUCKETS};

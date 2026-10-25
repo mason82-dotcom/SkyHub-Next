@@ -4,6 +4,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const {
   HeadBucketCommand,
+  HeadObjectCommand,
   ListObjectsV2Command
 }=require('@aws-sdk/client-s3');
 const {createS3Storage}=require('../s3-storage');
@@ -96,6 +97,23 @@ test('missing credentials are rejected',()=>{
     ()=>createS3Storage({}),
     /S3 configuration incomplete/
   );
+});
+
+test('Pilot library HEAD reuses the reader client and never fetches object bytes',async()=>{
+  const key='e3dea0f5-37f2-4d79-ae58-490af3228069/media/'+
+    'a'.repeat(32)+'/image.tif';
+  const calls=[];
+  const storage=createS3Storage({}, {async send(command){
+    calls.push(command);
+    return {ContentLength:42,ETag:'"etag"',
+      LastModified:new Date('2026-10-22T15:00:00Z')};
+  }});
+  const result=await storage.headObject({bucket:'dji-cloud',key});
+  assert.equal(result.size,42);
+  assert.equal(calls.length,1);
+  assert.ok(calls[0] instanceof HeadObjectCommand);
+  await assert.rejects(()=>storage.headObject({bucket:'private',key}));
+  assert.equal(calls.length,1);
 });
 
 test('malformed ListObjectsV2 payloads fail closed',async()=>{
