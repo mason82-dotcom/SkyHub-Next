@@ -95,6 +95,38 @@ Startposition und Zoom: `MAP_CENTER`, `MAP_ZOOM` in `.env`. Fehlt `PMTILES_DIR`,
 
 **Wichtig:** Eine Fernsteuerung kann nur an **eine** Plattform gekoppelt sein. Solange sie an der Demo hängt, erhält SkyHub Next keine Telemetrie (und umgekehrt). Zurück zu SkyHub Next über dessen Pilot-Seite.
 
+## HTTPS-Route über Caddy (opt-in, eigener Port 4444)
+
+Für Browser im Heimnetz (z. B. die Verwaltungsoberfläche am PC) gibt es eine verschlüsselte Route über das vorhandene Caddy: `https://rpi5.fritz.box:4444` bzw. `https://192.168.178.63:4444`, nur aus `192.168.178.0/24` (sonst 403). Sie ist **ausgeschaltet**, solange du sie nicht aktivierst. Der RC-Weg über `http://192.168.178.63:8081/pilot-login` bleibt unverändert und funktioniert in beiden Modi.
+
+```text
+Browser ──https──► Caddy :4444 ──► Web (nginx) :8081 ──► /manage|map|media|wayline|storage|control/api/v1/…  und  /api/v1/ws
+                                                       └► Backend :6789 (nur Loopback, wenn DEMO_SAME_ORIGIN=true)
+RC (Pilot 2) ──http──► Web :8081 (gleicher Weg, unverschlüsselt)        RC ──MQTT (tcp)──► EMQX :18830 (unverändert)
+```
+
+**Warum „gleicher Ursprung“:** Eine HTTPS-Seite darf keine `http://…:6789`-Aufrufe und kein `ws://` öffnen (Mixed Content). Mit `DEMO_SAME_ORIGIN=true` leitet nginx im Web-Container die API-Präfixe des Demo-Backends und den WebSocket an das Backend weiter, und die Seite leitet Basis- und WebSocket-Adresse zur Laufzeit aus ihrer eigenen Adresse ab (gleiches Bundle für `http://<IP>:8081` und `https://<Host>:4444`). Das Backend lauscht dann nur noch auf Loopback, der LAN-Port 6789 entfällt. Unbekannte Pfade werden nicht weitergereicht.
+
+**Aktivieren** (jeder Schritt einzeln; der erste baut das Web-Image neu, das dauert auf dem Pi einige Minuten):
+
+```bash
+cd ~/Projekte/SkyHub-Next/ops/cloud-api-demo
+sed -i 's/^DEMO_SAME_ORIGIN=.*/DEMO_SAME_ORIGIN=true/' .env     # oder die Zeile von Hand ändern
+bash pi-cloud-api-demo.sh preflight
+bash pi-cloud-api-demo.sh apply                                  # Web neu bauen, Backend nur noch auf Loopback
+sudo bash pi-caddy-cloud-api-demo.sh apply                       # Caddyfile sichern, :4444 ergänzen, validieren, neu laden
+bash pi-caddy-cloud-api-demo.sh check                            # erwartet: 200, 200/401/405, 403 von außen, 6789 geschlossen
+```
+
+`sudo bash pi-caddy-cloud-api-demo.sh rollback` stellt das Caddyfile von vor `apply` wieder her. Zurück zum alten Modus: `DEMO_SAME_ORIGIN=false` setzen und `pi-cloud-api-demo.sh apply` erneut ausführen. Nach dem Wechsel der Seitenadresse für die RC (`:6789` → `:8081`) muss die Demo-Seite dort einmal neu geöffnet werden; ein erneutes Anmelden kann nötig sein.
+
+**Root-Zertifikat:** Caddy nutzt seine interne CA (`tls internal`). Ein PC-Browser warnt, bis das **öffentliche** Root-Zertifikat installiert ist: `bash pi-caddy-cloud-api-demo.sh ca` gibt es mit Fingerabdruck aus (derselbe Root wie bei `:4443` und `:443`).
+
+**Grenzen:**
+- Verschlüsselt ist nur der Browser-Weg. **MQTT (:18830) und die DRC-WebSocket-Verbindung (:18084) bleiben Klartext**; der Browser-DRC (`ws://`) funktioniert von einer HTTPS-Seite aus nicht (Mixed Content). Für die Mavic 3M wird DRC nicht gebraucht.
+- Ob die **native** Anbindung der RC (Pilot-2-Module `api`/`ws`) das Caddy-Zertifikat akzeptiert, ist **nicht geprüft**. Deshalb bleibt die RC bei HTTP (:8081).
+- Die Prüfung am Caddy-Block war eine reine Syntaxprüfung (`caddy adapt`). Der Proxy-Pfad wurde mit einem Wegwerf-nginx und einem Attrappen-Backend getestet (statisch, REST, WebSocket-Upgrade, 150-MB-Upload, unbekannte Präfixe); **nicht** gegen das echte Backend, den Browser oder die RC.
+
 ## Prüfung vom 25.10.2026 (Code-Review des Stacks)
 
 Geprüft wurden Compose, beide Dockerfiles, EMQX-Konfiguration und ACL, das Verwaltungsskript, die erzeugte Konfiguration (ohne Geheimnisse), die Pins der Quellen und der laufende Zustand (nur lesend). In dieser Änderung behoben: Bindung an `0.0.0.0` statt an die LAN-Adresse, Quellen ohne Pin und außerhalb des Projekts, `RUNTIME`-Löschung ohne Pfadprüfung, unvollständige Schwärzung in `logs`, Statusabfragen über Loopback.
@@ -103,7 +135,7 @@ Geprüft wurden Compose, beide Dockerfiles, EMQX-Konfiguration und ACL, das Verw
 
 | Befund | Einordnung |
 | --- | --- |
-| Kein TLS: Anmeldung, JWT und MQTT-Zugangsdaten laufen im Klartext im LAN | Die RC akzeptiert die interne Caddy-CA (Chrome 95 lädt `https://rpi5.fritz.box`), eine HTTPS-Route für Web und REST wäre möglich. MQTT-TCP (18830) bleibt ohne Caddy-Layer-4-Modul Klartext. Eigene Entscheidung. |
+| Kein TLS: Anmeldung, JWT und MQTT-Zugangsdaten laufen im Klartext im LAN | Für Browser gibt es die opt-in [HTTPS-Route](#https-route-über-caddy-opt-in-eigener-port-4444). MQTT-TCP (18830) und der RC-Weg bleiben Klartext. |
 | Die DJI-App-ID, der Schlüssel und die Lizenz stehen im ausgelieferten Frontend-Bundle | Vom Demo-Design verlangt (JSBridge), für jeden im LAN lesbar. |
 | Backend nutzt den MySQL-`root`-Benutzer und sendet `Access-Control-Allow-Origin: *` | Upstream-Code (`CorsFilter`), im Build nicht geändert. |
 | EMQX-ACL: `pilot` darf `thing/product/#` und `sys/product/#` lesen und schreiben, also auch fremde Gerätethemen | Für eine einzelne RC unkritisch, bei mehreren Geräten einschränken (`thing/product/<SN>/#`). |
