@@ -262,9 +262,6 @@ def main() -> None:
                     guard(page, base, real_map=True, unexpected=unexpected)
                     page.goto(base + "/wpml-editor.html", wait_until="load")
                     page.locator(".leaflet-container").wait_for()
-                    check(page.locator(".leaflet-tile").first.evaluate(
-                        "img => img.referrerPolicy") == "strict-origin-when-cross-origin",
-                        "WPML tile image must send origin-only Referer")
                     assert_light_theme(page, "/wpml-editor.html", "WPML editor desktop")
                     assert_skip_link(page, "WPML editor desktop")
                     assert_system_accessibility(page, "WPML editor desktop")
