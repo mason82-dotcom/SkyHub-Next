@@ -57,6 +57,11 @@ jobs:
       - name: Check repository hygiene (read-only Git index)
         run: python3 scripts/repository-hygiene.py
 
+      - name: Check complete SQL migration inventory (static, never execute SQL)
+        run: |
+          python3 -m py_compile scripts/audit_sql_migrations.py
+          python3 scripts/audit_sql_migrations.py
+
       - name: Validate staging helper and Python tests
         run: |
           python3 -m py_compile scripts/pi-prepare-staging-env.py
