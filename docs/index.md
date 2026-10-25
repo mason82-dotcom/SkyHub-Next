@@ -17,6 +17,10 @@
 6. [Konfigurationsreferenz: Compose, Env und Feature-Flags](config-reference.md)
 7. [API-Referenz: HTTP, Socket.IO, MQTT, Autorisierung](api-reference.md)
 
+## Datenbank-Migrationsregister (statisch, keine Freigabe)
+
+- [SQL-Inventar, eindeutige Familien-IDs, gesperrter WPML-Draft und Migration-Gates](sql-migration-inventory.md) – kein SQL-Runner, keine produktive Migration; [Issue #177](https://github.com/mason82-dotcom/SkyHub-Next/issues/177).
+
 ## Smart Farming – neue Fach-Roadmap (24.10.2026)
 
 - [Smart-Farming-Roadmap 2.1: quantitative M3M-Messdaten, wissenschaftliche QA, GIS, Agronomie und Release-Gates](smart-farming-roadmap-2026-10-24.md) – **Planung, keine Produktivfreigabe**.

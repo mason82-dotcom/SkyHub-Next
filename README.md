@@ -17,6 +17,8 @@ Zum Prüfzeitpunkt: **36 offene Draft-PRs**, davon **5 direkt auf `main` und 31 
 
 Das Root-Compose nutzt standardmäßig `emqx/1884`; die im Code geprüften Alternativen sind `mosquitto/1883` und `mosquitto-dedicated/1884`. Die reale Brokerart auf dem Raspberry Pi muss vor jeder Änderung lokal bestätigt werden. MinIO-Profile und der separate Shared-Storage-Stack dürfen nicht ohne Betriebsprüfung kombiniert werden.
 
+**SQL-Migrationen:** Das [neue statische Register](docs/sql-migration-inventory.md) unterscheidet DJI-Karten-, Pilot-Medien- und gesperrte WPML-Draftdateien. Die doppelte Dateinummer `003` ist keine globale Versionsreihenfolge; im Hauptbranch existiert kein durch dieses Register freigegebener produktiver SQL-Auto-Runner.
+
 ## Historischer Integrationsverlauf (ab 23.10.2026)
 
 **CI-Abnahme für M3M:** Der eigenständige [Raster-/Katalog-Prüfworkflow](.github/workflows/m3m-offline-acceptance.yml) ist durch PR #101 im Hauptbranch registriert und muss vor Zusammenführung dieser Komponenten auf genau dem finalen PR-Commit sowohl die echten NumPy-/Rasterio-Testfälle als auch die HTTP-/Berechtigungstests erfolgreich ausführen.
