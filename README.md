@@ -3,7 +3,7 @@
 **GitHub-Repository:** https://github.com/mason82-dotcom/SkyHub-Next  
 **Hinweis:** Der frühere Repository-Slug `mason82-dotcom/SkyHub` leitet auf `SkyHub-Next` weiter. Das lokale Legacy-Verzeichnis `~/Projekte/SkyHub` ist weiterhin getrennt vom Entwicklungsverzeichnis `~/Projekte/SkyHub-Next` zu behandeln.
 
-**Repository-Stand 25.10.2026:** `main` @ [`db7c940`](https://github.com/mason82-dotcom/SkyHub-Next/commit/db7c940641e50205272ec07f10d127bcaffb39b1), 43 offene PRs (8 direkt auf `main`, 35 gestapelt). Die Haupt-CI und der TAK-UI-Browsertest auf diesem Commit waren erfolgreich. [Aktuelle Bestandsaufnahme und offene Gates](docs/repository-status-2026-10-25.md). Die ältere [Hygieneprüfung](docs/repository-hygiene-2026-10-25.md) und die datierten Abschnitte darunter bleiben historische Nachweise; ihre PR-Zahlen und Main-SHAs beschreiben nicht den aktuellen Zustand. Der Pi-Betrieb wurde mit dieser GitHub-Prüfung nicht verifiziert.
+**Repository-Stand:** [Offene Pull Requests auf GitHub](https://github.com/mason82-dotcom/SkyHub-Next/pulls) und [aktueller `main`-Branch](https://github.com/mason82-dotcom/SkyHub-Next/tree/main) zeigen den Live-Stand. Die [Bestandsaufnahme vom 25.10.2026](docs/repository-status-2026-10-25.md) und die [Hygieneprüfung](docs/repository-hygiene-2026-10-25.md) sind datierte Momentaufnahmen; ihre PR-Zahlen und Commit-IDs gelten nur für den jeweils genannten Prüfzeitpunkt. GitHub-Checks belegen keinen aktuellen Pi-Betrieb oder eine DJI-Hardwarefreigabe.
 
 **Version 0.1.0 – Entwicklungsstand.** Die Branch-Suffixe v1/v2/v3/v4 sind keine Produktversionen.
 
