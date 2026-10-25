@@ -12,7 +12,8 @@ function createMqttMetrics() {
     lastConnectedAt:null,lastDisconnectedAt:null,lastMessageAt:null,
     lastOsdAt:null,lastTelemetryAt:null,
     accepted:0,rejected:0,unverifiedTime:0,osdMessages:0,validTelemetryUpdates:0,
-    observedPackets:0,observedOsdPackets:0,lastObservedOsdAt:null
+    observedPackets:0,observedOsdPackets:0,lastObservedOsdAt:null,
+    serviceReplyValidated:0,serviceReplyRejected:0
   };
   return {
     // Count allowlisted MQTT topic deliveries BEFORE JSON and replay filtering.
@@ -35,6 +36,8 @@ function createMqttMetrics() {
         'missing_timestamp_after_verified'].includes(reason)?reason:'invalid';
       drops[safe]=(drops[safe]||0)+1;
     },
+    serviceReplyValidated() {state.serviceReplyValidated++;},
+    serviceReplyRejected() {state.serviceReplyRejected++;},
     accepted(message,result,at=Date.now()) {
       if(!message || !Object.hasOwn(counts,message.channel) || result?.dropReason)return;
       state.accepted++;
@@ -68,6 +71,8 @@ function createMqttMetrics() {
         mqttObservedOsdPackets:state.observedOsdPackets,
         mqttLastObservedOsdAt:state.lastObservedOsdAt,
         mqttObservedChannelCounts:{...observedCounts},
+        mqttServiceReplyValidated:state.serviceReplyValidated,
+        mqttServiceReplyRejected:state.serviceReplyRejected,
         mqttOsdMessages:state.osdMessages,
         mqttValidTelemetryUpdates:state.validTelemetryUpdates,
         mqttChannelCounts:{...counts}
