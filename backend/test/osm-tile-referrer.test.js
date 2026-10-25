@@ -17,12 +17,13 @@ test('OSM browser tile layer uses only official host and an origin-only Referer'
   }
 });
 
-test('page referrer remains private for other links and API responses',()=>{
+test('OSM map documents use origin-only policy while sensitive APIs remain private',()=>{
   for(const html of ['wpml-editor.html','wpml-survey-preview.html']){
-    assert.match(load(html),/<meta name="referrer" content="no-referrer">/);
+    assert.match(load(html),/<meta name="referrer" content="strict-origin-when-cross-origin">/);
   }
   const server=fs.readFileSync(path.resolve(__dirname,'../server.js'),'utf8');
   assert.match(server,/res\.set\('Referrer-Policy','no-referrer'\)/);
+  assert.match(server,/app\.use\(mapPageReferrerPolicy\)/);
 });
 
 test('main dashboard remains on the same OSM tile host and opt-in tile policy',()=>{
