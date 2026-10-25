@@ -43,6 +43,12 @@ Reine Funktionen ohne Netzwerk-, Datei-, Datenbank- oder Umgebungszugriff; `serv
 - Die Schemanamen auf der Gruppen-Seite (`FolderUploadCallbackInput` und `MissionFinishCallBackInput`) widersprechen sich; maßgeblich sind die Felder `file_group_id`, `file_count`, `file_uploaded_count`.
 - Beim Gruppen-Callback ist `file_group_id` laut Tabelle optional; sie wird auch optional akzeptiert.
 
+## Neu: isolierte HTTPS-STS-Autorisierungsgrenze (22.10.2026)
+
+`backend/pilot-media-sts.js` stellt mit `createPilotMediaStsHandler` einen noch **nicht** in den Server eingebundenen, fail-closed Handler für den oben dokumentierten Pilot-2-HTTPS-STS-Endpunkt bereit. Er prüft HTTPS, exakt passenden Workspace-Principal, tokenbasierten Zugriff, einen gesonderten Rate-Limiter und die befristete Grant-Hülle. Ohne einen explizit injizierten und vollständig geprüften MinIO-STS-Issuer werden niemals Zugangsdaten ausgegeben. Es findet kein Live-Upload statt.
+
+Die DJI-Dock-`requests`/`requests_reply`-MQTT-Funktion ist **ein anderer Protokollweg**. Sie ist nicht die Voraussetzung für den Pilot-2-Medienimport. Details und Sicherheitsgrenzen: [Pilot-2-STS-Autorisierungsgrenze](dji-pilot2-media-sts-boundary.md).
+
 ## Bewusst nicht umgesetzt
 
 - **Keine Routen, kein Laden der Module in der Login-Seite.** Das Medien-Modul braucht das `api`-Modul und damit eine Zusage, dass Pilot 2 gegen SkyHub schreibt.
