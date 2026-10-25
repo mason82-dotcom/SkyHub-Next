@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import sys
 from pathlib import Path
 import tempfile
 import types
@@ -86,6 +87,59 @@ class CandidateTests(unittest.TestCase):
         for target in (str(self.bundle), str(self.seal), str(self.root)):
             self.assertNotIn(target, json.dumps(data))
         self.assertNotIn('latitude', json.dumps(data))
+
+    @unittest.skipUnless(sys.platform.startswith('linux'), 'Linux renameat2 required')
+    def test_atomic_publish_refuses_racing_empty_destination(self):
+        """POSIX rename silently replaces an empty directory, renameat2 must not."""
+        original = worker._publish_no_replace
+        created = []
+
+        def racer(stage, destination):
+            # Deterministically race *after* the final lexists() check and
+            # before the atomic directory-publish syscall.
+            destination.mkdir()
+            created.append(destination)
+            original(stage, destination)
+
+        with mock.patch.object(worker, '_publish_no_replace', side_effect=racer):
+            with self.assertRaises(FileExistsError):
+                self._run()
+        self.assertEqual(created, [self.dest])
+        self.assertTrue(self.dest.is_dir())
+        self.assertEqual(list(self.dest.iterdir()), [])
+        self.assertFalse((self.dest / 'candidate.json').exists())
+        self.assertFalse(list(self.root.glob('.skyhub-m3m-candidate-*')))
+
+    @unittest.skipUnless(sys.platform.startswith('linux'), 'Linux renameat2 required')
+    def test_atomic_publish_refuses_existing_empty_destination(self):
+        stage = self.root / 'staged'
+        stage.mkdir()
+        (stage / 'candidate.json').write_text('original')
+        self.dest.mkdir()
+        with self.assertRaises(FileExistsError):
+            worker._publish_no_replace(stage, self.dest)
+        self.assertTrue(stage.is_dir())
+        self.assertEqual((stage / 'candidate.json').read_text(), 'original')
+        self.assertTrue(self.dest.is_dir())
+        self.assertEqual(list(self.dest.iterdir()), [])
+
+    @unittest.skipUnless(sys.platform.startswith('linux'), 'Linux renameat2 required')
+    def test_atomic_publish_succeeds_with_missing_destination(self):
+        stage = self.root / 'staged'
+        stage.mkdir()
+        (stage / 'candidate.json').write_text('original')
+        worker._publish_no_replace(stage, self.dest)
+        self.assertFalse(stage.exists())
+        self.assertEqual((self.dest / 'candidate.json').read_text(), 'original')
+
+    def test_atomic_publish_refuses_unsupported_platform_without_rename(self):
+        stage = self.root / 'staged'
+        stage.mkdir()
+        with mock.patch.object(worker.sys, 'platform', 'darwin'):
+            with self.assertRaises(worker.CandidateError):
+                worker._publish_no_replace(stage, self.dest)
+        self.assertTrue(stage.is_dir())
+        self.assertFalse(self.dest.exists())
 
     def test_bad_hash_rejected(self):
         with self.assertRaises(worker.CandidateError): self._run(trusted_seal_sha256='bad')

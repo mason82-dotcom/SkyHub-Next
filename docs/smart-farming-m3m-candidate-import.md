@@ -1,5 +1,27 @@
 # SkyHub-Next Smart Farming – verifizierte experimentelle Kartenkandidaten
 
+**Sicherheitsnachtrag 24.10.2026 (Draft, noch nicht in `main`):**
+Der Python-Kandidatenworker veröffentlicht sein privates Ergebnis unter
+Linux jetzt mit `renameat2(RENAME_NOREPLACE)`. Anders als das bisherige
+`os.rename()` darf dieser atomare Systemaufruf **auch ein zwischenzeitlich
+angelegtes leeres Zielverzeichnis niemals ersetzen**. Der vorherige
+`lexists()`-Check allein schloss dieses Race nicht aus.
+
+Die Veröffentlichung findet weiter im selben übergeordneten Verzeichnis
+statt. Ist der Linux-Systemaufruf oder die atomare No-Replace-Funktion
+des Dateisystems nicht verfügbar, wird **ohne unsicheren Fallback**
+abgebrochen. Das setzt für Kandidatenregistrierungen in dieser Fassung
+ein unterstütztes Linux-Dateisystem voraus; ein macOS-/Windows-Port
+braucht eine eigene fachlich geprüfte atomare Implementierung.
+
+Vier zusätzliche isolierte Tests prüfen eine deterministisch zwischen
+Check und Veröffentlichung erzeugte **leere** Zieldirectory, bereits
+existierende leere Ziele, erfolgreiche No-Replace-Veröffentlichung
+sowie den Fail-Closed-Zweig auf nicht unterstützten Plattformen.
+Echter M3M-Hardwarebetrieb, radiometrische Kalibrierung und
+Anwendungen im Feld sind weiterhin **nicht freigegeben**.
+
+
 Stand: 23.10.2026; Entwicklungsbranch:
 `feature/m3m-smart-farming-candidate-20261023`.
 
