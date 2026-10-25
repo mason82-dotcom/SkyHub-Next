@@ -47,6 +47,9 @@ function createRegistry(limit = 200) {
       sn: d.sn, role: d.role, gatewaySn: d.gatewaySn,
       model: d.model, modelName: resolveDeviceModel(d.model),
       deviceCategory: category(d.model.domain), topologyOnline: d.topologyOnline,
+      // topologyOnline is the last reported topology fact and stays true until a later
+      // topology message revokes it. `online` additionally requires fresh OSD telemetry.
+      online: d.topologyOnline === true && fresh(d.lastTelemetryAt, now),
       lastTopologyAt: d.lastTopologyAt, topologyTimeVerified: d.topologyTimeVerified,
       topologyRestored: d.topologyRestored, aircraftConnected: d.aircraftConnected,
       children: [...d.children], channel: d.channel,

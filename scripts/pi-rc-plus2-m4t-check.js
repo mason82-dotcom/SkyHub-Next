@@ -77,11 +77,11 @@ const JSON_MODE=${json};
       get('/api/pilot-admin/pairings',true)
     ];
     // Missing optional API endpoints are incomplete prerequisites, not an
-    // undiagnosable crash. Only preflight isolates every GET failure.
-    // Live diagnostics retain their existing strict GET error behavior.
+    // undiagnosable crash. Preflight and live JSON isolate every GET failure
+    // (the host reports them as exit 3); the human-readable mode stays strict.
     const [health,devices,shapes,pairings]=await Promise.all(
       requests.map((request,index)=>
-        (PREFLIGHT||index===3)?request.catch(()=>null):request)
+        (PREFLIGHT||JSON_MODE||index===3)?request.catch(()=>null):request)
     );
     if(PREFLIGHT){
       // Preflight intentionally keeps full snapshots inside the container:
@@ -106,8 +106,14 @@ const JSON_MODE=${json};
       // Live JSON is evaluated inside the *running* backend container.
       // Do not transfer raw DJI device, GNSS, pairing or MQTT API snapshots.
       // If the runtime image lacks these modules, fail closed: no deployment.
-      const {evaluateHardwareSession}=require('./rc-plus2-m4t-hardware-validation');
-      const {makeLiveEvidence}=require('./rc-plus2-m4t-evidence');
+      const unavailable=reason=>process.stdout.write(JSON.stringify(
+        {schema:'skyhub-rcplus2-m4t-live-unavailable-v1',reason}));
+      let evaluateHardwareSession,makeLiveEvidence;
+      try{
+        ({evaluateHardwareSession}=require('./rc-plus2-m4t-hardware-validation'));
+        ({makeLiveEvidence}=require('./rc-plus2-m4t-evidence'));
+      }catch(_){return unavailable('modules-missing');}
+      if(!health||!Array.isArray(devices)||!Array.isArray(shapes))return unavailable('api');
       const report=evaluateHardwareSession(devices,health,shapes,Date.now(),pairings);
       process.stdout.write(JSON.stringify(makeLiveEvidence(report)));
       return;
@@ -128,6 +134,15 @@ const JSON_MODE=${json};
   }else{
     try{
       const data=JSON.parse(exec.stdout);
+      if(json&&!runtimeCheck&&!preflight&&data?.schema==='skyhub-rcplus2-m4t-live-unavailable-v1'){
+        // Distinguish "backend image too old" and "API not answering" from a
+        // garbled reply; both are incomplete prerequisites (exit 3), no receipt.
+        console.error(data.reason==='modules-missing'
+          ?'Live-JSON nicht verfügbar: laufendes Backend-Image enthält die Evidence-Module nicht. Zuerst --runtime-check, dann Backend aktualisieren.'
+          :'Live-JSON nicht verfügbar: Health-, Devices- oder Shapes-API antwortet nicht. --preflight prüfen.');
+        process.exitCode=3;
+        return;
+      }
       if(runtimeCheck){
         const keys=['evaluatorAvailable','evidenceAvailable'];
         if(data?.schema!=='skyhub-rcplus2-m4t-runtime-check-v1'||

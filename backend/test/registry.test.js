@@ -213,3 +213,22 @@ test('when only confirmed devices remain, the least recently seen one is evicted
   assert.equal(registry.get('AIR01')?.sn,undefined);
   assert.ok(registry.get('NEW01'));
 });
+
+test('online needs fresh OSD: a stale topology fact alone never reads as connected',()=>{
+  const registry=createRegistry();
+  const t0=1760000001000;
+  registry.ingest(topology(['AIR01']),t0);
+  // Topology says online, but no telemetry has arrived yet.
+  assert.equal(registry.get('AIR01',t0).topologyOnline,true);
+  assert.equal(registry.get('AIR01',t0).online,false);
+  registry.ingest(receive('thing/product/AIR01/osd',{timestamp:t0,gateway:'RC123',
+    data:{latitude:49,longitude:8,height:10}}),t0+500);
+  assert.equal(registry.get('AIR01',t0+1000).online,true);
+  // Telemetry stops; the retained topology fact stays true, `online` does not.
+  const later=registry.get('AIR01',t0+60000);
+  assert.equal(later.topologyOnline,true);
+  assert.equal(later.online,false);
+  // A topology revocation always wins over fresh data.
+  registry.ingest(topology([],t0+2),t0+1500);
+  assert.equal(registry.get('AIR01',t0+2000).online,false);
+});

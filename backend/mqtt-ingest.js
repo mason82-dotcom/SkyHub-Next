@@ -129,4 +129,4 @@ function createMqttIngest({broker,env,registry,io,redis,topologyStore,trackRecor
     stop(){client.end(true);if(ack.client)ack.client.end(true);}
   };
 }
-module.exports={createMqttIngest};
+module.exports={createMqttIngest,SUBSCRIPTIONS};

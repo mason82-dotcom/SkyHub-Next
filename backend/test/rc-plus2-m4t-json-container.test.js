@@ -63,7 +63,10 @@ const mockedRequire=id=>{
  }
  return backendRequire(id);
 };
-const fetch=async url=>({ok:true,json:async()=>data[new URL(url).pathname]});
+const fetch=async url=>{
+ if(process.env.TEST_FAIL_GET&&url.endsWith(process.env.TEST_FAIL_GET))return {ok:false};
+ return {ok:true,json:async()=>data[new URL(url).pathname]};
+};
 new Function('require','fetch',args[index+1])(mockedRequire,fetch);
 `;
 function run(testEnv={}){
@@ -97,9 +100,17 @@ test('live JSON receipt is projected inside Docker and hides original GET data',
 });
 test('older runtime missing evidence module fails closed without snapshot fallback',()=>{
  const r=run({TEST_NO_MODULE:'1'});
- assert.equal(r.status,1,r.stderr);
+ assert.equal(r.status,3,r.stderr);
  assert.equal(r.stdout,'');
+ assert.match(r.stderr,/Evidence-Module nicht/);
  assert.doesNotMatch(r.stderr,/PRIVATE_|49.123456|654321/);
+});
+test('a failing GET is an incomplete prerequisite (exit 3) like in preflight, without receipt',()=>{
+ const r=run({TEST_FAIL_GET:'/api/diagnostics/mqtt-shapes'});
+ assert.equal(r.status,3,r.stderr);
+ assert.equal(r.stdout,'');
+ assert.match(r.stderr,/API antwortet nicht/);
+ assert.doesNotMatch(r.stderr,/PRIVATE_/);
 });
 test('host rejects injected unapproved keys before printing JSON receipt',()=>{
  const r=run({TEST_INJECT_SECRET:'1'});
