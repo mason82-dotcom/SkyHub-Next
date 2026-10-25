@@ -105,8 +105,15 @@ function createMqttIngest({broker,env,registry,io,redis,topologyStore,trackRecor
   if(ack.enabled){
     ack.client=mqtt.connect(broker.url,{...base,clientId:'skyhub_next_topology_ack_'+process.pid,
       username:ackUser,password:ackPassword});
-    ack.client.on('connect',()=>{ack.connected=true;});
-    ack.client.on('close',()=>{ack.connected=false;});
+    // Log state changes only (not every retry), so a broker outage cannot flood the log.
+    ack.client.on('connect',()=>{
+      if(!ack.connected)console.log('[topology ack] publisher connected');
+      ack.connected=true;
+    });
+    ack.client.on('close',()=>{
+      if(ack.connected)console.error('[topology ack] publisher disconnected');
+      ack.connected=false;
+    });
     ack.client.on('error',()=>{ack.failed++;console.error('[topology ack] broker connection failed');});
   }
   client.on('connect',()=>{
@@ -117,10 +124,16 @@ function createMqttIngest({broker,env,registry,io,redis,topologyStore,trackRecor
     client.subscribe(SUBSCRIPTIONS,{qos:0},(err,granted)=>{
       state.subscribed=!err && Array.isArray(granted) && granted.length===SUBSCRIPTIONS.length &&
         granted.every(item=>item.qos!==128);
-      if(!state.subscribed)console.error('[mqtt subscribe] subscriptions not confirmed');
+      if(state.subscribed)console.log('[mqtt] subscribed to '+SUBSCRIPTIONS.length+' read-only topics');
+      else console.error('[mqtt subscribe] subscriptions not confirmed');
     });
   });
-  client.on('close',()=>{state.connected=false;state.subscribed=false;mqttStats.disconnected();});
+  client.on('close',()=>{
+    const wasConnected=state.connected;
+    state.connected=false;state.subscribed=false;mqttStats.disconnected();
+    // Once per outage; mqtt.js keeps retrying every reconnectPeriod ms.
+    if(wasConnected)console.error('[mqtt] connection lost; reconnecting every '+base.reconnectPeriod/1000+' s');
+  });
   client.on('error',err=>console.error('[mqtt]',err.message));
   client.on('message',onMessage);
 
