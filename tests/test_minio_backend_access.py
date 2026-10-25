@@ -35,7 +35,9 @@ class MinioBackendAccessTest(unittest.TestCase):
     def test_secret_values_are_never_printed_or_passed_as_arguments(self) -> None:
         self.assertNotIn("SECRET_KEY=$", TEXT)
         self.assertNotIn('echo "$(value_of', TEXT)
-        self.assertIn("Wert nicht gelesen", TEXT)
+        self.assertIn("Wert nicht ausgegeben", TEXT)
+        self.assertIn("key_count(", TEXT)
+        self.assertIn("mehrfach gesetzt", TEXT)
         # The backend must not be given the MinIO root account.
         self.assertIn("nie verwenden", TEXT)
 
@@ -46,6 +48,8 @@ class MinioBackendAccessTest(unittest.TestCase):
         self.assertIn("- shared_storage", out)
         self.assertNotIn("ports:", out)
         self.assertIn("docker-compose.override.yml", (ROOT / ".gitignore").read_text(encoding="utf-8"))
+        self.assertIn("docker compose --env-file .env config --format json", TEXT)
+        self.assertIn("skyhub-storage-net", TEXT)
 
 
 if __name__ == "__main__":
