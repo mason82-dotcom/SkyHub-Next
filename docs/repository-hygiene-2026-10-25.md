@@ -13,7 +13,7 @@
 
 ## Nachtrag: abgeschlossene Dubletten
 
-Nach dem Audit wurden die historischen Konsolidierungs-PRs [#88](https://github.com/mason82-dotcom/SkyHub-Next/pull/88) und [#94](https://github.com/mason82-dotcom/SkyHub-Next/pull/94) mit jeweils einer begründenden PR-Notiz **ohne Merge geschlossen**. Sie sind über [#100](https://github.com/mason82-dotcom/SkyHub-Next/pull/100) in `main` abgelöst. Beide Branches und die PR-Historie wurden **nicht gelöscht**. Damit sind **50 offene PRs** übrig (16 direkte und 34 gestapelte, bezogen auf die zuvor gezählten Basen). Die Basis dieser Zahlen kann durch andere PR-Änderungen erneut veralten.
+Nach dem Audit wurden die historischen Konsolidierungs-PRs [#88](https://github.com/mason82-dotcom/SkyHub-Next/pull/88) und [#94](https://github.com/mason82-dotcom/SkyHub-Next/pull/94) mit jeweils einer begründenden PR-Notiz **ohne Merge geschlossen**. Sie sind über [#100](https://github.com/mason82-dotcom/SkyHub-Next/pull/100) in `main` abgelöst. Beide Branches und die PR-Historie wurden **nicht gelöscht**. Damit sind **50 offene PRs** übrig (14 direkte und 36 gestapelte, bezogen auf die zuvor gezählten Basen). Die Basis dieser Zahlen kann durch andere PR-Änderungen erneut veralten.
 
 ## Aufräumgrenzen
 
