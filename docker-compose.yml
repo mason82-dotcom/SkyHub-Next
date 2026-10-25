@@ -92,6 +92,8 @@ services:
       SKYHUB_TOPOLOGY_ACK_MQTT_PASSWORD: ${SKYHUB_TOPOLOGY_ACK_MQTT_PASSWORD:-}
       # Optional token-free read-only dashboard for one private LAN (e.g. 192.168.178.0/24).
       SKYHUB_LAN_VIEW_CIDR: ${SKYHUB_LAN_VIEW_CIDR:-}
+      # Explicit Caddy/Docker gateway socket peers only; no subnet trust.
+      SKYHUB_TRUSTED_PROXY_IPS: ${SKYHUB_TRUSTED_PROXY_IPS:-}
       # New position history is OFF by default; live OSD remains ON.
       SKYHUB_TRACK_RECORDING_ENABLED: ${SKYHUB_TRACK_RECORDING_ENABLED:-false}
       # Retention applies only while recording is enabled.
