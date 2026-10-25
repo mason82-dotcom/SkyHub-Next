@@ -41,6 +41,7 @@ async function inventoryM3MFromS3(storage, prefix) {
 
   const names = [];
   const seenCursors = new Set();
+  const seenKeys = new Set();
   let cursor;
 
   for (let page = 0; page < MAX_PAGES; page++) {
@@ -64,10 +65,18 @@ async function inventoryM3MFromS3(storage, prefix) {
 
       if (
         typeof key !== 'string' ||
-        !key.startsWith(prefix)
+        key.length > 1024 ||
+        !key.startsWith(prefix) ||
+        /[\x00-\x1f\x7f]/.test(key)
       ) {
         throw new Error('Invalid S3 inventory object');
       }
+      // Pagination can repeat keys if the source changes during a scan.
+      // Reject the entire report rather than counting a capture twice.
+      if (seenKeys.has(key)) {
+        throw new Error('Duplicate S3 inventory object key');
+      }
+      seenKeys.add(key);
 
       // Only direct children of the requested directory.
       const relative = key.slice(prefix.length);

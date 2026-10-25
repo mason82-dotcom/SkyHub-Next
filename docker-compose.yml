@@ -55,11 +55,19 @@ services:
       SKYHUB_MINIO_DR_ENABLED: ${SKYHUB_MINIO_DR_ENABLED:-true}
       SKYHUB_MINIO_DR_REPORT_DIR: /app/dr-status
       SKYHUB_MINIO_DR_COMPOSITE_ENABLED: ${SKYHUB_MINIO_DR_COMPOSITE_ENABLED:-false}
+      # Optional read-only S3 media API: OFF unless SKYHUB_MEDIA_ENABLED=true is set in .env.
+      # Use a dedicated read-only MinIO user here, never the MinIO root credentials.
+      SKYHUB_MEDIA_ENABLED: ${SKYHUB_MEDIA_ENABLED:-false}
+      SKYHUB_S3_ENDPOINT: ${SKYHUB_S3_ENDPOINT:-}
+      SKYHUB_S3_ACCESS_KEY: ${SKYHUB_S3_ACCESS_KEY:-}
+      SKYHUB_S3_SECRET_KEY: ${SKYHUB_S3_SECRET_KEY:-}
       SKYHUB_BIND_ADDRESS: ${SKYHUB_BIND_ADDRESS:-127.0.0.1}
       SKYHUB_VIEW_TOKEN: ${SKYHUB_VIEW_TOKEN:?Set SKYHUB_VIEW_TOKEN}
-      # Pi host broker runs on 1884; refuse any accidental fallback to 1883.
-      MQTT_BROKER_URL: ${MQTT_BROKER_URL:?Set MQTT_BROKER_URL to the Pi broker on port 1884}
-      SKYHUB_MQTT_REQUIRED_PORT: "1884"
+      # EMQX/1884 by default; Mosquitto/1883 requires explicit opt-in in .env.
+      # Neither broker is launched, reconfigured or modified by this Compose.
+      MQTT_BROKER_URL: ${MQTT_BROKER_URL:?Set MQTT_BROKER_URL to the selected Pi broker}
+      SKYHUB_MQTT_BROKER_KIND: ${SKYHUB_MQTT_BROKER_KIND:-emqx}
+      SKYHUB_MQTT_REQUIRED_PORT: "${SKYHUB_MQTT_REQUIRED_PORT:-1884}"
       MQTT_USER: ${MQTT_USER:-}
       MQTT_PASSWORD: ${MQTT_PASSWORD:-}
       SKYHUB_PILOT_ENABLED: ${SKYHUB_PILOT_ENABLED:-false}
@@ -71,6 +79,13 @@ services:
       SKYHUB_PILOT_MQTT_USER: ${SKYHUB_PILOT_MQTT_USER:-}
       SKYHUB_PILOT_MQTT_PASSWORD: ${SKYHUB_PILOT_MQTT_PASSWORD:-}
       SKYHUB_PILOT_WORKSPACE_ID: ${SKYHUB_PILOT_WORKSPACE_ID:-}
+      # DJI map-group GET route (Pilot 2 api module); OFF by default.
+      SKYHUB_DJI_MAP_ELEMENTS_ENABLED: ${SKYHUB_DJI_MAP_ELEMENTS_ENABLED:-false}
+      # DJI Pilot 2 situation awareness (WebSocket /ws/tsa + topology list); OFF by default.
+      # Needs the public https origin the RC uses for /pilot-login, e.g. https://rpi5.fritz.box
+      SKYHUB_DJI_TSA_ENABLED: ${SKYHUB_DJI_TSA_ENABLED:-false}
+      SKYHUB_PILOT_PUBLIC_URL: ${SKYHUB_PILOT_PUBLIC_URL:-}
+      SKYHUB_DJI_TSA_TRUSTED_PROXY_IPS: ${SKYHUB_DJI_TSA_TRUSTED_PROXY_IPS:-127.0.0.1,::1}
       # Optional DJI protocol reply; requires dedicated MQTT publish-only ACL.
       SKYHUB_TOPOLOGY_ACK_ENABLED: ${SKYHUB_TOPOLOGY_ACK_ENABLED:-false}
       SKYHUB_TOPOLOGY_ACK_MQTT_USER: ${SKYHUB_TOPOLOGY_ACK_MQTT_USER:-}

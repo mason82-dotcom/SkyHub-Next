@@ -1,5 +1,13 @@
 'use strict';
 const {validateBrokerConfig}=require('./mqtt-config');
+const {isIP}=require('node:net');
+
+function tsaTrustedProxyIps(value){
+  const peers=String(value??'127.0.0.1,::1').split(',').map(ip=>ip.trim());
+  if(peers.length<1||peers.length>8||peers.some(ip=>!isIP(ip)||ip==='0.0.0.0'||ip==='::'))
+    throw new Error('TSA requires up to eight exact trusted proxy IPs');
+  return [...new Set(peers)];
+}
 
 // Pilot MQTT credentials MUST be distinct from read-only SkyHub subscriber credentials.
 // The Pilot page remains a safe diagnostics page until all settings are provisioned.
@@ -33,10 +41,10 @@ function pilotConfiguration(env) {
   if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(workspaceId)){
     missing.push('SKYHUB_PILOT_WORKSPACE_ID must be a UUID');
   }
-  let mqttHost=null;
+  let mqttHost=null,mqttPort=null;
   if(broker){
     try{
-      const b=validateBrokerConfig(broker,'1884');
+      const b=validateBrokerConfig(broker,env.SKYHUB_MQTT_REQUIRED_PORT||'1884',env.SKYHUB_MQTT_BROKER_KIND||'emqx');
       const hostname=b.host;
       // The RC must reach an actual LAN hostname/IP, never Docker's virtual gateway.
       if(hostname==='host.docker.internal'||hostname==='localhost'||hostname==='127.0.0.1'||hostname==='0.0.0.0'){
@@ -44,24 +52,27 @@ function pilotConfiguration(env) {
       }
       mqttHost=(b.secure?'ssl://':'tcp://')+hostname+':'+b.port;
       if(b.secure)throw Error('TLS transport requires separate DJI Pilot 2 firmware validation');
+      mqttPort=b.port; // informational only; set after every check, so null means "not usable"
     }catch(e){missing.push('SKYHUB_PILOT_MQTT_URL: '+e.message);}
   }
   // Situation awareness (TSA) is opt-in and needs the public HTTPS origin the RC can reach:
   // DJI's api and ws modules take a host, and Pilot 2 appends the token itself.
-  const tsa={enabled:false,issue:null,apiHost:null,wsHost:null};
+  const tsa={enabled:false,issue:null,apiHost:null,wsHost:null,trustedProxyIps:[]};
   if(env.SKYHUB_DJI_TSA_ENABLED==='true'){
     try{
       const url=new URL(env.SKYHUB_PILOT_PUBLIC_URL||'');
       if(url.protocol!=='https:'||url.username||url.password||url.search||url.hash||url.pathname!=='/')
         throw new Error('invalid');
-      tsa.enabled=true;
+      const peers=tsaTrustedProxyIps(env.SKYHUB_DJI_TSA_TRUSTED_PROXY_IPS);
       tsa.apiHost=url.origin;
       tsa.wsHost='wss://'+url.host+'/ws/tsa';
-    }catch(_err){tsa.issue='SKYHUB_PILOT_PUBLIC_URL must be a plain https origin such as https://host';}
+      tsa.trustedProxyIps=peers;
+      tsa.enabled=true;
+    }catch(_err){tsa.issue='TSA requires a plain HTTPS origin and valid exact trusted proxy IPs';}
   }
   const ready=missing.length===0;
   return {
-    ready,missing,tsa,
+    ready,missing,tsa,mqttPort,
     // Called only after successful HTTPS + bearer token verification.
     bootstrap(){
       if(!ready)throw new Error('Pilot 2 onboarding is not configured');
