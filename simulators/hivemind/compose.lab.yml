@@ -1,0 +1,104 @@
+# Opt-in integration overlay; use only through lab.sh with -p skyhub-hivemind-lab.
+# Never merge this into the default SkyHub Next Compose invocation.
+services:
+  backend:
+    environment:
+      MQTT_BROKER_URL: mqtt://hivemind-broker:1884
+      SKYHUB_MQTT_REQUIRED_PORT: "1884"
+      SKYHUB_PILOT_ENABLED: "false"
+      SKYHUB_TOPOLOGY_ACK_ENABLED: "false"
+      SKYHUB_TRACK_RECORDING_ENABLED: "false"
+      SKYHUB_LAN_VIEW_CIDR: ""
+      SKYHUB_MEDIA_ENABLED: "false"
+      SKYHUB_MINIO_DR_ENABLED: "false"
+      SKYHUB_MINIO_DR_COMPOSITE_ENABLED: "false"
+      SKYHUB_DJI_MAP_ELEMENTS_ENABLED: "false"
+      SKYHUB_DJI_TSA_ENABLED: "false"
+      SKYHUB_S3_ENDPOINT: ""
+      SKYHUB_S3_ACCESS_KEY: ""
+      SKYHUB_S3_SECRET_KEY: ""
+      SKYHUB_PILOT_ACCESS_TOKEN: ""
+      SKYHUB_PILOT_MQTT_URL: ""
+      SKYHUB_PILOT_MQTT_USER: ""
+      SKYHUB_PILOT_MQTT_PASSWORD: ""
+      SKYHUB_DJI_APP_ID: ""
+      SKYHUB_DJI_APP_KEY: ""
+      SKYHUB_DJI_APP_LICENSE: ""
+    depends_on:
+      hivemind-broker:
+        condition: service_started
+
+  hivemind-broker:
+    image: eclipse-mosquitto:2
+    user: "1883:1883"
+    restart: "no"
+    command: ["mosquitto", "-c", "/mosquitto/config/mosquitto.conf"]
+    volumes:
+      - ./simulators/hivemind/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs:
+      - /tmp
+
+  dock-mock:
+    # Never active under plain lab.sh up: opt-in via --profile dock-rpc only.
+    profiles: ["dock-rpc"]
+    build:
+      context: .
+      dockerfile: simulators/hivemind/Dockerfile.dock-mock
+    restart: "no"
+    depends_on:
+      hivemind-broker:
+        condition: service_started
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs:
+      - /tmp
+
+  hivemind-simulator:
+    # Downloaded from upstream at a fixed commit via prepare.sh; no AGPL source is vendored.
+    build:
+      context: ./simulators/hivemind/.upstream
+      dockerfile: ../Dockerfile.lab
+    image: skyhub-hivemind-reference:1.4.10
+    restart: "no"
+    ports:
+      - "127.0.0.1:19090:9090"
+    environment:
+      MQTT_HOST: hivemind-broker
+      MQTT_PORT: "1884"
+      MQTT_USERNAME: ""
+      MQTT_PASSWORD: ""
+      SERVER_PORT: "9090"
+      SIMULATOR_SN_UNIQUEENABLED: "true"
+      SIMULATOR_CONFIG_DIR: /app/config
+      SIMULATOR_LIVE_REALPUSHENABLED: "false"
+      SIMULATOR_MEDIA_MEDIADIR: ""
+      SIMULATOR_MEDIA_AUTOUPLOADPHOTO: "false"
+      SIMULATOR_MEDIA_AUTOUPLOADVIDEO: "false"
+      TZ: Europe/Berlin
+      LOGGING_LEVEL_LTD_CDMI_HIVEMIND_SIMULATOR: WARN
+    volumes:
+      - hivemind_config:/app/config
+      - hivemind_media:/app/media
+      - hivemind_videos:/app/videos
+    depends_on:
+      hivemind-broker:
+        condition: service_started
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  default:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.host_binding_ipv4: "127.0.0.1"
+
+volumes:
+  hivemind_config:
+  hivemind_media:
+  hivemind_videos:

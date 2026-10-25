@@ -309,6 +309,8 @@ function createRegistry(limit = 200) {
       const changed = (Array.isArray(message.hms) && hmsChanged) || (message.airsense && airsenseChanged);
       if (!periodic || changed) {
         event = {sn:d.sn,channel:message.channel,method:message.method,at:now};
+        if (message.missionReport) event.missionReport = {...message.missionReport};
+        if (message.mediaReport) event.mediaReport = {...message.mediaReport};
         events.unshift(event);
         if (events.length > 100) events.pop();
       }

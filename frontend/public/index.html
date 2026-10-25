@@ -652,9 +652,30 @@ function normalizeDeviceEvent(event){
     !/^[\w.-]{1,100}$/.test(event.sn)||!eventChannels.has(event.channel)||
     !Number.isFinite(event.at))return null;
   const method=typeof event.method==='string'&&/^[\w.-]{1,64}$/.test(event.method)?event.method:null;
-  return {sn:event.sn,channel:event.channel,method,at:event.at};
+  const m=event.missionReport;
+  const allowedMission=new Set(['in_progress','paused','canceled','failed','ok']);
+  const missionReport=event.channel==='events'&&method==='flighttask_progress' &&
+    m&&typeof m==='object'&&allowedMission.has(m.reportedStatus) &&
+    Number.isInteger(m.progressPercent)&&m.progressPercent>=0&&m.progressPercent<=100 &&
+    Number.isInteger(m.currentStep)&&m.currentStep>=0&&m.currentStep<=1000
+    ? {reportedStatus:m.reportedStatus,progressPercent:m.progressPercent}:null;
+  const media=event.mediaReport;
+  const mediaReport=event.channel==='events'&&media&&typeof media==='object' &&
+    ['upload_priority_report','file_metadata_report'].includes(media.kind) &&
+    media.storageVerification==='not_checked' ? {kind:media.kind}:null;
+  return {sn:event.sn,channel:event.channel,method,at:event.at,missionReport,mediaReport};
 }
 function eventDescription(event){
+  if(event.missionReport){
+    const names={in_progress:'läuft',paused:'pausiert',canceled:'abgebrochen',
+      failed:'fehlgeschlagen',ok:'abgeschlossen'};
+    return 'Mission gemeldet: '+names[event.missionReport.reportedStatus]+' · '+
+      event.missionReport.progressPercent+' % (nicht verifiziert)';
+  }
+  if(event.mediaReport?.kind==='file_metadata_report')
+    return 'Medien-Metadaten gemeldet · Speicherung ungeprüft';
+  if(event.mediaReport?.kind==='upload_priority_report')
+    return 'Medienpriorität gemeldet · Speicherung ungeprüft';
   if(event.channel==='events'&&event.method==='hms')return 'HMS-Meldungen geändert';
   if(event.channel==='events'&&event.method==='airsense_warning')return 'AirSense-Warnstufe geändert';
   if(event.channel==='status'&&event.method==='update_topo')return 'Topologie gemeldet';
