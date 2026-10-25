@@ -55,6 +55,12 @@ services:
       SKYHUB_MINIO_DR_ENABLED: ${SKYHUB_MINIO_DR_ENABLED:-true}
       SKYHUB_MINIO_DR_REPORT_DIR: /app/dr-status
       SKYHUB_MINIO_DR_COMPOSITE_ENABLED: ${SKYHUB_MINIO_DR_COMPOSITE_ENABLED:-false}
+      # Optional read-only S3 media API: OFF unless SKYHUB_MEDIA_ENABLED=true is set in .env.
+      # Use a dedicated read-only MinIO user here, never the MinIO root credentials.
+      SKYHUB_MEDIA_ENABLED: ${SKYHUB_MEDIA_ENABLED:-false}
+      SKYHUB_S3_ENDPOINT: ${SKYHUB_S3_ENDPOINT:-}
+      SKYHUB_S3_ACCESS_KEY: ${SKYHUB_S3_ACCESS_KEY:-}
+      SKYHUB_S3_SECRET_KEY: ${SKYHUB_S3_SECRET_KEY:-}
       SKYHUB_BIND_ADDRESS: ${SKYHUB_BIND_ADDRESS:-127.0.0.1}
       SKYHUB_VIEW_TOKEN: ${SKYHUB_VIEW_TOKEN:?Set SKYHUB_VIEW_TOKEN}
       # EMQX/1884 by default; Mosquitto/1883 requires explicit opt-in in .env.

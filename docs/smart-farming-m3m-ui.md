@@ -24,8 +24,15 @@ Das Token wird weder in eine URL noch in Local-/Session-Storage
 geschrieben und nach der Anfrage aus dem Eingabefeld gelöscht.
 Vor dem Absenden verlangt die Oberfläche HTTPS oder einen lokalen
 Loopback-Zugang (`localhost`/`127.0.0.1`/`[::1]`). Unverschlüsselte
-LAN-Adressen sind gesperrt. Dies wird in
-`frontend/test/smart-farming-ui.test.js` geprüft.
+LAN-Adressen sind gesperrt. Zusätzlich setzt der Bearer-GET
+`redirect: 'error'` und `referrerPolicy: 'no-referrer'`, sodass
+HTTP-Weiterleitungen nicht automatisch mit Zugangsdaten verfolgt werden.
+Die Frontend-Tests prüfen dafür den wirklichen Klickpfad mit einem
+isolierten Browser-/DOM-Testdoppel: Auf unsicherem LAN darf nicht einmal
+`fetch()` aufgerufen werden, während HTTPS und SSH-Loopback ohne
+Tokenpersistenz funktionieren. Dies ist eine reine Client-Schutzschicht;
+Server-Authentifizierung, HTTPS-Terminierung und die bestehenden
+Netzwerkgrenzen bleiben weiterhin erforderlich.
 
 Der Browser zeigt unterscheidbare Zustände für:
 ungültigen Token (401), noch nicht aktivierte API (404),
@@ -83,3 +90,45 @@ und das nachprüfbare DEDAL-Verarbeitungsprotokoll notwendig.
 
 **Keine Kartenkacheln, Geokoordinaten, Sensor-Rohdaten,
 Ausbringkarten, Missionssteuerung oder Produktionsfreigabe.**
+
+## Transportschutz des Katalogs (24.10.2026)
+
+Zusätzlich zur schon vorhandenen **Browserprüfung** setzt der neue
+`backend/m3m-catalog-transport.js` eine serverseitige Schranke innerhalb des
+authentifizierten M3M-Routers durch. Sie lässt nur folgende Wege zu:
+
+- Direkt per TLS am Node-Server (`req.socket.encrypted`).
+- Direkt über lokale Loopback-Verbindungen (`127.0.0.0/8`, `::1`),
+  beispielsweise durch einen **explizit eingerichteten SSH-Tunnel**.
+- Über einen TLS-terminierenden **lokalen** Reverse-Proxy, wenn der
+  tatsächliche TCP-Peer Loopback ist, der Proxy
+  `X-Forwarded-Proto: https` als **einzelnen** Wert überschreibt und
+  Express den Proxy als vertrauenswürdig anerkennt (`req.secure=true`).
+
+**Direktes HTTP aus dem LAN wird auch bei gültigem Bearer-Token mit 403
+verweigert.** Behauptete HTTPS-Verbindungen von fremden IP-Adressen,
+widersprüchliche oder fehlende Forwarded-Header und Proxy-HTTP werden
+ebenfalls verweigert. Diese 403-Antwort enthält keine Token, Dateipfade,
+GeoTIFFs oder Geräteinformationen.
+
+Wichtig: Ein Backend kann **nicht nachträglich verhindern**, dass ein
+falsch konfigurierter HTTP-Client den Token bereits auf dem Transportweg
+im Klartext gesendet hat. Daher weiterhin nur HTTPS-/Loopback-Clients
+zulassen und am öffentlich erreichbaren Ingress HTTP auf HTTPS umleiten
+**bevor** Authentifizierungsdaten übertragen werden. Ein Reverse-Proxy
+muss clientseitige `X-Forwarded-*`-Header ersetzen und darf den privaten
+Backend-Port nicht im LAN veröffentlichen. HTTPS-Proxy-Hop über
+nicht-lokale private Netze ist hier absichtlich nicht freigegeben.
+
+Offline regression:
+
+```bash
+node --test backend/test/m3m-catalog-transport.test.js
+node --test backend/test/smart-farming-catalog.test.js \
+  backend/test/smart-farming-catalog-http.test.js \
+  frontend/test/smart-farming-ui.test.js
+```
+
+Die vorhandene M3M-Acceptance-CI enthält diese Tests zusätzlich. Der
+opt-in-Katalog bleibt standardmäßig deaktiviert; ein Test-Erfolg ist
+**keine** Kalibrierungs-, Agronomie- oder Missionsfreigabe.

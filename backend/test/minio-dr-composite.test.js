@@ -3,13 +3,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
 
 const {buildComposite} = require('../../scripts/minio-dr-composite');
-const {createDrFixture, HISTORIC, IAM} = require('./helpers/dr-fixture');
-
-const ROOT = path.resolve(__dirname, '../..');
+const {createDrFixture} = require('./helpers/dr-fixture');
 
 function withEvidence(callback) {
   const fixture = createDrFixture();

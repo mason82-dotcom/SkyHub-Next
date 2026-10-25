@@ -7,6 +7,8 @@ A candidate is not a trusted raster import: readers must reverify the seal.
 from __future__ import annotations
 
 import argparse
+import ctypes
+import errno
 import hashlib
 import importlib.util
 import json
@@ -139,6 +141,32 @@ def _safe_output(bundle: Path, destination: Path):
         raise CandidateError('Candidate must be stored outside the bundle')
 
 
+def _publish_no_replace(stage: Path, destination: Path) -> None:
+    """Atomically publish a directory, refusing even an EMPTY existing target.
+
+    POSIX os.rename() may replace an empty destination directory: a preceding
+    lexists() check cannot close that race. Use Linux renameat2(RENAME_NOREPLACE)
+    without any unsafe fallback. The Pi/CI platforms are Linux; refuse an
+    unsupported platform/filesystem instead of silently weakening the contract.
+    """
+    if not sys.platform.startswith('linux'):
+        raise CandidateError('Atomic no-replace publication requires Linux')
+    try:
+        libc = ctypes.CDLL(None, use_errno=True)
+        renameat2 = libc.renameat2
+    except (AttributeError, OSError) as exc:
+        raise CandidateError('Atomic no-replace publication is unavailable') from exc
+    renameat2.argtypes = (ctypes.c_int, ctypes.c_char_p,
+                          ctypes.c_int, ctypes.c_char_p, ctypes.c_uint)
+    renameat2.restype = ctypes.c_int
+    # -100 is AT_FDCWD on Linux; 1 is RENAME_NOREPLACE.
+    if renameat2(-100, os.fsencode(stage), -100, os.fsencode(destination), 1) != 0:
+        code = ctypes.get_errno()
+        if code in (errno.EEXIST, errno.ENOTEMPTY):
+            raise FileExistsError(errno.EEXIST, 'Candidate destination already exists')
+        raise OSError(code, 'Atomic candidate publication failed')
+
+
 def create_candidate(*, bundle: Path, seal: Path, trusted_seal_sha256: str,
                      output_dir: Path) -> dict:
     """Create a nonoperational, path-redacted candidate after full seal + raster QA."""
@@ -192,7 +220,7 @@ def create_candidate(*, bundle: Path, seal: Path, trusted_seal_sha256: str,
             stream.write(payload)
         if os.path.lexists(output_dir):
             raise FileExistsError('Candidate destination appeared during creation')
-        os.rename(stage, output_dir)
+        _publish_no_replace(stage, output_dir)
     except BaseException:
         shutil.rmtree(stage, ignore_errors=True)
         raise

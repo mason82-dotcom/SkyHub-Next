@@ -3,6 +3,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
+const vm=require('node:vm');
 const {normalizeCatalog,format,mount,allowsBearerOrigin}=require('../public/smart-farming-ui');
 const id='m3m-exp-'+('a'.repeat(24));
 const base=()=>({
@@ -105,4 +106,79 @@ test('M3M access-token transport rejects unencrypted LAN and credential-bearing 
   const src=fs.readFileSync(path.resolve(__dirname,'../public/smart-farming-ui.js'),'utf8');
   assert.match(src,/if\(!allowsBearerOrigin\(global\?\.location\?\.origin\)\)/);
   assert.match(src,/token\.value='';\s*setStatus\(doc,'Katalog-Token nur über HTTPS/);
+});
+
+
+// Exercise the actual browser click handler with a minimal DOM rather than
+// relying on a regex against the origin helper; no outbound network.
+function browserHarness(origin, transport){
+  const source=fs.readFileSync(path.resolve(__dirname,'../public/smart-farming-ui.js'),'utf8');
+  const browser={location:{origin},fetch:transport};
+  vm.runInNewContext(source,{window:browser,URL,AbortController});
+  const nodes=new Map();
+  function node(id){
+    const el={value:'',disabled:false,hidden:false,textContent:'',
+      dataset:{},handlers:{},children:[],
+      addEventListener(type,fn){this.handlers[type]=fn},
+      replaceChildren(...children){this.children=children},
+      click(){return this.handlers.click?.()}};
+    nodes.set(id,el);return el;
+  }
+  for(const id of ['catalogToken','loadCatalog','clearCatalog','catalogStatus',
+    'candidateList','layerGrid','candidateDetails','catalogCount'])node(id);
+  const doc={getElementById:id=>nodes.get(id)};
+  browser.SkyHubSmartFarming.mount(doc,transport);
+  return {nodes,token:nodes.get('catalogToken'),load:nodes.get('loadCatalog'),
+    status:nodes.get('catalogStatus'),forget:nodes.get('clearCatalog')};
+}
+test('browser click NEVER transmits Bearer token from insecure LAN origin',async()=>{
+  let calls=0;
+  const h=browserHarness('http://192.168.178.63:4001',async()=>{
+    calls++;throw new Error('Network must never be reached');
+  });
+  h.token.value='private-catalog-token';
+  await h.load.click();
+  assert.equal(calls,0);
+  assert.equal(h.token.value,'');
+  assert.match(h.status.textContent,/HTTPS.*Loopback/);
+  assert.equal(h.status.dataset.kind,'error');
+  assert.equal(h.load.disabled,false);
+});
+test('HTTPS catalog request refuses redirects, never exposes Referrer and clears token',async()=>{
+  let requests=0;
+  const h=browserHarness('https://rpi5-pironman.example:9445',async(url,opts)=>{
+    requests++;
+    assert.equal(url,'/api/smart-farming/candidates/');
+    assert.equal(opts.method,'GET');
+    assert.equal(opts.cache,'no-store');
+    assert.equal(opts.credentials,'same-origin');
+    assert.equal(opts.redirect,'error');
+    assert.equal(opts.referrerPolicy,'no-referrer');
+    assert.equal(opts.headers.Authorization,'Bearer ephemeral-test-secret');
+    // Real fetch rejects a 3xx when redirect:error; simulate that rejection.
+    throw new TypeError('Redirect refused');
+  });
+  h.token.value='ephemeral-test-secret';
+  await h.load.click();
+  assert.equal(requests,1);
+  assert.equal(h.token.value,'');
+  assert.equal(h.status.dataset.kind,'error');
+  assert.match(h.status.textContent,/nicht geladen/);
+  assert.equal(h.load.disabled,false);
+});
+test('SSH loopback HTTP remains usable, token is erased after auth failure',async()=>{
+  let count=0;
+  const h=browserHarness('http://127.0.0.1:4001',async(_url,opts)=>{
+    count++;
+    assert.equal(opts.redirect,'error');
+    assert.equal(opts.headers.Authorization,'Bearer local-secret');
+    return {ok:false,status:401};
+  });
+  h.token.value='local-secret';
+  await h.load.click();
+  assert.equal(count,1);
+  assert.equal(h.token.value,'');
+  assert.match(h.status.textContent,/Token ungültig/);
+  h.forget.click();
+  assert.equal(h.status.dataset.kind,'normal');
 });
