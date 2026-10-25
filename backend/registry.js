@@ -85,9 +85,24 @@ function createRegistry(limit = 200) {
       hmsFresh: Number.isFinite(d.lastHmsAt) && d.lastHmsAt <= now && now - d.lastHmsAt < HMS_FRESH_MS
     };
   }
+  // At the limit, make room by evicting the LEAST RECENTLY SEEN device that no gateway has vouched
+  // for (no update_topo seen or restored). Topology-confirmed devices (the RC and its aircraft) go
+  // only when nothing else is left, so a flood of invented serials cannot push them out. A `gateway`
+  // field in an OSD message is NOT a vouch: any publisher can set it.
+  function evictOne() {
+    let victim = null;
+    for (const [sn, d] of devices) {
+      const confirmed = Number.isFinite(d.lastTopologyAt) ? 1 : 0;
+      const seen = Number.isFinite(d.lastSeenAt) ? d.lastSeenAt : -Infinity;
+      if (!victim || confirmed < victim.confirmed || (confirmed === victim.confirmed && seen < victim.seen)) {
+        victim = { sn, confirmed, seen };
+      }
+    }
+    if (victim) devices.delete(victim.sn);
+  }
   function ensure(sn) {
     if (devices.has(sn)) return devices.get(sn);
-    if (devices.size >= limit) devices.delete(devices.keys().next().value);
+    if (devices.size >= limit) evictOne();
     const d = {
       sn, role: 'unknown', gatewaySn: null,
       model: {domain:null,type:null,subType:null,thingVersion:null},
