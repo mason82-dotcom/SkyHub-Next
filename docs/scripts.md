@@ -28,6 +28,7 @@ Diese Übersicht bezieht sich auf das **aktive SkyHub-Next-Repository-Root**. Ei
 | `pi-pilot-pair.js` | `node scripts/pi-pilot-pair.js` | **Lesend**: zeigt ausstehende Codes und Gerätekennungen | Ausgabe vertraulich behandeln |
 | `pi-pilot-pair.js` | `node scripts/pi-pilot-pair.js 123456` / `--revoke <device-id>` | **Live-Änderung**: Gerät koppeln oder widerrufen | Nur mit Freigabe des Geräteverantwortlichen |
 | `build-hms-texts.js` | `node scripts/build-hms-texts.js <hms.json>` | **Dateischreibend**: erzeugt `backend/data/hms-texts.json` | Nur mit geprüftem DJI-HMS-Quelldokument und Lizenz |
+| `pi-migration-rehearsal.sh` | `bash scripts/pi-migration-rehearsal.sh <migration.sql> [...] [--tests]` | **Lesend an Produktion** (`pg_dump`), schreibt nur in einen Wegwerf-Container mit Kopie; Container und Dump werden gelöscht | Probelauf, keine Freigabe: produktive Migration braucht Sicherung und Entscheidung; [Details](dji-map-elements-aktivierung-2026-10-24.md) |
 | `stacks/legacy-skyhub/scripts/migrate-env.sh` | **Nicht ausführen** | Historisches Migrationswerkzeug des archivierten Stacks | Kein Teil der aktiven SkyHub-Next-Betriebslogik |
 
 ## Reale Betriebspfade
