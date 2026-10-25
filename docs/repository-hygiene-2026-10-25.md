@@ -11,6 +11,10 @@
 - Der Git-Baum enthielt 473 Einträge einschließlich Verzeichnissen, vier Workflows und einen explizit archivierten Legacy-Stack unter `stacks/legacy-skyhub/`.
 - **52 offene Pull Requests:** 16 direkt auf `main`, 36 gestapelt auf anderen Branches. Die [PR-Triage vom 24.10.](pr-triage-2026-10-24.md) zeigt einen anderen, historisch gemessenen Stand mit 57 PRs und ist nicht mehr aktuell.
 
+## Nachtrag: abgeschlossene Dubletten
+
+Nach dem Audit wurden die historischen Konsolidierungs-PRs [#88](https://github.com/mason82-dotcom/SkyHub-Next/pull/88) und [#94](https://github.com/mason82-dotcom/SkyHub-Next/pull/94) mit jeweils einer begründenden PR-Notiz **ohne Merge geschlossen**. Sie sind über [#100](https://github.com/mason82-dotcom/SkyHub-Next/pull/100) in `main` abgelöst. Beide Branches und die PR-Historie wurden **nicht gelöscht**. Damit sind **50 offene PRs** übrig (14 direkte und 36 gestapelte, bezogen auf die zuvor gezählten Basen). Die Basis dieser Zahlen kann durch andere PR-Änderungen erneut veralten.
+
 ## Aufräumgrenzen
 
 1. **Nicht löschen:** Archivierte Legacy-Konfigurationen sind Rückroll-/Referenzmaterial, und `scripts/pi-emqx-harden.js` referenziert explizit die historische ACL. Die Tests in `tests/test_repository_boundaries.py` schützen diese Grenze.
