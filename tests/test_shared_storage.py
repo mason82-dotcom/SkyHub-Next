@@ -323,6 +323,30 @@ class SharedMinioStorageTest(unittest.TestCase):
         self.assertIn("check --require-match", helper)
         self.assertIn("SKYHUB_AERONEXUSADVANCED_ENV_FILE", helper)
 
+    def test_start_mode_resumes_after_a_completed_move_without_legacy_dependencies(self):
+        helper = (ROOT / "scripts/pi-minio-migrate-from-aeronexus.sh").read_text()
+        def body(name):
+            start = helper.index(name + "() {")
+            return helper[start:helper.index("\n}\n", start)]
+        plan = body("start_plan") + body("verify_resume_state")
+        # The plan is strictly read-only: no tagging, network creation, compose up, rename or file writes.
+        for mutating in ("docker image tag", "docker network create", "compose -f \"$COMPOSE_FILE\" up",
+                         "os.rename", "mkdir ", " ln -s", "docker network connect"):
+            self.assertNotIn(mutating, plan)
+        # start = plan first, then the shared launch; neither needs the retired AeroNexus project or containers.
+        self.assertRegex(body("start"), r"start_plan\s+launch")
+        self.assertNotIn("aeronexusadvanced.py", plan + body("start"))
+        self.assertIn("start-plan) start_plan", helper)
+        self.assertIn("start) start", helper)
+        # The shared launch still refuses to recreate an existing container and pins the data source.
+        launch = body("launch")
+        self.assertIn("will not recreate it", launch)
+        self.assertIn('SKYHUB_MINIO_EXPECTED_DATA_SOURCE="$TARGET"', launch)
+        proc = subprocess.run(["bash", str(ROOT / "scripts/pi-minio-migrate-from-aeronexus.sh"), "--help"],
+                              capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("start-plan", proc.stdout)
+
     def test_existing_profile_and_persistent_volume_are_preserved(self):
         compose = ROOT_COMPOSE.read_text(encoding="utf-8")
         self.assertIn('profiles: ["media"]', compose)

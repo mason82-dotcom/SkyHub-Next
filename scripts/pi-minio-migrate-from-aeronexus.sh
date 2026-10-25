@@ -35,7 +35,7 @@ die() { echo "ERROR: $*" >&2; exit 2; }
 
 usage() {
   cat <<'EOF'
-Usage: bash scripts/pi-minio-migrate-from-aeronexus.sh [plan|move|up|status]
+Usage: bash scripts/pi-minio-migrate-from-aeronexus.sh [plan|move|up|start-plan|start|status]
   plan    READ ONLY: validate stopped old containers, NVMe, source, image,
           secret env keys, target vacancy and Docker state.
   move    OPT IN: export old MinIO env to local 0600 file; atomically RENAME
@@ -44,6 +44,12 @@ Usage: bash scripts/pi-minio-migrate-from-aeronexus.sh [plan|move|up|status]
   up      OPT IN: tag existing ARM64 image as skyhub/minio (zero layer copy),
           bring up ONE new skyhub-shared-minio service with NO host ports,
           attach running SkyHub backend to shared storage bridge.
+  start-plan  READ ONLY: for the state AFTER a completed move (data already at the
+          target, legacy containers and the AeroNexusAdvanced project gone). Checks data,
+          credentials file (names only), image, mount, network and Compose; nothing changes.
+  start   OPT IN: same checks as start-plan, then the same launch as 'up' (tag image,
+          bridge network, ONE new skyhub-shared-minio without host ports, attach backend).
+          Does not compare credentials with the AeroNexusAdvanced project (it no longer exists).
   status  READ ONLY: show source/destination mount status and container states.
 NEVER use 'docker start' on historic AeroNexus containers: they expose port 9000.
 Do not run with sudo; private credentials must belong to the invoking user.
@@ -222,11 +228,16 @@ up() {
   fi
   "${credential_check[@]}" ||
     die "SkyHub credentials do not match AeroNexusAdvanced project's env; run safe check/import first"
+  launch
+}
+
+launch() {
   docker container inspect skyhub-shared-minio >/dev/null 2>&1 &&
     die "skyhub-shared-minio exists; will not recreate it"
   [[ -f "$COMPOSE_FILE" ]] || die "SkyHub standalone Compose file missing"
   require readlink
-  docker image tag "$OLD_IMAGE" "$NEW_IMAGE"
+  # Tag only when the SkyHub tag is not already present (idempotent, zero layer copy).
+  docker image inspect "$NEW_IMAGE" >/dev/null 2>&1 || docker image tag "$OLD_IMAGE" "$NEW_IMAGE"
   [[ "$(docker image inspect --format '{{.Id}}' "$NEW_IMAGE")" == "$EXPECTED_IMAGE_ID" ]] ||
     die "SkyHub image tag references unexpected image"
   if docker network inspect "$NETWORK" >/dev/null 2>&1; then
@@ -247,12 +258,83 @@ up() {
   echo "No data, images/layers or secrets copied to the project directory."
 }
 
+# State after a completed 'move': data already at TARGET, legacy containers and project removed.
+verify_resume_state() {
+  [[ -d "$TARGET" && ! -L "$TARGET" && -d "$TARGET/.minio.sys" ]] ||
+    die "Migrated MinIO data or its metadata is missing: $TARGET"
+  [[ ! -e "$SOURCE" && ! -L "$SOURCE" ]] ||
+    die "Legacy data directory still exists: this is not a completed move; use plan/move"
+  [[ "$(stat -c %d "$TARGET")" == "$(stat -c %d "$MOUNT")" ]] ||
+    die "Target is not on the NVMe mount"
+  [[ -f "$CREDENTIALS" && ! -L "$CREDENTIALS" ]] || die "Private MinIO env file missing: $CREDENTIALS"
+  [[ "$(stat -c %a "$CREDENTIALS")" == "600" && "$(stat -c %u "$CREDENTIALS")" == "$(id -u)" ]] ||
+    die "MinIO env file must be mode 0600 and owned by the current user"
+  python3 - "$CREDENTIALS" <<'PY' || die "MinIO env file lacks the root credential keys"
+import sys
+keys = {}
+for line in open(sys.argv[1], encoding="utf-8"):
+    if "=" in line and not line.lstrip().startswith("#"):
+        key, value = line.rstrip("\n").split("=", 1)
+        keys[key] = value
+missing = [k for k in ("MINIO_ROOT_USER", "MINIO_ROOT_PASSWORD") if not keys.get(k)]
+if missing:
+    raise SystemExit("missing: " + ", ".join(missing))
+PY
+  local found=0 tag id arch
+  for tag in "$NEW_IMAGE" "$OLD_IMAGE"; do
+    id="$(docker image inspect --format '{{.Id}}' "$tag" 2>/dev/null)" || continue
+    arch="$(docker image inspect --format '{{.Architecture}}' "$tag")"
+    [[ "$id" == "$EXPECTED_IMAGE_ID" && "$arch" == arm64 ]] ||
+      die "Image $tag does not match the audited SHA256/arm64"
+    found=1
+  done
+  [[ "$found" == 1 ]] || die "No local audited MinIO image; refuse remote pull"
+  local name running
+  for name in "${LEGACY[@]}"; do
+    running="$(docker inspect --format '{{.State.Running}}' "$name" 2>/dev/null || true)"
+    [[ "$running" != true ]] || die "Legacy MinIO still RUNNING: $name"
+  done
+}
+
+start_plan() {
+  require docker;require findmnt;require python3;require stat
+  verify_compose_version
+  check_mount
+  verify_resume_state
+  verify_no_other_running
+  docker container inspect skyhub-shared-minio >/dev/null 2>&1 &&
+    die "skyhub-shared-minio already exists; check its identity first"
+  [[ -f "$COMPOSE_FILE" ]] || die "SkyHub standalone Compose file missing"
+  SKYHUB_SHARED_MINIO_CREDENTIALS_FILE="$CREDENTIALS" \
+    docker compose -f "$COMPOSE_FILE" config --quiet || die "Standalone Compose configuration invalid"
+  echo "READY: migrated data present at the target on the NVMe (.minio.sys found); legacy source gone."
+  echo "READY: credentials file private (0600) with root keys present (values not read out)."
+  echo "READY: audited ARM64 image available locally; no pull."
+  echo "READY: no MinIO-like container running; skyhub-shared-minio does not exist yet."
+  if docker network inspect "$NETWORK" >/dev/null 2>&1; then
+    echo "Network $NETWORK: exists (will be reused)"
+  else
+    echo "Network $NETWORK: absent (start creates a bridge network)"
+  fi
+  if [[ -L "$LINK" ]]; then echo "Project link $LINK: present"
+  else echo "Project link $LINK: absent (not required for start)"; fi
+  echo "start would: tag the image if needed, create the network, start ONE skyhub-shared-minio"
+  echo "without host ports, and attach a running SkyHub backend via 'pi-minio-network.sh adopt'."
+}
+
+start() {
+  start_plan
+  launch
+}
+
 mode="${1:-plan}"
 [[ $# -le 1 ]] || { usage;exit 2; }
 case "$mode" in
   plan) plan ;;
   move) move ;;
   up) up ;;
+  start-plan) start_plan ;;
+  start) start ;;
   status) status ;;
   help|-h|--help) usage ;;
   *) usage >&2;exit 2;;

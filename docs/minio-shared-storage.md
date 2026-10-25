@@ -6,7 +6,15 @@ Pi-Compose-Stacks. Der bisherige optionale Root-Compose-Dienst `minio` mit
 `minio_data:/data` bleibt erhalten. Es findet **keine** automatische Migration,
 kein Löschen und kein Ersatz eines vorhandenen MinIO-Datenvolumes statt.
 
-> **Stand 25.10.2026 (lesender Audit auf dem Pi):** Der Datenumzug ist bereits erfolgt. Die Daten liegen unter `/mnt/hc4backup/skyhub-next/minio` (fünf Buckets: `basemaps`, `dji-cloud`, `farming`, `mapping-results`, `pv-inspections`; `.minio.sys` vorhanden), die Quelle `/mnt/hc4backup/aeronexus-data/minio` existiert nicht mehr, und es gibt keinen AeroNexus-MinIO-Container mehr. Es läuft **kein** MinIO, das Netz `skyhub-storage-net` und das Volume `skyhub-next_minio_data` fehlen. `pi-minio-shared-mount-check.sh` prüft deshalb den neuen Pfad (überschreibbar mit `SKYHUB_MINIO_DATA`). Die Abschnitte zum Umzug darunter sind historisch.
+> **Stand 25.10.2026 (lesender Audit auf dem Pi):** Der Datenumzug ist bereits erfolgt. Die Daten liegen unter `/mnt/hc4backup/skyhub-next/minio` (fünf Buckets: `basemaps`, `dji-cloud`, `farming`, `mapping-results`, `pv-inspections`; `.minio.sys` vorhanden), die Quelle `/mnt/hc4backup/aeronexus-data/minio` existiert nicht mehr, und es gibt keinen AeroNexus-MinIO-Container mehr. Es läuft **kein** MinIO, das Netz `skyhub-storage-net` und das Volume `skyhub-next_minio_data` fehlen. `pi-minio-shared-mount-check.sh` prüft deshalb den neuen Pfad (überschreibbar mit `SKYHUB_MINIO_DATA`). Die Abschnitte zum Umzug darunter sind historisch. Zum Start des MinIO nach dem erledigten Umzug gibt es den Modus `start` (vorher `start-plan`, rein lesend):
+
+```bash
+bash scripts/pi-minio-migrate-from-aeronexus.sh start-plan   # prüft Daten, Zugangsdatei (nur Namen), Image, Mount, Compose; ändert nichts
+bash scripts/pi-minio-migrate-from-aeronexus.sh start        # taggt das Image, legt das Netz an, startet EINEN skyhub-shared-minio ohne Host-Port
+bash scripts/pi-minio-network.sh verify                      # danach lesend prüfen
+```
+
+`up` bleibt für einen frischen Umzug mit den alten Containern. **Nicht** `pi-minio-network.sh apply` verwenden: Es startet den MinIO aus dem Root-Compose mit einem neuen, leeren Volume statt mit den umgezogenen Daten.
 
 ## Aktueller Pi: AeroNexus ist stillgelegt – Copy-free-Umzug nach SkyHub
 
