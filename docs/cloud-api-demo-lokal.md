@@ -19,6 +19,28 @@ Der Stack liegt **im Projektordner** unter `ops/cloud-api-demo/` (versioniert). 
 
 Die Quellen werden im Build **nicht verändert**: Anpassungen entstehen nur im Build-Container oder als erzeugte Konfiguration unter `runtime/`. Das Skript verlangt unveränderte Arbeitsbäume.
 
+## Betrieb
+
+```bash
+cd ~/Projekte/SkyHub-Next/ops/cloud-api-demo
+bash pi-cloud-api-demo.sh init           # .env mit Zufallsgeheimnissen anlegen/ergänzen (überschreibt nichts)
+bash pi-cloud-api-demo.sh fetch-sources  # Upstream klonen und auf den Commit aus sources.lock setzen
+# DJI_APP_ID, DJI_APP_KEY, DJI_APP_LICENSE selbst in .env eintragen
+bash pi-cloud-api-demo.sh preflight      # LAN-Bindung, Quellen-Pin, Ports, Speicher, Zugangsdaten (nur lesen)
+bash pi-cloud-api-demo.sh apply          # bauen, starten, EMQX-Benutzer anlegen, warten
+```
+
+Weitere Befehle, jeweils einzeln aufrufen (keine Reihenfolge):
+
+```bash
+bash pi-cloud-api-demo.sh status         # Container, Erreichbarkeit, Speicher
+bash pi-cloud-api-demo.sh logs backend   # letzte Logzeilen (mysql redis emqx backend web), Geheimnisse geschwärzt
+bash pi-cloud-api-demo.sh rollback       # nur bei Bedarf: Container und Netz entfernen, Daten bleiben
+bash pi-cloud-api-demo.sh rollback --purge   # zusätzlich Volumes, lokale Images und erzeugte Konfiguration löschen
+```
+
+Kein `sudo`, keine Änderung an SkyHub Next, Mosquitto, Caddy oder anderen Containern.
+
 ## Dienste und Ports
 
 | Dienst | Image | Erreichbar | Speicherlimit |
