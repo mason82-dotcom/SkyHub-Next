@@ -490,21 +490,34 @@ Das Backend liest über `GET /api/media/*` ausschließlich lesend aus den fünf 
 
 **Hinweis zum Endpunkt:** Der Server heißt im Speichernetz `skyhub-minio`. Die Reader-Datei nennt noch den alten Dienstnamen `minio`; in der `.env` des Backends und im `check` gilt `http://skyhub-minio:9000`.
 
-Anbinden (jeweils einzeln, im SkyHub-Next-Ordner):
+Anbinden, **erst nach Merge und Synchronisierung des Pi-Checkouts auf `main`**. Die folgenden Schritte ändern die lokale Konfiguration und starten beim Backend-Update dessen Container neu. Vorher das vorhandene `.env` und gegebenenfalls `docker-compose.override.yml` privat sichern und prüfen.
 
 ```bash
-bash scripts/pi-minio-backend-access.sh plan
-bash scripts/pi-minio-backend-access.sh check                         # fünf Buckets, nur HEAD
-# Konto in die .env des Backends übernehmen, ohne Werte anzuzeigen (vorher plan: dürfen dort noch nicht stehen)
-{ echo 'SKYHUB_MEDIA_ENABLED=true'; echo 'SKYHUB_S3_ENDPOINT=http://skyhub-minio:9000';
-  grep -E '^SKYHUB_S3_(ACCESS|SECRET)_KEY=' ~/.config/skyhub/minio-media-reader.env; } >> .env
-bash scripts/pi-minio-backend-access.sh override > docker-compose.override.yml   # nur wenn die Datei noch nicht existiert
-bash scripts/pi-update-backend.sh --apply                              # Backend neu erzeugen: übernimmt .env und Netz
-bash scripts/pi-minio-backend-access.sh plan                           # erwartet: alles ok
-TOKEN=$(grep '^SKYHUB_VIEW_TOKEN=' .env | cut -d= -f2-); curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:4001/api/media/status
+cd ~/Projekte/SkyHub-Next
+bash scripts/pi-minio-backend-access.sh check     # nur HEAD auf fünf Buckets
 ```
 
-`/api/media/status` meldet `online` mit der Zahl der erreichbaren Buckets (erwartet 5). Rückweg: `SKYHUB_MEDIA_ENABLED` aus der `.env` entfernen und das Backend neu erzeugen; die Media-API ist dann wieder aus. Das Reader-Konto kann nichts schreiben oder löschen; ein Schreibtest ist hier absichtlich nicht vorgesehen.
+Die bestehende `.env` mit einem Editor öffnen. `SKYHUB_MEDIA_ENABLED` genau einmal auf `true` und `SKYHUB_S3_ENDPOINT` genau einmal auf `http://skyhub-minio:9000` setzen. `SKYHUB_S3_ACCESS_KEY` und `SKYHUB_S3_SECRET_KEY` jeweils genau einmal mit den Werten des dedizierten Reader-Kontos aus der privaten Datei `~/.config/skyhub/minio-media-reader.env` belegen. Vorhandene Werte ersetzen, **keine Zeilen anhängen**. Die Reader-Datei nicht mit `source` als Shell-Code ausführen, Werte nicht in Terminalausgaben oder Chat kopieren. Die Projekt-`.env` auf private Dateirechte prüfen (`chmod 600 .env`).
+
+`docker-compose.override.yml` zuerst öffnen, falls sie bereits existiert: andere lokale Änderungen beibehalten und das Backend mit dem externen Netz `skyhub-storage-net` ergänzen. Nur wenn die Datei **nicht** existiert, die vorgeschlagene Konfiguration erzeugen:
+
+```bash
+if test ! -e docker-compose.override.yml; then
+  bash scripts/pi-minio-backend-access.sh override > docker-compose.override.yml
+  chmod 600 docker-compose.override.yml
+fi
+bash scripts/pi-minio-backend-access.sh plan
+docker compose --env-file .env config --quiet
+```
+
+`plan` muss jeden Schlüssel genau einmal, den korrekten Endpunkt und das **wirksame** externe Backend-Netz bestätigen. Erst danach den regulären, auf `main` beschränkten Backend-Update-Weg mit dessen Backup und Preflight verwenden:
+
+```bash
+bash scripts/pi-update-backend.sh --apply
+bash scripts/pi-minio-backend-access.sh plan
+```
+
+Die Medien-Statusroute `GET /api/media/status` anschließend mit einem bereits eingerichteten authentifizierten Client abfragen; Zugangs-Token nicht in einen `curl`-Befehlsparameter oder in geteilte Ausgaben schreiben. `online` und fünf erreichbare Buckets sind der erwartete Befund. Rückweg: `SKYHUB_MEDIA_ENABLED` in der `.env` wieder auf `false` setzen und das Backend über den geprüften Update-Weg neu erzeugen. Das Reader-Konto soll nur lesen können; der Bucket-`HEAD`-Test belegt keine vollständige IAM-Prüfung oder Sicherung der Medien.
 
 ## 6. Daten- und Zugriffsstrategie
 
