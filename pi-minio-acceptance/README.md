@@ -429,7 +429,12 @@ always/unless-stopped wieder oben bis auf `nextcloud-aio-notify-push` (schon vor
 Der MinIO blieb wie vorgesehen aus; `start-minio` startete ihn nach der Mount-Prüfung, er war ready und alle fünf Buckets
 per Reader-Konto lesbar. Die Cloud-API-Demo (Policy `on-failure`) startet nach einem Reboot nicht von selbst; Ports von
 Handprozessen (z. B. adb 5037) und `on-failure`-Containern gelten im Skript seitdem nur als Hinweis, FEHL gibt es nur für
-Ports von always/unless-stopped-Containern. Ein mountabhängiger Autostart des MinIO bleibt ein eigenes Thema. Ein mountabhängiger
+Ports von always/unless-stopped-Containern. Der mountabhängige Autostart ist als `scripts/pi-minio-autostart.sh` vorbereitet (nicht installiert): eine
+systemd-Unit `skyhub-shared-minio.service` mit `RequiresMountsFor=/mnt/hc4backup`, `ConditionPathIsMountPoint` und der
+Mount-Prüfung als `ExecStartPre`, die nur `docker start`/`docker stop` des vorhandenen Containers ausführt. Der Container
+behält `restart: "no"`, damit Docker ihn nie ohne Mount startet. `plan` zeigt die Unit lesend, `sudo … install` schreibt und
+aktiviert sie (startet nicht sofort), `remove` baut zurück, `check` liest den Zustand. `pi-reboot-test.sh post` erwartet den
+MinIO dann als laufend. Ein mountabhängiger
 Autostart bleibt ein separates Designthema.
 
 ## Ergebnis 25./26.10.2026 (Backup und isolierter Restore auf dem Pi)
