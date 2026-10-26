@@ -70,7 +70,7 @@ getestet; ein nicht unterstütztes `fallocate` führt zum Abbruch.
 | `recover_backup.py` | Getrennte ExecStopPost-Wiederanlaufprüfung mit UUID-/Container-ID-Schutz |
 | `restore.sh` | Späterer Restore in neues verschlüsseltes Testabbild mit isoliertem MinIO |
 | `manifest.py` | Vollständiger Dateisatz, SHA-256, Größen, numerische Eigentümer, Modi und xattr-Digests |
-| `restore_probe.py` | Lesende IAM-/LIST-/GET-Prüfung gegen die Restore-Kopie |
+| `restore_probe.py` | IAM-/LIST-/GET-Prüfung gegen die Restore-Kopie, danach negative Schreibversuche (PUT, DELETE, Bucket anlegen), die verweigert werden müssen |
 | `VALIDIERUNG.md` | Lokal ausgeführte Prüfungen und verbleibende Grenzen |
 
 Es wird keine dauerhafte Pi-Unit und kein Timer installiert. Der Backup-Launcher
@@ -239,9 +239,12 @@ Vergleich jedes S3-Objekts mit einer unabhängigen fachlichen Referenz.
 Prüfsummen und GPG-Integrität bestätigen nicht, dass der Originalbestand bereits
 vor der Sicherung fachlich unbeschädigt war.
 
-Kein PUT, DELETE, Bucket-Anlegen oder IAM-Schreibaufruf gegen Produktiv- oder
-Test-S3. Damit ist insbesondere eine tatsächliche Schreibverweigerung weiterhin
-nicht praktisch getestet. Das temporäre MinIO schreibt selbst nur in die Testkopie.
+Kein PUT, DELETE, Bucket-Anlegen oder IAM-Schreibaufruf gegen die Produktiv-S3.
+Gegen die isolierte Restore-Kopie versucht `restore_probe.py` mit dem Reader-Konto je Bucket einen PUT, einen DELETE und
+einmal das Anlegen eines Buckets; alle drei müssen mit AccessDenied scheitern, danach wird per Root-Konto geprüft, dass
+nichts gespeichert und nichts entfernt wurde. Jeder andere Fehler gilt als FEHL, nicht als bestanden.
+Damit ist die Schreibverweigerung praktisch getestet, sobald ein Restore-Lauf damit bestanden hat. Das temporäre MinIO
+schreibt selbst nur in die Testkopie.
 
 ### Fehler und Rückbau
 
