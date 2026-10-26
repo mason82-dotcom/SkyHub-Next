@@ -27,9 +27,16 @@ note() { printf '  Hinweis %s\n' "$*"; }
 boot_id() { cat /proc/sys/kernel/random/boot_id; }
 mounts_of_interest=(/mnt/data /mnt/hc4backup /mnt/benz)
 listening_ports() { ss -ltnH | awk '{n=split($4,a,":"); p=a[n]+0; if (p>0 && p<=20000) print p}' | sort -un; }
+# Host-Port -> Docker-Container, der ihn veroeffentlicht; "-" = kein Docker-Port (Host-Netz, systemd, Handprozess).
+port_owner() {
+  docker ps --format '{{.Names}}\t{{.Ports}}' | while IFS=$'\t' read -r name ports; do
+    { grep -oE ':[0-9]+->' <<<"$ports" || true; } | tr -d ':>-' | sed "s/\$/\t$name/"
+  done | sort -u
+}
 containers() {
   docker ps -a --format '{{.Names}}' | sort | while read -r n; do
-    printf '%s\t%s\t%s\n' "$n" "$(docker inspect -f '{{.State.Status}}' "$n")" "$(docker inspect -f '{{.HostConfig.RestartPolicy.Name}}' "$n")"
+    printf '%s\t%s\t%s\t%s\n' "$n" "$(docker inspect -f '{{.State.Status}}' "$n")" "$(docker inspect -f '{{.HostConfig.RestartPolicy.Name}}' "$n")" \
+      "$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$n")"
   done
 }
 api_health() { curl -fs -m 3 -o /dev/null http://127.0.0.1:4001/api/health; }
@@ -51,7 +58,8 @@ if [[ "$mode" == pre ]]; then
     printf 'T\t%s\n' "$(date -Is)"
     containers | sed 's/^/C\t/'
     for m in "${mounts_of_interest[@]}"; do findmnt -nr --mountpoint "$m" >/dev/null && printf 'M\t%s\n' "$m"; done
-    listening_ports | sed 's/^/P\t/'
+    owners="$(port_owner)"
+    listening_ports | while read -r p; do printf 'P\t%s\t%s\n' "$p" "$(awk -F'\t' -v p="$p" '$1==p{print $2; exit}' <<<"$owners" | grep . || echo -)"; done
   } >"$snap"
   echo "  Zustand gespeichert: $snap ($(grep -c '^C' "$snap") Container, $(grep -c '^P' "$snap") Ports <= 20000)"
   echo
@@ -73,16 +81,20 @@ if [[ "$mode" == post ]]; then
   deadline=$((SECONDS + WAIT))
   while :; do
     missing=()
-    while IFS=$'\t' read -r _ name state policy; do
+    sick=()
+    while IFS=$'\t' read -r _ name state policy health; do
       [[ "$state" == running && ( "$policy" == always || "$policy" == unless-stopped ) ]] || continue
-      [[ "$(docker inspect -f '{{.State.Status}}' "$name" 2>/dev/null || true)" == running ]] || missing+=("$name")
+      [[ "$(docker inspect -f '{{.State.Status}}' "$name" 2>/dev/null || true)" == running ]] && continue
+      # Schon vor dem Reboot unhealthy: getrennt melden, es ist kein Folgefehler des Reboots.
+      if [[ "${health:-}" == unhealthy ]]; then sick+=("$name"); else missing+=("$name"); fi
     done < <(awk -F'\t' '$1=="C"' "$snap")
     (( ${#missing[@]} == 0 || SECONDS >= deadline )) && break
     sleep 5
   done
   if (( ${#missing[@]} == 0 )); then ok "alle Container mit always/unless-stopped, die vorher liefen, laufen wieder"
   else fail "laufen nicht wieder: ${missing[*]}"; fi
-  while IFS=$'\t' read -r _ name state policy; do
+  (( ${#sick[@]} == 0 )) || note "waren schon VOR dem Reboot unhealthy und laufen nicht wieder: ${sick[*]}"
+  while IFS=$'\t' read -r _ name state policy _; do
     [[ "$state" == running && ( "$policy" == no || "$policy" == on-failure ) ]] || continue
     now="$(docker inspect -f '{{.State.Status}}' "$name" 2>/dev/null || echo fehlt)"
     if [[ "$name" == "$MINIO" ]]; then
@@ -93,9 +105,19 @@ if [[ "$mode" == post ]]; then
   done < <(awk -F'\t' '$1=="C"' "$snap")
 
   now_ports="$(listening_ports)"
-  gone=()
-  while IFS=$'\t' read -r _ p; do grep -qx "$p" <<<"$now_ports" || gone+=("$p"); done < <(awk -F'\t' '$1=="P"' "$snap")
-  (( ${#gone[@]} == 0 )) && ok "alle vorher lauschenden Ports <= 20000 lauschen wieder" || fail "Ports lauschen nicht mehr: ${gone[*]}"
+  gone=(); soft=()
+  declare -A policy_of
+  while IFS=$'\t' read -r _ name state policy _; do [[ "$state" == running ]] && policy_of[$name]="$policy"; done < <(awk -F'\t' '$1=="C"' "$snap")
+  while IFS=$'\t' read -r _ p owner; do
+    grep -qx "$p" <<<"$now_ports" && continue
+    case "${policy_of[${owner:--}]:-}" in
+      always|unless-stopped) gone+=("$p($owner)") ;;
+      "") if [[ "$owner" == - ]]; then soft+=("$p(kein Docker-Port)"); else soft+=("$p($owner, lief vorher nicht)"); fi ;;
+      *) soft+=("$p($owner, ${policy_of[$owner]})") ;;
+    esac
+  done < <(awk -F'\t' '$1=="P"' "$snap")
+  (( ${#gone[@]} == 0 )) && ok "alle Ports von always/unless-stopped-Containern lauschen wieder" || fail "Ports von Containern mit Autostart lauschen nicht mehr: ${gone[*]}"
+  (( ${#soft[@]} == 0 )) || note "lauschen nicht mehr (kein Autostart erwartet, z. B. Handprozess oder on-failure): ${soft[*]}"
   api_health && ok "Backend /api/health antwortet" || fail "Backend /api/health antwortet nicht"
   failed="$(systemctl --failed --no-legend | wc -l)"
   [[ "$failed" == 0 ]] && ok "keine fehlgeschlagenen systemd-Units" || { fail "$failed fehlgeschlagene Units:"; systemctl --failed --no-legend | cut -c1-120; }

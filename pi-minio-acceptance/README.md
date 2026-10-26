@@ -264,7 +264,7 @@ nicht praktisch getestet. Das temporäre MinIO schreibt selbst nur in die Testko
 | IAM und S3-Lesen aus Restore | Teilweise: LIST 5/5, GET 4/5 (Bucket 1 leer) |
 | Image-Wiederimport auf neuem Host | Nein |
 | Mountabhängiger produktiver Autostart | Nein |
-| Container-Recreate-/Reboot-Persistenz | Stop/Start ja (26.10.2026), Reboot offen |
+| Container-Recreate-/Reboot-Persistenz | Ja, Stop/Start und Reboot mit manuellem Start (26.10.2026) |
 | Negative IAM-Tests / isolierter S3-Schreibtest | Nein |
 | Vollständige SkyHub-/Datenbank-Wiederherstellung | Nein |
 
@@ -288,7 +288,7 @@ ist deshalb nicht Teil dieses Pakets.
 | Vollständiger Restore-Manifestabgleich | PASS, 54.835 Einträge, 26.10.2026 |
 | Restore-IAM / LIST / GET je Bucket | LIST 5/5, GET 4/5 (Bucket 1 leer, Rest offen) |
 | Erfolgreicher Test-Rückbau | Ja, Container, Netz, Mount, Mapper entfernt |
-| Startsicherheit / Persistenz | Stop/Start bestanden (26.10.2026); Reboot und mountabhängiger Autostart offen |
+| Startsicherheit / Persistenz | Stop/Start und Reboot bestanden (26.10.2026); mountabhängiger Autostart offen |
 
 ## Referenzen
 
@@ -421,7 +421,15 @@ Reboot bewusst aus. Dafür gibt es `scripts/pi-reboot-test.sh` (vorbereitet, nic
 Zustand vor dem Reboot fest (Container und Restart-Policies, Mounts, lauschende Ports, Gesundheit; nur lesend),
 nach dem eigenen `sudo reboot` vergleicht `post` (neuer Boot, Mounts, alle Container mit always/unless-stopped
 wieder oben, Ports, `/api/health`, systemd-Units, Proxy-Peer), und `start-minio` startet den MinIO erst nach der
-Mount-Prüfung und der Eingabe `START` und prüft danach die fünf Buckets. Das Skript startet den Pi nicht neu. Ein mountabhängiger
+Mount-Prüfung und der Eingabe `START` und prüft danach die fünf Buckets. Das Skript startet den Pi nicht neu.
+
+**Ergebnis 26.10.2026 (echter Reboot): bestanden für SkyHub.** Neuer Boot, `/mnt/data`, `/mnt/hc4backup` und
+`/mnt/benz` gemountet, Backend `/api/health`, Mosquitto, systemd-Units und Proxy-Peer in Ordnung, alle Container mit
+always/unless-stopped wieder oben bis auf `nextcloud-aio-notify-push` (schon vorher unhealthy, gehört zu Nextcloud AIO).
+Der MinIO blieb wie vorgesehen aus; `start-minio` startete ihn nach der Mount-Prüfung, er war ready und alle fünf Buckets
+per Reader-Konto lesbar. Die Cloud-API-Demo (Policy `on-failure`) startet nach einem Reboot nicht von selbst; Ports von
+Handprozessen (z. B. adb 5037) und `on-failure`-Containern gelten im Skript seitdem nur als Hinweis, FEHL gibt es nur für
+Ports von always/unless-stopped-Containern. Ein mountabhängiger Autostart des MinIO bleibt ein eigenes Thema. Ein mountabhängiger
 Autostart bleibt ein separates Designthema.
 
 ## Ergebnis 25./26.10.2026 (Backup und isolierter Restore auf dem Pi)
@@ -444,6 +452,6 @@ Netze). Das 48-GiB-Testabbild bleibt erhalten und gehört dem Nutzer zum Lösche
 - Aus einem Verzeichnis `pi-minio-acceptance/` aufrufen, sonst findet `bash restore.sh` die Datei nicht.
 - Mit `2>&1 | tee ~/restore-lauf.log` bleibt die Ausgabe auswertbar. Passphrasen erscheinen nicht.
 
-**Weiter offen:** Pi-Reboot mit manuellem Start (Stop/Start ist bestanden) und mountabhängiger Autostart, Wiederimport des Image-Archivs auf einem frischen
+**Weiter offen:** mountabhängiger Autostart des MinIO (Stop/Start und Reboot sind bestanden), Wiederimport des Image-Archivs auf einem frischen
 Host, praktischer Schreibversuch gegen das Reader-Konto (negativer Test), GET für Bucket 1 sobald er Objekte hat,
 Backup-Passphrase außerhalb des Pi sichern.
