@@ -1,8 +1,16 @@
 name: skyhub-next
+# Log-Rotation fuer alle Dienste: ohne Grenze wachsen die json-Logs unbegrenzt. Gilt beim naechsten `up`, wenn der Container neu
+# angelegt wird. Nicht per logrotate/copytruncate von aussen kuerzen: dann haengt `docker logs --tail`.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
 services:
   postgres:
     image: postgis/postgis:15-3.3
     restart: unless-stopped
+    logging: *default-logging
     environment:
       POSTGRES_USER: skyhub_next
       POSTGRES_PASSWORD: ${SKYHUB_DB_PASSWORD:?Set SKYHUB_DB_PASSWORD}
@@ -17,6 +25,7 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    logging: *default-logging
     command: ["redis-server", "--save", "60", "1", "--appendonly", "yes"]
     volumes:
       - redis_data:/data
@@ -28,6 +37,7 @@ services:
     profiles: ["media"]
     image: ${SKYHUB_MINIO_IMAGE:-minio/minio:RELEASE.2023-09-04T19-57-37Z}
     restart: unless-stopped
+    logging: *default-logging
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${SKYHUB_MINIO_USER:?Set SKYHUB_MINIO_USER}
@@ -40,6 +50,7 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     restart: unless-stopped
+    logging: *default-logging
     ports:
       - "${SKYHUB_BIND_ADDRESS:-127.0.0.1}:${SKYHUB_HTTP_PORT:-4001}:4000"
     extra_hosts:
