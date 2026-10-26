@@ -249,6 +249,10 @@ class NegativeWriteProbeTests(unittest.TestCase):
         mc = self.fake_mc('echo \'{"status":"error","error":{"cause":{"error":{"Code":"AccessDenied"}}}}\'; exit 1')
         self.assertTrue(self.probe.denied(mc, {}, 'pipe', 'x', data=b'a'))
 
+    def test_mc_insufficient_permissions_message_is_denied(self):
+        mc = self.fake_mc('echo \'{"status":"error","error":{"cause":{"message":"Insufficient permissions to access this path"}}}\'; exit 1')
+        self.assertTrue(self.probe.denied(mc, {}, 'pipe', 'x', data=b'a'))
+
     def test_success_means_not_denied(self):
         self.assertFalse(self.probe.denied(self.fake_mc('exit 0'), {}, 'pipe', 'x', data=b'a'))
 
