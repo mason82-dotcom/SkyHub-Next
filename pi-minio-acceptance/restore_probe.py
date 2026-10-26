@@ -104,7 +104,8 @@ def denied(mc, env, *args, data=None):
     text = (r.stdout+r.stderr).decode('utf-8', 'replace').lower().replace(' ', '')
     if r.returncode == 0:
         return False
-    if 'accessdenied' in text:
+    # mc translates S3 AccessDenied (HTTP 403) into 'Insufficient permissions to access this path' for pipe/rm.
+    if any(token in text for token in ('accessdenied', 'insufficientpermissions')):
         return True
     raise RuntimeError('Write attempt failed for a reason other than AccessDenied; raw output suppressed')
 
@@ -135,6 +136,10 @@ def negative_writes(mc, env, buckets, files_by_bucket):
 if __name__ == '__main__':
     try:
         main()
+    except RuntimeError as error:
+        # Our own messages never contain credentials or raw S3 output, so they may be shown.
+        print('ERROR: isolated S3/IAM check failed:', error, file=sys.stderr)
+        sys.exit(1)
     except Exception:
         print('ERROR: isolated S3/IAM check failed; raw details suppressed.', file=sys.stderr)
         sys.exit(1)
