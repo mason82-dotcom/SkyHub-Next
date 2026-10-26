@@ -3,9 +3,10 @@
 #   bash scripts/pi-reboot-test.sh pre            # lesend: speichert den Zustand in ~/.local/state/skyhub/
 #   (Pi selbst neu starten: sudo reboot -- das Skript tut das NICHT)
 #   bash scripts/pi-reboot-test.sh post           # lesend: vergleicht mit dem Zustand vor dem Reboot
-#   bash scripts/pi-reboot-test.sh start-minio    # fragt nach START, startet den MinIO NACH der Mount-Pruefung
-# Erwartet nach dem Reboot: Container mit Restart-Policy always/unless-stopped laufen wieder; der gemeinsame MinIO
-# (restart "no") bleibt bewusst aus und wird mit start-minio erst nach der Mount-Pruefung gestartet.
+#   bash scripts/pi-reboot-test.sh start-minio    # nur OHNE Autostart-Unit: fragt nach START, startet den MinIO NACH der Mount-Pruefung
+# Erwartet nach dem Reboot: Container mit Restart-Policy always/unless-stopped laufen wieder. Der gemeinsame MinIO (restart "no")
+# startet mit installierter Autostart-Unit (scripts/pi-minio-autostart.sh, mountgeschuetzt) von selbst; ohne sie bleibt er bewusst aus
+# und wird mit start-minio erst nach der Mount-Pruefung gestartet.
 # Container mit on-failure (z. B. die Cloud-API-Demo) werden nur gemeldet, nicht erwartet.
 # Gibt keine Zugangsdaten aus.
 set -Eeuo pipefail
@@ -135,8 +136,15 @@ if [[ "$mode" == post ]]; then
     else fail "Proxy-Peer-Pruefung schlaegt fehl: bash scripts/pi-proxy-peer-check.sh ausfuehren"; fi
   else fail "kein Backend-Container"; fi
   echo
-  (( bad == 0 )) && echo "ERGEBNIS: Reboot-Pruefung bestanden. Danach den MinIO gezielt starten: bash scripts/pi-reboot-test.sh start-minio" \
-                 || echo "ERGEBNIS: NICHT bestanden. Details oben."
+  if (( bad == 0 )); then
+    if [[ "$(docker inspect -f '{{.State.Status}}' "$MINIO" 2>/dev/null || true)" == running ]]; then
+      echo "ERGEBNIS: Reboot-Pruefung bestanden. Der MinIO laeuft bereits, weiter ist nichts noetig."
+    else
+      echo "ERGEBNIS: Reboot-Pruefung bestanden. Der MinIO steht (ohne Autostart-Unit gewollt). Starten: bash scripts/pi-reboot-test.sh start-minio"
+    fi
+  else
+    echo "ERGEBNIS: NICHT bestanden. Details oben."
+  fi
   exit "$bad"
 fi
 
