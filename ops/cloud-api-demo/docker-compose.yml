@@ -5,7 +5,7 @@
 name: cloudapidemo
 
 x-restart: &restart
-  restart: "on-failure:3"
+  restart: unless-stopped
 
 services:
   mysql:

@@ -140,7 +140,7 @@ Geprüft wurden Compose, beide Dockerfiles, EMQX-Konfiguration und ACL, das Verw
 | Backend nutzt den MySQL-`root`-Benutzer und sendet `Access-Control-Allow-Origin: *` | Upstream-Code (`CorsFilter`), im Build nicht geändert. |
 | EMQX-ACL: `pilot` darf `thing/product/#` und `sys/product/#` lesen und schreiben, also auch fremde Gerätethemen | Für eine einzelne RC unkritisch, bei mehreren Geräten einschränken (`thing/product/<SN>/#`). |
 | Eingestellte Software: Spring Boot 2.7, Java 11, Node 16 im Build; Basis-Images mit beweglichen Tags (`mysql:8.0`, `redis:7-alpine`, `nginx:1.27-alpine`, `node:16`, `maven:3.9`), npm-Lockfile über `npmmirror` | Prüfsummen sichern die Pakete. Keine Digest-Pins, bekannte Lücken in EOL-Komponenten möglich. Nur für den LAN-Test vertretbar. |
-| `restart: on-failure:3` | Nach einem Neustart des Pi startet die Demo nicht von selbst, das ist gewollt. |
+| `restart: unless-stopped` | Die Demo startet nach einem Neustart des Pi von selbst (seit 26.10.2026, auf Wunsch). Nach `rollback` oder einem manuellen Stopp bleibt sie aus. Das Backend kann kurz nach dem Boot ein paar Mal neu starten, bis MySQL bereit ist. Ein bereits laufender Stack übernimmt die Policy erst nach `apply` oder `docker update --restart unless-stopped $(docker ps -aq --filter label=com.docker.compose.project=cloudapidemo)`. |
 
 ## Umzug vom alten Ort
 
