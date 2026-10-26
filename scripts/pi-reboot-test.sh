@@ -98,7 +98,12 @@ if [[ "$mode" == post ]]; then
     [[ "$state" == running && ( "$policy" == no || "$policy" == on-failure ) ]] || continue
     now="$(docker inspect -f '{{.State.Status}}' "$name" 2>/dev/null || echo fehlt)"
     if [[ "$name" == "$MINIO" ]]; then
-      [[ "$now" == running ]] && note "$name laeuft schon (unerwartet bei Policy no)" || ok "$name steht wie erwartet (Policy no): mit start-minio starten"
+      if systemctl is-enabled --quiet skyhub-shared-minio.service 2>/dev/null; then
+        [[ "$now" == running ]] && ok "$name laeuft (Autostart-Unit skyhub-shared-minio.service aktiv)" \
+          || fail "$name laeuft nicht trotz aktivierter Autostart-Unit: systemctl status skyhub-shared-minio.service"
+      else
+        [[ "$now" == running ]] && note "$name laeuft schon (unerwartet bei Policy no)" || ok "$name steht wie erwartet (Policy no): mit start-minio starten"
+      fi
     else
       [[ "$now" == running ]] && ok "$name laeuft ($policy)" || note "$name ($policy) lief vorher, jetzt: $now"
     fi
