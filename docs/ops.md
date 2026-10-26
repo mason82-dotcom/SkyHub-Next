@@ -208,7 +208,7 @@ Vor der Backend-Neuerstellung kopiert das Skript `.env` und den optionalen `dock
 
 Bei lokal veränderten versionierten Dateien, Konflikten beim `git switch` oder einem abweichenden Compose-Layout **abbrechen, nicht `git reset --hard` oder `git clean` ausführen**. Stattdessen lokalen Stand prüfen und das Update anpassen. Nach der Installation: `docker compose -p skyhub-next logs --tail=80 backend`, `curl -fsS http://127.0.0.1:4001/api/health` und die DJI-OSD-Diagnose getrennt ausführen. Ein erfolgreicher Health-Test ersetzt keine RC-/Drohnen-Hardwareabnahme.
 
-## Compose auf dem Pi: immer mit den Overlays (`scripts/pi-compose.sh`)
+## Compose auf dem Pi: immer mit den Overlays (pi-compose.sh)
 Auf dem Pi läuft Postgres mit dem arm64-Overlay: Image `skyhub-next-postgis:pg15-arm64`, Volume `skyhub-next_pgdata_arm64`, Backend zusätzlich im
 Speichernetz (`docker-compose.override.yml`). Ein einfaches `docker compose up -d` nimmt dagegen `docker-compose.yml` allein: das x86-Image
 `postgis/postgis:15-3.3` und ein **leeres** Volume `skyhub-next_pgdata`. Postgres stürzt dann in einer Dauerschleife ab (`libicui18n.so.67: failed to map

@@ -4,12 +4,21 @@
 
 **Repository und PRs:** [Offene Pull Requests](https://github.com/mason82-dotcom/SkyHub-Next/pulls) und [`main`](https://github.com/mason82-dotcom/SkyHub-Next/tree/main) sind die Live-Ansichten. Die [GitHub-Bestandsaufnahme vom 25.10.2026](repository-status-2026-10-25.md), die [Hygieneprüfung](repository-hygiene-2026-10-25.md) und der [PR-Triagebericht](pr-triage-2026-10-24.md) sind datierte Momentaufnahmen, keine Live-Zahlen oder Mergefreigaben.
 
-**Aktualisiert am 25.10.2026.** Primäre Einstiegspunkte sind der [neue Main-Audit mit geprüftem Commit](stand-2026-10-25-main-audit.md) und die [Dokumentationspflege](dokumentationspflege.md). Die bisherige Repository-Statusdatei und die umfangreichen PR-Triageberichte sind ältere Messungen **desselben Tages** und kein Ersatz für eine aktuelle GitHub-Abfrage. Diese Navigation gilt für den Root-Stack `skyhub-next`. Die wichtigste Unterscheidung ist die zwischen dem **Code auf `main`** und **noch nicht integrierten Entwicklungszweigen**.
+**Aktualisiert am 27.10.2026.** Primäre Einstiegspunkte sind der [Betriebsstand des Pi vom 27.10.2026](stand-2026-10-27-betriebsstand.md), der [Main-Audit des Quellcodes](stand-2026-10-25-main-audit.md) und die [Dokumentationspflege](dokumentationspflege.md). Die bisherige Repository-Statusdatei und die umfangreichen PR-Triageberichte sind ältere Messungen **desselben Tages** und kein Ersatz für eine aktuelle GitHub-Abfrage. Diese Navigation gilt für den Root-Stack `skyhub-next`. Die wichtigste Unterscheidung ist die zwischen dem **Code auf `main`** und **noch nicht integrierten Entwicklungszweigen**.
+
+## Raspberry-Pi-Betrieb (Stand 27.10.2026)
+
+- [**Betriebsstand 27.10.2026**](stand-2026-10-27-betriebsstand.md) – Stack, Proxy-Peers, gemeinsamer MinIO, Backup/Restore, Neustarttests, Log-Rotation, offene Punkte (Messungen auf dem Gerät, keine Flugfreigabe).
+- [Betriebsvorfälle 26.10.2026](vorfaelle-2026-10-26.md) – Postgres-Ausfall durch `docker compose up` ohne arm64-Overlay und hängendes `docker logs --tail` nach externer Log-Rotation, mit Konsequenzen.
+- [Compose auf dem Pi: `scripts/pi-compose.sh`](ops.md#compose-auf-dem-pi-immer-mit-den-overlays-pi-composesh) – nie `docker compose up` ohne Overlays.
+- [Gemeinsamer MinIO-Objektspeicher](minio-shared-storage.md) (Entwurfsstand 21.10., Betrieb siehe Betriebsstand) und das [Backup-/Restore-Paket `pi-minio-acceptance`](../pi-minio-acceptance/README.md) mit [Validierung](../pi-minio-acceptance/VALIDIERUNG.md).
+- [Betriebswerkzeuge – Wirkung und Freigabe](scripts.md), [Mosquitto-Migration](pi-mosquitto-migration.md), [Host-InfluxDB absichern](pi-influxdb-hardening.md), [TSA-/Proxy-Härtung](tsa-proxy-hardening-2026-10-24.md).
+- [Cloud-API-Demo als lokaler Testweg](cloud-api-demo-lokal.md) und das Begleitprojekt [Pi-Hub](pi-hub.md) (Weboberfläche für den Pi-Betrieb, eigenes lokales Repository).
 
 ## Sicherheit und Engineering-Review
 
-- [Technischer Main-Review und offene Integrationsgates (25.10.2026)](engineering-audit-2026-10-25.md) – beobachtete Proxy-Trust-Risiken und kontrollierter Sicherheitsentwurf, **noch nicht auf Main**.
-- [Exakte Caddy/HTTP-Proxy-Peers (Draft): Migration, Abnahme, Rollback](proxy-trust-rollout.md) – ohne reale Caddy-Peer-IP **nicht deployen**.
+- [Technischer Main-Review (25.10.2026)](engineering-audit-2026-10-25.md) – Proxy-Trust-Risiken auf dem damaligen Stand; der Sicherheitsentwurf ist inzwischen **in `main` (PR #176) und auf dem Pi ausgerollt**.
+- [Exakte Caddy/HTTP-Proxy-Peers: Migration, Abnahme, Rollback](proxy-trust-rollout.md) – umgesetzt; der Peer ist das Docker-Gateway der Bridge, nicht `127.0.0.1`. Nach einem Neuanlegen des Netzes erneut mit `scripts/pi-proxy-peer-check.sh` prüfen.
 
 ## Zuerst lesen
 
@@ -63,11 +72,64 @@
 
 [Konsolidierung und Freigabegrenzen](smart-farming-m3m-consolidation-review-2026-10-23.md) · [geschützter Kandidatenkatalog](smart-farming-m3m-auth-readonly-catalog.md) · [UI-Status](smart-farming-m3m-ui.md). Keine operative Vegetationskarte oder Flugfreigabe.
 
+## Weitere Fachdokumente nach Thema
+
+Diese Dokumente waren bisher nur über Suche oder PR-Beschreibungen erreichbar. Titel stammen aus den Dokumenten; der Status (Entwurf, offline geprüft, hardwarebeobachtet) steht jeweils im Dokument.
+
+**Pilot 2, Medien und Galerie**
+
+- [DJI-Medienverwaltung (Pilot 2 → Cloud): Vertragsbaustein](dji-media-upload-contract.md)
+- [DJI Pilot 2: Lagebild (Situation Awareness, TSA)](dji-pilot-situation-awareness.md)
+- [DJI Pilot 2 ↔ SkyHub WPML: kontrollierte Offline-Abnahme](dji-pilot2-kmz-acceptance.md)
+- [DJI Pilot 2 – isolierte HTTPS-Medienendpunkte](dji-pilot2-media-https-api.md)
+- [DJI Pilot 2 Media STS – isolierte HTTPS-Autorisierungsgrenze](dji-pilot2-media-sts-boundary.md)
+- [SkyHub Next – Verifizierte DJI-Pilot-2-Medienbibliothek (Read-only)](dji-pilot2-verified-media-library.md)
+- [DJI Pilot 2 – Persistente Medienregistrierung mit S3-Objektnachweis](dji-pilot2-verified-media-registration.md)
+- [SkyHub Next – eigenständige Mediengalerie (25.10.2026)](media-gallery.md)
+
+**WPML, Waylines und Missionsplanung**
+
+- [Motecshine DJI Waylines SDK als SkyHub-Next-Referenz](dji-waylines-sdk-reference.md)
+- [FlightHub-inspirierte Missionsprüfung – reiner Offline-Entwurf](dji-wpml-draft-review.md)
+- [DJI WPML / KMZ – SkyHub Next (21.10.2026)](dji-wpml-integration.md)
+- [DJI Mavic 3M – Offline-Kamera-/Kadenzreferenzen (nicht flugfähig)](wpml-m3m-camera-reference.md)
+- [Mavic 3M: unabhängiger RGB-/Multispektral-Footprint (Offline-Vergleich)](wpml-m3m-dual-optics.md)
+- [WPML-Integration auf aktueller SkyHub-Next-Main-Basis](wpml-main-integration.md)
+- [SkyHub Next – WPML-Karten: OSM-403-Diagnose (25.10.2026)](wpml-map-tiles-403.md)
+- [WPML Survey: begrenzte Geometrie mit Aussparungen (Offline)](wpml-survey-topology.md)
+
+**Smart Farming M3M (experimentell, offline)**
+
+- [SkyHub-Next Smart Farming – verifizierte experimentelle Kartenkandidaten](smart-farming-m3m-candidate-import.md)
+- [SkyHub Next – DEDAL-Archivinspektion und private Manifest-Nachprüfung](smart-farming-m3m-dedal-archive-inspection.md)
+- [SkyHub Next – M3M DEDAL/ODM → Indexraster: Offline-End-to-End-PoC](smart-farming-m3m-dedal-offline-pipeline.md)
+- [SkyHub Next – DEDAL/ODM-Orthomosaik-Übergabe (offline)](smart-farming-m3m-dedal-ortho-handoff.md)
+- [SkyHub Next – DEDAL-Kalibrierungsauftrag: Offline-Preflight](smart-farming-m3m-dedal-preflight.md)
+- [M3M Smart Farming – durchgehende Offline-Integrationsabnahme](smart-farming-m3m-e2e-acceptance.md)
+- [SkyHub Next: M3M experimenteller Index-Raster-Worker (PoC)](smart-farming-m3m-index-raster-poc.md)
+- [SkyHub Smart Farming – M3M Medieninventar (Phase 1)](smart-farming-m3m-media-stage1.md)
+- [SkyHub M3M + MinIO: Neuaufnahme und Integrationsuebergabe (21.10.2026)](smart-farming-m3m-minio-handoff-20261021.md)
+- [SkyHub Next – unabhängige Rasterpaket-Abnahme (offline)](smart-farming-m3m-raster-bundle-qa.md)
+- [SkyHub Next – Integritätsbeleg für M3M-Analyseraster (offline)](smart-farming-m3m-raster-integrity-seal.md)
+- [SkyHub Next – M3M Raw-TIFF-Payload-Audit (offline)](smart-farming-m3m-raw-tiff-payload-audit.md)
+- [SkyHub-Next: M3M-Konsolidierung und Offline-Abnahme](smart-farming-m3m-release-status-2026-10-24.md)
+- [Mavic 3M über bestehenden MinIO: sichere Pi-End-to-End-Leseprüfung](smart-farming-m3m-s3-hardware-smoke.md)
+
+**Oberfläche**
+
+- [SkyHub Next – zwei Haupttabs (isolierter UI-Branch)](tak-ui-two-tabs.md)
+- [SkyHub Next · Light UI (2026-10-24)](webui-light-redesign.md)
+
+**Weitere**
+
+- [Flighttask-Korrelation – isolierter, nicht angebundener Auswahlhelfer](dji-flighttask-correlation-guard.md)
+
 ## Historische Momentaufnahmen – nicht als Live-Betriebszustand verwenden
 
 - [Repository-Status 25.10.](repository-status-2026-10-25.md) und [Hygieneaudit 25.10.](repository-hygiene-2026-10-25.md) wurden auf **älteren Main-SHAs** erhoben; für den späteren `662cb94d`-Stand gilt der [aktuellere Audit](stand-2026-10-25-main-audit.md).
 - [PR-Triage 24./25.10.](pr-triage-2026-10-24.md): nur noch ein Verweis auf das zusammengeführte Register.
 
+- [Betriebsstand und Vorfälle 26./27.10.2026](stand-2026-10-27-betriebsstand.md) gelten als jüngste Messung; ältere Betriebsangaben in diesem Abschnitt bleiben unverändert stehen.
 - [Entwicklungsplan 20.–21.10.2026](entwicklungsplan-2026-10-20.md)
 - [Storage-Audit 20.10.2026](storage-audit-2026-10-20.md)
 - Die Pi-Port-/Broker- und Hardwarediagnosen in den betroffenen Runbooks nennen ausdrücklich ihr Aufnahmedatum.
