@@ -27,7 +27,7 @@ access_check() { (cd "$root" && bash scripts/pi-minio-backend-access.sh check) >
 ready() {
   local ip
   ip="$(field "{{(index .NetworkSettings.Networks \"$NET\").IPAddress}}" "$NAME")" || return 1
-  [[ -n "$ip" ]] && curl -fsS --noproxy '*' -m 2 -o /dev/null "http://$ip:9000/minio/health/ready"
+  [[ -n "$ip" ]] && curl -fs --noproxy '*' -m 2 -o /dev/null "http://$ip:9000/minio/health/ready"
 }
 
 work="$(mktemp -d)"

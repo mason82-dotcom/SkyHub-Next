@@ -264,7 +264,7 @@ nicht praktisch getestet. Das temporäre MinIO schreibt selbst nur in die Testko
 | IAM und S3-Lesen aus Restore | Teilweise: LIST 5/5, GET 4/5 (Bucket 1 leer) |
 | Image-Wiederimport auf neuem Host | Nein |
 | Mountabhängiger produktiver Autostart | Nein |
-| Container-Recreate-/Reboot-Persistenz | Nein |
+| Container-Recreate-/Reboot-Persistenz | Stop/Start ja (26.10.2026), Reboot offen |
 | Negative IAM-Tests / isolierter S3-Schreibtest | Nein |
 | Vollständige SkyHub-/Datenbank-Wiederherstellung | Nein |
 
@@ -288,7 +288,7 @@ ist deshalb nicht Teil dieses Pakets.
 | Vollständiger Restore-Manifestabgleich | PASS, 54.835 Einträge, 26.10.2026 |
 | Restore-IAM / LIST / GET je Bucket | LIST 5/5, GET 4/5 (Bucket 1 leer, Rest offen) |
 | Erfolgreicher Test-Rückbau | Ja, Container, Netz, Mount, Mapper entfernt |
-| Startsicherheit / Persistenz | Offen |
+| Startsicherheit / Persistenz | Stop/Start bestanden (26.10.2026); Reboot und mountabhängiger Autostart offen |
 
 ## Referenzen
 
@@ -400,7 +400,7 @@ wurde nie auf dem Pi ausgeführt (kein echter SSH-Abbruch, kein SIGKILL-Test). `
 Dateien und `sync -f` funktionieren, wie sich ein 48-GiB-Abbild darauf verhält, ist nicht geprüft; deshalb ist das
 Restore-Verzeichnis auf ext4 wählbar. Backup, Restore und Neustarttest bleiben freigabepflichtig.
 
-## Neustart- und Persistenztest (vorbereitet, nicht ausgeführt)
+## Neustart- und Persistenztest (Stop/Start am 26.10.2026 bestanden)
 
 `scripts/pi-minio-restart-test.sh` prüft nur den Stop/Start desselben Containers `skyhub-shared-minio`:
 Ohne Argument (Plan) liest es nur und bestätigt die Voraussetzungen (Container läuft, Restart-Policy `no`, Netz
@@ -410,6 +410,11 @@ verlangt Exit-Code 0, startet denselben Container wieder, wartet auf Readiness u
 gleiches Image, geänderte `StartedAt`, erhaltenes Netz/Alias, unverändertes Backend und erneut alle fünf Buckets.
 Kein Recreate, kein Pull, kein Compose. Schlägt der Start fehl, versucht ein Handler genau einmal denselben
 Container zu starten. Dauer etwa eine Minute, in der `/api/media/*` Fehler liefert.
+
+**Ergebnis 26.10.2026:** bestanden. Sauberer Stop (Exit 0), derselbe Container (gleiche ID und gleiches Image,
+neues `StartedAt`), Netz und Alias `skyhub-minio` erhalten, Backend nicht neu gestartet, danach alle fünf Buckets
+per Reader-Konto lesbar. Eine einzelne `curl: (7)`-Zeile im ersten Lauf war der erste Readiness-Versuch kurz nach dem
+Start und kein Fehler; die Abfrage ist seitdem leise.
 
 Der Pi-Reboot ist ein eigener Schritt und gehört nicht dazu: Wegen `restart: "no"` bleibt MinIO nach einem
 Reboot bewusst aus. Danach zuerst `scripts/pi-minio-shared-mount-check.sh`, erst bei bestandener Prüfung
@@ -436,6 +441,6 @@ Netze). Das 48-GiB-Testabbild bleibt erhalten und gehört dem Nutzer zum Lösche
 - Aus einem Verzeichnis `pi-minio-acceptance/` aufrufen, sonst findet `bash restore.sh` die Datei nicht.
 - Mit `2>&1 | tee ~/restore-lauf.log` bleibt die Ausgabe auswertbar. Passphrasen erscheinen nicht.
 
-**Weiter offen:** Neustart und Persistenz des echten MinIO, Wiederimport des Image-Archivs auf einem frischen
+**Weiter offen:** Pi-Reboot mit manuellem Start (Stop/Start ist bestanden) und mountabhängiger Autostart, Wiederimport des Image-Archivs auf einem frischen
 Host, praktischer Schreibversuch gegen das Reader-Konto (negativer Test), GET für Bucket 1 sobald er Objekte hat,
 Backup-Passphrase außerhalb des Pi sichern.
