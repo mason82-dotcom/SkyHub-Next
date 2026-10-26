@@ -400,6 +400,22 @@ wurde nie auf dem Pi ausgeführt (kein echter SSH-Abbruch, kein SIGKILL-Test). `
 Dateien und `sync -f` funktionieren, wie sich ein 48-GiB-Abbild darauf verhält, ist nicht geprüft; deshalb ist das
 Restore-Verzeichnis auf ext4 wählbar. Backup, Restore und Neustarttest bleiben freigabepflichtig.
 
+## Neustart- und Persistenztest (vorbereitet, nicht ausgeführt)
+
+`scripts/pi-minio-restart-test.sh` prüft nur den Stop/Start desselben Containers `skyhub-shared-minio`:
+Ohne Argument (Plan) liest es nur und bestätigt die Voraussetzungen (Container läuft, Restart-Policy `no`, Netz
+und Alias, Mount, Readiness, `pi-minio-backend-access.sh check` mit fünf Buckets, genau ein Backend-Container).
+Mit `--execute-restart-test` und der Eingabe `RESTART` hält es den Container mit `docker stop --time 60` an,
+verlangt Exit-Code 0, startet denselben Container wieder, wartet auf Readiness und prüft gleiche Container-ID,
+gleiches Image, geänderte `StartedAt`, erhaltenes Netz/Alias, unverändertes Backend und erneut alle fünf Buckets.
+Kein Recreate, kein Pull, kein Compose. Schlägt der Start fehl, versucht ein Handler genau einmal denselben
+Container zu starten. Dauer etwa eine Minute, in der `/api/media/*` Fehler liefert.
+
+Der Pi-Reboot ist ein eigener Schritt und gehört nicht dazu: Wegen `restart: "no"` bleibt MinIO nach einem
+Reboot bewusst aus. Danach zuerst `scripts/pi-minio-shared-mount-check.sh`, erst bei bestandener Prüfung
+`docker start skyhub-shared-minio` und `scripts/pi-minio-backend-access.sh check`. Ein mountabhängiger
+Autostart bleibt ein separates Designthema.
+
 ## Ergebnis 25./26.10.2026 (Backup und isolierter Restore auf dem Pi)
 
 **Backup (25.10., 22:53 bis 23:30 CET, `skyhub-minio-backup.service`):** Dienst Exit 0. Das Daten-Archiv
