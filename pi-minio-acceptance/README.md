@@ -1,12 +1,10 @@
 # SkyHub MinIO – ausführbare Backup-/Restore-Anleitung
 
-Stand: 25.10.2026, Europe/Berlin (angepasst an den laufenden gemeinsamen MinIO, siehe Abschnitt „Aktualisierung 25.10.2026“). **Vorbereitet, nicht auf dem Pi ausgeführt.**
+Stand: 25.10.2026, Europe/Berlin (angepasst an den laufenden gemeinsamen MinIO, siehe Abschnitt „Aktualisierung 25.10.2026“). **Backup und isolierter Restore wurden am 25./26.10.2026 auf dem Pi ausgeführt und bestanden (siehe Abschnitt „Ergebnis 25./26.10.2026“). Neustart- und Persistenztest sind weiterhin nicht freigegeben.**
 
-Dieses Paket ist eine Anleitung mit überprüfbaren Skripten. Zunächst waren nur
-lesende Pi-Checks und die Vorbereitung erlaubt. Der Nutzer hat anschließend
-einen Backup-Lauf mit MinIO-Unterbrechung freigegeben; dieser Lauf ist abgebrochen.
-Die neue Startvariante wurde noch nicht ausgeführt. Restore, Formatierung und
-Neustarttests sind weiterhin nicht freigegeben. Nicht das gesamte Dokument
+Dieses Paket ist eine Anleitung mit überprüfbaren Skripten. Der frühere Backup-Lauf
+vom 22.10. ist abgebrochen und durch den Lauf vom 25.10. ersetzt. Neustarttests
+bleiben freigabepflichtig. Nicht das gesamte Dokument
 als Shell-Skript ausführen. Keine automatische Ausführung beim Entpacken.
 
 ## 1. Gesicherter Ausgangspunkt und Grenzen
@@ -261,9 +259,9 @@ nicht praktisch getestet. Das temporäre MinIO schreibt selbst nur in die Testko
 
 | Punkt | Durch dieses Paket geschlossen? |
 |---|---|
-| Unabhängiges Archiv auf zweiter NVMe | Erst nach erfolgreichem Backup-Lauf |
-| Dateiintegrität nach Restore | Erst nach erfolgreichem Manifestabgleich |
-| IAM und S3-Lesen aus Restore | Erst nach erfolgreichen Restore-Probes |
+| Unabhängiges Archiv auf zweiter NVMe | Ja, 25.10.2026 |
+| Dateiintegrität nach Restore | Ja, 54.835 Einträge, 26.10.2026 |
+| IAM und S3-Lesen aus Restore | Teilweise: LIST 5/5, GET 4/5 (Bucket 1 leer) |
 | Image-Wiederimport auf neuem Host | Nein |
 | Mountabhängiger produktiver Autostart | Nein |
 | Container-Recreate-/Reboot-Persistenz | Nein |
@@ -282,14 +280,14 @@ ist deshalb nicht Teil dieses Pakets.
 
 | Nachweis | Eintrag bei Ausführung |
 |---|---|
-| Wartungsfreigabe / bekannte S3-Nutzer | Offen |
-| Beginn/Ende MinIO-Unterbrechung | Offen |
-| Archivverzeichnis und SHA256SUMS | Offen |
-| Sauberer MinIO-Exit / Wiederanlauf | Offen |
-| Backend-Readiness nach Backup | Offen |
-| Vollständiger Restore-Manifestabgleich | Offen |
-| Restore-IAM / LIST / GET je Bucket | Offen |
-| Erfolgreicher Test-Rückbau | Offen |
+| Wartungsfreigabe / bekannte S3-Nutzer | Freigabe des Nutzers, 25.10.2026 |
+| Beginn/Ende MinIO-Unterbrechung | 22:53 bis 23:30 CET, 25.10.2026 |
+| Archivverzeichnis und SHA256SUMS | `/mnt/benz/skyhub-backup-20261025T225315-7kgdkf34`, beide Archive OK |
+| Sauberer MinIO-Exit / Wiederanlauf | Exit 0, derselbe Container läuft wieder |
+| Backend-Readiness nach Backup | `pi-minio-backend-access.sh check`: 5/5 Buckets HEAD 200 |
+| Vollständiger Restore-Manifestabgleich | PASS, 54.835 Einträge, 26.10.2026 |
+| Restore-IAM / LIST / GET je Bucket | LIST 5/5, GET 4/5 (Bucket 1 leer, Rest offen) |
+| Erfolgreicher Test-Rückbau | Ja, Container, Netz, Mount, Mapper entfernt |
 | Startsicherheit / Persistenz | Offen |
 
 ## Referenzen
@@ -401,3 +399,27 @@ anschließend ausschließlich denselben Container.
 wurde nie auf dem Pi ausgeführt (kein echter SSH-Abbruch, kein SIGKILL-Test). `/mnt/benz` ist NTFS (`fuseblk`):
 Dateien und `sync -f` funktionieren, wie sich ein 48-GiB-Abbild darauf verhält, ist nicht geprüft; deshalb ist das
 Restore-Verzeichnis auf ext4 wählbar. Backup, Restore und Neustarttest bleiben freigabepflichtig.
+
+## Ergebnis 25./26.10.2026 (Backup und isolierter Restore auf dem Pi)
+
+**Backup (25.10., 22:53 bis 23:30 CET, `skyhub-minio-backup.service`):** Dienst Exit 0. Das Daten-Archiv
+(28,83 GB) wurde zurückgelesen, Quelle gegen Manifest verglichen (PASS: Dateisatz, SHA256, Größen, Besitzer,
+Modi, xattrs; 54.835 Einträge). `sha256sum -c` bestätigt beide Archive, `ARCHIVE-COMPLETE.txt` ist gesetzt.
+MinIO stand etwa 37 Minuten still und lief danach als derselbe Container weiter. `pi-minio-backend-access.sh check`
+bestätigt danach alle fünf Buckets mit dem Reader-Konto (HEAD 200, nur lesend).
+
+**Isolierter Restore (26.10., `SKYHUB_RESTORE_DIR=/mnt/hc4backup/skyhub-restore`):** Manifestabgleich PASS
+(54.835 Einträge), isolierter MinIO bereit (HTTP 200), Service-Account aktiv mit Nur-Lese-Policy, LIST 5/5,
+Stichproben-GET 4/5. Bucket 1 ist leer, dort blieb der GET aus. Rückbau sauber (keine Mounts, Mapper, Container,
+Netze). Das 48-GiB-Testabbild bleibt erhalten und gehört dem Nutzer zum Löschen.
+
+**Hinweise aus der Durchführung:**
+- Zwei frühere Restore-Anläufe brachen nach 25 s und 66 s ab, weil die Archivpassphrase falsch eingegeben wurde.
+  Das Skript hat jeweils sauber ausgehängt. Je Anlauf bleibt ein 48-GiB-Abbild liegen (fallocate belegt den Platz
+  sofort); nach einem Abbruch das Abbild löschen.
+- Aus einem Verzeichnis `pi-minio-acceptance/` aufrufen, sonst findet `bash restore.sh` die Datei nicht.
+- Mit `2>&1 | tee ~/restore-lauf.log` bleibt die Ausgabe auswertbar. Passphrasen erscheinen nicht.
+
+**Weiter offen:** Neustart und Persistenz des echten MinIO, Wiederimport des Image-Archivs auf einem frischen
+Host, praktischer Schreibversuch gegen das Reader-Konto (negativer Test), GET für Bucket 1 sobald er Objekte hat,
+Backup-Passphrase außerhalb des Pi sichern.
