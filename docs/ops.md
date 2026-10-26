@@ -207,3 +207,24 @@ Vor der Backend-Neuerstellung kopiert das Skript `.env` und den optionalen `dock
 **Grenzen:** Es werden nicht sämtliche Redis-Persistenzdateien oder MinIO-Objekte gesichert; sie werden bei diesem Backend-Update auch nicht neu gestartet. Ein `pg_dump` ist ein Datenbank-Backup, **kein** vollständiger Restore-Test auf dem Pi. Die Aufnahme der Sicherung erfolgt auf dem Pi und enthält echte sensible Daten; niemals mit Chat oder GitHub teilen. Das Skript nimmt kein neues Caddy-/EMQX-Setup vor und verlangt keinen Export von Broker- oder DJI-Geheimnissen. Es führt keinen automatischen Rollback nach einem fehlgeschlagenen Health-Test durch, bewahrt aber den vorherigen Backend-Image-Tag für eine gezielte Wiederherstellung.
 
 Bei lokal veränderten versionierten Dateien, Konflikten beim `git switch` oder einem abweichenden Compose-Layout **abbrechen, nicht `git reset --hard` oder `git clean` ausführen**. Stattdessen lokalen Stand prüfen und das Update anpassen. Nach der Installation: `docker compose -p skyhub-next logs --tail=80 backend`, `curl -fsS http://127.0.0.1:4001/api/health` und die DJI-OSD-Diagnose getrennt ausführen. Ein erfolgreicher Health-Test ersetzt keine RC-/Drohnen-Hardwareabnahme.
+
+## Compose auf dem Pi: immer mit den Overlays (`scripts/pi-compose.sh`)
+Auf dem Pi läuft Postgres mit dem arm64-Overlay: Image `skyhub-next-postgis:pg15-arm64`, Volume `skyhub-next_pgdata_arm64`, Backend zusätzlich im
+Speichernetz (`docker-compose.override.yml`). Ein einfaches `docker compose up -d` nimmt dagegen `docker-compose.yml` allein: das x86-Image
+`postgis/postgis:15-3.3` und ein **leeres** Volume `skyhub-next_pgdata`. Postgres stürzt dann in einer Dauerschleife ab (`libicui18n.so.67: failed to map
+segment`), das Backend startet nicht, und die Telemetrie fällt aus. Die Daten bleiben dabei unberührt im Volume `…_arm64`; passiert ist das am 26.10.2026.
+
+Deshalb auf dem Pi nur diese Hülle benutzen, sie gibt `docker-compose.yml`, `docker-compose.arm64.yml` und (falls vorhanden) `docker-compose.override.yml` immer mit:
+
+```bash
+bash scripts/pi-compose.sh ps
+bash scripts/pi-compose.sh config --quiet
+bash scripts/pi-compose.sh up -d --no-build backend     # Dienstnamen angeben
+```
+`up`, `down`, `restart`, `stop`, `rm` ohne Dienstnamen lehnt sie ab; wer wirklich den ganzen Stack meint, hängt `--all-services` an. Für Backend-Updates bleibt
+`scripts/pi-update-backend.sh` der Weg (legt nur `backend` neu an, mit Datenbanksicherung). Ein Compose-Aufruf, der `postgres` neu anlegt, ist eine bewusste
+Datenbank-Maßnahme (neues Image, Neuanlegen) und gehört in ein Wartungsfenster mit frischer Sicherung.
+
+**Wiederherstellung nach diesem Fehler:** `bash scripts/pi-compose.sh up -d --no-build postgres backend`. Das leere Volume `skyhub-next_pgdata` ist danach unbenutzt und kann
+mit `docker volume rm skyhub-next_pgdata` entfernt werden (vorher prüfen, dass kein Container es einhängt).
+

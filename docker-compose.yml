@@ -1,4 +1,6 @@
 name: skyhub-next
+# ACHTUNG Raspberry Pi: nie `docker compose up -d` mit dieser Datei allein. Auf dem Pi gehoert docker-compose.arm64.yml dazu
+# (arm64-PostGIS-Image und Volume skyhub-next_pgdata_arm64). Immer: bash scripts/pi-compose.sh ... (siehe docs/ops.md).
 # Log-Rotation fuer alle Dienste: ohne Grenze wachsen die json-Logs unbegrenzt. Gilt beim naechsten `up`, wenn der Container neu
 # angelegt wird. Nicht per logrotate/copytruncate von aussen kuerzen: dann haengt `docker logs --tail`.
 x-logging: &default-logging
