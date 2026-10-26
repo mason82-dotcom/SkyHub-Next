@@ -231,5 +231,32 @@ class AcceptancePreparationTests(unittest.TestCase):
         self.assertNotIn('luks', result.stdout.lower())
 
 
+class NegativeWriteProbeTests(unittest.TestCase):
+    """denied() must be True only for an explicit AccessDenied, never for success or an unrelated failure."""
+    @classmethod
+    def setUpClass(cls):
+        cls.probe = load_module('restore_probe')
+
+    def fake_mc(self, body):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        script = Path(temp.name)/'mc'
+        script.write_text('#!/bin/sh\n'+body+'\n')
+        script.chmod(0o755)
+        return [str(script)]
+
+    def test_explicit_access_denied_is_true(self):
+        mc = self.fake_mc('echo \'{"status":"error","error":{"cause":{"error":{"Code":"AccessDenied"}}}}\'; exit 1')
+        self.assertTrue(self.probe.denied(mc, {}, 'pipe', 'x', data=b'a'))
+
+    def test_success_means_not_denied(self):
+        self.assertFalse(self.probe.denied(self.fake_mc('exit 0'), {}, 'pipe', 'x', data=b'a'))
+
+    def test_other_failure_is_an_error_not_a_pass(self):
+        mc = self.fake_mc('echo connection refused >&2; exit 1')
+        with self.assertRaises(RuntimeError):
+            self.probe.denied(mc, {}, 'pipe', 'x', data=b'a')
+
+
 if __name__ == '__main__':
     unittest.main()
