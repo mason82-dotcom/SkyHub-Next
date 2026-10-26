@@ -417,8 +417,11 @@ per Reader-Konto lesbar. Eine einzelne `curl: (7)`-Zeile im ersten Lauf war der 
 Start und kein Fehler; die Abfrage ist seitdem leise.
 
 Der Pi-Reboot ist ein eigener Schritt und gehört nicht dazu: Wegen `restart: "no"` bleibt MinIO nach einem
-Reboot bewusst aus. Danach zuerst `scripts/pi-minio-shared-mount-check.sh`, erst bei bestandener Prüfung
-`docker start skyhub-shared-minio` und `scripts/pi-minio-backend-access.sh check`. Ein mountabhängiger
+Reboot bewusst aus. Dafür gibt es `scripts/pi-reboot-test.sh` (vorbereitet, nicht ausgeführt): `pre` hält den
+Zustand vor dem Reboot fest (Container und Restart-Policies, Mounts, lauschende Ports, Gesundheit; nur lesend),
+nach dem eigenen `sudo reboot` vergleicht `post` (neuer Boot, Mounts, alle Container mit always/unless-stopped
+wieder oben, Ports, `/api/health`, systemd-Units, Proxy-Peer), und `start-minio` startet den MinIO erst nach der
+Mount-Prüfung und der Eingabe `START` und prüft danach die fünf Buckets. Das Skript startet den Pi nicht neu. Ein mountabhängiger
 Autostart bleibt ein separates Designthema.
 
 ## Ergebnis 25./26.10.2026 (Backup und isolierter Restore auf dem Pi)
