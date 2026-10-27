@@ -7,7 +7,8 @@
 # Expected MinIO data: /mnt/hc4backup/skyhub-next/minio (mounted ext4 NVMe)
 # Source image: linux/arm64 aeronexus/minio:RELEASE.2025-10-15T17-29-55Z-an1\n# An additional local skyhub/minio tag reuses identical image layers without copying.
 #
-# Deployment is opt-in via scripts/pi-minio-shared-runtime.sh; default is plan.
+# Created once by scripts/pi-minio-migrate-from-aeronexus.sh (start); recreate an existing container (e.g. for a new
+# label) only with scripts/pi-minio-recreate.sh (plan, then run). Started at boot by skyhub-shared-minio.service.
 name: skyhub-storage
 services:
   minio:

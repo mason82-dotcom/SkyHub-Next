@@ -242,5 +242,14 @@ bash scripts/pi-compose.sh up -d --no-build postgres redis backend
 docker inspect -f '{{.Name}} {{index .Config.Labels "com.centurylinklabs.watchtower.enable"}}' skyhub-next-postgres-1 skyhub-next-redis-1 skyhub-next-backend-1
 ```
 
-Der MinIO bekommt das Label beim nächsten Neuanlegen über `scripts/pi-minio-shared-runtime.sh`. Bis dahin ist das harmlos: Watchtower findet das
-lokale Image in keiner Registry und aktualisiert es nicht, es bleibt nur eine Warnung im Watchtower-Log.
+Der MinIO bekommt das Label erst beim Neuanlegen. Bis dahin ist das harmlos: Watchtower findet das lokale Image in keiner Registry und
+aktualisiert es nicht, es bleibt nur eine Warnung im Watchtower-Log. Neu anlegen (Daten, Image, Netz und Zugangsdaten bleiben; die Medien-API
+ist einige Sekunden weg):
+
+```bash
+bash scripts/pi-minio-recreate.sh plan   # lesend: Voraussetzungen, Label heute und danach
+bash scripts/pi-minio-recreate.sh run    # Unit stoppen, compose up --no-start --force-recreate, Unit starten, Nachprüfung
+```
+
+`pi-minio-migrate-from-aeronexus.sh start` legt dagegen nur an, wenn es noch keinen Container gibt. (Korrektur: Eine frühere Fassung
+dieses Abschnitts nannte hier `scripts/pi-minio-shared-runtime.sh`; dieses Skript gibt es nicht.)
