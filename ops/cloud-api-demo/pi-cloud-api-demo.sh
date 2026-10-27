@@ -436,7 +436,8 @@ cmd_apply() {
   local i
   for i in $(seq 1 48); do
     if [[ "$("${compose[@]}" ps --format '{{.Health}}' mysql redis emqx 2>/dev/null | grep -c healthy)" == 3 ]] \
-       && curl -fsS -m 3 -o /dev/null "http://$(bind_addr):8081/"; then break; fi
+       && curl -fsS -m 3 -o /dev/null "http://$(bind_addr):8081/" \
+       && cmd_provision check >/dev/null 2>&1; then break; fi   # Backend am EMQX angemeldet (Java braucht ~20 s)
     sleep 5
   done
   cmd_status
