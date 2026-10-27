@@ -228,3 +228,19 @@ Datenbank-Maßnahme (neues Image, Neuanlegen) und gehört in ein Wartungsfenster
 **Wiederherstellung nach diesem Fehler:** `bash scripts/pi-compose.sh up -d --no-build postgres backend`. Das leere Volume `skyhub-next_pgdata` ist danach unbenutzt und kann
 mit `docker volume rm skyhub-next_pgdata` entfernt werden (vorher prüfen, dass kein Container es einhängt).
 
+
+## Watchtower lässt SkyHub-Next und den MinIO aus (27.10.2026)
+Der Watchtower auf dem Pi läuft ohne `--label-enable` und aktualisiert damit jeden Container, der nicht widerspricht. Am 27.10. um 05:01 zog er ein
+neues `redis:7-alpine`, legte die Redis-Container neu an und startete dabei das abhängige Backend mit neu. Alle SkyHub-Next-Dienste in
+`docker-compose.yml` und der geteilte MinIO in `docker-compose.minio-shared.yml` tragen deshalb `com.centurylinklabs.watchtower.enable: "false"`.
+Updates laufen bewusst von Hand (`scripts/pi-update-backend.sh`, für Postgres in einem Wartungsfenster).
+
+Das Label gilt erst, wenn der Container neu angelegt wird. Einmalig nach dem Merge (kurze Unterbrechung, Daten bleiben in den Volumes):
+
+```bash
+bash scripts/pi-compose.sh up -d --no-build postgres redis backend
+docker inspect -f '{{.Name}} {{index .Config.Labels "com.centurylinklabs.watchtower.enable"}}' skyhub-next-postgres-1 skyhub-next-redis-1 skyhub-next-backend-1
+```
+
+Der MinIO bekommt das Label beim nächsten Neuanlegen über `scripts/pi-minio-shared-runtime.sh`. Bis dahin ist das harmlos: Watchtower findet das
+lokale Image in keiner Registry und aktualisiert es nicht, es bleibt nur eine Warnung im Watchtower-Log.

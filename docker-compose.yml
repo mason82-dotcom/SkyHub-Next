@@ -8,11 +8,17 @@ x-logging: &default-logging
   options:
     max-size: "10m"
     max-file: "3"
+# Watchtower auf dem Pi (ohne --label-enable) aktualisiert sonst nachts jedes Image mit beweglichem Tag und startet abhaengige
+# Container neu (27.10.2026: redis:7-alpine, dabei auch das Backend). SkyHub-Next wird bewusst von Hand aktualisiert.
+# Wie die Log-Grenze gilt das Label erst, wenn der Container neu angelegt wird.
+x-labels: &no-watchtower
+  com.centurylinklabs.watchtower.enable: "false"
 services:
   postgres:
     image: postgis/postgis:15-3.3
     restart: unless-stopped
     logging: *default-logging
+    labels: *no-watchtower
     environment:
       POSTGRES_USER: skyhub_next
       POSTGRES_PASSWORD: ${SKYHUB_DB_PASSWORD:?Set SKYHUB_DB_PASSWORD}
@@ -28,6 +34,7 @@ services:
     image: redis:7-alpine
     restart: unless-stopped
     logging: *default-logging
+    labels: *no-watchtower
     command: ["redis-server", "--save", "60", "1", "--appendonly", "yes"]
     volumes:
       - redis_data:/data
@@ -40,6 +47,7 @@ services:
     image: ${SKYHUB_MINIO_IMAGE:-minio/minio:RELEASE.2023-09-04T19-57-37Z}
     restart: unless-stopped
     logging: *default-logging
+    labels: *no-watchtower
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${SKYHUB_MINIO_USER:?Set SKYHUB_MINIO_USER}
@@ -53,6 +61,7 @@ services:
       dockerfile: backend/Dockerfile
     restart: unless-stopped
     logging: *default-logging
+    labels: *no-watchtower
     ports:
       - "${SKYHUB_BIND_ADDRESS:-127.0.0.1}:${SKYHUB_HTTP_PORT:-4001}:4000"
     extra_hosts:
