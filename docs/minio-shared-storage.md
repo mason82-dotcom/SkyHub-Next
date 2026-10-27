@@ -1,5 +1,7 @@
 # Gemeinsamer MinIO-Objektspeicher auf dem Raspberry Pi
 
+> **Hinweis 27.10.2026:** Dieses Dokument ist der Planungs- und Entwurfsstand vom 21.10. Der tatsächliche Betrieb (Container `skyhub-shared-minio`, mountgeschützte Autostart-Unit, Backup 25.10., isolierter Restore 26.10., Neustarttests) steht im [Betriebsstand 27.10.2026](stand-2026-10-27-betriebsstand.md), die Backup-/Restore-Befehle in [pi-minio-acceptance/README.md](../pi-minio-acceptance/README.md). Der Text unten wird nicht rückwirkend geändert.
+
 Stand: 21.10.2026. **GitHub-Änderungen deployen nicht auf den Pi.**
 Ziel ist **ein** MinIO-Server für SkyHub Next und ausgewählte S3-Clients anderer
 Pi-Compose-Stacks. Der bisherige optionale Root-Compose-Dienst `minio` mit

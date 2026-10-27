@@ -1,6 +1,8 @@
-# Explizites Proxy-Vertrauen – Betriebsleitfaden (Draft)
+# Explizites Proxy-Vertrauen – Betriebsleitfaden
 
-**Status:** nur Sicherheitsentwurf im Feature-PR; vor Freigabe den [Code-Audit](engineering-audit-2026-10-25.md) und die jeweilige CI prüfen. Kein automatisches Upgrade oder Pi-Betriebseingriff.
+> **Status 27.10.2026: umgesetzt und auf dem Pi ausgerollt.** Die Änderung ist mit PR #176 in `main`. Caddy erreicht das Backend über den Userland-Proxy von Docker; der Socket-Peer ist deshalb das Gateway der Bridge `skyhub-next_default` (am 25.10. gemessen: `172.25.0.1`), nicht `127.0.0.1`. `scripts/pi-proxy-peer-check.sh --enforce` prüft vor jedem Backend-Update (`scripts/pi-update-backend.sh`), dass die Einstellung zum echten Peer passt; `scripts/pi-reboot-test.sh post` prüft es nach einem Neustart. Der Rest dieses Dokuments ist der **ursprüngliche Entwurfstext** (Stand 25.10.2026) und beschreibt Verhalten, Abnahme und Rollback weiterhin zutreffend. Aktueller Betrieb: [Betriebsstand 27.10.2026](stand-2026-10-27-betriebsstand.md).
+
+**Ursprünglicher Status (25.10.):** nur Sicherheitsentwurf im Feature-PR; vor Freigabe den [Code-Audit](engineering-audit-2026-10-25.md) und die jeweilige CI prüfen. Kein automatisches Upgrade oder Pi-Betriebseingriff.
 
 ## Verhalten der vorgeschlagenen Änderung
 

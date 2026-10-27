@@ -9,6 +9,10 @@
 
 SkyHub Next ist die **aktive Entwicklungsbasis im Repository-Root**. Sie verarbeitet DJI-Cloud-API-Telemetrie mit Node.js/Express, Socket.IO, MQTT, Redis und PostGIS und stellt ein kompaktes statisches Live-Dashboard bereit. Der Integrationsstand enthält eine **optional aktivierbare, authentifizierte und nur lesende Medien-API**; sie ist im Standard-Compose nicht mit MinIO-Zugangsdaten verdrahtet. Ein produktionsreifer Missionseditor und echte Analyse-Worker sind nicht freigegeben. Der Root-Code ist **nicht automatisch identisch** mit dem aktuell auf dem Raspberry Pi betriebenen alten Dienst.
 
+## Betrieb auf dem Raspberry Pi (Stand 27.10.2026)
+
+Der aktuelle Betriebsstand des Pi steht im [Betriebsstand 27.10.2026](docs/stand-2026-10-27-betriebsstand.md) (Stack, exakte Proxy-Peers, gemeinsamer MinIO mit Backup/Restore und Autostart, Neustarttests, Log-Rotation, offene Punkte), die Betriebsvorfälle vom 26.10. samt Konsequenzen in [vorfaelle-2026-10-26.md](docs/vorfaelle-2026-10-26.md). **Auf dem Pi nie `docker compose up` ohne die Overlay-Dateien:** immer `bash scripts/pi-compose.sh …` ([Begründung](docs/ops.md#compose-auf-dem-pi-immer-mit-den-overlays-pi-composesh)). Das lokale Begleitprojekt [Pi-Hub](docs/pi-hub.md) zeigt und steuert den Pi-Betrieb im LAN.
+
 ## Einstieg: verifizierter GitHub-Main-Stand vom 25.10.2026
 
 Die maßgebliche neue Quelltextaufnahme ist der [Main-Audit bei `662cb94d`](docs/stand-2026-10-25-main-audit.md). Dazu gehören die [thematische Dokumentationsnavigation](docs/index.md) und die [Regeln zur Dokumentationspflege](docs/dokumentationspflege.md). Die unten stehenden Integrationsnotizen dokumentieren den **jeweiligen historischen Zeitpunkt**, keine aktuelle Liste offener PRs.
@@ -89,6 +93,8 @@ Der zentrale PostgreSQL-Routenentwurf `backend/db/migrations/003_wpml_route_libr
 ## Dokumentation
 
 - [Dokumentationswegweiser](docs/index.md)
+- [Betriebsstand Raspberry Pi 27.10.2026](docs/stand-2026-10-27-betriebsstand.md) und [Betriebsvorfälle 26.10.2026](docs/vorfaelle-2026-10-26.md)
+- [Begleitprojekt Pi-Hub](docs/pi-hub.md)
 - [Konfigurationsreferenz: Env, Compose, Flags und Startgrenzen](docs/config-reference.md)
 - [API-Referenz: HTTP, Socket.IO, MQTT und Zugriffsmatrix](docs/api-reference.md)
 - [Projektstand 23.10.2026: Main, PR-Ketten, Test-/Hardware-Evidenz](docs/projektstand-2026-10-23.md)
@@ -211,4 +217,4 @@ Die historische 2023er Image-Vorgabe wird für `apply` vorsorglich gesperrt.
 Dazu gehören getrennte, nicht automatisch aktivierte Bucket-IAM-Policies und
 ein authentifizierter S3-Test mit read-only Standard und optionalem
 PUT/GET/DELETE für ein isoliertes Testbucket.
-Siehe [Gemeinsamer MinIO-Objektspeicher](docs/minio-shared-storage.md).
+Siehe [Gemeinsamer MinIO-Objektspeicher](docs/minio-shared-storage.md) (Entwurfsstand 21.10.), den tatsächlichen Betrieb im [Betriebsstand](docs/stand-2026-10-27-betriebsstand.md) und das Backup-/Restore-Paket [`pi-minio-acceptance`](pi-minio-acceptance/README.md).

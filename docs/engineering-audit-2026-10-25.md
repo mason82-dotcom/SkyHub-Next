@@ -1,5 +1,7 @@
 # SkyHub Next – technischer Review und Proxy-Trust-Gate (25.10.2026)
 
+> **Nachtrag 27.10.2026:** Das hier geforderte Proxy-Trust-Gate ist erfüllt: exakte Peers sind mit PR #176 in `main` und auf dem Pi ausgerollt ([Betriebsstand](stand-2026-10-27-betriebsstand.md), [Leitfaden](proxy-trust-rollout.md)). Der folgende Text ist der Review-Stand vom 25.10. und wird nicht rückwirkend geändert.
+
 > **Quellcode-Review, keine Live-Pi- oder DJI-Hardwareprüfung.** Ausgangsbasis: `main` @ [`f2a523cc46c27e0a37a0c92b22807574483f038e`](https://github.com/mason82-dotcom/SkyHub-Next/commit/f2a523cc46c27e0a37a0c92b22807574483f038e) nach dem Dokumentationsmerge #175. Die hier vorgeschlagenen Änderungen liegen **nur auf einem separaten Sicherheitsbranch** und ändern keine laufenden Pi-Dienste.
 
 ## Geprüfte Grenzen

@@ -61,9 +61,9 @@
 
 **Weitere Feature-Flags** aus gestapelten Branches (STS, WPML-KMZ-Inspektion, produktive XMP-Verarbeitung, Simulator, YOLO/Thermal) existieren **nicht** im hier geprüften Main-Compose und dürfen nicht als sofort benutzbare `.env`-Einstellungen ausgegeben werden. Details in [PR-Register](projektstand-2026-10-23.md).
 
-## Sicherheitsentwurf für künftige Proxy-Umstellung (noch nicht in Main)
+## Exakte Proxy-Peers (`SKYHUB_TRUSTED_PROXY_IPS`, seit PR #176 in Main)
 
-Im separaten [Proxy-Trust-Draft](proxy-trust-rollout.md) wird `SKYHUB_TRUSTED_PROXY_IPS` als durch Compose übergebene Allowlist für **exakte private Socket-Peers** hinzugefügt. Nur nach gesonderter Freigabe und Übernahme des Drafts hat diese Variable eine Wirkung; auf dem hier beschriebenen `main` gilt weiterhin der ältere Vertrauenscode. Vor einem Pi-Upgrade die tatsächlich benutzte Caddy-Proxy-IP bestimmen und Pilot-HTTPS sowie LAN-View im Staging nachweisen. Es handelt sich **nicht** um die TSA-spezifische `SKYHUB_DJI_TSA_TRUSTED_PROXY_IPS`-Liste.
+Im [Proxy-Trust-Leitfaden](proxy-trust-rollout.md) ist `SKYHUB_TRUSTED_PROXY_IPS` eine durch Compose übergebene Allowlist für **exakte private Socket-Peers**. Auf dem Pi ist sie gesetzt; der Wert ist das Gateway der Bridge `skyhub-next_default`, nicht `127.0.0.1`, weil Caddy über den Userland-Proxy von Docker verbindet. Ändert sich das Docker-Netz (neu angelegt), muss der Wert neu bestimmt werden: `scripts/pi-proxy-peer-check.sh` zeigt Soll und Ist, `--enforce` bricht ein Backend-Update bei Abweichung ab. Vor jeder Änderung Pilot-HTTPS und LAN-View prüfen. Es handelt sich **nicht** um die TSA-spezifische `SKYHUB_DJI_TSA_TRUSTED_PROXY_IPS`-Liste.
 
 ## Nicht-destruktive Prüfungen
 
