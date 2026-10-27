@@ -33,7 +33,7 @@ bash pi-cloud-api-demo.sh apply          # bauen, starten, EMQX-Benutzer anlegen
 Weitere Befehle, jeweils einzeln aufrufen (keine Reihenfolge):
 
 ```bash
-bash pi-cloud-api-demo.sh status         # Container, Erreichbarkeit, Speicher
+bash pi-cloud-api-demo.sh status         # Container, Erreichbarkeit, EMQX-Benutzer und Backend-Anmeldung, Speicher
 bash pi-cloud-api-demo.sh logs backend   # letzte Logzeilen (mysql redis emqx backend web), Geheimnisse geschwärzt
 bash pi-cloud-api-demo.sh rollback       # nur bei Bedarf: Container und Netz entfernen, Daten bleiben
 bash pi-cloud-api-demo.sh rollback --purge   # zusätzlich Volumes, lokale Images und erzeugte Konfiguration löschen
@@ -141,6 +141,24 @@ Geprüft wurden Compose, beide Dockerfiles, EMQX-Konfiguration und ACL, das Verw
 | EMQX-ACL: `pilot` darf `thing/product/#` und `sys/product/#` lesen und schreiben, also auch fremde Gerätethemen | Für eine einzelne RC unkritisch, bei mehreren Geräten einschränken (`thing/product/<SN>/#`). |
 | Eingestellte Software: Spring Boot 2.7, Java 11, Node 16 im Build; Basis-Images mit beweglichen Tags (`mysql:8.0`, `redis:7-alpine`, `nginx:1.27-alpine`, `node:16`, `maven:3.9`), npm-Lockfile über `npmmirror` | Prüfsummen sichern die Pakete. Keine Digest-Pins, bekannte Lücken in EOL-Komponenten möglich. Nur für den LAN-Test vertretbar. |
 | `restart: unless-stopped` | Die Demo startet nach einem Neustart des Pi von selbst (seit 26.10.2026, auf Wunsch). Nach `rollback` oder einem manuellen Stopp bleibt sie aus. Das Backend kann kurz nach dem Boot ein paar Mal neu starten, bis MySQL bereit ist. Ein bereits laufender Stack übernimmt die Policy erst nach `apply` oder `docker update --restart unless-stopped $(docker ps -aq --filter label=com.docker.compose.project=cloudapidemo)`. |
+
+## Nachtrag 27.10.2026: MQTT-Benutzer nach dem Reboot verschwunden
+
+**Befund:** Nach dem Reboot am 26.10. meldete das Demo-Backend alle 10 s `Not authorized to connect`; die eingebaute Benutzerdatenbank des EMQX war leer. Ursache: Ohne festen Knotennamen leitet das Image `emqx/emqx:5.3.0` den Namen aus der Container-IP ab (`emqx@172.26.0.2` vor, `emqx@172.26.0.3` nach dem Reboot). Zu jedem Knotennamen gehört ein eigenes Mnesia-Verzeichnis im Volume; mit dem neuen Namen begann EMQX mit einer leeren Datenbank. `node.name` in `emqx/emqx.conf` greift nicht, weil das Image den Namen beim Start setzt.
+
+**Behoben:** `docker-compose.yml` setzt `EMQX_NODE__NAME: emqx@127.0.0.1`; der Name hängt damit nicht mehr von der IP ab. `status` zeigt jetzt die EMQX-Benutzer und ob das Backend angemeldet ist (nur lesend, `provision check`).
+
+**Einmalig nach dem Update** (der neue Name bekommt wieder ein eigenes, leeres Verzeichnis):
+
+```bash
+cd ops/cloud-api-demo
+bash pi-cloud-api-demo.sh apply    # legt EMQX mit dem neuen Namen an, ruft provision auf (Builds kommen aus dem Cache)
+bash pi-cloud-api-demo.sh status   # erwartet: JavaServer, admin, pilot | Backend angemeldet: ja
+```
+
+Nur die Benutzer fehlen (Stack sonst unverändert): `bash pi-cloud-api-demo.sh provision`.
+
+Das Backend verbindet sich von selbst neu (es versucht es alle 10 s). Die alten Verzeichnisse `emqx@172.26.0.*` im Volume sind klein und können bleiben.
 
 ## Umzug vom alten Ort
 
