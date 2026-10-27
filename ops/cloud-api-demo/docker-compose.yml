@@ -49,6 +49,9 @@ services:
     <<: *restart
     image: emqx/emqx:5.3.0
     environment:
+      # Fester Knotenname: ohne ihn leitet das Image den Namen aus der Container-IP ab (emqx@172.26.0.x). Wechselt die IP
+      # (Neustart, Reboot), legt EMQX ein neues, leeres Mnesia-Verzeichnis an und die MQTT-Benutzer fehlen (27.10.2026).
+      EMQX_NODE__NAME: emqx@127.0.0.1
       EMQX_NODE__COOKIE: ${EMQX_COOKIE:?run init first}
       EMQX_NODE__DEFAULT_LISTENER_ADDRESS: all
       EMQX_DASHBOARD__DEFAULT_USERNAME: admin

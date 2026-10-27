@@ -7,7 +7,7 @@
 #   bash pi-cloud-api-demo.sh build         Images bauen, nichts starten
 #   bash pi-cloud-api-demo.sh apply         init + Konfiguration rendern + bauen + starten + warten
 #   bash pi-cloud-api-demo.sh provision     EMQX-Benutzer (JavaServer, admin, pilot) per REST-API anlegen/aktualisieren
-#   bash pi-cloud-api-demo.sh status        Container, Erreichbarkeit, Speicher
+#   bash pi-cloud-api-demo.sh status        Container, Erreichbarkeit, EMQX-Benutzer und Backend-Anmeldung, Speicher
 #   bash pi-cloud-api-demo.sh logs [dienst] letzte Logzeilen (mysql redis emqx backend web)
 #   bash pi-cloud-api-demo.sh rollback      Container und Netz entfernen, Daten (Volumes) bleiben
 #   bash pi-cloud-api-demo.sh rollback --purge   zusaetzlich Volumes, Images und erzeugte Konfiguration loeschen
@@ -332,8 +332,9 @@ PY
 # EMQX 5.3.0: Benutzer der eingebauten Datenbank per REST-API anlegen (idempotent). Nur gegen 127.0.0.1:18083.
 cmd_provision() {
   [[ -f "$ENV_FILE" ]] || die ".env fehlt"
-  python3 - "$ENV_FILE" <<'PY'
+  python3 - "$ENV_FILE" "${1:-provision}" <<'PY'
 import base64, json, sys, time, urllib.error, urllib.request
+mode = sys.argv[2]
 e = {}
 for line in open(sys.argv[1]):
     line = line.rstrip("\n")
@@ -349,7 +350,7 @@ def call(method, path, body=None, token=None):
             return r.status, json.loads(r.read() or b"null")
     except urllib.error.HTTPError as err:
         return err.code, None
-for _ in range(60):
+for _ in range(60 if mode == "provision" else 1):
     try:
         if urllib.request.urlopen("http://127.0.0.1:18083/status", timeout=3).status == 200: break
     except Exception: time.sleep(2)
@@ -358,6 +359,14 @@ status, login = call("POST", "/login", {"username": "admin", "password": e["EMQX
 if status != 200: sys.exit(f"FEHLER: EMQX-Dashboard-Login fehlgeschlagen (HTTP {status})")
 token = login["token"]
 authn = "/authentication/password_based%3Abuilt_in_database"
+if mode == "check":  # nur lesen: fehlen Benutzer, ist das Backend nicht angemeldet (z. B. nach einem Wechsel des Knotennamens)
+    status, users = call("GET", authn + "/users", token=token)
+    names = sorted(u["user_id"] for u in (users or {}).get("data", []))
+    status, clients = call("GET", "/clients?username=JavaServer", token=token)
+    backend = bool((clients or {}).get("data"))
+    print("EMQX-Benutzer:", ", ".join(names) or "keine (bash pi-cloud-api-demo.sh provision)",
+          "| Backend angemeldet:", "ja" if backend else "nein")
+    sys.exit(0 if names and backend else 1)
 status, _ = call("GET", authn, token=token)
 if status == 404:
     status, _ = call("POST", "/authentication", {"mechanism": "password_based", "backend": "built_in_database", "user_id_type": "username",
@@ -443,6 +452,7 @@ cmd_status() {
   printf 'Web      http://%s:8081/  -> HTTP %s\n' "$lan" "$(curl -s -m 4 -o /dev/null -w '%{http_code}' "http://$(bind_addr):8081/" || true)"
   printf 'Backend  :6789            -> HTTP %s (404/401 ist ok: antwortet)\n' "$(curl -s -m 4 -o /dev/null -w '%{http_code}' "http://$(backend_addr):6789/manage/api/v1/login" || true)"
   printf 'MQTT     :18830           -> %s\n' "$(timeout 3 bash -c "exec 3<>/dev/tcp/$(bind_addr)/18830" 2>/dev/null && echo offen || echo zu)"
+  printf 'MQTT     Anmeldung        -> %s\n' "$(cmd_provision check 2>&1 || true)"
   docker stats --no-stream --format '{{.Name}}  {{.MemUsage}}  CPU {{.CPUPerc}}' $("${compose[@]}" ps -q 2>/dev/null) 2>/dev/null || true
 }
 

@@ -27,6 +27,15 @@ class CloudApiDemoStackTest(unittest.TestCase):
                 f"port mapping without explicit bind address: {mapping}",
             )
 
+    def test_emqx_node_name_does_not_depend_on_the_container_ip(self) -> None:
+        # Without a fixed name the image derives it from the container IP; a new IP after a reboot means a new,
+        # empty Mnesia directory and lost MQTT users (27.10.2026).
+        emqx = COMPOSE.split("\n  emqx:\n", 1)[1].split("\n\n", 1)[0]
+        self.assertRegex(emqx, re.compile(r"^\s+EMQX_NODE__NAME: emqx@127\.0\.0\.1$", re.M))
+        script = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn('if mode == "check":', script)
+        self.assertIn("cmd_provision check", script)
+
     def test_only_the_dashboard_and_databases_are_loopback_only(self) -> None:
         loopback = re.findall(r'"127\.0\.0\.1:(\d+):', COMPOSE)
         self.assertEqual(sorted(loopback), ["18083", "3307", "6380"])
