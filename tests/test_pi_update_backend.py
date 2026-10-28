@@ -70,7 +70,16 @@ def compose_json(kind="mosquitto-dedicated", pin="1884", url=None, pilot=None, t
 
 
 class PiUpdateBackendTests(unittest.TestCase):
-    def run_update(self, args=("--apply",), compose=None, port="1884", env_file=True, **stub_env):
+    def test_pi_overlays_are_always_passed(self):
+        # 28.10.2026: without the arm64 overlay every update created the empty x86 volume skyhub-next_pgdata.
+        result = self.run_update(overlays=("docker-compose.yml", "docker-compose.arm64.yml", "docker-compose.override.yml"))
+        self.assertEqual(0, result.returncode, result.stderr)
+        compose_calls = [line for line in result.docker_log.splitlines() if " compose " in " " + line + " "]
+        self.assertTrue(compose_calls)
+        for line in compose_calls:
+            self.assertIn("-f docker-compose.yml -f docker-compose.arm64.yml -f docker-compose.override.yml", line)
+
+    def run_update(self, args=("--apply",), compose=None, port="1884", env_file=True, overlays=(), **stub_env):
         directory = tempfile.TemporaryDirectory()
         self.addCleanup(directory.cleanup)
         root = Path(directory.name)
@@ -81,6 +90,8 @@ class PiUpdateBackendTests(unittest.TestCase):
             shutil.copy(SCRIPTS / name, repo / "scripts" / name)
         if env_file:
             (repo / ".env").write_text("SKYHUB_VIEW_TOKEN=not-a-real-secret\n", encoding="utf-8")
+        for name in overlays:
+            (repo / name).write_text("services: {}\n", encoding="utf-8")
         for name, text in STUBS.items():
             stub = bin_dir / name
             stub.write_text("#!/bin/sh\n" + text, encoding="utf-8")

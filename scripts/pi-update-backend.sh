@@ -33,6 +33,13 @@ docker info >/dev/null
 # shell code or printing JSON containing credentials. This detects stale/mismatched
 # broker kind, required port, backend endpoint and enabled Pilot-2 endpoint.
 compose=(docker compose -p skyhub-next --env-file .env)
+# Pi: dieselben Overlays wie scripts/pi-compose.sh. Ohne docker-compose.arm64.yml legte jedes Update das leere x86-Volume
+# skyhub-next_pgdata an (28.10.2026; Postgres blieb dank --no-deps unberuehrt, vgl. Ausfall 26.10.), und ohne explizites
+# Override fehlte beim Neuanlegen das Speichernetz nur deshalb nicht, weil compose es ohne -f automatisch laedt.
+if [[ -f docker-compose.arm64.yml ]]; then
+  compose+=(-f docker-compose.yml -f docker-compose.arm64.yml)
+  [[ -f docker-compose.override.yml ]] && compose+=(-f docker-compose.override.yml)
+fi
 "${compose[@]}" config --quiet
 if ! broker_choice="$("${compose[@]}" config --format json | python3 -c '
 import json,sys
