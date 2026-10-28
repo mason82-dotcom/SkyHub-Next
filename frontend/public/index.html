@@ -268,8 +268,20 @@ function fieldAge(element,d,key){
   element.className='field-age '+status.kind;
   element.textContent=status.text;
 }
+// Reine Zeitangaben (Alter, "vor x s"), die sich ohne neue Daten aendern: sie werden hier aktualisiert und zaehlen nicht
+// fuer die Entscheidung, ob die Geraetekarten neu aufgebaut werden.
+const LIVE_TEXT={
+  osd:d=>healthAge(d.lastTelemetryAt),
+  gps:d=>gpsLabel(d),
+  hms:d=>hmsHeadLabel(d)
+};
 function refreshFieldAges(){
   const root=el('devices');
+  for(const node of root.querySelectorAll('[data-live]')){
+    const card=node.closest('.device');
+    const d=card&&records.get(card.dataset.deviceSn);
+    if(d&&LIVE_TEXT[node.dataset.live])node.textContent=LIVE_TEXT[node.dataset.live](d);
+  }
   for(const node of root.querySelectorAll('.field-age[data-field]')){
     const card=node.closest('.device');
     const d=card&&records.get(card.dataset.deviceSn);
@@ -319,6 +331,13 @@ const positionLabel=d=>d.positionUnavailable===true?'DJI meldet (0/0)':
     (d.positionTimeVerified===false?'Zeit offen':'frisch'):
     Number.isFinite(d.lastPositionAt)?
       Math.max(0,Math.round((Date.now()-d.lastPositionAt)/1000))+' s alt':'fehlt';
+const gpsLabel=d=>d.positionUnavailable===true?'kein aktueller Fix (0/0); letzter Fix unverändert':!validPosition(d)?'keine gültige Position':positionFresh(d)?
+  (d.positionTimeVerified===false?'empfangen (Zeit ungeprüft)':'frisch'):Number.isFinite(d.lastPositionAt)?
+  Math.max(0,Math.round((Date.now()-d.lastPositionAt)/1000))+' s alt':'nicht empfangen';
+const hmsHeadLabel=d=>hmsFresh(d)?(d.hms.length?'HMS · '+d.hms.length+' aktiv':'HMS · keine Meldungen'):
+  'HMS · Stand vor '+Math.max(0,Math.round((Date.now()-d.lastHmsAt)/1000))+' s (veraltet)';
+const liveSpan=(kind,d)=>{const s=document.createElement('span');s.dataset.live=kind;s.textContent=LIVE_TEXT[kind](d);return s;};
+let deviceSignature=null;
 const searchText=d=>[d.modelName,d.sn,d.gatewaySn,d.role].filter(Boolean).join(' ').toLocaleLowerCase('de');
 function visibleDevice(d){
   const query=el('deviceSearch').value.trim().toLocaleLowerCase('de');
@@ -383,13 +402,15 @@ function update(){
   el('clearSearch').disabled=!queryPresent;
   const resultText=data.length?visible.length+' von '+data.length+' '+(data.length===1?'Gerät':'Geräten'):'0 Geräte';
   if(el('resultCount').textContent!==resultText)el('resultCount').textContent=resultText;
-  root.replaceChildren();
+  // Karten zuerst in ein Fragment bauen; ersetzt wird nur, wenn sich mehr als reine Zeitangaben geaendert haben. Sonst
+  // ersetzte der 5-s-Takt alle Karten (ein Tippen konnte einen gerade ersetzten Knopf treffen).
+  const target=document.createDocumentFragment();
   if(!data.length){
     const p=document.createElement('p');p.className='muted';
     p.textContent=listState==='loading'?'Lade Geräte…':listState==='auth-required'?
       'Zugriffstoken eingeben, um Geräte zu laden.':listState==='error'?
       'Geräte konnten nicht geladen werden. Erneut verbinden.':'Noch keine Geräte empfangen.';
-    root.append(p);
+    target.append(p);
   }else if(!visible.length){
     const box=document.createElement('div');box.className='empty-results';
     const p=document.createElement('p');p.textContent='Keine Geräte passen zur Suche oder zum Filter.';
@@ -397,7 +418,7 @@ function update(){
     reset.addEventListener('click',()=>{
       el('deviceSearch').value='';el('deviceFilter').value='all';update();el('deviceSearch').focus();
     });
-    box.append(p,reset);root.append(box);
+    box.append(p,reset);target.append(box);
   }
   for(const d of visible){
     const card=document.createElement('article');card.className='device'+(selectedSn===d.sn?' selected':'');
@@ -495,8 +516,8 @@ function update(){
     }
     details.append(grid);
     const provenance=document.createElement('p');provenance.className='metric-provenance';
-    provenance.textContent='Letztes OSD: '+healthAge(d.lastTelemetryAt)+
-      ' · Einzelwert-Alter und Zeitprüfung stehen am jeweiligen Messwert. RTK-Fix-Code ist kein Schalterstatus.';
+    provenance.append('Letztes OSD: ',liveSpan('osd',d),
+      ' · Einzelwert-Alter und Zeitprüfung stehen am jeweiligen Messwert. RTK-Fix-Code ist kein Schalterstatus.');
     details.append(provenance);
     const meta=document.createElement('small');
     meta.className='meta';
@@ -504,15 +525,12 @@ function update(){
       (d.topologyRestored?' · Topologie aus Speicher':'')+
       (Number.isInteger(d.modeCode)?' · Flugmodus '+d.modeCode:'')+
       (d.firmwareVersion?' · FW '+d.firmwareVersion:'')+
-      ' · GPS '+(d.positionUnavailable===true?'kein aktueller Fix (0/0); letzter Fix unverändert':!validPosition(d)?'keine gültige Position':positionFresh(d)?
-        (d.positionTimeVerified===false?'empfangen (Zeit ungeprüft)':'frisch'):Number.isFinite(d.lastPositionAt)?
-        Math.max(0,Math.round((Date.now()-d.lastPositionAt)/1000))+' s alt':'nicht empfangen');
+      ' · GPS ';
+    meta.append(liveSpan('gps',d));
     details.append(meta);
     if(Array.isArray(d.hms)&&Number.isFinite(d.lastHmsAt)){
       const head=document.createElement('div');head.className='hms-head';
-      const age=Math.max(0,Math.round((Date.now()-d.lastHmsAt)/1000));
-      head.textContent=hmsFresh(d)?(d.hms.length?'HMS · '+d.hms.length+' aktiv':'HMS · keine Meldungen'):
-        'HMS · Stand vor '+age+' s (veraltet)';
+      head.append(liveSpan('hms',d));
       details.append(head);
       if(hmsFresh(d)&&d.hms.length){
         const list=document.createElement('ul');list.className='hms';
@@ -538,8 +556,14 @@ function update(){
       action.addEventListener('click',()=>focusDevice(d.sn));
       card.append(action);
     }
-    root.append(card);
+    target.append(card);
   }
+  const probe=document.createElement('div');probe.append(target.cloneNode(true));
+  for(const node of probe.querySelectorAll('[data-live],.field-age,dd[data-quick-position]')){node.textContent='';node.removeAttribute('class');}
+  const signature=probe.innerHTML;
+  const rebuilt=signature!==deviceSignature||!root.firstChild;
+  if(rebuilt){root.replaceChildren(target);deviceSignature=signature;}
+  else refreshFieldAges();
   for(const d of data){
     const t=d.telemetry||{};
     if(map && validPosition(d)){
@@ -581,10 +605,10 @@ function update(){
     trackSummary?'Keine gültige Position · '+trackSummary:
       'Keine gültige Position verfügbar. Gerätedaten bleiben in der Liste sichtbar.';
   if(el('mapNote').textContent!==mapMessage)el('mapNote').textContent=mapMessage;
-  if(focusedDetailsSn){for(const summary of root.querySelectorAll('summary')){
+  if(rebuilt&&focusedDetailsSn){for(const summary of root.querySelectorAll('summary')){
     if(summary.dataset.detailsSn===focusedDetailsSn){summary.focus({preventScroll:true});break;}
   }}
-  if(focusedSn){for(const button of root.querySelectorAll('.map-action')){
+  if(rebuilt&&focusedSn){for(const button of root.querySelectorAll('.map-action')){
     if(button.dataset.focusSn===focusedSn){button.focus({preventScroll:true});break;}
   }}
 }

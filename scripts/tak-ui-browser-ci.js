@@ -158,6 +158,19 @@ async function run(){
     'keyboard skip must target the main landmark');
   assert.equal(await page.evaluate(()=>document.activeElement.id),'skyhubMain',
     'keyboard skip must move focus to main content');
+  // UX contract: field ages refresh without rebuilding the device cards. Without new data the 5 s tick must not replace
+  // them (a tap could hit a replaced button); a real data change still renders. Window stays below the 15 s freshness.
+  io.emit('device_update',marker());
+  await page.waitForTimeout(600);
+  const rebuilds=await page.evaluate(()=>new Promise(resolve=>{
+    let count=0;const box=document.querySelector('#devices');
+    const observer=new MutationObserver(list=>{if(list.some(m=>m.target===box&&m.removedNodes.length))count++;});
+    observer.observe(box,{childList:true});
+    setTimeout(()=>{observer.disconnect();resolve(count);},11000);
+  }));
+  assert.equal(rebuilds,0,'device cards must not be rebuilt by the 5 s tick without new data');
+  io.emit('device_update',{...marker(),telemetry:{...marker().telemetry,battery:55}});
+  await page.waitForFunction(()=>document.querySelector('#devices .quick')?.textContent.includes('55 %'),{timeout:5000});
   await page.evaluate(()=>{
     window.__invalidationCount=0;
     const original=window.L.Map.prototype.invalidateSize;
@@ -207,6 +220,13 @@ async function run(){
     }
     if(width===320||width===1440)
       await page.screenshot({path:path.join(output,'operations-'+width+'.png'),fullPage:true});
+    if(width===390){
+      const small=await page.evaluate(()=>[...document.querySelectorAll('#operationsPanel summary, #operationsPanel label.toggle')]
+        .filter(node=>node.offsetParent!==null)
+        .map(node=>[node.textContent.trim().slice(0,30),Math.round(node.getBoundingClientRect().height)])
+        .filter(([,height])=>height<24));
+      assert.deepEqual(small,[],'tap targets must be at least 24 px high: '+JSON.stringify(small));
+    }
   }
   await page.getByRole('tab',{name:/Operations/}).focus();
   await page.keyboard.press('ArrowRight');
