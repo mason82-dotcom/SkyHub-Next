@@ -160,6 +160,13 @@ Nur die Benutzer fehlen (Stack sonst unverändert): `bash pi-cloud-api-demo.sh p
 
 Das Backend verbindet sich von selbst neu (es versucht es alle 10 s). Die alten Verzeichnisse `emqx@172.26.0.*` im Volume sind klein und können bleiben.
 
+## Nachtrag 30.10.2026: Watchtower lässt die Demo aus
+
+Alle Demo-Dienste tragen `com.centurylinklabs.watchtower.enable: "false"` (Anker `x-restart`). Watchtower konnte das selbst gebaute
+`cloudapidemo-web:local` nicht prüfen und meldete jede Nacht einen Fehlschlag; zugleich holte er neue `mysql:8.0`/`redis:7-alpine` und
+startete dabei das Backend neu. Der Web-Container wurde am 30.10. mit dem aktuellen `cloudapidemo-web:local` neu angelegt; das Label
+greift nach dem nächsten `bash pi-cloud-api-demo.sh apply`. Updates der Demo nur noch bewusst (`build` und `apply`).
+
 ## Umzug vom alten Ort
 
 Der alte Stack unter `~/Projekte/Cloud-API-Demo-Local/stack/` läuft unverändert weiter, bis du umschaltest. Die Volumes (`cloudapidemo_mysql_data`, `cloudapidemo_emqx_data`) behalten ihre Daten, weil Projektname und Volume-Namen gleich bleiben:
