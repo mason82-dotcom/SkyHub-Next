@@ -23,6 +23,17 @@ class ComposeWatchtowerTests(unittest.TestCase):
         for name, block in blocks.items():
             self.assertIn("labels: *no-watchtower", block, f"Dienst {name} ohne Watchtower-Ausnahme")
 
+    def test_cloud_api_demo_opts_out(self):
+        # 30.10.2026: Watchtower scheiterte jede Nacht an cloudapidemo-web (:local-Image) und startete das Backend neu.
+        text = (ROOT / "ops" / "cloud-api-demo" / "docker-compose.yml").read_text(encoding="utf-8")
+        anchor = text.split("x-restart: &restart", 1)[1].split("\nservices:", 1)[0]
+        self.assertIn("labels:\n    " + LABEL, anchor)
+        blocks = service_blocks(text)
+        self.assertEqual({"mysql", "redis", "emqx", "backend", "web"}, set(blocks))
+        for name, block in blocks.items():
+            self.assertIn("<<: *restart", block, f"Demo-Dienst {name} ohne Watchtower-Ausnahme")
+            self.assertNotIn("labels:", block, f"Demo-Dienst {name}: eigene labels ersetzen die aus dem Anker")
+
     def test_shared_minio_opts_out(self):
         text = (ROOT / "docker-compose.minio-shared.yml").read_text(encoding="utf-8")
         self.assertIn(LABEL, text)

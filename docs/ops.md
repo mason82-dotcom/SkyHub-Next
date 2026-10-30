@@ -251,5 +251,10 @@ bash scripts/pi-minio-recreate.sh plan   # lesend: Voraussetzungen, Label heute 
 bash scripts/pi-minio-recreate.sh run    # Unit stoppen, compose up --no-start --force-recreate, Unit starten, Nachprüfung
 ```
 
+Nachtrag 30.10.2026: Auch die Cloud-API-Demo (`ops/cloud-api-demo/docker-compose.yml`) trägt das Label jetzt, für alle Dienste über den
+Anker `x-restart`. Anlass: Watchtower meldete jede Nacht `cloudapidemo-web-1` als fehlgeschlagen (`no image info available`: der Container
+lief noch mit einem alten, inzwischen namenlosen `cloudapidemo-web:local`), und ein neues `redis:7-alpine` startete das Demo-Backend neu.
+Wirksam nach `bash ops/cloud-api-demo/pi-cloud-api-demo.sh apply`.
+
 `pi-minio-migrate-from-aeronexus.sh start` legt dagegen nur an, wenn es noch keinen Container gibt. (Korrektur: Eine frühere Fassung
 dieses Abschnitts nannte hier `scripts/pi-minio-shared-runtime.sh`; dieses Skript gibt es nicht.)

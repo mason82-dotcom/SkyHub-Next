@@ -6,6 +6,10 @@ name: cloudapidemo
 
 x-restart: &restart
   restart: unless-stopped
+  # Watchtower aus (30.10.2026): selbst gebaute Images (:local) kann Watchtower nicht pruefen, und nachts geholte
+  # mysql/redis-Images starteten das Backend neu. Updates der Demo nur bewusst ueber pi-cloud-api-demo.sh.
+  labels:
+    com.centurylinklabs.watchtower.enable: "false"
 
 services:
   mysql:
