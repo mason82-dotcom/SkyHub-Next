@@ -27,6 +27,7 @@ async function createPilot(options={}){
     return elements.get(id);
   }
   let response=options.mqttState??JSON.stringify({code:0,data:false});
+  const auto={photo:options.autoPhoto??false,video:options.autoVideo??false};
   const bridge={
     platformVerifyLicense:()=>JSON.stringify({code:0}),
     platformSetWorkspaceId:()=>JSON.stringify({code:0}),
@@ -37,9 +38,13 @@ async function createPilot(options={}){
     wsGetConnectState:()=>JSON.stringify({code:0,data:true}),
     thingGetConnectState(){return response;},
     thingConnect(...args){calls.retry.push(args);return JSON.stringify({code:0});},
-    mediaSetAutoUploadPhoto(value){(calls.media??=[]).push(['photo',value]);return JSON.stringify({code:0});},
-    mediaSetUploadPhotoType(value){(calls.media??=[]).push(['type',value]);return JSON.stringify({code:0});},
-    mediaSetAutoUploadVideo(value){(calls.media??=[]).push(['video',value]);return JSON.stringify({code:0});}
+    // Like Pilot 2: a setter that changes nothing is rejected with code 615012.
+    mediaGetAutoUploadPhoto:()=>JSON.stringify({code:0,data:auto.photo}),
+    mediaGetAutoUploadVideo:()=>JSON.stringify({code:0,data:auto.video}),
+    mediaSetAutoUploadPhoto(value){(calls.media??=[]).push(['photo',value]);
+      if(auto.photo===value)return JSON.stringify({code:615012});auto.photo=value;return JSON.stringify({code:0});},
+    mediaSetAutoUploadVideo(value){(calls.media??=[]).push(['video',value]);
+      if(auto.video===value)return JSON.stringify({code:615012});auto.video=value;return JSON.stringify({code:0});}
   };
   // A paired RC: the device token from the pairing flow is already in the WebView storage,
   // so the page connects on load (the manual token form no longer exists).
@@ -239,8 +244,9 @@ test('the ws state callback ignores its payload',async()=>{
   assert.doesNotMatch(pilot.el('diagnostics').textContent+pilot.el('result').textContent,/SHOULD_NOT_DISPLAY/);
 });
 
-test('media sync loads api and media modules with automatic upload switched off',async()=>{
-  const pilot=await createPilot({bootstrap:{...bootstrap,media:{apiHost:'https://rpi5.fritz.box'}}});
+test('media sync loads api and media modules and switches an active automatic upload off',async()=>{
+  const pilot=await createPilot({autoPhoto:true,autoVideo:true,
+    bootstrap:{...bootstrap,media:{apiHost:'https://rpi5.fritz.box'}}});
   await pilot.connect();
   const loaded=pilot.calls.load.map(args=>args[0]);
   assert.ok(loaded.includes('api'));
@@ -249,8 +255,16 @@ test('media sync loads api and media modules with automatic upload switched off'
   assert.deepEqual(JSON.parse(api[1]),{host:'https://rpi5.fritz.box',token:'placeholder-test-token'});
   const media=pilot.calls.load.find(args=>args[0]==='media');
   assert.deepEqual(JSON.parse(media[1]),{autoUploadPhoto:false,autoUploadPhotoType:0,autoUploadVideo:false});
-  assert.deepEqual(pilot.calls.media,[['photo',false],['type',0],['video',false]]);
+  assert.deepEqual(pilot.calls.media,[['photo',false],['video',false]]);
   assert.match(pilot.el('diagnostics').textContent,/nur manueller Upload/);
+});
+
+test('automatic upload already off: no setter is called, so Pilot 2 code 615012 cannot occur',async()=>{
+  const pilot=await createPilot({bootstrap:{...bootstrap,media:{apiHost:'https://rpi5.fritz.box'}}});
+  await pilot.connect();
+  assert.equal(pilot.calls.media,undefined);
+  assert.match(pilot.el('diagnostics').textContent,/bereit, nur manueller Upload/);
+  assert.doesNotMatch(pilot.el('diagnostics').textContent,/nicht geladen/);
 });
 
 test('without media config no api or media module is loaded',async()=>{
