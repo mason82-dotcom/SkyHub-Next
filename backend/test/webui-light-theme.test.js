@@ -36,7 +36,7 @@ for (const [filename, page] of pages) {
   });
 }
 const globalLinks = ['/', '/wpml-editor.html', '/wpml-route-library.html',
-  '/wpml-survey-preview.html', '/smart-farming.html', '/media-gallery.html'];
+  '/wpml-survey-preview.html', '/smart-farming.html', '/media-gallery.html', '/thermal.html'];
 for (const [filename] of pages.filter(([, page]) => page !== 'pilot')) {
   test(`${filename} has shared navigation to the six operator modules`, () => {
     const source = html(filename);
@@ -223,7 +223,7 @@ test('native form errors use interaction-aware styling without initial required-
 
 test('all operator modules expose the same navigation destinations for real click smoke', () => {
   const paths = ['/', '/wpml-editor.html', '/wpml-route-library.html',
-    '/wpml-survey-preview.html', '/smart-farming.html', '/media-gallery.html'];
+    '/wpml-survey-preview.html', '/smart-farming.html', '/media-gallery.html', '/thermal.html'];
   for (const [fileName, page] of pages) {
     if (page === 'pilot') continue;
     const source = html(fileName);

@@ -252,6 +252,9 @@ function createMediaRouter(storage,{now=()=>Date.now(),labels=null}={}){
     }
   });
 
+  // Shared with the thermal module (same cache, same DJI names).
+  router.bucketIndex=bucketIndex;
+
   router.get('/m3m/inventory',async(req,res)=>{
     const {prefix}=req.query;
 

@@ -1,0 +1,40 @@
+.estimate{max-width:42ch;margin:0;padding:10px 14px;border:1px solid #6b5a2e;background:#2b2412;border-radius:10px;color:#f3dfa6;font-size:12px}
+.tabs{display:flex;gap:6px;margin:0 0 14px;border-bottom:1px solid var(--line)}
+.tabs button{background:transparent;border:1px solid transparent;border-bottom:0;border-radius:9px 9px 0 0;font-weight:650}
+.tabs button[aria-selected=true]{background:var(--surface);border-color:var(--line);color:#fff}
+.thermal-layout{display:grid;grid-template-columns:minmax(220px,300px) minmax(0,1fr);gap:16px;align-items:start}
+.thermal-list{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px;position:sticky;top:76px;max-height:calc(100vh - 96px);overflow:auto}
+.thermal-list .search input{width:100%}
+.list-day{margin:12px 0 6px;font-size:11px;letter-spacing:.1em;color:#7ecbe1;font-weight:750}
+.list-item{display:grid;grid-template-columns:64px minmax(0,1fr);gap:8px;align-items:center;width:100%;padding:5px;margin:0 0 5px;background:transparent;border:1px solid transparent;text-align:left;font-weight:500;min-height:0}
+.list-item[aria-current=true]{border-color:var(--accent);background:#123348}
+.list-item img{width:64px;height:51px;object-fit:cover;border-radius:6px;background:#0b1928}
+.list-item strong{display:block;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list-item small{color:var(--muted);font-size:11px}
+.thermal-main{min-width:0;display:grid;gap:12px}
+.thermal-toolbar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:end;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.thermal-toolbar label{display:grid;gap:3px;font-size:11px;color:var(--muted)}
+.thermal-toolbar label.check{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink);min-height:40px}
+.thermal-toolbar input[type=number]{width:96px}
+.thermal-toolbar input[type=checkbox]{min-height:0;width:18px;height:18px}
+.thermal-stage{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.thermal-figure{margin:0;background:#050c15;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.thermal-figure canvas,.thermal-figure img{display:block;width:100%;height:auto;aspect-ratio:5/4;object-fit:contain;background:#000}
+#thermal{cursor:crosshair;touch-action:none}
+.readout{padding:7px 10px;font:12px/1.4 ui-monospace,Menlo,monospace;color:#d8eef8;border-top:1px solid var(--line)}
+.thermal-panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.panel-box{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:0}
+.panel-box.wide{grid-column:1/-1}
+.panel-box h2{font-size:15px;margin:0 0 8px}
+.facts{display:grid;grid-template-columns:max-content 1fr;gap:3px 14px;margin:0 0 10px;font-size:13px}
+.facts dt{color:var(--muted)}.facts dd{margin:0;overflow-wrap:anywhere}
+#histogram{width:100%;height:auto;background:#0b1726;border-radius:8px}
+.legend{height:14px;border-radius:4px;margin-top:6px;display:flex;justify-content:space-between;align-items:center;padding:0 6px;font-size:10px;color:#000;font-weight:700}
+.table{width:100%;border-collapse:collapse;font-size:13px}
+.table th,.table td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+.table th{color:var(--muted);font-weight:600;font-size:11px}
+.table button{min-height:28px;padding:2px 8px}
+.series-chart{width:100%;height:auto;max-height:340px;background:var(--surface);border:1px solid var(--line);border-radius:12px;margin:12px 0}
+.series-chart text{fill:#acc2d3;font-size:10px}
+.fine{color:var(--muted);font-size:12px}
+@media (max-width:900px){.thermal-layout{grid-template-columns:1fr}.thermal-list{position:static;max-height:320px}}
