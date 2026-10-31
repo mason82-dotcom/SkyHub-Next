@@ -10,7 +10,7 @@ const lanReadPaths=new Set(['/devices','/topology','/events','/diagnostics/mqtt-
 const lanReadPatterns=[
   /^\/drone\/[^/]+\/(track|telemetry)$/,
   /^\/media\/(status|buckets|objects|summary|index|file|thumb|m3m\/inventory)$/,
-  /^\/smart-farming\/candidates(\/[^/]+)*$/
+  /^\/smart-farming\/candidates(\/[^/]+)*\/?$/
 ];
 
 function createHttpAuth({secret,lanAccess}){

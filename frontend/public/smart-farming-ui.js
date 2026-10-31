@@ -169,7 +169,7 @@
         if(myGeneration!==generation)return;
         clearResults(doc);
         const label=err.message==='AUTH'?'Kein Zugriff: Seite bitte aus dem Heimnetz öffnen.':
-          err.message==='DISABLED'?'Katalog-API ist nicht aktiviert.':
+          err.message==='DISABLED'?'Noch kein Smart-Farming-Katalog eingerichtet: Es liegen keine geprüften M3M-Indexkandidaten vor. Die Rohdaten (Bucket „farming“) sind in der Mediengalerie sichtbar.':
           err.message==='UNAVAILABLE'?'Katalog derzeit nicht verfügbar.':
           err.message==='INVALID_CATALOG'?'Ungültige oder unvollständige Katalogantwort.':
           'Katalog konnte nicht geladen werden.';

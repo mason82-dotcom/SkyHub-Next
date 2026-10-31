@@ -122,7 +122,7 @@ test('catalog loads automatically without any token prompt or Authorization head
   });
   for(let i=0;i<8;i++)await Promise.resolve();
   assert.equal(requests,1);
-  assert.match(h.status.textContent,/nicht aktiviert/);
+  assert.match(h.status.textContent,/Noch kein Smart-Farming-Katalog/);
   assert.equal(h.status.dataset.kind,'error');
   assert.equal(h.load.disabled,false);
 });
