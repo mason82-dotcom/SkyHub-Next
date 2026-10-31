@@ -63,6 +63,18 @@ test('search, type filter and sorting cover the complete bucket',()=>{
   assert.equal(M.normalizeAll([{key:''},null,{key:'x.jpg',size:-5}]).length,1);
 });
 
+test('Pilot 2 uploads show the DJI file name and stay searchable by both names',()=>{
+  const item=M.normalize({key:'ws/media/s/org_c4ad6bf6a2680e67_1792649118000.jpg',size:10,
+    displayName:'DJI_20261022080518_0001_T.JPG',capturedAt:'2026-10-22T08:05:18+02:00'});
+  assert.equal(item.name,'DJI_20261022080518_0001_T.JPG');
+  assert.equal(item.storedName,'org_c4ad6bf6a2680e67_1792649118000.jpg');
+  assert.equal(item.lens,'Wärmebild');
+  assert.equal(item.captured,new Date(2026,9,22,8,5,18).getTime());
+  assert.equal(M.filter([item],{query:'_T.JPG'}).length,1);
+  assert.equal(M.filter([item],{query:'org_c4ad'}).length,1);
+  assert.equal(M.normalize({key:'a/x.jpg',displayName:'../evil'}).name,'x.jpg');
+});
+
 test('preview URLs use the read-only media API with encoded parameters',()=>{
   assert.equal(M.fileUrl('dji-cloud','a b/ü.jpg'),'/api/media/file?bucket=dji-cloud&key=a+b%2F%C3%BC.jpg');
   assert.match(M.fileUrl('farming','x.png',{download:true}),/&download=1$/);

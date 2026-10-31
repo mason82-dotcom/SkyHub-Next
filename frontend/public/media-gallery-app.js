@@ -303,6 +303,38 @@ async function textPreview(stage,item){
     pre.textContent=text;
   }catch(error){pre.textContent='Inhalt konnte nicht geladen werden ('+error.message+').';}
 }
+const TEMPLATE_LABELS={waypoint:'Wegpunktflug',mapping2d:'Flächenkartierung (2D)',mapping3d:'Schrägaufnahme (3D)',
+  mappingStrip:'Streifenkartierung',mappingCylinder:'Objekt rundum (Zylinder)'};
+async function missionPreview(stage,item){
+  const box=node('div','mission');
+  box.append(node('p',null,'Mission wird analysiert …'));
+  stage.replaceChildren(box);
+  try{
+    const response=await fetch(M.missionUrl(state.bucket,item.key),{cache:'no-store'});
+    if(!response.ok)throw new Error('HTTP '+response.status);
+    const r=await response.json();
+    const rows=[
+      ['Format','DJI WPML '+(r.wpmlVersion||'?')+(r.readOnlyAnalysis?' (nur Analyse, kein Export in SkyHub)':'')],
+      ['Erstellt',r.createdAt?M.date(Date.parse(r.createdAt)):'—'],
+      ['Drohne laut Datei',(r.aircraft.model||'unbekannt')+' ('+(r.aircraft.drone||'?')+')'],
+      ['Kamera laut Datei',(r.aircraft.payloadModel?r.aircraft.payloadModel+'-Kamera':'unbekannt')+' ('+(r.aircraft.payload??'?')+')'],
+      ['Typ',(r.templates||[]).map(t=>TEMPLATE_LABELS[t.templateType]||t.templateType).join(', ')||'—'],
+      ['Routen / Wegpunkte',(r.waylines||[]).length+' / '+(r.waylines||[]).reduce((n,w)=>n+(w.waypointCount||0),0)],
+      ['Geländedaten (DSM)',r.resourceCount?'ja ('+r.resourceCount+' Datei)':'nein']
+    ];
+    const list=node('dl','mission-facts');
+    for(const [k,v] of rows)list.append(node('dt',null,k),node('dd',null,v));
+    const status=node('p','mission-status '+(r.errorCount?'bad':'ok'),
+      r.errorCount?r.errorCount+' Problem(e) gefunden':'Keine Fehler in der statischen Prüfung');
+    const issues=node('ul','mission-issues');
+    if(r.aircraft.consistent===false)issues.append(node('li','bad','Drohne und Kamera passen nicht zusammen: '+
+      (r.aircraft.model||'?')+' mit Kamera der '+(r.aircraft.payloadModel||'?')+'. Pilot 2 kann die Mission ablehnen oder umstellen.'));
+    for(const e of r.errors)if(!/payloadEnumValue incompatible/.test(e.message))issues.append(node('li','bad',e.path+': '+e.message));
+    for(const w of r.warnings)issues.append(node('li',null,w));
+    box.replaceChildren(node('h3',null,'Missionsanalyse'),status,list,issues,
+      node('p','fine','Statische Prüfung, keine Flugfreigabe.'));
+  }catch(error){box.replaceChildren(node('p','no-preview','Mission konnte nicht analysiert werden ('+error.message+').'));}
+}
 function showInViewer(){
   const item=state.list[state.viewerIndex];
   if(!item)return;
@@ -334,6 +366,8 @@ function showInViewer(){
     video.controls=true;video.autoplay=true;video.playsInline=true;video.preload='metadata';
     video.src=M.fileUrl(state.bucket,item.key);
     stage.replaceChildren(video);
+  }else if(item.ext==='kmz'){
+    missionPreview(stage,item);
   }else if(TEXT_EXT.has(item.ext)&&item.size<=TEXT_PREVIEW_LIMIT){
     textPreview(stage,item);
   }else{
@@ -349,6 +383,7 @@ function showInViewer(){
   meta.replaceChildren();
   metaRow(meta,'Speicher',state.bucket);
   metaRow(meta,'Pfad',item.key);
+  metaRow(meta,'Gespeichert als',item.storedName||'');
   metaRow(meta,'Größe',M.size(item.size)+' ('+M.number(item.size)+' Bytes)');
   metaRow(meta,'Aufnahme',item.captured?M.date(item.captured):'');
   metaRow(meta,'Hochgeladen',item.modified?M.date(item.modified):'');

@@ -159,3 +159,12 @@ test('the contract is not wired into the server and has no I/O',()=>{
   assert.doesNotMatch(source,/require\(['"](?:node:)?(?:fs|net|http|https|child_process)['"]\)/);
   assert.doesNotMatch(source,/@aws-sdk|process\.env/);
 });
+
+test('positions within ~10 m of 0/0 (no GPS fix) are not stored as shoot position',()=>{
+  const body={name:'a.jpg',object_key:WS+'/a.jpg',metadata:{shoot_position:{lat:1.94e-7,lng:4.44e-7}}};
+  assert.equal(c.parseUploadCallback(body).metadata.shoot_position,undefined);
+  assert.equal(c.noPosition(0.00005,-0.00009),true);
+  assert.equal(c.noPosition(49.1,8.4),false);
+  assert.deepEqual(c.parseUploadCallback({...body,metadata:{shoot_position:{lat:49.1,lng:8.4}}})
+    .metadata.shoot_position,{lat:49.1,lng:8.4});
+});

@@ -45,6 +45,10 @@ function bool(value){
   if(value===undefined||value===null)return null;
   return typeof value==='boolean'?value:undefined;
 }
+const NO_FIX_DEGREES=0.0001;
+function noPosition(lat,lng){
+  return Math.abs(lat)<NO_FIX_DEGREES&&Math.abs(lng)<NO_FIX_DEGREES;
+}
 function coordinate(value,limit){
   return Number.isFinite(value)&&Math.abs(value)<=limit?value:undefined;
 }
@@ -138,8 +142,9 @@ function parseUploadCallback(body){
     if(isObject(m.shoot_position)){
       const p=m.shoot_position;
       const lat=coordinate(p.lat,90),lng=coordinate(p.lng,180);
-      // DJI documents 0/0 as "no position"; it is not stored as a location.
-      if(lat!==undefined&&lng!==undefined&&!(lat===0&&lng===0))metadata.shoot_position={lat,lng};
+      // DJI documents 0/0 as "no position". Without a GPS fix the RC reports values like
+      // 1.9e-7/4.4e-7 instead of exact zeros, so anything within ~10 m of 0/0 is no position.
+      if(lat!==undefined&&lng!==undefined&&!noPosition(lat,lng))metadata.shoot_position={lat,lng};
     }
   }
   return {
@@ -232,7 +237,7 @@ function bodyShape(body,depth=0){
   return out;
 }
 
-module.exports={bodyShape,
+module.exports={bodyShape,noPosition,
   parseTinyFingerprintRequest,parseFastUploadRequest,parseUploadCallback,
   parseGroupUploadCallback,objectKeyUnderPrefix,okEnvelope,errorEnvelope,
   tinyFingerprintResponse,uploadCallbackResponse,stsResponse,workspaceId,

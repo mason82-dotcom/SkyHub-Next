@@ -197,8 +197,14 @@ if(process.env.SKYHUB_MINIO_DR_ENABLED==='true'){
 }
 const mediaStorage=process.env.SKYHUB_MEDIA_ENABLED==='true'?
   createS3Storage(process.env):null;
+// Pilot 2 uploads are stored as org_<fingerprint>_<ms>.jpg; show the DJI file name from PostgreSQL.
+async function pilotMediaLabels(){
+  const {rows}=await pool.query('SELECT object_key,file_name,pilot_metadata->>\'created_time\' AS created '+
+    'FROM dji_pilot_media_verified');
+  return new Map(rows.map(r=>[r.object_key,{fileName:r.file_name,capturedAt:r.created||null}]));
+}
 if(mediaStorage){
-  app.use('/api/media',createMediaRouter(mediaStorage));
+  app.use('/api/media',createMediaRouter(mediaStorage,{labels:pool?pilotMediaLabels:null}));
 }
 const mediaLibraryRouter=createPilotMediaLibraryRuntime({
   env:process.env,db:pool,redis,authorize:pilotAuth.principal,

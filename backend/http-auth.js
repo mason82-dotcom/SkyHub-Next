@@ -9,7 +9,7 @@ const crypto=require('crypto');
 const lanReadPaths=new Set(['/devices','/topology','/events','/diagnostics/mqtt-shapes']);
 const lanReadPatterns=[
   /^\/drone\/[^/]+\/(track|telemetry)$/,
-  /^\/media\/(status|buckets|objects|summary|index|file|thumb|m3m\/inventory)$/,
+  /^\/media\/(status|buckets|objects|summary|index|file|thumb|mission|m3m\/inventory)$/,
   /^\/smart-farming\/candidates(\/[^/]+)*\/?$/
 ];
 

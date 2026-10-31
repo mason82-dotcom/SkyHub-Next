@@ -52,9 +52,15 @@ function normalize(raw){
   const size=Number.isSafeInteger(raw.size)&&raw.size>=0?raw.size:0;
   const modified=typeof raw.lastModified==='string'&&Number.isFinite(Date.parse(raw.lastModified))?
     Date.parse(raw.lastModified):null;
-  const captured=captureTime(raw.key);
-  return {key:raw.key,name:baseName(raw.key),size,modified,captured,
-    time:captured??modified??0,kind:kind(raw.key),ext:extension(raw.key),lens:lens(raw.key)};
+  // Pilot 2 uploads: object org_<fingerprint>_<ms>.jpg, DJI file name supplied by the server.
+  const display=typeof raw.displayName==='string'&&raw.displayName&&raw.displayName.length<=255&&
+    !/[\u0000-\u001f\u007f/]/.test(raw.displayName)?raw.displayName:null;
+  const reported=typeof raw.capturedAt==='string'&&Number.isFinite(Date.parse(raw.capturedAt))?
+    Date.parse(raw.capturedAt):null;
+  const captured=(display?captureTime(display):null)??reported??captureTime(raw.key);
+  return {key:raw.key,name:display||baseName(raw.key),storedName:display?baseName(raw.key):null,
+    size,modified,captured,time:captured??modified??0,kind:kind(raw.key),ext:extension(raw.key),
+    lens:lens(display||raw.key),search:(raw.key+' '+(display||'')).toLocaleLowerCase('de-DE')};
 }
 function normalizeAll(list){
   if(!Array.isArray(list))throw new TypeError('Invalid media index');
@@ -96,7 +102,7 @@ function filter(items,{query='',type='all'}={}){
   const needle=String(query).trim().toLocaleLowerCase('de-DE');
   const words=needle?needle.split(/\s+/):[];
   return items.filter(item=>(type==='all'||item.kind===type)&&
-    words.every(word=>item.key.toLocaleLowerCase('de-DE').includes(word)));
+    words.every(word=>(item.search||item.key.toLocaleLowerCase('de-DE')).includes(word)));
 }
 function sort(items,mode='newest'){
   if(!SORTS.includes(mode))throw new TypeError('Invalid sort');
@@ -120,6 +126,9 @@ function fileUrl(bucket,key,{download=false}={}){
   if(download)q.set('download','1');
   return '/api/media/file?'+q.toString();
 }
+function missionUrl(bucket,key){
+  return '/api/media/mission?'+new URLSearchParams({bucket,key}).toString();
+}
 function thumbUrl(bucket,key){
   return '/api/media/thumb?'+new URLSearchParams({bucket,key}).toString();
 }
@@ -142,7 +151,7 @@ function crumbs(prefix){
 }
 const api=Object.freeze({KINDS,KIND_LABELS,SORTS,baseName,extension,kind,captureTime,lens,
   normalize,normalizeAll,counts,folder,within,filter,sort,canPreviewDirectly,
-  fileUrl,thumbUrl,size,number,date,crumbs});
+  fileUrl,thumbUrl,missionUrl,size,number,date,crumbs});
 if(typeof module==='object'&&module.exports)module.exports=api;
 if(root)root.SkyhubMediaLibrary=api;
 })(typeof window==='object'?window:null);

@@ -10,6 +10,8 @@
 - Vorschaubildern: aus dem EXIF-Thumbnail der DJI-JPEGs (nur die ersten 256 KB werden gelesen, serverseitig gecacht), PNG/WebP direkt, Videos mit erstem Frame
 - Betrachter (Pfeiltasten ←/→, Esc) für Originalfotos, Videos (mit Spulen über HTTP-Range) und Textdateien (JSON/GeoJSON/MRK …), Metadaten (Pfad, Größe, Aufnahme- und Uploadzeit, Kamera-/Bandhinweis aus dem DJI-Dateinamen), Download- und Öffnen-Knopf
 - URL-Zustand (`#b=dji-cloud&p=wayline/`) für Zurück/Vor und Links
+- Pilot-2-Uploads (gespeichert als `org_<Fingerprint>_<ms>.jpg`) erscheinen mit ihrem **DJI-Dateinamen** aus `dji_pilot_media_verified`; die Suche findet beide Namen (seit 31.10.2026)
+- **Missionsanalyse** für `.kmz` im Betrachter (`/api/media/mission`): WPML 1.0.2 und 1.0.6 (nur Analyse), Drohne/Kamera laut Datei inkl. Warnung bei unpassender Kombination (z. B. Matrice 4E mit M4T-Kamera), Typ, Wegpunkte, Fehler/Warnungen
 
 **Keine Token- oder Passwortabfrage** mehr: Im Heimnetz (`SKYHUB_LAN_VIEW_CIDR`, Caddy `:4443` lässt ohnehin nur 192.168.178.0/24 durch) sind alle lesenden Medienaufrufe ohne Anmeldung erlaubt. Gleiches gilt für Dashboard (`/`) und Smart-Farming-Katalog. Ohne Heimnetz-Absender antwortet die API weiterhin mit 401; Pilot-Admin, DR-Berichte und Diagnosen bleiben tokengeschützt. Die Pilot-2-Seite auf der RC koppelt nur noch über den Kopplungscode (das manuelle Tokenfeld ist entfernt).
 

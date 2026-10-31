@@ -107,6 +107,13 @@ main{max-width:1680px;margin:auto;padding:22px clamp(16px,3vw,46px) 64px}
 .viewer-meta dt{color:var(--muted);font-size:10px;letter-spacing:.08em;text-transform:uppercase}
 .viewer-meta dd{margin:0 0 4px;overflow-wrap:anywhere}
 
+.mission{width:min(760px,100%);max-height:100%;overflow:auto;padding:16px 20px;background:#0b1726;border:1px solid var(--line);border-radius:10px}
+.mission h3{margin:0 0 8px}
+.mission-status{font-weight:700;margin:0 0 10px}.mission-status.ok{color:#8fe3b0}.mission-status.bad{color:var(--danger)}
+.mission-facts{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;margin:0 0 12px}
+.mission-facts dt{color:var(--muted)}.mission-facts dd{margin:0}
+.mission-issues{margin:0 0 10px;padding-left:18px;display:grid;gap:4px}.mission-issues .bad{color:#ffd9d3}
+.fine{color:var(--muted);font-size:12px}
 @media (max-width:760px){
   .hero{flex-direction:column;align-items:stretch}
   .toolbar{position:static}

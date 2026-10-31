@@ -690,12 +690,13 @@ def main() -> None:
                                 '.skyhub-global-nav a[href="' + target + '"]').click()
                             nav_page.wait_for_url(base + target, wait_until="load")
                             if target == "/media-gallery.html":
-                                check(nav_page.locator("#verified-library").count() == 1,
-                                      "Missing verified media section")
-                                check(nav_page.locator("#storage-inspector").count() == 1,
-                                      "Missing S3 inventory section")
-                                check(nav_page.locator("#verified-connect").is_enabled(),
-                                      "Media gallery connection action not available")
+                                # Token-free gallery (31.10.2026): overview, browser and viewer.
+                                for selector, label in (("#stats", "overview"), ("#buckets", "buckets"),
+                                                        ("#files", "file grid"), ("#viewer", "viewer")):
+                                    check(nav_page.locator(selector).count() == 1,
+                                          "Missing media gallery " + label)
+                                check(nav_page.locator('input[type="password"]').count() == 0,
+                                      "Media gallery must not ask for a token")
                                 check(nav_page.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 2"),
                                       "Media gallery overflows narrow viewport")
                             else:

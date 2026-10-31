@@ -7,10 +7,13 @@ const {
 const {
   extension,contentType,inline,exifThumbnail,createLru
 }=require('./media-preview');
+const {readKmz,inspectKmz}=require('./wpml-kmz');
+const {FIXED}=require('./wpml-product-support');
 
 const INDEX_TTL_MS=120000;
 const INDEX_MAX_OBJECTS=100000;
 const THUMB_PROBE_BYTES=262144;
+const MISSION_MAX_BYTES=8*1024*1024;
 const KINDS=Object.freeze({
   image:new Set(['jpg','jpeg','png','webp','gif']),
   tiff:new Set(['tif','tiff']),
@@ -31,7 +34,9 @@ async function collect(stream,limit){
   return Buffer.concat(chunks).subarray(0,limit);
 }
 
-function createMediaRouter(storage,{now=()=>Date.now()}={}){
+// labels (optional): async () => Map(objectKey -> {fileName, capturedAt}) for Pilot 2 uploads,
+// whose objects are stored as org_<fingerprint>_<ms>.jpg while the DJI file name lives in PostgreSQL.
+function createMediaRouter(storage,{now=()=>Date.now(),labels=null}={}){
   const router=express.Router();
   const indexes=new Map();
   const thumbs=createLru(4000);
@@ -51,6 +56,15 @@ function createMediaRouter(storage,{now=()=>Date.now()}={}){
         }
         cursor=page.nextCursor||undefined;
       }while(cursor);
+      if(bucket==='dji-cloud'&&typeof labels==='function'){
+        try{
+          const known=await labels();
+          for(const item of objects){
+            const label=known.get(item.key);
+            if(label){item.displayName=label.fileName;if(label.capturedAt)item.capturedAt=label.capturedAt;}
+          }
+        }catch(_err){/* names are a convenience; the listing stays complete without them */}
+      }
       return {bucket,objects,scannedAt:new Date(now()).toISOString()};
     })();
     entry.promise.then(()=>{entry.pending=false;entry.at=now();},
@@ -195,6 +209,47 @@ function createMediaRouter(storage,{now=()=>Date.now()}={}){
     res.set({'Content-Type':'image/jpeg','Cache-Control':'private, max-age=86400',
       'Content-Length':String(thumb.length)});
     res.end(thumb);
+  });
+
+  // Read-only mission analysis of a KMZ (WPML 1.0.2, or 1.0.6 as analysis only): aircraft,
+  // template types, waypoints, errors (e.g. aircraft/camera mismatch) and warnings.
+  router.get('/mission',async(req,res)=>{
+    const {bucket,key}=req.query;
+    if(typeof bucket!=='string'||typeof key!=='string'||extension(key)!=='kmz'){
+      return res.status(400).json({error:'Invalid query'});
+    }
+    let buffer;
+    try{
+      const object=await storage.getObject(bucket,key);
+      if(Number.isSafeInteger(object.contentLength)&&object.contentLength>MISSION_MAX_BYTES){
+        object.body?.destroy?.();
+        return res.status(413).json({error:'Mission file too large'});
+      }
+      buffer=await collect(object.body,MISSION_MAX_BYTES+1);
+      if(buffer.length>MISSION_MAX_BYTES)return res.status(413).json({error:'Mission file too large'});
+    }catch(err){return storageError(res,err);}
+    try{
+      const report=inspectKmz(buffer);
+      const {template}=readKmz(buffer);
+      const num=name=>{const m=new RegExp('<wpml:'+name+'>\\s*(\\d+)\\s*<').exec(template);return m?Number(m[1]):null;};
+      const drone=num('droneEnumValue'),sub=num('droneSubEnumValue'),payload=num('payloadEnumValue');
+      const declared=FIXED[drone+':'+sub]||null;
+      const camera=Object.entries(FIXED).find(([,p])=>p.payload===payload);
+      const created=num('createTime');
+      res.json({
+        wpmlVersion:report.wpmlVersion||null,readOnlyAnalysis:Boolean(report.readOnlyAnalysis),
+        valid:report.valid,flightReady:false,
+        aircraft:{drone:drone===null?null:drone+'-'+sub,model:declared?.model||null,
+          payload,payloadModel:camera?camera[1].model:null,
+          consistent:declared?declared.payload===payload:null},
+        createdAt:created&&created>1e12?new Date(created).toISOString():null,
+        templates:report.templates,waylines:report.waylines,resourceCount:report.resourceCount,
+        errors:report.errors.slice(0,20).map(e=>({path:e.path,message:e.message})),
+        errorCount:report.errors.length,warnings:report.warnings.slice(0,20)
+      });
+    }catch(_err){
+      res.status(422).json({error:'Not a readable DJI WPML mission'});
+    }
   });
 
   router.get('/m3m/inventory',async(req,res)=>{
