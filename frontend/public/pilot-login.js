@@ -99,6 +99,7 @@
       'MQTT verbunden (DJI): '+readBridgeStatus('thingGetConnectState'),
       ...(tsaState===null?[]:['Lagebild (TSA): '+tsaState+' · WebSocket verbunden: '+readBridgeStatus('wsGetConnectState')]),
       ...(mediaState===null?[]:['Medien-Synchronisation: '+mediaState+
+        ' · Medien-Modul geladen: '+readBridgeStatus('platformIsComponentLoaded','media')+
         ' · Fotos automatisch: '+readBridgeStatus('mediaGetAutoUploadPhoto')+
         ' · Videos automatisch: '+readBridgeStatus('mediaGetAutoUploadVideo')]),
       'Gerät gekoppelt: '+(storageGet(TOKEN_KEY)?'ja':'nein')
@@ -188,10 +189,19 @@
         invoke('platformLoadComponent','api',JSON.stringify({host:media.apiHost,token:sessionToken}));
       if(bridgeBoolean('platformIsComponentLoaded','media')!==true)
         invoke('platformLoadComponent','media',JSON.stringify(MEDIA_SETTINGS));
-      invoke('mediaSetAutoUploadPhoto',MEDIA_SETTINGS.autoUploadPhoto);
-      invoke('mediaSetUploadPhotoType',MEDIA_SETTINGS.autoUploadPhotoType);
-      invoke('mediaSetAutoUploadVideo',MEDIA_SETTINGS.autoUploadVideo);
-      mediaState='bereit, nur manueller Upload (automatischer Upload aus)';
+      // Pilot 2 rejects a setter that changes nothing (e.g. code 615012), so only switch off what
+      // Pilot 2 reports as on; a rejected setter never marks the module as not loaded.
+      const off=[];
+      for(const [getter,setter] of [['mediaGetAutoUploadPhoto','mediaSetAutoUploadPhoto'],
+        ['mediaGetAutoUploadVideo','mediaSetAutoUploadVideo']]){
+        if(bridgeBoolean(getter)===true){
+          try{invoke(setter,false);}catch(_){off.push(setter);}
+        }
+      }
+      const photo=bridgeBoolean('mediaGetAutoUploadPhoto'),video=bridgeBoolean('mediaGetAutoUploadVideo');
+      mediaState=photo===true||video===true?
+        'geladen, ACHTUNG automatischer Upload noch an'+(off.length?' ('+off.join(', ')+' abgelehnt)':''):
+        'bereit, nur manueller Upload (automatischer Upload aus)';
     }catch(e){mediaState='nicht geladen ('+e.message+')';}
     refreshDiagnostics();
   }
