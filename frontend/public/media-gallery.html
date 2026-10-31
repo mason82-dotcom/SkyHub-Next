@@ -7,11 +7,8 @@
 <meta name="robots" content="noindex,nofollow">
 <title>SkyHub Next · Mediengalerie</title>
 <link rel="stylesheet" href="/media-gallery.css">
-<script defer src="/media-gallery-verified-model.js"></script>
-<script defer src="/media-gallery-s3-model.js"></script>
-<script defer src="/media-gallery-controls.js"></script>
-<script defer src="/media-gallery-verified.js"></script>
-<script defer src="/media-gallery-s3.js"></script>
+<script defer src="/media-library-model.js"></script>
+<script defer src="/media-gallery-app.js"></script>
 </head>
 <body data-skyhub-page="media-gallery">
 <a class="skip" href="#skyhubMain">Zum Inhalt springen</a>
@@ -28,72 +25,66 @@
 </header>
 <main id="skyhubMain" tabindex="-1">
   <div class="hero">
-    <div><p class="eyebrow">DJI MEDIA WORKSPACE / READ ONLY</p>
+    <div>
+      <p class="eyebrow">MINIO-MEDIENSPEICHER</p>
       <h1>Medien<span>galerie</span></h1>
-      <p>Gesicherte DJI-Pilot-2-Registrierungen und gespeicherte MinIO-Objekte an einem Ort. Mit nachvollziehbarem Verifizierungsstatus, ohne ungeprüfte Bilddaten als Originale auszugeben.</p>
+      <p>Alle Fotos, Videos, Multispektral-TIFFs und Missionsdateien aus dem SkyHub-Speicher – mit Vorschau, Ordnern, Suche und Download.</p>
     </div>
-    <div class="hero-summary"><strong>Nur lesend</strong><span>Kein Upload · Kein Löschen · Keine Flugsteuerung</span></div>
+    <button type="button" class="secondary" id="refresh" title="Bestand neu einlesen">↻ Aktualisieren</button>
   </div>
-  <nav class="jump-nav" aria-label="Galerieansichten">
-    <a href="#verified-library">01 · Verifizierte Medien</a>
-    <a href="#storage-inspector">02 · MinIO-Objekte</a>
-    <span>Suche und Filter wirken nur auf die aktuell geladene Seite; keine Bildvorschau ohne sicheren Auslieferungspfad</span>
-  </nav>
-  <section id="verified-library" class="panel" aria-labelledby="verified-title">
-    <div class="panel-heading"><div><p class="eyebrow">PILOT 2 / WORKSPACE-KATALOG</p>
-      <h2 id="verified-title">Verifizierte Medienregistrierungen</h2></div>
-      <span class="state" id="verified-state">NICHT VERBUNDEN</span>
+
+  <ul id="stats" class="stats" aria-label="Gesamtbestand"></ul>
+  <p id="message" class="message" role="status" aria-live="polite">Medienbestand wird geladen …</p>
+
+  <nav id="buckets" class="buckets" aria-label="Speicherbereiche"></nav>
+
+  <section class="browser" aria-label="Medien durchsuchen">
+    <div class="toolbar">
+      <label class="search">
+        <span class="sr-only">Suchen</span>
+        <input id="search" type="search" maxlength="200" autocomplete="off" spellcheck="false" placeholder="Suchen: Dateiname, Ordner, Datum (z. B. 20261002) …">
+      </label>
+      <div id="types" class="chips" role="group" aria-label="Dateityp"></div>
+      <label class="select">Sortierung
+        <select id="sort">
+          <option value="newest">Neueste zuerst</option>
+          <option value="oldest">Älteste zuerst</option>
+          <option value="name">Name A–Z</option>
+          <option value="size-desc">Größte zuerst</option>
+          <option value="size-asc">Kleinste zuerst</option>
+        </select>
+      </label>
+      <div class="segmented" role="group" aria-label="Ansicht">
+        <button type="button" id="view-folders" aria-pressed="true">Ordner</button>
+        <button type="button" id="view-all" aria-pressed="false">Alle Dateien</button>
+      </div>
     </div>
-    <p class="help">Hier erscheinen nur in PostgreSQL registrierte, bei der Übernahme per S3-HEAD geprüfte Medien. Beim Auswählen erfolgt eine <strong>neue HEAD-Prüfung</strong>. Die Galerie zeigt keine Bildinhalte, GPS-Koordinaten, XMP-/EXIF-Rohwerte, CaptureUUIDs oder Objektpfade. Für diese API sind <strong>zwei unabhängige Berechtigungen</strong> nötig.</p>
-    <div class="controls">
-      <label>SkyHub View-Token <input type="password" id="verified-view-token" autocomplete="off" spellcheck="false" placeholder="Geschützter API-Zugriff" maxlength="512"></label>
-      <label>DJI Workspace-UUID <input type="text" id="verified-workspace" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="36" placeholder="xxxxxxxx-xxxx-4xxx-xxxx-xxxxxxxxxxxx"></label>
-      <label>Pilot-2-API-Token <input type="password" id="verified-token" autocomplete="off" spellcheck="false" maxlength="512" placeholder="Workspaceberechtigter Token"></label>
-      <button type="button" id="verified-connect">Registrierungen laden</button>
-      <button type="button" class="secondary" id="verified-clear">Zugang leeren</button>
-    </div>
-    <p id="verified-message" class="message" role="status" aria-live="polite">Kein Workspace angemeldet. Zugangsdaten bleiben nur im Speicher dieser geöffneten Seite; Anmeldung über HTTPS.</p>
-    <div class="browse-controls" aria-label="Aktuelle Medien-Registrierungsseite durchsuchen">
-      <label>Auf dieser Seite suchen <input id="verified-search" type="search" maxlength="128" placeholder="Dateiname, nur geladene Seite" autocomplete="off"></label>
-      <label>Namensendung (unverifiziert) <select id="verified-type"><option value="all">Alle</option><option value="image">JPEG / PNG / WebP</option><option value="tiff">TIFF</option><option value="video">MP4 / MOV</option><option value="other">Andere</option></select></label>
-      <label>Sortierung <select id="verified-sort"><option value="recent">Server-Reihenfolge</option><option value="name">Dateiname A–Z</option><option value="size-desc">Größe absteigend</option><option value="size-asc">Größe aufsteigend</option></select></label>
-      <span id="verified-filter-count" class="filter-count" aria-live="polite">Noch keine Seite geladen</span>
-    </div>
-    <div class="result-layout">
-      <ul id="verified-list" class="card-grid" aria-label="Verifizierte DJI-Pilot-2-Medien"></ul>
-      <aside id="verified-detail" class="detail" aria-label="Aktuelle S3-HEAD-Prüfung">Wähle nach dem Laden einen Medieneintrag aus. Vorschauen und Downloads sind in diesem Sicherheitsstand nicht freigegeben.</aside>
-    </div>
-    <div class="footer-actions"><span id="verified-page">Keine Seite geladen</span>
-      <div><button type="button" class="secondary" id="verified-group" disabled>M3M-Gruppenhinweise</button>
-      <button type="button" id="verified-next" disabled hidden>Nächste Seite</button></div>
-    </div>
+    <nav id="crumbs" class="crumbs" aria-label="Ordnerpfad"></nav>
+    <p id="summary" class="summary" aria-live="polite"></p>
+    <ul id="folders" class="folder-grid" aria-label="Ordner"></ul>
+    <ul id="files" class="file-grid" aria-label="Dateien"></ul>
+    <div id="sentinel" class="sentinel"><button type="button" class="secondary" id="more" hidden>Weitere anzeigen</button></div>
   </section>
-  <section id="storage-inspector" class="panel" aria-labelledby="storage-title">
-    <div class="panel-heading"><div><p class="eyebrow">MINIO / BESTANDSÜBERSICHT</p>
-      <h2 id="storage-title">Objektspeicher durchsuchen</h2></div>
-      <span class="state" id="storage-state">NICHT VERBUNDEN</span>
-    </div>
-    <p class="help">Direkter, authentifizierter <strong>Inventarblick</strong> auf die vorhandenen S3-Buckets. Objektnamen, Größen und Zeitstempel sind keine verifizierten DJI-Mediendaten. Keine Metadaten-Extraktion, Datei-Downloads oder Massenabfragen.</p>
-    <div class="controls">
-      <label>SkyHub View-Token <input id="storage-token" type="password" autocomplete="off" spellcheck="false" maxlength="512" placeholder="Nur temporär im Seitenspeicher"></label>
-      <button id="storage-connect" type="button">MinIO verbinden</button>
-      <label>Bucket <select id="storage-bucket" aria-label="MinIO-Bucket"></select></label>
-      <label>Prefix (optional) <input id="storage-prefix" type="text" maxlength="512" autocomplete="off" spellcheck="false" placeholder="z. B. missions/"></label>
-      <button id="storage-load" type="button" disabled>Objekte anzeigen</button>
-      <button id="storage-clear" class="secondary" type="button">Zugang leeren</button>
-    </div>
-    <p id="storage-message" class="message" role="status" aria-live="polite">Medienzugriff erfordert einen gültigen View-Token; der tokenfreie LAN-Gerätezugriff reicht nicht.</p>
-    <div class="browse-controls" aria-label="Aktuelle MinIO-Objektseite durchsuchen">
-      <label>Auf dieser Seite suchen <input id="storage-search" type="search" maxlength="128" placeholder="Objektname, nur geladene Seite" autocomplete="off"></label>
-      <label>Namensendung (unverifiziert) <select id="storage-type"><option value="all">Alle</option><option value="image">JPEG / PNG / WebP</option><option value="tiff">TIFF</option><option value="video">MP4 / MOV</option><option value="other">Andere</option></select></label>
-      <label>Sortierung <select id="storage-sort"><option value="recent">S3-Reihenfolge</option><option value="name">Objektname A–Z</option><option value="size-desc">Größe absteigend</option><option value="size-asc">Größe aufsteigend</option></select></label>
-      <span id="storage-filter-count" class="filter-count" aria-live="polite">Noch keine Seite geladen</span>
-    </div>
-    <ul id="storage-objects" class="card-grid storage-grid" aria-label="MinIO-Objekte"></ul>
-    <div class="footer-actions"><span id="storage-page">Noch keine Objekte geladen</span>
-      <button type="button" id="storage-next" disabled hidden>Nächste Seite</button></div>
-  </section>
-  <p class="disclaimer">Die Darstellung ist eine Metadaten-Galerie, noch kein Bildbetrachter. Dateiinhalt, Sensorherkunft, radiometrische Kalibrierung, NDVI/NDRE und vollständige Hardwareabnahme werden durch die Anzeige nicht bestätigt. Maximal 20 manuell angeforderte Seiten je Liste. Alle Anfragen sind GET und workspace-/tokengebunden.</p>
 </main>
+
+<dialog id="viewer" class="viewer" aria-labelledby="viewer-title">
+  <div class="viewer-bar">
+    <div class="viewer-heading">
+      <strong id="viewer-title"></strong>
+      <span id="viewer-position"></span>
+    </div>
+    <div class="viewer-actions">
+      <a id="viewer-open" class="button secondary" target="_blank" rel="noopener">Original öffnen</a>
+      <a id="viewer-download" class="button">Herunterladen</a>
+      <button type="button" class="secondary" id="viewer-close" aria-label="Schließen">✕</button>
+    </div>
+  </div>
+  <div class="viewer-body">
+    <button type="button" class="nav prev" id="viewer-prev" aria-label="Vorherige Datei">‹</button>
+    <div id="viewer-stage" class="viewer-stage"></div>
+    <button type="button" class="nav next" id="viewer-next" aria-label="Nächste Datei">›</button>
+  </div>
+  <dl id="viewer-meta" class="viewer-meta"></dl>
+</dialog>
 </body>
 </html>

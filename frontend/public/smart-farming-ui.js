@@ -123,11 +123,11 @@
       if(index===0) showCandidate(item,btn);
     });
   }
+  // Home-LAN access: the catalog loads without any token or password prompt.
   function mount(doc, fetchImpl) {
-    const token=doc.getElementById('catalogToken');
     const load=doc.getElementById('loadCatalog');
     const forget=doc.getElementById('clearCatalog');
-    if(!token||!load||!forget)return;
+    if(!load||!forget)return;
     let active=null;
     let generation=0;
     const request=fetchImpl || global.fetch.bind(global);
@@ -135,22 +135,11 @@
       generation++;
       if(active)active.abort();
       active=null;
-      token.value='';
       clearResults(doc);
-      setStatus(doc,'Kein Katalog geladen. Zugriffstoken erforderlich.',false);
+      setStatus(doc,'Kein Katalog geladen.',false);
       load.disabled=false;
     };
     load.addEventListener('click',async () => {
-      const secret=token.value;
-      if(!secret) {
-        setStatus(doc,'Bitte zuerst den Zugriffstoken eingeben.',true);
-        return;
-      }
-      if(!allowsBearerOrigin(global?.location?.origin)) {
-        token.value='';
-        setStatus(doc,'Katalog-Token nur über HTTPS oder einen lokalen SSH-Loopback-Zugang senden.',true);
-        return;
-      }
       generation++;
       const myGeneration=generation;
       if(active)active.abort();
@@ -158,13 +147,12 @@
       active=controller;
       load.disabled=true;
       clearResults(doc);
-      setStatus(doc,'Authentifizierten Katalog laden …',false);
+      setStatus(doc,'Katalog laden …',false);
       try {
         const response=await request(CATALOG,{
           method:'GET',cache:'no-store',credentials:'same-origin',
-          // Never follow a 3xx with a credential-bearing request (even on same origin).
           redirect:'error',referrerPolicy:'no-referrer',
-          headers:{Authorization:'Bearer '+secret,Accept:'application/json'},
+          headers:{Accept:'application/json'},
           signal:controller.signal
         });
         if(myGeneration!==generation)return;
@@ -180,7 +168,7 @@
       } catch (err) {
         if(myGeneration!==generation)return;
         clearResults(doc);
-        const label=err.message==='AUTH'?'Token ungültig oder nicht berechtigt.':
+        const label=err.message==='AUTH'?'Kein Zugriff: Seite bitte aus dem Heimnetz öffnen.':
           err.message==='DISABLED'?'Katalog-API ist nicht aktiviert.':
           err.message==='UNAVAILABLE'?'Katalog derzeit nicht verfügbar.':
           err.message==='INVALID_CATALOG'?'Ungültige oder unvollständige Katalogantwort.':
@@ -188,17 +176,14 @@
         setStatus(doc,label,true);
       } finally {
         if(myGeneration===generation) {
-          token.value=''; // Never keep token in DOM or browser storage.
           active=null;
           load.disabled=false;
         }
       }
     });
     forget.addEventListener('click',reset);
-    token.addEventListener('keydown',e=>{
-      if(e.key==='Enter') {e.preventDefault();load.click();}
-    });
     reset();
+    load.click();
   }
   const api={normalizeCatalog,format,mount,allowsBearerOrigin};
   if(typeof module!=='undefined' && module.exports)module.exports=api;

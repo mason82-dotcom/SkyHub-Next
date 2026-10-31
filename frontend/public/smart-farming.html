@@ -70,14 +70,12 @@ small{color:var(--muted)}
     Ein gültiger Kataloghash bestätigt nur die Kandidatendaten am Lesezeitpunkt; keine erneute Rasterprüfung.
   </section>
   <section class="panel" aria-labelledby="accessHeading">
-    <h2 id="accessHeading">Privaten Katalog lesen</h2>
-    <label for="catalogToken">SkyHub-Zugriffstoken</label>
+    <h2 id="accessHeading">Katalog</h2>
     <div class="form">
-      <input id="catalogToken" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Bearer-Token, nur temporär">
-      <button id="loadCatalog" type="button">Katalog laden</button>
+      <button id="loadCatalog" type="button">Katalog neu laden</button>
       <button id="clearCatalog" type="button" class="secondary">Ansicht leeren</button>
     </div>
-    <p class="fine">Der Token wird nur für die aktuelle HTTPS-Anfrage verwendet; er wird weder in URLs noch in Browser-Speicher geschrieben und nach dem Abruf aus dem Eingabefeld gelöscht.</p>
+    <p class="fine">Im Heimnetz wird der Katalog automatisch und ohne Anmeldung geladen.</p>
     <p id="catalogStatus" data-kind="normal" role="status" aria-live="polite">Kein Katalog geladen.</p>
   </section>
   <section class="layout" aria-label="Experimentelle Analysen">

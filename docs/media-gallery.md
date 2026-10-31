@@ -1,4 +1,42 @@
-# SkyHub Next – eigenständige Mediengalerie (25.10.2026)
+# SkyHub Next – Mediengalerie (31.10.2026)
+
+## Stand
+
+`/media-gallery.html` zeigt den **kompletten Bestand** des MinIO-Speichers (`basemaps`, `dji-cloud`, `farming`, `mapping-results`, `pv-inspections`), also 14.639 Objekte und ca. 31 GB am 31.10.2026, mit:
+
+- Gesamtübersicht (Dateien, Speicher, Fotos, Videos, TIFF, Sonstige) und Speicherbereich-Auswahl mit Zählern
+- Ordneransicht mit Pfadnavigation (Ordnerkarten mit Titelbild, Datei-/Foto-/Videozahl, Größe) oder flacher Liste „Alle Dateien“
+- Suche über den **gesamten** Speicherbereich (mehrere Wörter, Pfad oder Datum wie `20261002`), Filter nach Typ, Sortierung nach Aufnahmezeit, Name oder Größe
+- Vorschaubildern: aus dem EXIF-Thumbnail der DJI-JPEGs (nur die ersten 256 KB werden gelesen, serverseitig gecacht), PNG/WebP direkt, Videos mit erstem Frame
+- Betrachter (Pfeiltasten ←/→, Esc) für Originalfotos, Videos (mit Spulen über HTTP-Range) und Textdateien (JSON/GeoJSON/MRK …), Metadaten (Pfad, Größe, Aufnahme- und Uploadzeit, Kamera-/Bandhinweis aus dem DJI-Dateinamen), Download- und Öffnen-Knopf
+- URL-Zustand (`#b=dji-cloud&p=wayline/`) für Zurück/Vor und Links
+
+**Keine Token- oder Passwortabfrage** mehr: Im Heimnetz (`SKYHUB_LAN_VIEW_CIDR`, Caddy `:4443` lässt ohnehin nur 192.168.178.0/24 durch) sind alle lesenden Medienaufrufe ohne Anmeldung erlaubt. Gleiches gilt für Dashboard (`/`) und Smart-Farming-Katalog. Ohne Heimnetz-Absender antwortet die API weiterhin mit 401; Pilot-Admin, DR-Berichte und Diagnosen bleiben tokengeschützt. Die Pilot-2-Seite auf der RC koppelt nur noch über den Kopplungscode (das manuelle Tokenfeld ist entfernt).
+
+## API (nur GET, Heimnetz oder View-Token)
+
+| Pfad | Inhalt |
+| --- | --- |
+| `/api/media/summary` | Je Bucket: Objekte, Bytes, Typzähler, letzte Änderung (vollständiger Scan, 2 min gecacht) |
+| `/api/media/index?bucket=` | Alle Objekte eines Buckets (`key`, `size`, `lastModified`) in einer Antwort |
+| `/api/media/file?bucket=&key=[&download=1]` | Objektinhalt; Bilder/Videos/PDF inline, sonst Download; `Range` wird an MinIO durchgereicht; `CSP: sandbox` |
+| `/api/media/thumb?bucket=&key=` | EXIF-Vorschaubild eines JPEG (160×120), sonst 404 → Browser nutzt Original oder Symbol |
+| `/api/media/objects?…&delimiter=/` | Seitenweise Liste wie bisher, optional mit Ordnern (`folders`) |
+
+Bucket-Whitelist und Schlüsselprüfung bleiben in `backend/s3-storage.js`; es gibt keine schreibenden Medienendpunkte.
+
+## Prüfung
+
+```bash
+cd ~/Projekte/SkyHub-Next/backend && npm test
+node --test ../frontend/test/smart-farming-ui.test.js
+```
+
+Wirksam wird die Galerie erst nach einem Backend-Update (`bash scripts/pi-update-backend.sh`), das das Frontend ins Image kopiert. Das Update startet den Backend-Container neu und trennt kurz aktive DJI-/MQTT-Sitzungen.
+
+---
+
+## Historie: Metadaten-Galerie vom 25.10.2026 (ersetzt)
 
 ## Einstieg
 

@@ -38,7 +38,14 @@ async function createPilot(options={}){
     thingGetConnectState(){return response;},
     thingConnect(...args){calls.retry.push(args);return JSON.stringify({code:0});}
   };
-  const win={djiBridge:bridge};
+  // A paired RC: the device token from the pairing flow is already in the WebView storage,
+  // so the page connects on load (the manual token form no longer exists).
+  const stored=new Map(options.paired===false?[]:[['skyhub.pilot.deviceToken','placeholder-test-token']]);
+  const win={djiBridge:bridge,localStorage:{
+    getItem:key=>stored.has(key)?stored.get(key):null,
+    setItem:(key,value)=>stored.set(key,String(value)),
+    removeItem:key=>stored.delete(key)
+  }};
   const env={
     window:win,
     document:{getElementById:el},
@@ -56,8 +63,7 @@ async function createPilot(options={}){
     el,win,bridge,calls,timers,
     setMqttState(value){response=value;},
     async connect(){
-      el('access').value='placeholder-test-token';
-      await el('start').listeners.click();
+      for(let i=0;i<8;i++)await Promise.resolve();
     },
     fireTimer(){assert.equal(timers.length,1);timers[0].callback();}
   };
@@ -68,7 +74,6 @@ test('loading DJI component does not call thingConnect automatically',async()=>{
   await pilot.connect();
   assert.equal(pilot.calls.load.length,1);
   assert.equal(pilot.calls.retry.length,0);
-  assert.equal(pilot.el('access').value,'');
   assert.equal(pilot.el('retry').hidden,true);
   pilot.fireTimer();
   assert.equal(pilot.el('retry').hidden,false);

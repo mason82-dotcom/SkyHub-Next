@@ -6,154 +6,92 @@ const path=require('node:path');
 const vm=require('node:vm');
 const ROOT=path.resolve(__dirname,'../../frontend/public');
 const file=name=>fs.readFileSync(path.join(ROOT,name),'utf8');
-const V=require('../../frontend/public/media-gallery-verified-model');
-const S=require('../../frontend/public/media-gallery-s3-model');
-const F=require('../../frontend/public/media-gallery-controls');
-const WORKSPACE='e3dea0f5-37f2-4d79-ae58-490af3228069';
-const ASSET='33670000-0000-4000-8000-000000000001';
-function asset(status='head-at-ingestion'){
-  return {id:ASSET,fileName:'DJI_20261022150000_0001_MS_R.TIF',
-    fileSizeBytes:3072,fileGroupId:'group-1',mediaHint:'m3m-multispectral-filename',
-    bandHint:'R',hintSource:'filename-only-unverified',
-    verifiedAt:'2026-10-22T15:00:00.000Z',
-    objectEvidence:{status,sizeBytes:3072,etag:'private-etag',
-      lastModified:'2026-10-22T14:59:59.000Z'},
-    storage:{bucket:'dji-cloud',objectKey:'private/workspace/SECRET_OBJECT'},
-    pilotMetadata:{source:'pilot-upload-callback',
-      fields:{shoot_position:{lat:49.12,lng:8.12},absolute_altitude:123}},
-    imageInspection:{exif:'not-extracted',xmp:'not-extracted',rtk:'not-extracted',
-      captureUuidConfirmed:false,m3mSourceVerified:false,
-      bandCoregistrationVerified:false,radiometricCalibrationVerified:false,
-      reflectanceReady:false,ndviReady:false,ndreReady:false}
-  };
-}
-const wrap=data=>({code:0,message:'success',data});
+const M=require('../../frontend/public/media-library-model');
 
-test('verified Pilot 2 list is schema-bound and strips private keys, positions and ETag',()=>{
-  const items=V.libraryList(wrap({schema:'skyhub-pilot-media-library-v1',
-    verification:'s3-head-at-ingestion-not-rechecked',
-    items:[asset()],nextCursor:null}),20).items;
-  assert.equal(items.length,1);
-  assert.equal(items[0].evidence,'head-at-ingestion');
-  assert.equal(items[0].bandHint,'R');
-  const printed=JSON.stringify(items);
-  for(const forbidden of ['SECRET_OBJECT','private-etag','49.12','absolute_altitude','storage','pilotMetadata']){
-    assert.ok(!printed.includes(forbidden),forbidden);
-  }
-  assert.ok(V.UUID.test(ASSET));
-  assert.ok(V.UUID.test(WORKSPACE));
+const raw=[
+  {key:'wayline/DJI_20261002165548_0001_V.JPG',size:7516160,lastModified:'2026-10-03T08:00:00.000Z'},
+  {key:'wayline/DJI_20261001224903_0001_T.JPG',size:1290240,lastModified:'2026-10-03T08:00:00.000Z'},
+  {key:'wayline/DJI_20261001223817_0001_MS_NIR.TIF',size:2000000,lastModified:'2026-10-03T08:00:00.000Z'},
+  {key:'wayline/org_00e9af24aeb848f8_1729610684000.jpg',size:4050944,lastModified:'2026-10-03T08:00:00.000Z'},
+  {key:'wayline/mission/clip.MP4',size:90000000,lastModified:'2026-10-05T10:00:00.000Z'},
+  {key:'wayline/route.kmz',size:4000,lastModified:'2026-10-01T10:00:00.000Z'},
+  {key:'ppk/a/b/DJI_202504271730_001.MRK',size:1000,lastModified:'2025-04-28T10:00:00.000Z'},
+  {key:'readme.txt',size:10,lastModified:'2026-10-01T10:00:00.000Z'}
+];
+
+test('file kinds, DJI capture times and lens hints come from the object name',()=>{
+  assert.equal(M.kind('a/IMG.JPG'),'image');
+  assert.equal(M.kind('a/x.TIFF'),'tiff');
+  assert.equal(M.kind('a/x.mov'),'video');
+  assert.equal(M.kind('a/x.jpeg.exe'),'other');
+  assert.equal(M.captureTime('DJI_20261002165548_0001_V.JPG'),new Date(2026,9,2,16,55,48).getTime());
+  assert.equal(M.captureTime('org_00e9af24aeb848f8_1729610684000.jpg'),1729610684000);
+  assert.equal(M.captureTime('photo.jpg'),null);
+  assert.equal(M.lens('DJI_20261001224903_0001_T.JPG'),'Wärmebild');
+  assert.equal(M.lens('DJI_20261001223817_0001_MS_NIR.TIF'),'Multispektral NIR');
+  assert.equal(M.lens('holiday.jpg'),null);
 });
 
-test('verified detail must result from a current HEAD recheck and reject readiness claims',()=>{
-  const good=wrap({item:asset('head-rechecked')});
-  assert.equal(V.detail(good,ASSET).evidence,'head-rechecked');
-  assert.throws(()=>V.detail(wrap({item:asset()}),ASSET));
-  assert.throws(()=>V.detail(good,'00000000-0000-4000-8000-000000000001'));
-  const unsafe=asset();
-  unsafe.imageInspection.ndviReady=true;
-  assert.throws(()=>V.libraryList(wrap({
-    schema:'skyhub-pilot-media-library-v1',
-    verification:'s3-head-at-ingestion-not-rechecked',
-    items:[unsafe],nextCursor:null
-  }),20));
+test('folder view lists direct sub-folders with totals and the files of the folder',()=>{
+  const items=M.normalizeAll(raw);
+  const root=M.folder(items,'');
+  assert.deepEqual(root.folders.map(f=>f.name),['ppk','wayline']);
+  assert.deepEqual(root.files.map(f=>f.name),['readme.txt']);
+  const wayline=root.folders.find(f=>f.name==='wayline');
+  assert.equal(wayline.count,6);
+  assert.equal(wayline.images,3);
+  assert.equal(wayline.videos,1);
+  assert.ok(wayline.cover.key.endsWith('_V.JPG'));
+  const inner=M.folder(items,'wayline/');
+  assert.deepEqual(inner.folders.map(f=>f.prefix),['wayline/mission/']);
+  assert.equal(inner.files.length,5);
+  assert.deepEqual(M.crumbs('ppk/a/b/').map(c=>c.prefix),['ppk/','ppk/a/','ppk/a/b/']);
 });
 
-test('M3M group aggregates are bounded and cannot claim extracted/verified pixels',()=>{
-  const response=wrap({
-    schema:'skyhub-m3m-library-hints-v1',classification:'filename-hints-only',
-    examined:5,sessionPartitions:1,classified:5,unrecognized:0,invalid:0,
-    captureGroups:1,spectralSets:1,fiveChannelSets:1,partialSets:0,duplicateSets:0,
-    bandCounts:{RGB:1,G:1,R:1,RE:1,NIR:1},
-    captureUuidVerified:false,exifVerified:false,xmpVerified:false,
-    bandCoregistrationVerified:false,radiometricCalibrationVerified:false,
-    reflectanceReady:false,ndviReady:false,ndreReady:false
-  });
-  assert.equal(V.group(response).spectralSets,1);
-  response.data.captureUuidVerified=true;
-  assert.throws(()=>V.group(response));
+test('search, type filter and sorting cover the complete bucket',()=>{
+  const items=M.normalizeAll(raw);
+  assert.equal(M.filter(items,{type:'image'}).length,3);
+  assert.equal(M.filter(items,{query:'wayline 20261001'}).length,2);
+  assert.equal(M.filter(M.within(items,'ppk/'),{}).length,1);
+  assert.deepEqual(M.sort(items,'size-desc').map(i=>i.size)[0],90000000);
+  assert.equal(M.sort(items,'newest')[0].name,'clip.MP4');
+  assert.equal(M.sort(M.filter(items,{type:'image'}),'newest')[0].name,'DJI_20261002165548_0001_V.JPG');
+  assert.throws(()=>M.filter(items,{type:'exe'}));
+  assert.throws(()=>M.sort(items,'random'));
+  const c=M.counts(items);
+  assert.deepEqual([c.all,c.image,c.video,c.tiff,c.other],[8,3,1,1,3]);
+  assert.equal(M.normalizeAll([{key:''},null,{key:'x.jpg',size:-5}]).length,1);
 });
 
-test('S3 objects are validated independently and never represented as verified media',()=>{
-  assert.deepEqual(S.buckets({buckets:['dji-cloud','farming']}),['dji-cloud','farming']);
-  assert.throws(()=>S.buckets({buckets:['dji-cloud','PRIVATE_BUCKET']}));
-  const data=S.page({bucket:'dji-cloud',prefix:'missions/',objects:[
-    {key:'missions/image_01.TIF',size:2048,lastModified:'2026-10-25T00:00:00.000Z'}
-  ],truncated:false,nextCursor:null},{bucket:'dji-cloud',prefix:'missions/',limit:50});
-  assert.equal(data.items.length,1);
-  assert.equal(data.items[0].bytes,2048);
-  assert.deepEqual(Object.keys(data.items[0]),['name','bytes','modified']);
-  assert.throws(()=>S.page({bucket:'private',prefix:'',objects:[],truncated:false,nextCursor:null},
-    {bucket:'private',limit:50}));
+test('preview URLs use the read-only media API with encoded parameters',()=>{
+  assert.equal(M.fileUrl('dji-cloud','a b/ü.jpg'),'/api/media/file?bucket=dji-cloud&key=a+b%2F%C3%BC.jpg');
+  assert.match(M.fileUrl('farming','x.png',{download:true}),/&download=1$/);
+  assert.equal(M.thumbUrl('dji-cloud','a.jpg'),'/api/media/thumb?bucket=dji-cloud&key=a.jpg');
+  assert.equal(M.canPreviewDirectly(M.normalize({key:'a.png',size:1000})),true);
+  assert.equal(M.canPreviewDirectly(M.normalize({key:'a.jpg',size:9000000})),false);
+  assert.equal(M.canPreviewDirectly(M.normalize({key:'a.tif',size:10})),false);
 });
 
-test('standalone gallery requires both authorizations, uses GET only and no credential persistence',()=>{
-  const html=file('media-gallery.html');
-  for(const id of ['verified-view-token','verified-workspace','verified-token',
-    'verified-list','verified-detail','verified-next','verified-group',
-    'storage-token','storage-objects','storage-bucket','storage-prefix',
-    'storage-next','verified-clear','storage-clear']){
+test('gallery page asks for no token or password and renders without innerHTML',()=>{
+  const html=file('media-gallery.html'),app=file('media-gallery-app.js');
+  new vm.Script(app);new vm.Script(file('media-library-model.js'));
+  assert.doesNotMatch(html,/type="password"|token|Passwort/i);
+  assert.doesNotMatch(app,/Authorization|X-Auth-Token|localStorage|sessionStorage|innerHTML|eval\s*\(/);
+  assert.match(app,/\/api\/media\/summary/);
+  assert.match(app,/\/api\/media\/index\?/);
+  for(const id of ['stats','buckets','search','types','sort','view-folders','view-all',
+    'crumbs','folders','files','viewer','viewer-stage','viewer-download','viewer-prev','viewer-next']){
     assert.ok(html.includes('id="'+id+'"'),id);
   }
   assert.match(html,/name="referrer" content="no-referrer"/);
-  assert.match(html,/aria-live="polite"/);
-  const verified=file('media-gallery-verified.js'),raw=file('media-gallery-s3.js');
-  new vm.Script(verified);new vm.Script(raw);
-  assert.match(verified,/Authorization:'Bearer '\+viewToken/);
-  assert.match(verified,/'X-Auth-Token':token/);
-  assert.match(raw,/Authorization:'Bearer '\+token/);
-  for(const source of [verified,raw]){
-    assert.match(source,/method:'GET'/);
-    assert.match(source,/cache:'no-store'/);
-    assert.doesNotMatch(source,/localStorage|sessionStorage|innerHTML|eval\s*\(|method:'POST'|method:'DELETE'/);
-  }
-  assert.doesNotMatch(html,/<img\b|type="file"|<iframe\b/i);
+  assert.doesNotMatch(html,/type="file"|<iframe\b/i);
 });
 
-test('page-only media name search, filename extensions and stable sorting',()=>{
-  const items=[
-    {name:'sessions/DCIM/A.TIF',bytes:400},
-    {name:'video/b.MP4',bytes:500},
-    {name:'photos/c.JpG',bytes:100},
-    {name:'photos/other.bin',bytes:300},
-    {name:'photos/x.jpeg',bytes:150}
-  ];
-  assert.equal(F.kind('Folder/IMG_0001.TIFF'),'tiff');
-  assert.equal(F.kind('IMG_0002.MOV'),'video');
-  assert.equal(F.kind('IMG_0003.webp'),'image');
-  assert.equal(F.kind('something.jpeg.exe'),'other');
-  assert.equal(F.kind('a.folder/noextension'),'other');
-  assert.deepEqual(F.view(items,{query:'PHOTO',type:'image',sort:'name'})
-    .items.map(item=>item.name),['photos/c.JpG','photos/x.jpeg']);
-  assert.deepEqual(F.view(items,{type:'all',sort:'size-desc'})
-    .items.map(item=>item.bytes),[500,400,300,150,100]);
-  assert.deepEqual(F.view(items,{sort:'recent'}).items,items);
-  assert.equal(F.view(items,{query:'xyz'}).shown,0);
-  assert.equal(F.view(items).total,5);
-  for(const bad of [{type:'all?client=evil'},{sort:'download'}, {query:'x'.repeat(129)}]){
-    assert.throws(()=>F.view(items,bad));
+test('no page of the web UI contains a token or password prompt',()=>{
+  for(const name of ['index.html','media-gallery.html','smart-farming.html','pilot-login.html',
+    'wpml-editor.html','wpml-route-library.html','wpml-survey-preview.html']){
+    assert.doesNotMatch(file(name),/type="password"/,name);
   }
-  assert.throws(()=>F.view(new Array(101).fill(items[0])));
-  assert.throws(()=>F.view([{name:'image.jpg',bytes:-1}]));
-});
-
-test('both panels filter loaded pages only; no unverified preview or server search',()=>{
-  const html=file('media-gallery.html'),controls=file('media-gallery-controls.js');
-  const verified=file('media-gallery-verified.js'),raw=file('media-gallery-s3.js');
-  for(const prefix of ['verified','storage']){
-    for(const suffix of ['search','type','sort','filter-count'])
-      assert.match(html,new RegExp('id="'+prefix+'-'+suffix+'"'));
-  }
-  assert.match(html,/media-gallery-controls\.js/);
-  assert.match(html,/Dateityp nur aus Namensendung|Namensendung \(unverifiziert\)/);
-  new vm.Script(controls);
-  for(const source of [verified,raw]){
-    assert.match(source,/F\.view\(currentPage/);
-    assert.match(source,/addEventListener\('input',render/);
-    assert.match(source,/addEventListener\('change',render/);
-    assert.doesNotMatch(source,/innerHTML|URL\.createObjectURL|new Image\(/);
-  }
-  assert.doesNotMatch(controls,/fetch\s*\(|XMLHttpRequest|localStorage|sessionStorage|innerHTML/);
-  assert.doesNotMatch(html,/<img\b|type="file"|<iframe\b/i);
 });
 
 test('media navigation exists on all five existing workspace pages',()=>{

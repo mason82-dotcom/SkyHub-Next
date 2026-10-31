@@ -51,7 +51,7 @@ test('pairing UI stays compact without introducing additional navigation', () =>
 });
 test('live dashboard keeps read-only, operational and TAK contract identifiers', () => {
   const source = html('index.html');
-  for (const id of ['token', 'connect', 'map', 'tabOperations', 'tabTak',
+  for (const id of ['connect', 'map', 'tabOperations', 'tabTak',
     'operationsPanel', 'takPanel', 'devices', 'showTrack']) {
     assert.ok(source.includes(`id="${id}"`), `missing ${id}`);
   }

@@ -367,7 +367,6 @@
       el('security').hidden=isTls;
       if(!isTls)el('security').textContent='HTTPS fehlt. Aus Sicherheitsgründen werden keine Zugangsdaten über unverschlüsseltes HTTP übertragen.';
       refreshDiagnostics();
-      el('start').disabled=!ready||!isTls||!window.djiBridge;
       if(!window.djiBridge){status('DJI JSBridge nicht verfügbar: Bitte die Seite innerhalb DJI Pilot 2 öffnen.');return;}
       if(!ready||!isTls)return;
       const token=storageGet(TOKEN_KEY);
@@ -376,22 +375,6 @@
       else await startPairing();
     }catch(e){el('headline').textContent='Backend nicht bereit';status(e.message);}
   }
-  // Fallback: shared operator access token, used once and never stored.
-  el('start').addEventListener('click',async()=>{
-    if(!ready||!isTls||connecting)return;
-    const token=el('access').value.trim();
-    if(!token){status('Bitte den Pilot-Zugangstoken eingeben.');return;}
-    if(!window.djiBridge){status('DJI JSBridge nicht verfügbar.');return;}
-    connecting=true;el('start').disabled=true;
-    try{
-      const outcome=await handshake(token);
-      if(outcome==='unauthorized')throw new Error('Bootstrap fehlgeschlagen (HTTP 401).');
-      // Drop the manually entered token as soon as authorization succeeds.
-      el('access').value='';
-      stopPairing();
-    }catch(e){status('Verbindung noch nicht bestätigt: '+e.message);}
-    finally{connecting=false;el('start').disabled=!ready||!isTls||!window.djiBridge;}
-  });
   el('retry').addEventListener('click',retryMqtt);
   el('diagnose').addEventListener('click',refreshDiagnostics);
   el('diagnose').disabled=false;
