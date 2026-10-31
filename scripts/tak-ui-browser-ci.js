@@ -87,7 +87,7 @@ const assertNoOverflow=async page=>{
      if(!nav)return false;
      const bound=nav.getBoundingClientRect();
      const links=[...nav.querySelectorAll('a')];
-     return links.length===6 && links.every(link=>{
+     return links.length===7 && links.every(link=>{
        const rect=link.getBoundingClientRect();
        return rect.left>=bound.left-1 && rect.right<=bound.right+1 &&
          rect.top>=bound.top-1 && rect.bottom<=bound.bottom+1;
@@ -102,7 +102,7 @@ const assertNoOverflow=async page=>{
  assert.equal(dimensions.mainCount,1,'one semantic main landmark');
  assert.equal(dimensions.tabs,2,'two accessible tabs');
  assert.equal(dimensions.allNavLinksVisible,true,
-   'six module links including the current module must all remain visible');
+   'seven module links including the current module must all remain visible');
  assert.equal(dimensions.lightStylesheet,true,'light stylesheet must be loaded successfully');
  assert.equal(dimensions.colorScheme,'light','root color-scheme must remain light');
  assert.equal(dimensions.bodyBackground,'rgb(243, 246, 251)','light canvas must be rendered');
@@ -326,7 +326,7 @@ async function run(){
       assert.equal(visual.panelBg,'rgb(255, 255, 255)',filename+' white panel');
       assert.equal(visual.scheme,'light',filename+' color scheme');
       assert.ok(visual.scrollWidth<=visual.width+1,filename+' overflow: '+JSON.stringify(visual));
-      assert.equal(visual.menuLinks,pageType==='pilot'?0:6,filename+' operator navigation');
+      assert.equal(visual.menuLinks,pageType==='pilot'?0:7,filename+' operator navigation');
       assert.equal(visual.navLinksVisible,true,filename+' all nav links must remain visible');
       if(pageType==='pilot'){
         assert.equal(visual.pilotBridge,false,'synthetic Pilot 2 has no device bridge');

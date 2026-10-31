@@ -130,8 +130,8 @@ def assert_light_theme(page, active_href: str, name: str) -> None:
           name + ": computed light palette mismatch: " + str(state))
     check(state["scrollWidth"] <= state["viewportWidth"] + 1,
           name + ": page overflows screen: " + str(state))
-    check(len(state["navigation"]) == 6,
-          name + ": expected six operator module navigation links")
+    check(len(state["navigation"]) == 7,
+          name + ": expected seven operator module navigation links (incl. Thermal)")
     check(all(a["fullyVisible"] for a in state["navigation"]),
           name + ": operator navigation clips a module on this viewport")
     check([a["href"] for a in state["navigation"] if a["current"] == "page"]

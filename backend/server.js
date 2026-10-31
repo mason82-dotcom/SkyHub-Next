@@ -21,6 +21,7 @@ const {createTrackStore,retentionDays}=require('./track-store');
 const {createTrackRecorder}=require('./track-recorder');
 const {createS3Storage}=require('./s3-storage');
 const {createMediaRouter}=require('./media-api');
+const {createThermalRouter}=require('./thermal');
 const {createPilotMediaLibraryRuntime}=require('./pilot-media-library-runtime');
 const {createPilotMediaUploadRuntime}=require('./pilot-media-upload-runtime');
 const {createMinioDrRouter}=require('./minio-dr-api');
@@ -204,7 +205,11 @@ async function pilotMediaLabels(){
   return new Map(rows.map(r=>[r.object_key,{fileName:r.file_name,capturedAt:r.created||null}]));
 }
 if(mediaStorage){
-  app.use('/api/media',createMediaRouter(mediaStorage,{labels:pool?pilotMediaLabels:null}));
+  const mediaRouter=createMediaRouter(mediaStorage,{labels:pool?pilotMediaLabels:null});
+  app.use('/api/media',mediaRouter);
+  // Thermal module: radiometric R-JPEGs from the same storage, read-only.
+  app.use('/api/thermal',createThermalRouter({storage:mediaStorage,
+    bucketIndex:mediaRouter.bucketIndex,buckets:()=>mediaStorage.buckets()}));
 }
 const mediaLibraryRouter=createPilotMediaLibraryRuntime({
   env:process.env,db:pool,redis,authorize:pilotAuth.principal,
