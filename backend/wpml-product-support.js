@@ -21,8 +21,13 @@ function assessAircraft(droneType,droneSubtype,payloadType,payloadPositionIndex)
   const key=String(droneType)+':'+String(droneSubtype);
   const profile=FIXED[key],errors=[],warnings=[];
   if(profile){
-    if(profile.payload!==payloadType)
-      errors.push('payloadEnumValue incompatible with '+profile.model);
+    if(profile.payload!==payloadType){
+      // Name the aircraft the camera belongs to, e.g. a Matrice 4T camera in a Matrice 4E mission.
+      const owner=Object.entries(FIXED).find(([,p])=>p.payload===payloadType);
+      errors.push('payloadEnumValue incompatible with '+profile.model+' ('+key.replace(':','-')+')'+
+        (owner?': payload '+payloadType+' belongs to '+owner[1].model+' ('+owner[0].replace(':','-')+
+          '); set droneSubEnumValue '+owner[0].split(':')[1]+' or the matching camera':''));
+    }
     if(payloadPositionIndex!==0)
       errors.push('non-primary gimbal index on integrated camera aircraft');
   }else if(!MULTI.has(droneType)&&!([67,77,91,99,100].includes(droneType)))

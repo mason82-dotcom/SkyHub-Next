@@ -27,6 +27,14 @@ const MODES={
   actionGroupMode:['sequence'],
   coordinateMode:['WGS84']
 };
+// WPML 1.0.6 (DJI Pilot 2 / FlightHub 2 exports, e.g. Matrice 4 smart oblique missions):
+// accepted ONLY for explicit read-only analysis. These values extend the 1.0.2 lists there.
+const MODES_106=Object.freeze({
+  templateType:['mappingCylinder'],
+  actionActuatorFunc:['gimbalAngleLock','gimbalAngleUnlock','startSmartOblique','stopSmartOblique',
+    'startTimeLapse','stopTimeLapse','setFocusType','startContinuousShooting','stopContinuousShooting']
+});
+let profileExtras=null; // set only while validateDocuments runs with the 1.0.6 profile (synchronous)
 function xmlError(message){throw new Error('Invalid WPML XML: '+message);}
 function decodeEntities(input){
   if(/&(?!(?:amp|lt|gt|apos|quot|#\d+|#x[0-9a-fA-F]+);)/.test(input))xmlError('invalid entity');
@@ -153,7 +161,8 @@ function fieldNumber(node,name,min,max,path,errors,mandatory=false,integer=false
 }
 function fieldEnum(node,name,path,errors,mandatory=false){
   const raw=mandatory?required(node,name,path,errors):value(node,name);
-  if(raw&&!MODES[name].includes(raw))pathError(errors,path+'/'+name,'unsupported enumeration');
+  if(raw&&!MODES[name].includes(raw)&&!(profileExtras?.[name]||[]).includes(raw))
+    pathError(errors,path+'/'+name,'unsupported enumeration');
   return raw;
 }
 function optionalBool(node,name,path,errors){
@@ -235,7 +244,9 @@ function actionGroups(container,path,errors){
     checkGroup(group,path+'/actionGroup/'+i,errors);
   }
 }
-function checkGroup(group,path,errors){
+function checkGroup(group,path,errors,{startGroup=false}={}){
+  // WPML 1.0.6 start action groups carry only an action list (no ID, indices or trigger).
+  if(startGroup&&profileExtras)return checkActions(group,path,errors);
   fieldNumber(group,'actionGroupId',0,65535,path,errors,true,true);
   const start=fieldNumber(group,'actionGroupStartIndex',0,65535,path,errors,true,true);
   const end=fieldNumber(group,'actionGroupEndIndex',0,65535,path,errors,true,true);
@@ -248,6 +259,9 @@ function checkGroup(group,path,errors){
     if(['multipleTiming','multipleDistance'].includes(type))
       fieldNumber(trigger,'actionTriggerParam',0.000001,100000,path+'/actionTrigger',errors,true);
   }
+  checkActions(group,path,errors);
+}
+function checkActions(group,path,errors){
   const actions=kids(group,'wpml:action'),used=new Set();
   if(!actions.length)pathError(errors,path,'action list missing');
   for(const [i,action] of actions.entries()){
@@ -352,6 +366,15 @@ function fieldInventoryCoverage(documents){
   };
 }
 function validateDocuments(templateXml,waylinesXml,expectedWpmlNamespace=WPML){
+  profileExtras=expectedWpmlNamespace===WPML_REFERENCE_ONLY?MODES_106:null;
+  try{
+    const result=validateProfile(templateXml,waylinesXml,expectedWpmlNamespace);
+    if(expectedWpmlNamespace!==WPML_REFERENCE_ONLY)return {...result,wpmlVersion:'1.0.2'};
+    return {...result,wpmlVersion:'1.0.6',readOnlyAnalysis:true,flightReady:false,
+      warnings:['WPML 1.0.6: read-only analysis only; SkyHub edits and exports WPML 1.0.2',...result.warnings]};
+  }finally{profileExtras=null;}
+}
+function validateProfile(templateXml,waylinesXml,expectedWpmlNamespace){
   const errors=[],warnings=[],templates=[],waylines=[];
   let template,execution;
   try{template=parseXml(templateXml,expectedWpmlNamespace);}catch(e){pathError(errors,'template.kml',e.message);}
@@ -459,7 +482,7 @@ function validateDocuments(templateXml,waylinesXml,expectedWpmlNamespace=WPML){
       }
     }
     for(const g of kids(folder,'wpml:startActionGroup')){
-      checkGroup(g,p+'/startActionGroup',errors);
+      checkGroup(g,p+'/startActionGroup',errors,{startGroup:true});
       const groupKey=value(g,'actionGroupId');
       if(/^\d+$/.test(groupKey)){
         if(actionGroupIds.has(groupKey))
@@ -475,4 +498,4 @@ function validateDocuments(templateXml,waylinesXml,expectedWpmlNamespace=WPML){
   warnings.push('Static validation is not aircraft compatibility certification or flight authorization');
   return {valid:errors.length===0,flightReady:false,validationScope:'offline-partial',errors,warnings,aircraft:meta,templates,waylines,fieldCoverage};
 }
-module.exports={parseXml,validateDocuments,MODES};
+module.exports={parseXml,validateDocuments,MODES,MODES_106,WPML,WPML_REFERENCE_ONLY};

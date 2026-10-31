@@ -50,7 +50,7 @@ function payload(folder,path,errors){
   number(node,'payloadPositionIndex',p,errors,{min:0,max:2,integer:true,required:true});
   enumeration(node,'focusMode',['firstPoint','custom'],p,errors);
   enumeration(node,'meteringMode',['average','spot'],p,errors);
-  enumeration(node,'returnMode',['singleReturnStrongest','dualReturn','tripleReturn'],p,errors);
+  enumeration(node,'returnMode',['singleReturnStrongest','singleReturnFirst','dualReturn','tripleReturn'],p,errors);
   enumeration(node,'scanningMode',['repetitive','nonRepetitive'],p,errors);
   boolean(node,'dewarpingEnable',p,errors);
   boolean(node,'modelColoringEnable',p,errors);

@@ -288,3 +288,31 @@ test('thumb endpoint reads only the JPEG head and serves the EXIF preview',async
     assert.equal((await fetch(base+'/api/media/thumb?bucket=dji-cloud&key=p%2Fa.tif')).status,404);
   });
 });
+
+test('index shows DJI file names for Pilot 2 uploads; mission endpoint analyses KMZ read-only',async()=>{
+  const planner=require('../../frontend/public/wpml-editor-core');
+  const {templateXml,waylinesXml}=planner.documents({model:'matrice4t',name:'Test',speed:5,takeoffHeight:30,
+    waypoints:[{lat:49.1,lon:8.5,height:50,photo:true},{lat:49.101,lon:8.501,height:50,photo:false}]});
+  const mission=Buffer.from(planner.createKmz(templateXml,waylinesXml));
+  const key='ws/media/s/org_abc_1792649118000.jpg';
+  const storage=viewerStorage({'dji-cloud':[{key,size:5,lastModified:null},{key:'wayline/m.kmz',size:mission.length,lastModified:null}]},
+    {'wayline/m.kmz':mission});
+  const app=express();
+  app.use('/api/media',createMediaRouter(storage,{labels:async()=>new Map([[key,
+    {fileName:'DJI_20261022080518_0001_T.JPG',capturedAt:'2026-10-22T08:05:18+02:00'}]])}));
+  const server=app.listen(0,'127.0.0.1');
+  await new Promise(r=>server.once('listening',r));
+  const base='http://127.0.0.1:'+server.address().port;
+  try{
+    const index=await (await fetch(base+'/api/media/index?bucket=dji-cloud')).json();
+    const item=index.items.find(i=>i.key===key);
+    assert.equal(item.displayName,'DJI_20261022080518_0001_T.JPG');
+    assert.equal(item.capturedAt,'2026-10-22T08:05:18+02:00');
+    const r=await (await fetch(base+'/api/media/mission?bucket=dji-cloud&key=wayline%2Fm.kmz')).json();
+    assert.equal(r.wpmlVersion,'1.0.2');
+    assert.equal(r.aircraft.model,'Matrice 4T');
+    assert.equal(r.aircraft.consistent,true);
+    assert.equal(r.flightReady,false);
+    assert.equal((await fetch(base+'/api/media/mission?bucket=dji-cloud&key=a.jpg')).status,400);
+  }finally{server.close();}
+});

@@ -1,4 +1,5 @@
 'use strict';
+const {noPosition}=require('./media-upload-contract');
 
 // Read-only catalog of POSTGRES-PERSISTED, HEAD-confirmed Pilot 2 media.
 // Does not read images, XMP/EXIF bytes, S3 listings, or unverified uploads.
@@ -42,7 +43,8 @@ function metadata(value){
   if(plain(src.shoot_position)){
     const lat=nullableNumber(src.shoot_position.lat,90);
     const lng=nullableNumber(src.shoot_position.lng,180);
-    if(lat!==null&&lng!==null&&!(lat===0&&lng===0))
+    // No GPS fix: the RC reports values within ~10 m of 0/0 (see media-upload-contract noPosition).
+    if(lat!==null&&lng!==null&&!noPosition(lat,lng))
       m.shoot_position={lat,lng};
   }
   return m;
