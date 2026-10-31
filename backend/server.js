@@ -22,6 +22,7 @@ const {createTrackRecorder}=require('./track-recorder');
 const {createS3Storage}=require('./s3-storage');
 const {createMediaRouter}=require('./media-api');
 const {createPilotMediaLibraryRuntime}=require('./pilot-media-library-runtime');
+const {createPilotMediaUploadRuntime}=require('./pilot-media-upload-runtime');
 const {createMinioDrRouter}=require('./minio-dr-api');
 const {createSmartFarmingCatalogRouter}=require('./smart-farming-catalog');
 const {createHttpAuth}=require('./http-auth');
@@ -164,7 +165,8 @@ app.get('/api/health',(req,res)=>res.json({
   topologyReplyLastAt:ack.lastAt,topologyRestoredDevices:topologyRestored,
   lanViewEnabled:lanAccess.enabled,...trackRecorder.snapshot(),
   trackRetentionDays,...mqttStats.snapshot(),
-  ...(tsaHub?{tsa:tsaHub.stats()}:{})
+  ...(tsaHub?{tsa:tsaHub.stats()}:{}),
+  ...(mediaUpload?{pilotMediaUpload:mediaUpload.stats()}:{})
 }));
 app.use('/api',auth);
 
@@ -203,6 +205,18 @@ const mediaLibraryRouter=createPilotMediaLibraryRuntime({
   storage:mediaStorage,pilot
 });
 if(mediaLibraryRouter)app.use(mediaLibraryRouter);
+// DJI Pilot 2 media synchronisation (STS + upload callbacks + narrow S3 upload proxy); opt-in.
+let mediaUpload=null;
+if(pilot.media.issue)console.error('[pilot media] disabled:',pilot.media.issue);
+try{
+  mediaUpload=pilot.media.enabled?createPilotMediaUploadRuntime({env:process.env,pool,redis,
+    authorize:pilotAuth.principal,storage:mediaStorage,pilot,trustedProxyIps}):null;
+}catch(err){console.error('[pilot media] disabled:',err.message);}
+if(mediaUpload){
+  app.use(mediaUpload.router);
+  mediaUpload.start();
+  console.log('[pilot media] upload sync active, S3 endpoint '+mediaUpload.endpoint);
+}
 
 app.get('/api/devices',(req,res)=>res.json(registry.snapshot()));
 app.get('/api/topology',(req,res)=>res.json(registry.snapshot().map(d=>({sn:d.sn,role:d.role,gatewaySn:d.gatewaySn,model:d.model,topologyOnline:d.topologyOnline,online:d.online,
@@ -245,6 +259,7 @@ server.listen(port,listenAddress,()=>console.log('[skyhub] Port '+server.address
 function stop(){
   ingest.stop();
   if(tsaHub)tsaHub.close();
+  if(mediaUpload)mediaUpload.stop();
   io.close();server.close();
   redis.disconnect();if(pool)pool.end().catch(()=>{});
 }
