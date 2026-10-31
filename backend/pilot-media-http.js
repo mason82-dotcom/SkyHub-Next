@@ -6,7 +6,7 @@
 const express=require('express');
 const {
   workspaceId,parseTinyFingerprintRequest,parseFastUploadRequest,
-  parseUploadCallback,parseGroupUploadCallback,okEnvelope,
+  parseUploadCallback,parseGroupUploadCallback,okEnvelope,bodyShape,
   tinyFingerprintResponse,uploadCallbackResponse
 }=require('./media-upload-contract');
 
@@ -40,8 +40,15 @@ function validatedBody(req){
   catch(_err){return false;}
 }
 function createPilotMediaHandlers({
-  workspace,authorize,allowRequest,audit,store,groups,headObject,transaction
+  workspace,authorize,allowRequest,audit,store,groups,headObject,transaction,
+  log=message=>console.log(message)
 }={}){
+  // Structure only (field names and value types), never values, keys, tokens or serials.
+  function logInvalid(action,req,where){
+    try{log('[pilot media] invalid '+action+' ('+where+'): content-type '+
+      String(req.headers?.['content-type']||'-').slice(0,60)+' body '+JSON.stringify(bodyShape(req.body)));}
+    catch(_err){/* diagnostics only */}
+  }
   if(!workspaceId(workspace)||typeof authorize!=='function'||
     typeof allowRequest!=='function'||typeof audit!=='function'||
     !store||typeof store.existingTinyFingerprints!=='function'||
@@ -80,6 +87,7 @@ function createPilotMediaHandlers({
       return error(res,429,'Rate limit exceeded');
     }
     if(!validatedBody(req)){
+      logInvalid(action,req,'transport');
       try{await recorded('invalid');}
       catch(_err){return error(res,503,'Media audit unavailable');}
       return error(res,400,'Invalid JSON body');
@@ -101,6 +109,7 @@ function createPilotMediaHandlers({
       try{await recorded(reply.outcome);}
       catch(_err){return error(res,503,'Media audit unavailable');}
     }
+    if(reply.outcome==='invalid')logInvalid(action,req,'contract');
     if(reply.status!==200)return error(res,reply.status,reply.message);
     return success(res,reply.data);
   }
