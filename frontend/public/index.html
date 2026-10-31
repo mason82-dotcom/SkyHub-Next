@@ -117,8 +117,7 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;margin:14px 0 8p
   <a href="/media-gallery.html">Medien</a>
 </nav>
   <div class="auth">
-    <input id="token" type="password" placeholder="SkyHub Zugriffstoken" aria-label="Zugriffstoken" autocomplete="off">
-    <button id="connect" type="button" disabled>Verbinden</button>
+    <button id="connect" type="button" disabled>Neu verbinden</button>
     <span id="message" role="status">Nicht verbunden</span>
   </div>
 </header>
@@ -222,7 +221,7 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;margin:14px 0 8p
       <p class="finder-note">Karte bleibt ungefiltert.</p>
     </div>
     <p id="resultCount" class="result-count" role="status">0 Geräte</p>
-    <div id="devices"><p class="muted">Mit Zugriffstoken verbinden.</p></div>
+    <div id="devices"><p class="muted">Verbinde…</p></div>
   </aside>
 </div>
 <section id="takPanel" role="tabpanel" aria-labelledby="tabTak" tabindex="0" hidden>
@@ -408,7 +407,7 @@ function update(){
   if(!data.length){
     const p=document.createElement('p');p.className='muted';
     p.textContent=listState==='loading'?'Lade Geräte…':listState==='auth-required'?
-      'Zugriffstoken eingeben, um Geräte zu laden.':listState==='error'?
+      'Kein Zugriff. Dashboard bitte aus dem Heimnetz öffnen.':listState==='error'?
       'Geräte konnten nicht geladen werden. Erneut verbinden.':'Noch keine Geräte empfangen.';
     target.append(p);
   }else if(!visible.length){
@@ -612,9 +611,8 @@ function update(){
     if(button.dataset.focusSn===focusedSn){button.focus({preventScroll:true});break;}
   }}
 }
-// token===null: token-free read-only access from the configured home network.
-async function connect(token=el('token').value.trim(),quiet=false){
-  if(token!==null && !token){el('message').textContent='Zugriffstoken eingeben';return false;}
+// token===null: token-free read-only access from the configured home network (no prompt in the UI).
+async function connect(token=null,quiet=false){
   const attempt=++connectAttempt;
   resetEvents('Verbindung wird hergestellt.');
   cancelTrackLoad();
@@ -628,7 +626,7 @@ async function connect(token=el('token').value.trim(),quiet=false){
   try{
     const res=await fetch('/api/devices',{headers:token?{Authorization:'Bearer '+token}:{},cache:'no-store'});
     if(attempt!==connectAttempt)return false;
-    if(!res.ok)throw new Error(res.status===401?'Zugriffstoken erforderlich oder ungültig':
+    if(!res.ok)throw new Error(res.status===401?'Kein Zugriff: Dashboard aus dem Heimnetz öffnen':
       res.status===403?'Zugriff verweigert':'Geräte konnten nicht geladen werden (HTTP '+res.status+')');
     const devices=await res.json();
     if(attempt!==connectAttempt)return false;
@@ -874,15 +872,14 @@ setInterval(loadHealth,30000);
 // Age only existing labels; never rebuild a card, move focus or change stored telemetry.
 setInterval(()=>{if(records.size)refreshFieldAges();},5000);
 loadHealth();
-el('connect').addEventListener('click',()=>connect());
+el('connect').addEventListener('click',()=>connect().then(ok=>{if(ok)el('connect').hidden=true;}));
 el('connect').disabled=false;
-el('token').addEventListener('keydown',e=>{if(e.key==='Enter')connect();});
-// In the home network the dashboard opens without a token; elsewhere the field stays.
+// The dashboard opens without any token prompt (home-network read-only access).
 const initialAttempt=connectAttempt+1;
 connect(null,true).then(ok=>{
   if(connectAttempt!==initialAttempt)return;
-  if(ok){el('token').hidden=true;el('connect').hidden=true;}
-  else el('message').textContent='Nicht verbunden';
+  if(ok)el('connect').hidden=true;
+  else el('message').textContent='Kein Zugriff: Dashboard aus dem Heimnetz öffnen';
 });
 update();
 setInterval(update,5000);

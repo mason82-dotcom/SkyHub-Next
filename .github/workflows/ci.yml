@@ -115,8 +115,8 @@ jobs:
       - name: Reproduce restrictive Pi source modes before image build
         run: |
           chmod 600 backend/map-page-referrer.js \
-            frontend/public/media-gallery-verified.js \
-            frontend/public/media-gallery-s3.js
+            frontend/public/media-gallery-app.js \
+            frontend/public/media-library-model.js
       - name: Build the SkyHub Next container
         run: docker build -f backend/Dockerfile -t skyhub-next:test .
       - name: Verify copied maps and media are readable by the image's non-root user
@@ -129,13 +129,14 @@ jobs:
             for file in \
               /app/frontend/public/media-gallery.html \
               /app/frontend/public/media-gallery.css \
-              /app/frontend/public/media-gallery-verified.js \
-              /app/frontend/public/media-gallery-s3.js
+              /app/frontend/public/media-gallery-app.js \
+              /app/frontend/public/media-library-model.js
             do
               test -r "$file"
             done
-            node --check /app/frontend/public/media-gallery-verified.js
-            node --check /app/frontend/public/media-gallery-s3.js
+            node --check /app/frontend/public/media-gallery-app.js
+            node --check /app/frontend/public/media-library-model.js
+            node --check /app/backend/media-preview.js
           '
       - name: Smoke-test bundled runtime modules in the image
         run: |

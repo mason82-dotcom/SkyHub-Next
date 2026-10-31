@@ -64,10 +64,10 @@ test('German number formatter never treats invalid values as measurements',()=>{
   assert.equal(format(Infinity),'—');
   assert.match(format(0.5),/0,500/);
 });
-test('UI source never persists token or injects catalog HTML',()=>{
+test('UI source never persists data or injects catalog HTML',()=>{
   const src=fs.readFileSync(path.resolve(__dirname,'../public/smart-farming-ui.js'),'utf8');
   assert.doesNotMatch(src,/innerHTML|outerHTML|localStorage|sessionStorage|document\.cookie|eval\(/);
-  assert.match(src,/token\.value=''/);
+  assert.doesNotMatch(src,/Authorization|catalogToken/);
   assert.match(src,/credentials:'same-origin'/);
   assert.match(src,/cache:'no-store'/);
 });
@@ -75,7 +75,7 @@ test('Smart Farming page is separate and includes no geospatial tile/map rendere
   const src=fs.readFileSync(path.resolve(__dirname,'../public/smart-farming.html'),'utf8');
   assert.match(src,/href="\/"/);
   assert.match(src,/smart-farming-ui\.js/);
-  assert.match(src,/type="password"/);
+  assert.doesNotMatch(src,/type="password"/);
   assert.match(src,/Nicht kalibriert/);
   assert.doesNotMatch(src,/leaflet|mapbox|<iframe|<img|<form[^>]*action/i);
 });
@@ -85,30 +85,6 @@ test('main dashboard has a discoverable navigation link',()=>{
   assert.match(src,/aria-label="SkyHub-Bereiche"/);
   assert.match(src,/<nav class="skyhub-global-nav"/);
 });
-
-test('M3M access-token transport rejects unencrypted LAN and credential-bearing origins',()=>{
-  for(const url of [
-    'https://rpi5.fritz.box',
-    'https://rpi5.fritz.box:8443',
-    'http://localhost:4001',
-    'http://127.0.0.1:4001',
-    'http://[::1]:4001'
-  ])assert.equal(allowsBearerOrigin(url),true,url);
-  for(const url of [
-    'http://192.168.178.63:4001',
-    'http://rpi5.fritz.box',
-    'http://host.docker.internal',
-    'ftp://localhost',
-    'https://user:password@rpi5.fritz.box',
-    'https://rpi5.fritz.box/private',
-    '',
-    null
-  ])assert.equal(allowsBearerOrigin(url),false,String(url));
-  const src=fs.readFileSync(path.resolve(__dirname,'../public/smart-farming-ui.js'),'utf8');
-  assert.match(src,/if\(!allowsBearerOrigin\(global\?\.location\?\.origin\)\)/);
-  assert.match(src,/token\.value='';\s*setStatus\(doc,'Katalog-Token nur über HTTPS/);
-});
-
 
 // Exercise the actual browser click handler with a minimal DOM rather than
 // relying on a regex against the origin helper; no outbound network.
@@ -125,61 +101,37 @@ function browserHarness(origin, transport){
       click(){return this.handlers.click?.()}};
     nodes.set(id,el);return el;
   }
-  for(const id of ['catalogToken','loadCatalog','clearCatalog','catalogStatus',
+  for(const id of ['loadCatalog','clearCatalog','catalogStatus',
     'candidateList','layerGrid','candidateDetails','catalogCount'])node(id);
   const doc={getElementById:id=>nodes.get(id)};
   browser.SkyHubSmartFarming.mount(doc,transport);
-  return {nodes,token:nodes.get('catalogToken'),load:nodes.get('loadCatalog'),
+  return {nodes,load:nodes.get('loadCatalog'),
     status:nodes.get('catalogStatus'),forget:nodes.get('clearCatalog')};
 }
-test('browser click NEVER transmits Bearer token from insecure LAN origin',async()=>{
-  let calls=0;
-  const h=browserHarness('http://192.168.178.63:4001',async()=>{
-    calls++;throw new Error('Network must never be reached');
-  });
-  h.token.value='private-catalog-token';
-  await h.load.click();
-  assert.equal(calls,0);
-  assert.equal(h.token.value,'');
-  assert.match(h.status.textContent,/HTTPS.*Loopback/);
-  assert.equal(h.status.dataset.kind,'error');
-  assert.equal(h.load.disabled,false);
-});
-test('HTTPS catalog request refuses redirects, never exposes Referrer and clears token',async()=>{
+test('catalog loads automatically without any token prompt or Authorization header',async()=>{
   let requests=0;
-  const h=browserHarness('https://rpi5-pironman.example:9445',async(url,opts)=>{
+  const h=browserHarness('https://rpi5.fritz.box:4443',async(url,opts)=>{
     requests++;
     assert.equal(url,'/api/smart-farming/candidates/');
     assert.equal(opts.method,'GET');
     assert.equal(opts.cache,'no-store');
-    assert.equal(opts.credentials,'same-origin');
     assert.equal(opts.redirect,'error');
     assert.equal(opts.referrerPolicy,'no-referrer');
-    assert.equal(opts.headers.Authorization,'Bearer ephemeral-test-secret');
-    // Real fetch rejects a 3xx when redirect:error; simulate that rejection.
-    throw new TypeError('Redirect refused');
+    assert.equal(opts.headers.Authorization,undefined);
+    return {ok:false,status:404};
   });
-  h.token.value='ephemeral-test-secret';
-  await h.load.click();
+  for(let i=0;i<8;i++)await Promise.resolve();
   assert.equal(requests,1);
-  assert.equal(h.token.value,'');
+  assert.match(h.status.textContent,/nicht aktiviert/);
   assert.equal(h.status.dataset.kind,'error');
-  assert.match(h.status.textContent,/nicht geladen/);
   assert.equal(h.load.disabled,false);
 });
-test('SSH loopback HTTP remains usable, token is erased after auth failure',async()=>{
-  let count=0;
-  const h=browserHarness('http://127.0.0.1:4001',async(_url,opts)=>{
-    count++;
-    assert.equal(opts.redirect,'error');
-    assert.equal(opts.headers.Authorization,'Bearer local-secret');
-    return {ok:false,status:401};
-  });
-  h.token.value='local-secret';
-  await h.load.click();
-  assert.equal(count,1);
-  assert.equal(h.token.value,'');
-  assert.match(h.status.textContent,/Token ungültig/);
+test('outside the home LAN a 401 explains the access path; reset clears the view',async()=>{
+  const h=browserHarness('https://rpi5.fritz.box:4443',async()=>({ok:false,status:401}));
+  for(let i=0;i<8;i++)await Promise.resolve();
+  assert.match(h.status.textContent,/Heimnetz/);
   h.forget.click();
   assert.equal(h.status.dataset.kind,'normal');
+  const page=fs.readFileSync(path.resolve(__dirname,'../public/smart-farming.html'),'utf8');
+  assert.doesNotMatch(page,/type="password"|catalogToken/);
 });

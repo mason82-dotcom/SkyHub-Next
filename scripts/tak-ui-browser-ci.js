@@ -246,7 +246,7 @@ async function run(){
   const guest=await context.newPage();
   guest.on('pageerror',error=>errors.push(error.message));
   await guest.goto(url,{waitUntil:'domcontentloaded'});
-  await guest.waitForFunction(()=>document.querySelector('#devices')?.textContent.includes('Zugriffstoken'),{timeout:15000});
+  await guest.waitForFunction(()=>document.querySelector('#devices')?.textContent.includes('Heimnetz'),{timeout:15000});
   await guest.getByRole('tab',{name:/TAK/}).click();
   assert.ok((await guest.locator('#takPanel').innerText()).includes('nicht integriert'));
   assert.equal(await guest.locator('#takPanel button').count(),0);
