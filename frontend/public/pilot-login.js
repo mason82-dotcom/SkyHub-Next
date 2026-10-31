@@ -10,6 +10,7 @@
   let mqttLogin=null; // Kept only in WebView memory for an explicit retry.
   let lastConfig=null,sessionToken=null,pairingTimer=null;
   let tsaState=null; // null: not requested, otherwise a short German status for the diagnostics
+  let mediaState=null; // same for the media synchronisation
   const memory=Object.create(null);
   const isTls=location.protocol==='https:';
   function status(text){el('result').textContent=text;}
@@ -97,6 +98,9 @@
       'Thing-Modul geladen: '+readBridgeStatus('platformIsComponentLoaded','thing'),
       'MQTT verbunden (DJI): '+readBridgeStatus('thingGetConnectState'),
       ...(tsaState===null?[]:['Lagebild (TSA): '+tsaState+' · WebSocket verbunden: '+readBridgeStatus('wsGetConnectState')]),
+      ...(mediaState===null?[]:['Medien-Synchronisation: '+mediaState+
+        ' · Fotos automatisch: '+readBridgeStatus('mediaGetAutoUploadPhoto')+
+        ' · Videos automatisch: '+readBridgeStatus('mediaGetAutoUploadVideo')]),
       'Gerät gekoppelt: '+(storageGet(TOKEN_KEY)?'ja':'nein')
     ].join('\n');
   }
@@ -168,6 +172,27 @@
         invoke('platformLoadComponent','tsa','{}');
       tsaState='Module geladen';
     }catch(e){tsaState='nicht geladen ('+e.message+')';}
+    refreshDiagnostics();
+  }
+  // Media synchronisation, MANUAL only: automatic uploads stay switched off. With the api and
+  // media modules loaded, files selected in the Pilot 2 album can be uploaded to SkyHub; Pilot 2
+  // then asks for temporary credentials (STS) and reports each file. The settings are re-applied
+  // on every load, so an automatic upload switched on in Pilot 2 is turned off again.
+  // The device token goes to the bridge only.
+  const MEDIA_SETTINGS=Object.freeze({autoUploadPhoto:false,autoUploadPhotoType:0,autoUploadVideo:false});
+  function loadMedia(config){
+    const media=config&&config.media;
+    if(!media||typeof media.apiHost!=='string'||!sessionToken)return;
+    try{
+      if(bridgeBoolean('platformIsComponentLoaded','api')!==true)
+        invoke('platformLoadComponent','api',JSON.stringify({host:media.apiHost,token:sessionToken}));
+      if(bridgeBoolean('platformIsComponentLoaded','media')!==true)
+        invoke('platformLoadComponent','media',JSON.stringify(MEDIA_SETTINGS));
+      invoke('mediaSetAutoUploadPhoto',MEDIA_SETTINGS.autoUploadPhoto);
+      invoke('mediaSetUploadPhotoType',MEDIA_SETTINGS.autoUploadPhotoType);
+      invoke('mediaSetAutoUploadVideo',MEDIA_SETTINGS.autoUploadVideo);
+      mediaState='bereit, nur manueller Upload (automatischer Upload aus)';
+    }catch(e){mediaState='nicht geladen ('+e.message+')';}
     refreshDiagnostics();
   }
   window.skyhubPilotWsState=function(_callbackResult){
@@ -272,12 +297,14 @@
       status('Lade DJI Cloud-Modul ...');
       loadThing(config);
       loadTsa(config);
+      loadMedia(config);
       refreshDiagnostics();
       status('DJI Cloud-Modul geladen. MQTT-Verbindungsstatus wird geprüft ...');
       setTimeout(()=>window.skyhubPilotMqttState(),4000);
       return 'loaded';
     }
     loadTsa(config);
+    loadMedia(config);
     refreshDiagnostics();
     const state=bridgeBoolean('thingGetConnectState');
     if(state===true){

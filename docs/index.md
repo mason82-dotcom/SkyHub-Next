@@ -81,11 +81,12 @@ Diese Dokumente waren bisher nur über Suche oder PR-Beschreibungen erreichbar. 
 - [DJI-Medienverwaltung (Pilot 2 → Cloud): Vertragsbaustein](dji-media-upload-contract.md)
 - [DJI Pilot 2: Lagebild (Situation Awareness, TSA)](dji-pilot-situation-awareness.md)
 - [DJI Pilot 2 ↔ SkyHub WPML: kontrollierte Offline-Abnahme](dji-pilot2-kmz-acceptance.md)
+- [DJI Pilot 2 – Mediensynchronisation RC Plus 2 / RC Pro (manueller Upload)](dji-pilot2-media-sync.md)
 - [DJI Pilot 2 – isolierte HTTPS-Medienendpunkte](dji-pilot2-media-https-api.md)
 - [DJI Pilot 2 Media STS – isolierte HTTPS-Autorisierungsgrenze](dji-pilot2-media-sts-boundary.md)
 - [SkyHub Next – Verifizierte DJI-Pilot-2-Medienbibliothek (Read-only)](dji-pilot2-verified-media-library.md)
 - [DJI Pilot 2 – Persistente Medienregistrierung mit S3-Objektnachweis](dji-pilot2-verified-media-registration.md)
-- [SkyHub Next – eigenständige Mediengalerie (25.10.2026)](media-gallery.md)
+- [SkyHub Next – Mediengalerie (31.10.2026)](media-gallery.md)
 
 **WPML, Waylines und Missionsplanung**
 

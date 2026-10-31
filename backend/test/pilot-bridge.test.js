@@ -36,7 +36,10 @@ async function createPilot(options={}){
     ...(options.loaded?{platformIsComponentLoaded:name=>JSON.stringify({code:0,data:options.loaded.includes(name)})}:{}),
     wsGetConnectState:()=>JSON.stringify({code:0,data:true}),
     thingGetConnectState(){return response;},
-    thingConnect(...args){calls.retry.push(args);return JSON.stringify({code:0});}
+    thingConnect(...args){calls.retry.push(args);return JSON.stringify({code:0});},
+    mediaSetAutoUploadPhoto(value){(calls.media??=[]).push(['photo',value]);return JSON.stringify({code:0});},
+    mediaSetUploadPhotoType(value){(calls.media??=[]).push(['type',value]);return JSON.stringify({code:0});},
+    mediaSetAutoUploadVideo(value){(calls.media??=[]).push(['video',value]);return JSON.stringify({code:0});}
   };
   // A paired RC: the device token from the pairing flow is already in the WebView storage,
   // so the page connects on load (the manual token form no longer exists).
@@ -234,4 +237,24 @@ test('the ws state callback ignores its payload',async()=>{
   await pilot.connect();
   pilot.win.skyhubPilotWsState({token:'SHOULD_NOT_DISPLAY'});
   assert.doesNotMatch(pilot.el('diagnostics').textContent+pilot.el('result').textContent,/SHOULD_NOT_DISPLAY/);
+});
+
+test('media sync loads api and media modules with automatic upload switched off',async()=>{
+  const pilot=await createPilot({bootstrap:{...bootstrap,media:{apiHost:'https://rpi5.fritz.box'}}});
+  await pilot.connect();
+  const loaded=pilot.calls.load.map(args=>args[0]);
+  assert.ok(loaded.includes('api'));
+  assert.ok(loaded.includes('media'));
+  const api=pilot.calls.load.find(args=>args[0]==='api');
+  assert.deepEqual(JSON.parse(api[1]),{host:'https://rpi5.fritz.box',token:'placeholder-test-token'});
+  const media=pilot.calls.load.find(args=>args[0]==='media');
+  assert.deepEqual(JSON.parse(media[1]),{autoUploadPhoto:false,autoUploadPhotoType:0,autoUploadVideo:false});
+  assert.deepEqual(pilot.calls.media,[['photo',false],['type',0],['video',false]]);
+  assert.match(pilot.el('diagnostics').textContent,/nur manueller Upload/);
+});
+
+test('without media config no api or media module is loaded',async()=>{
+  const pilot=await createPilot();
+  await pilot.connect();
+  assert.deepEqual(pilot.calls.load.map(args=>args[0]),['thing']);
 });

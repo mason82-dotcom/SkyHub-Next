@@ -4,6 +4,7 @@
 // No personal token, serial or request-specific identifier is stored in Redis.
 const {workspaceId}=require('./media-upload-contract');
 const ACTION_LIMITS=Object.freeze({
+  sts_issue:30,
   tiny_fingerprints:60,
   fast_upload:120,
   upload_callback:120,

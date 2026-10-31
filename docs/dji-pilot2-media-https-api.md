@@ -1,6 +1,6 @@
 # DJI Pilot 2 – isolierte HTTPS-Medienendpunkte
 
-Stand: 25.10.2026. Der hier beschriebene schreibende Callback-Router bleibt isoliert und ist nicht produktiv gemountet. Die zugrunde liegenden Tabellen 003/004 sind inzwischen auf `rpi5` als Voraussetzung der getrennten **lesenden** Bibliothek vorhanden; deren Aktivierung ist [separat dokumentiert](dji-pilot2-verified-media-library.md#pi-abnahme-vom-25102026).
+Stand: 31.10.2026: Der Callback-Router wird mit `SKYHUB_PILOT_MEDIA_UPLOAD_ENABLED=true` gemountet, siehe [Mediensynchronisation](dji-pilot2-media-sync.md). Ursprünglicher Stand 25.10.2026: isoliert, nicht produktiv gemountet. Die zugrunde liegenden Tabellen 003/004 sind inzwischen auf `rpi5` als Voraussetzung der getrennten **lesenden** Bibliothek vorhanden; deren Aktivierung ist [separat dokumentiert](dji-pilot2-verified-media-library.md#pi-abnahme-vom-25102026).
 
 ## Umfang und Authentifizierung
 

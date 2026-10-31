@@ -64,6 +64,8 @@ services:
     labels: *no-watchtower
     ports:
       - "${SKYHUB_BIND_ADDRESS:-127.0.0.1}:${SKYHUB_HTTP_PORT:-4001}:4000"
+      # Narrow S3 upload proxy for DJI Pilot 2 media sync (only answers when enabled; Caddy :9446 in front).
+      - "127.0.0.1:${SKYHUB_S3_UPLOAD_PROXY_HOST_PORT:-4002}:4002"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -87,6 +89,13 @@ services:
       # separate identity, backup and Pi acceptance gates have passed.
       SKYHUB_MEDIA_LIBRARY_ENABLED: ${SKYHUB_MEDIA_LIBRARY_ENABLED:-false}
       SKYHUB_MEDIA_LIBRARY_CURSOR_SECRET: ${SKYHUB_MEDIA_LIBRARY_CURSOR_SECRET:-}
+      # DJI Pilot 2 media synchronisation: OFF unless enabled. Needs a dedicated MinIO uploader account
+      # (scripts/pi-minio-pilot-uploader.sh), SKYHUB_PILOT_PUBLIC_URL and the Caddy routes
+      # (scripts/pi-caddy-pilot-media.sh). Temporary credentials only allow uploads below one session prefix.
+      SKYHUB_PILOT_MEDIA_UPLOAD_ENABLED: ${SKYHUB_PILOT_MEDIA_UPLOAD_ENABLED:-false}
+      SKYHUB_PILOT_MEDIA_S3_PUBLIC_ENDPOINT: ${SKYHUB_PILOT_MEDIA_S3_PUBLIC_ENDPOINT:-}
+      SKYHUB_PILOT_UPLOAD_S3_ACCESS_KEY: ${SKYHUB_PILOT_UPLOAD_S3_ACCESS_KEY:-}
+      SKYHUB_PILOT_UPLOAD_S3_SECRET_KEY: ${SKYHUB_PILOT_UPLOAD_S3_SECRET_KEY:-}
       SKYHUB_BIND_ADDRESS: ${SKYHUB_BIND_ADDRESS:-127.0.0.1}
       SKYHUB_VIEW_TOKEN: ${SKYHUB_VIEW_TOKEN:?Set SKYHUB_VIEW_TOKEN}
       # EMQX/1884 by default; Mosquitto/1883 requires explicit opt-in in .env.
