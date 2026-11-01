@@ -22,6 +22,7 @@ const {createTrackRecorder}=require('./track-recorder');
 const {createS3Storage}=require('./s3-storage');
 const {createMediaRouter}=require('./media-api');
 const {createThermalRouter}=require('./thermal');
+const {createSmartFarmingCaptures}=require('./smart-farming-captures');
 const {createPilotMediaLibraryRuntime}=require('./pilot-media-library-runtime');
 const {createPilotMediaUploadRuntime}=require('./pilot-media-upload-runtime');
 const {createMinioDrRouter}=require('./minio-dr-api');
@@ -210,6 +211,9 @@ if(mediaStorage){
   // Thermal module: radiometric R-JPEGs from the same storage, read-only.
   app.use('/api/thermal',createThermalRouter({storage:mediaStorage,
     bucketIndex:mediaRouter.bucketIndex,buckets:()=>mediaStorage.buckets()}));
+  // Smart Farming: Mavic 3M multispectral captures grouped by CaptureUUID (read-only).
+  app.use('/api/smart-farming/captures',createSmartFarmingCaptures({storage:mediaStorage,
+    bucketIndex:mediaRouter.bucketIndex}).router);
 }
 const mediaLibraryRouter=createPilotMediaLibraryRuntime({
   env:process.env,db:pool,redis,authorize:pilotAuth.principal,

@@ -124,3 +124,12 @@ test('thermal module page: no login, navigation, tools and estimate notice',()=>
   for(const name of ['index.html','wpml-editor.html','wpml-route-library.html','wpml-survey-preview.html',
     'smart-farming.html','media-gallery.html'])assert.match(file(name),/href="\/thermal.html">Thermal<\/a>/,name);
 });
+
+test('Smart Farming page lists multispectral captures without login or HTML injection',()=>{
+  const html=file('smart-farming.html'),src=file('smart-farming-captures.js');
+  new vm.Script(src);
+  for(const id of ['captureList','captureStatus','loadCaptures','captureManifest'])assert.ok(html.includes('id="'+id+'"'),id);
+  assert.match(html,/smart-farming-captures\.js/);
+  assert.match(html,/kein Orthomosaik/);
+  assert.doesNotMatch(src,/innerHTML|Authorization|localStorage|eval\s*\(/);
+});

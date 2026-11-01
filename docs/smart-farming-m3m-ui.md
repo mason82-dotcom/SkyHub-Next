@@ -132,3 +132,13 @@ node --test backend/test/smart-farming-catalog.test.js \
 Die vorhandene M3M-Acceptance-CI enthält diese Tests zusätzlich. Der
 opt-in-Katalog bleibt standardmäßig deaktiviert; ein Test-Erfolg ist
 **keine** Kalibrierungs-, Agronomie- oder Missionsfreigabe.
+
+## Multispektral-Aufnahmen (seit 01.11.2026)
+
+Die Smart-Farming-Seite zeigt oberhalb des Katalogs alle **Mavic-3M-Aufnahmen** aus MinIO (`GET /api/smart-farming/captures`, Heimnetz ohne Anmeldung, nur lesend). Jede Band-TIFF wird über ihren XMP-Kopf (erste 64 KB) erkannt, nicht über den Dateinamen. So werden Bänder einer Aufnahme über die **CaptureUUID** zusammengeführt, auch wenn sie aus verschiedenen Quellen stammen (SD-Import `DJI_…_MS_G/RE.TIF` und Pilot-2-Upload `org_<fingerprint>_<ms>.tiff` für R/NIR).
+
+Je Aufnahme: Vollständigkeit der Bänder G/R/RE/NIR, Sonnensensor (Irradiance), GPS, Höhe über Start, Bewertung **auswertbar** (alle vier Bänder, Tageslicht) mit Hinweisen (kein GPS, am Boden aufgenommen), Download der Bänder und – falls vorhanden – die NDVI-Vorschau und Indexwerte (NDVI/GNDVI/NDRE) aus `farming/ms-preview/` der früheren Pipeline (15.10.2026).
+
+`GET /api/smart-farming/captures/manifest` liefert ein JSON-Manifest (`skyhub-m3m-capture-manifest-v1`) mit Objektverweisen, Größe, ETag, Wellenlänge und Irradiance je Band als Eingang für die Orthomosaik-/Kandidaten-Pipeline (DEDAL/ODM → `m3m_smart_farming_candidate.py` → Katalog).
+
+**Bestand am 01.11.2026:** 4 Aufnahmen, alle Bänder vorhanden. 3 auswertbar (15.10.2026, 14:02:40–14:03:06, Gartenszene vom Boden, NDVI-Median 0,56–0,57), 1 nicht auswertbar (01.10.2026, 22:38, Nachtaufnahme ohne Sonnenlicht und GPS). Keine Mapping-Flüge: für Karten und Katalog-Kandidaten ist ein Mavic-3M-Flug mit Überlappung nötig.

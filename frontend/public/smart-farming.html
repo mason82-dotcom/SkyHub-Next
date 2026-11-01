@@ -42,6 +42,22 @@ button.secondary{background:#243b51}
 .metric-note,.empty-state,.fine{color:var(--muted);font-size:13px}
 .metric-note{margin:14px 0 0}
 small{color:var(--muted)}
+.capture-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.capture-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-top:14px}
+.capture-card{border:1px solid var(--sky-border,#334c63);border-radius:12px;padding:14px;background:var(--sky-white,#182b41);display:grid;gap:10px;align-content:start}
+.capture-card h3{margin:0;font-size:16px}
+.capture-card figure{margin:0}
+.capture-card img{width:100%;height:auto;border-radius:8px;display:block;background:#0b1928}
+.capture-card figcaption{font-size:12px;color:var(--sky-muted,#b1c2d2);margin-top:4px}
+.capture-status{display:inline-block;font-size:12px;font-weight:700;border-radius:100px;padding:2px 10px;border:1px solid}
+.capture-status.ok{color:var(--sky-success,#8fe3b0);background:var(--sky-success-soft,transparent)}
+.capture-status.bad{color:var(--sky-warning,#ffbeae);background:var(--sky-warning-soft,transparent)}
+.band-row{display:flex;flex-wrap:wrap;gap:6px}
+.band-chip{font-size:12px;border:1px solid var(--sky-border,#476077);border-radius:8px;padding:3px 8px;text-decoration:none}
+.band-chip.missing{opacity:.55;border-style:dashed}
+.capture-table{width:100%;border-collapse:collapse;font-size:13px}
+.capture-table th,.capture-table td{text-align:left;padding:4px 6px;border-bottom:1px solid var(--sky-border,#334c63)}
+.capture-issues{margin:0;padding-left:18px;font-size:13px;color:var(--sky-warning,#ffbeae)}
 @media(max-width:800px){.layout{grid-template-columns:1fr}.metric-grid{grid-template-columns:1fr}header{align-items:flex-start}}
 </style>
 <link rel="stylesheet" href="/skyhub-light.css">
@@ -70,6 +86,18 @@ small{color:var(--muted)}
     Die Ergebnisse sind ausschließlich experimentelle Metadaten. Es gibt weder GIS-/Kartenkacheln noch bestätigte Reflexionskalibrierung, Düngeempfehlungen, Ausbringkarten, Flugmissionen oder Agras-Ansteuerung.
     Ein gültiger Kataloghash bestätigt nur die Kandidatendaten am Lesezeitpunkt; keine erneute Rasterprüfung.
   </section>
+  <section class="panel" aria-labelledby="capturesHeading">
+    <div class="capture-head">
+      <h2 id="capturesHeading">Multispektral-Aufnahmen (Mavic 3M)</h2>
+      <div class="form">
+        <button id="loadCaptures" type="button">Aufnahmen neu einlesen</button>
+        <a id="captureManifest" class="fine" href="/api/smart-farming/captures/manifest" download>Aufnahme-Manifest (JSON) für die Orthomosaik-Pipeline</a>
+      </div>
+    </div>
+    <p class="fine">Alle Band-TIFFs (Grün, Rot, RedEdge, NIR) aus dem Speicher, über die CaptureUUID zu Aufnahmen zusammengeführt, auch wenn Bänder aus SD-Import und Pilot-2-Upload stammen. Einzelbilder, kein Orthomosaik und keine kalibrierte Reflexion.</p>
+    <p id="captureStatus" class="fine" role="status" aria-live="polite">Aufnahmen werden eingelesen …</p>
+    <div id="captureList" class="capture-grid" aria-label="Multispektral-Aufnahmen"></div>
+  </section>
   <section class="panel" aria-labelledby="accessHeading">
     <h2 id="accessHeading">Katalog</h2>
     <div class="form">
@@ -93,6 +121,7 @@ small{color:var(--muted)}
   </section>
 </main>
 <script src="/smart-farming-ui.js"></script>
+<script src="/smart-farming-captures.js"></script>
 <script>
 'use strict';
 if(window.SkyHubSmartFarming)window.SkyHubSmartFarming.mount(document);
