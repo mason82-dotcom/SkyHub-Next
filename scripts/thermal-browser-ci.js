@@ -18,7 +18,8 @@ function rjpeg(){
   const parts=[Buffer.from([255,216]),segment(0xE1,Buffer.from('<x:xmpmeta><rdf:Description drone-dji:DroneModel="M4T" drone-dji:ImageSource="InfraredCamera"/></x:xmpmeta>'))];
   for(let i=0;i<raw.length;i+=65000)parts.push(segment(0xE3,raw.subarray(i,i+65000)));
   const app4=Buffer.alloc(64);app4.write('iirp',4);app4.writeFloatLE(.95,40);parts.push(segment(0xE4,app4),Buffer.from([255,218,0,2,255,217]));
-  return Buffer.concat(parts);
+  // Synthetic opaque trailer reproduces the reported 490-byte post-EOI case.
+  return Buffer.concat([...parts,Buffer.alloc(490,0x5A)]);
 }
 const jpeg=rjpeg();let failB=true,slowC=false,shortRaw=false;
 const app=express();

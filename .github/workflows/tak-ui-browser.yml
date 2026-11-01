@@ -9,6 +9,9 @@ on:
     paths:
       - "frontend/public/**"
       - "scripts/tak-ui-browser-ci.js"
+      - "scripts/thermal-browser-ci.js"
+      - "backend/thermal.js"
+      - "backend/media-preview.js"
       - ".github/workflows/tak-ui-browser.yml"
   workflow_dispatch:
 
