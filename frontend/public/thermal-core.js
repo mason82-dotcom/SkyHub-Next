@@ -3,6 +3,8 @@
 (function(root){
 'use strict';
 const KELVIN=273.15;
+const ESTIMATE='Schätzung aus Rohdaten (raw/64-273,15), keine DJI-Kalibrierung';
+const CALCULATION='skyhub-thermal-estimate-v2';
 
 function rawToCelsius(raw){return raw/64-KELVIN;}
 
@@ -10,18 +12,18 @@ function rawToCelsius(raw){return raw/64-KELVIN;}
 // The camera value is taken as measured with the file emissivity epsFile and the same reflected
 // temperature; with eps === epsFile the value is unchanged.
 function correct(tC,{epsFile=0.95,eps=epsFile,reflected=20}={}){
-  if(!(eps>0&&eps<=1)||!(epsFile>0&&epsFile<=1)||Math.abs(eps-epsFile)<1e-9)return tC;
+  if(!Number.isFinite(tC)||tC<-KELVIN||!Number.isFinite(eps)||eps<0.1||eps>1||
+     !Number.isFinite(epsFile)||epsFile<0.1||epsFile>1||
+     !Number.isFinite(reflected)||reflected<-KELVIN)throw new RangeError('Ungültige Korrekturparameter');
+  if(Math.abs(eps-epsFile)<1e-9)return tC;
   const t4=(tC+KELVIN)**4,r4=(reflected+KELVIN)**4;
   const v=(epsFile*t4+(eps-epsFile)*r4)/eps;
-  return v>0?v**0.25-KELVIN:NaN;
+  if(!(v>=0))throw new RangeError('Korrektur ergibt keine physikalisch mögliche Temperatur');
+  return v**0.25-KELVIN;
 }
 function temperatures(raw,params={}){
   const out=new Float32Array(raw.length);
-  const corrected=params.eps!==undefined&&params.epsFile!==undefined&&Math.abs(params.eps-params.epsFile)>1e-9;
-  for(let i=0;i<raw.length;i++){
-    const t=rawToCelsius(raw[i]);
-    out[i]=corrected?correct(t,params):t;
-  }
+  for(let i=0;i<raw.length;i++)out[i]=correct(rawToCelsius(raw[i]),params);
   return out;
 }
 
@@ -98,13 +100,16 @@ function render(temps,{min,max,palette='iron',isotherm=null}){
 }
 function csvValue(v){
   if(typeof v==='number')return Number.isFinite(v)?v.toFixed(2).replace('.',','):'';
-  const s=String(v??'');
-  return /[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
+  let s=String(v??'');
+  if(/^[=+@\-\t\r]/.test(s))s="'"+s;
+  return /[;"\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
 }
 // German Excel CSV: semicolon separator, decimal comma.
 function csv(rows){return '﻿'+rows.map(r=>r.map(csvValue).join(';')).join('\r\n')+'\r\n';}
-function matrixCsv(temps,width,height){
-  const rows=[];
+function matrixCsv(temps,width,height,metadata=[]){
+  if(!Number.isSafeInteger(width)||!Number.isSafeInteger(height)||width<1||height<1||
+     temps.length!==width*height)throw new RangeError('Temperaturmatrix hat eine ungültige Größe');
+  const rows=metadata.length?[...metadata,[],['Temperaturmatrix °C; Zeile=y, Spalte=x; Ursprung links oben']]:[];
   for(let y=0;y<height;y++)rows.push(Array.from(temps.subarray(y*width,(y+1)*width)));
   return csv(rows);
 }
@@ -112,7 +117,7 @@ function format(t,digits=1){
   return Number.isFinite(t)?t.toLocaleString('de-DE',{minimumFractionDigits:digits,maximumFractionDigits:digits})+' °C':'—';
 }
 
-const api=Object.freeze({KELVIN,rawToCelsius,correct,temperatures,regionStats,histogram,lut,render,
+const api=Object.freeze({KELVIN,ESTIMATE,CALCULATION,rawToCelsius,correct,temperatures,regionStats,histogram,lut,render,
   PALETTE_LABELS,PALETTES:Object.keys(STOPS),csv,matrixCsv,format});
 if(typeof module==='object'&&module.exports)module.exports=api;
 if(root)root.SkyhubThermal=api;

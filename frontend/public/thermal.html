@@ -32,7 +32,7 @@
       <h1>Thermal<span>modul</span></h1>
       <p>Alle Wärmebilder (DJI R-JPEG) aus dem SkyHub-Speicher: Darstellung mit Paletten, Temperatur an jeder Stelle, Messpunkte und -bereiche, Isothermen, Emissionsgrad-Korrektur, Serienauswertung und Export.</p>
     </div>
-    <p class="estimate" id="estimate">Temperaturen sind Schätzwerte aus den Rohdaten (ohne DJI Thermal SDK), keine kalibrierte Messung.</p>
+    <p class="estimate" id="estimate">Temperaturen sind Schätzwerte aus den Rohdaten (ohne DJI Thermal SDK), keine kalibrierte Messung. Kamerakompatibilität und Genauigkeit sind nicht verifiziert.</p>
   </div>
   <p id="message" class="message" role="status" aria-live="polite">Wärmebilder werden gesucht …</p>
 
@@ -55,14 +55,15 @@
         <label class="check"><input type="checkbox" id="auto-range" checked> Bereich automatisch</label>
         <label>Min <input type="number" id="range-min" step="0.1" inputmode="decimal"></label>
         <label>Max <input type="number" id="range-max" step="0.1" inputmode="decimal"></label>
-        <label>Emissionsgrad <input type="number" id="eps" min="0.1" max="1" step="0.01" inputmode="decimal"></label>
-        <label>Reflektierte Temp. °C <input type="number" id="reflected" step="0.5" value="20" inputmode="decimal"></label>
+        <label>Emissionsgrad <input type="number" id="eps" aria-describedby="correction-help" min="0.1" max="1" step="0.01" inputmode="decimal"></label>
+        <label>Reflektierte Temp. °C <input type="number" id="reflected" aria-describedby="correction-help" min="-273.15" step="0.5" value="20" inputmode="decimal"></label>
         <label>Isotherme <select id="iso-mode">
           <option value="">aus</option><option value="above">über</option><option value="below">unter</option><option value="between">zwischen</option>
         </select></label>
         <label>T1 <input type="number" id="iso-t1" step="0.1" inputmode="decimal"></label>
         <label>T2 <input type="number" id="iso-t2" step="0.1" inputmode="decimal"></label>
       </div>
+      <p id="correction-help" class="fine">Reflektierte Temperatur wirkt nur bei geändertem Emissionsgrad. Fehlende Dateiemissivität wird ausdrücklich mit dem angenommenen Ausgangswert 0,95 ausgewiesen. Ungültige Eingaben sperren den Export.</p>
       <div class="thermal-toolbar">
         <div class="segmented" role="group" aria-label="Werkzeug">
           <button type="button" data-tool="view" aria-pressed="true">Ansehen</button>
@@ -72,9 +73,9 @@
         <label class="check"><input type="checkbox" id="show-spots" checked> Hot-/Cold-Spot</label>
         <label class="check"><input type="checkbox" id="show-visual" checked> Foto daneben</label>
         <button type="button" class="secondary" id="clear-measurements">Messungen löschen</button>
-        <button type="button" class="secondary" id="export-png">PNG</button>
-        <button type="button" class="secondary" id="export-csv">CSV Messungen</button>
-        <button type="button" class="secondary" id="export-matrix">CSV Temperaturmatrix</button>
+        <button type="button" class="secondary" id="export-png" disabled>PNG</button>
+        <button type="button" class="secondary" id="export-csv" disabled>CSV Messungen</button>
+        <button type="button" class="secondary" id="export-matrix" disabled>CSV Temperaturmatrix</button>
       </div>
 
       <div class="thermal-stage" id="stage">
@@ -83,7 +84,7 @@
           <figcaption id="readout" class="readout" aria-live="off">Zeiger auf das Bild bewegen</figcaption>
         </figure>
         <figure class="thermal-figure" id="visual-figure">
-          <img id="visual" alt="Foto zur selben Aufnahme">
+          <img id="visual" alt="Fotokandidat mit ungeprüfter Zuordnung">
           <figcaption id="visual-caption" class="readout"></figcaption>
         </figure>
       </div>
@@ -103,7 +104,7 @@
           <h2 id="meas-title">Messungen</h2>
           <table class="table"><thead><tr><th>#</th><th>Art</th><th>Position</th><th>Min</th><th>Mittel</th><th>Max</th><th></th></tr></thead>
             <tbody id="measurements"></tbody></table>
-          <p class="fine">Messpunkt: Klick ins Wärmebild. Messbereich: Rechteck aufziehen. Werte folgen Emissionsgrad und reflektierter Temperatur.</p>
+          <p class="fine">Messpunkt: Klick ins Wärmebild. Messbereich: Rechteck aufziehen. Werte folgen der gewählten Emissionsgrad-Näherung; keine kalibrierte Messung.</p>
         </section>
       </div>
     </div>
@@ -116,6 +117,7 @@
       <button type="button" class="secondary" id="series-csv" disabled>CSV</button>
       <span id="series-status" class="fine" aria-live="polite"></span>
     </div>
+    <p class="fine">Serienwerte sind unkorrigierte Schätzwerte aus der Datei. Emissionsgrad und reflektierte Temperatur der Einzelbildanalyse werden hier nicht angewendet.</p>
     <svg id="series-chart" class="series-chart" viewBox="0 0 900 260" role="img" aria-label="Temperaturverlauf der Serie"></svg>
     <table class="table"><thead><tr><th>Zeit</th><th>Datei</th><th>Min</th><th>Median</th><th>Mittel</th><th>Max</th><th>Hotspot</th><th>Distanz</th><th>Neigung</th></tr></thead>
       <tbody id="series-table"></tbody></table>

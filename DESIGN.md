@@ -104,3 +104,7 @@ CI: `backend/test/webui-light-theme.test.js`, `scripts/tak-ui-browser-ci.js`, `t
 ### Mobile Karte und Sicherheitsinformationen
 
 Im WPML-Missionseditor und in der Survey-Vorschau werden die erklärenden Sicherheitskarten bei Bildschirmbreiten bis einschließlich 660px **nicht mehr über der Leaflet-Karte** gerendert. Sie stehen stattdessen vollständig lesbar unter der Karte. Mindestens 300px nutzbare Kartenhöhe, die Zoom-Steuerung und alle Hinweise zur fehlenden DJI-Flugfreigabe bleiben erhalten. Desktop-/Tablet-Layouts bleiben unverändert.
+
+## Thermal: verlässlicher Bild- und Exportzustand
+
+Die Thermalansicht übernimmt weiterhin die bestehende Mediengestaltung aus `media-gallery.css` und `thermal.css`; diese Korrektur führt keine neuen visuellen Tokens ein. Die vorhandenen nativen Selects bleiben plattformeigene Bedienelemente. Lade-/Fehlerstatus und ungültige Parameter sperren Exporte sichtbar; Annahmen, unkalibrierte Werte und ungeprüfte Fotokandidaten bleiben in Text benannt. Tabellen scrollen auf schmalen Ansichten innerhalb ihrer eigenen Fläche, Metadaten dürfen umbrechen. Der Exportfuß ist ein Teil des ausgegebenen PNG, damit Warnung und Quellenbezug beim Weitergeben erhalten bleiben. Der Ablaufvertrag steht in `UX-CONTRACT.md` und `docs/thermal.md`.

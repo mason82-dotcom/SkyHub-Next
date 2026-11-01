@@ -4,7 +4,7 @@
 const T=window.SkyhubThermal;
 const el=id=>document.getElementById(id);
 const state={items:[],current:null,frame:null,temps:null,width:640,height:512,tool:'view',
-  measurements:[],drag:null,series:[],seriesKey:null};
+  measurements:[],drag:null,series:[],seriesKey:null,ready:false,loadTicket:0,controller:null};
 const store=new Map(); // per-image measurements while the page is open
 
 function node(tag,className,text){
@@ -17,8 +17,8 @@ function say(text,kind='info'){
   const m=el('message');m.textContent=text;m.dataset.kind=kind;m.hidden=!text;
 }
 const q=(bucket,key)=>new URLSearchParams({bucket,key}).toString();
-async function getJson(url){
-  const r=await fetch(url,{cache:'no-store'});
+async function getJson(url,signal){
+  const r=await fetch(url,{cache:'no-store',signal:signal||AbortSignal.timeout(20000)});
   if(!r.ok){const e=new Error('HTTP '+r.status);e.status=r.status;throw e;}
   return r.json();
 }
@@ -53,20 +53,43 @@ function renderList(){
 }
 
 // ---------- image ----------
+function setReady(ready){
+  state.ready=ready;
+  for(const id of ['export-png','export-csv','export-matrix'])el(id).disabled=!ready;
+}
 function params(){
   const epsFile=state.frame?.emissivity??0.95;
-  const eps=Number(el('eps').value)||epsFile;
-  return {epsFile,eps,reflected:Number(el('reflected').value)||20};
+  const eps=el('eps').value.trim()===''?NaN:Number(el('eps').value);
+  const reflected=el('reflected').value.trim()===''?NaN:Number(el('reflected').value);
+  const validEps=Number.isFinite(eps)&&eps>=0.1&&eps<=1;
+  const validRef=Number.isFinite(reflected)&&reflected>=-T.KELVIN;
+  el('eps').setAttribute('aria-invalid',String(!validEps));
+  el('reflected').setAttribute('aria-invalid',String(!validRef));
+  if(!validEps||!validRef)throw new RangeError('Emissionsgrad muss 0,1 bis 1 sein; reflektierte Temperatur mindestens −273,15 °C.');
+  return {epsFile,eps,reflected,emissivityAssumed:state.frame?.emissivity==null};
 }
 function recompute(){
   if(!state.frame)return;
-  state.temps=T.temperatures(state.frame.raw,params());
-  const s=T.regionStats(state.temps,state.width,state.height);
-  state.whole=s;
-  if(el('auto-range').checked){
-    el('range-min').value=s.p1.toFixed(1);el('range-max').value=s.p99.toFixed(1);
+  setReady(false);
+  try{
+    const p=params();
+    state.temps=T.temperatures(state.frame.raw,p);
+    state.whole=T.regionStats(state.temps,state.width,state.height);
+    if(!state.whole||state.whole.pixels!==state.width*state.height)throw new Error('Ungültige Temperaturwerte');
+    if(el('auto-range').checked){
+      el('range-min').value=state.whole.p1.toFixed(1);el('range-max').value=state.whole.p99.toFixed(1);
+    }
+    renderMeasurements();draw();renderStats();
+    state.appliedParams={...p};
+    setReady(true);say('');
+  }catch(error){
+    state.temps=null;state.whole=null;
+    el('thermal').getContext('2d').clearRect(0,0,state.width,state.height);
+    el('measurements').replaceChildren();el('stats').replaceChildren();el('legend').replaceChildren();
+    el('histogram').getContext('2d').clearRect(0,0,480,110);
+    el('readout').textContent='Keine gültige Auswertung';
+    say(error.message,'error');
   }
-  draw();renderStats();renderMeasurements();
 }
 function range(){
   let min=Number(el('range-min').value),max=Number(el('range-max').value);
@@ -143,7 +166,9 @@ function renderStats(){
     ['Minimum',T.format(s.min)+' ('+s.cold.x+'/'+s.cold.y+')'],['Median',T.format(s.median)],
     ['Mittelwert',T.format(s.mean)],['Maximum',T.format(s.max)+' ('+s.hot.x+'/'+s.hot.y+')'],
     ['Spanne',T.format(s.max-s.min)],
-    ['Emissionsgrad',p.eps.toLocaleString('de-DE')+(Math.abs(p.eps-p.epsFile)>1e-9?' (Datei: '+p.epsFile+', korrigiert)':' (aus Datei)')]
+    ['Emissionsgrad',p.eps.toLocaleString('de-DE')+(p.emissivityAssumed?' (Dateiwert fehlt; Ausgangswert 0,95 angenommen)':
+      Math.abs(p.eps-p.epsFile)>1e-9?' (Datei: '+p.epsFile+', korrigiert)':' (aus Datei)')],
+    ['Korrektur',Math.abs(p.eps-p.epsFile)>1e-9?'Gesamtstrahlungs-Näherung':'Keine Umrechnung; reflektierte Temperatur wirkt nur bei geändertem Emissionsgrad']
   ]);
 }
 function renderMeta(meta){
@@ -156,7 +181,8 @@ function renderMeta(meta){
     ['Kameraneigung',m.gimbalPitch!==null&&m.gimbalPitch!==undefined?m.gimbalPitch+'°':''],
     ['Richtung',m.gimbalYaw!==null&&m.gimbalYaw!==undefined?m.gimbalYaw+'°':''],
     ['Höhe über Start',m.relativeAltitude!==null&&m.relativeAltitude!==undefined?m.relativeAltitude+' m':''],
-    ['Berechnung',meta.estimate]
+    ['Berechnung',meta.estimate],['Formatprüfung','APP3-Layout erkannt; Kamerakompatibilität nicht verifiziert'],
+    ['Quellversion (SHA-256)',meta.version]
   ]);
 }
 function renderMeasurements(){
@@ -179,35 +205,62 @@ function renderMeasurements(){
   }
 }
 async function open(item){
-  state.current=item;
-  renderList();
-  say('Lade Wärmebild '+item.name+' …');
+  const ticket=++state.loadTicket;
+  state.controller?.abort();
+  const controller=new AbortController();state.controller=controller;
+  const timeout=setTimeout(()=>controller.abort(),20000);
+  state.current=item;state.frame=null;state.temps=null;state.whole=null;state.drag=null;
+  state.measurements=[];state.appliedParams=null;
+  setReady(false);
+  el('thermal').getContext('2d').clearRect(0,0,el('thermal').width,el('thermal').height);
+  el('histogram').getContext('2d').clearRect(0,0,480,110);
+  for(const id of ['stats','meta','measurements','legend'])el(id).replaceChildren();
+  el('visual').removeAttribute('src');el('visual-caption').textContent='';
+  el('readout').textContent='Wärmebild wird geladen …';
+  renderList();say('Lade Wärmebild '+item.name+' …');
   try{
-    const [meta,raw]=await Promise.all([
-      getJson('/api/thermal/meta?'+q(item.bucket,item.key)),
-      fetch('/api/thermal/raw?'+q(item.bucket,item.key),{cache:'no-store'}).then(r=>{
-        if(!r.ok)throw Object.assign(new Error('HTTP '+r.status),{status:r.status});return r.arrayBuffer();})
-    ]);
-    if(state.current!==item)return;
+    const meta=await getJson('/api/thermal/meta?'+q(item.bucket,item.key),controller.signal);
+    if(ticket!==state.loadTicket)return;
+    if(!/^[0-9a-f]{64}$/.test(meta.version)||!Number.isSafeInteger(meta.width)||!Number.isSafeInteger(meta.height)||
+       ![[320,256],[640,512],[1280,1024]].some(([w,h])=>w===meta.width&&h===meta.height)){
+      throw new Error('Ungültige Thermal-Metadaten');
+    }
+    const r=await fetch('/api/thermal/raw?'+q(item.bucket,item.key)+'&version='+meta.version,
+      {cache:'no-store',signal:controller.signal});
+    if(!r.ok)throw Object.assign(new Error('HTTP '+r.status),{status:r.status});
+    const raw=await r.arrayBuffer();
+    if(r.headers.get('X-Thermal-Version')!==meta.version||
+       Number(r.headers.get('X-Thermal-Width'))!==meta.width||
+       Number(r.headers.get('X-Thermal-Height'))!==meta.height||raw.byteLength!==meta.width*meta.height*2){
+      throw new Error('Rohdaten und Metadaten gehören nicht zur selben Bildversion');
+    }
+    if(ticket!==state.loadTicket)return;
+    const values=new Uint16Array(meta.width*meta.height),view=new DataView(raw);
+    for(let i=0;i<values.length;i++)values[i]=view.getUint16(i*2,true);
     state.width=meta.width;state.height=meta.height;
-    state.frame={raw:new Uint16Array(raw),emissivity:meta.emissivity??0.95};
-    el('eps').value=String(state.frame.emissivity);
-    if(!store.has(item.key))store.set(item.key,[]);
-    state.measurements=store.get(item.key);
+    state.frame={raw:values,emissivity:meta.emissivity,meta};
+    el('eps').value=String(meta.emissivity??0.95);
+    const identity=JSON.stringify([item.bucket,item.key,meta.version]);
+    if(!store.has(identity))store.set(identity,[]);
+    state.measurements=store.get(identity);
     renderMeta(meta);
-    const visual=el('visual');
     if(item.visualKey){
-      visual.src='/api/media/file?'+q(item.bucket,item.visualKey);
-      el('visual-caption').textContent='Foto derselben Aufnahme';
-    }else{visual.removeAttribute('src');el('visual-caption').textContent='Kein Foto zu diesem Wärmebild gefunden';}
+      el('visual').src='/api/media/file?'+q(item.bucket,item.visualKey);
+      el('visual-caption').textContent='Fotokandidat nach Dateiname und Zeit; Zuordnung ungeprüft';
+    }else el('visual-caption').textContent=item.visualMatch==='ambiguous'?
+      'Mehrdeutige Fotopaarung – kein Foto automatisch gewählt':'Kein passender Fotokandidat gefunden';
     el('visual-figure').hidden=!el('show-visual').checked;
     recompute();
-    say('');
     history.replaceState(null,'','#'+q(item.bucket,item.key));
   }catch(error){
-    say(error.status===422?'Diese Datei enthält keine radiometrischen Wärmedaten.':
+    if(ticket!==state.loadTicket)return;
+    state.frame=null;state.temps=null;setReady(false);
+    el('readout').textContent='Kein Wärmebild geladen';
+    say(error.status===422?'Diese Datei enthält keine unterstützten radiometrischen Wärmedaten.':
+      error.status===409?'Bildversion nicht mehr verfügbar. Wärmebild erneut auswählen.':
+      error.name==='AbortError'?'Laden abgebrochen oder Zeitlimit erreicht. Wärmebild erneut auswählen.':
       'Wärmebild konnte nicht geladen werden ('+error.message+').','error');
-  }
+  }finally{clearTimeout(timeout);}
 }
 
 // ---------- pointer tools ----------
@@ -244,16 +297,49 @@ function download(name,blob){
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;
   document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000);
 }
-const base=()=>state.current.name.replace(/\.[^.]+$/,'');
+const base=()=>state.current.name.replace(/\.[^.]+$/,'')+'_'+state.frame.meta.version.slice(0,12);
+function provenance(){
+  const p=state.appliedParams,m=state.frame.meta;
+  return [['Hinweis',T.ESTIMATE],['Software-/Berechnungsstand',T.CALCULATION],
+    ['Datei',state.current.name],['Bucket',state.current.bucket],['Objektschlüssel',state.current.key],
+    ['Quellversion SHA-256',m.version],['Quellgröße Byte',m.sourceBytes],
+    ['Breite Pixel',state.width],['Höhe Pixel',state.height],['Einheit','°C'],
+    ['Emissionsgrad Datei',m.emissivity??'fehlt'],['Emissionsgrad Ausgangswert',p.epsFile],
+    ['Ausgangswert angenommen',p.emissivityAssumed?'ja':'nein'],['Emissionsgrad gewählt',p.eps],
+    ['Reflektierte Temperatur °C',p.reflected],
+    ['Korrektur',Math.abs(p.eps-p.epsFile)>1e-9?'Gesamtstrahlungs-Näherung':'keine; T_refl hat bei gleichem Emissionsgrad keinen Einfluss'],
+    ['Kamerakompatibilität','nicht verifiziert']];
+}
 function exportCsv(){
-  const p=params(),s=state.whole;
-  const rows=[['Datei',state.current.name],['Emissionsgrad',p.eps],['Reflektierte Temperatur °C',p.reflected],
-    ['Hinweis','Schätzung aus Rohdaten (raw/64-273,15), keine DJI-Kalibrierung'],[],
+  if(!state.ready)return;
+  const s=state.whole;
+  const rows=[...provenance(),[],
     ['Nr','Art','x0','y0','x1','y1','Pixel','Min °C','Mittel °C','Median °C','Max °C'],
     ['Bild','gesamt',0,0,state.width-1,state.height-1,s.pixels,s.min,s.mean,s.median,s.max]];
   state.measurements.forEach((m,i)=>{const t=m.stats;
     rows.push([i+1,m.type==='spot'?'Punkt':'Bereich',t.x0,t.y0,t.x1,t.y1,t.pixels,t.min,t.mean,t.median,t.max]);});
   download(base()+'_messungen.csv',new Blob([T.csv(rows)],{type:'text/csv;charset=utf-8'}));
+}
+function exportPng(){
+  if(!state.ready)return;
+  // Freeze both pixels and filename BEFORE the asynchronous encoder can finish.
+  const name=base()+'_'+el('palette').value+'.png';
+  const canvas=document.createElement('canvas');canvas.width=Math.max(640,state.width);
+  const ctx=canvas.getContext('2d');ctx.font='12px system-ui';
+  const facts=[...provenance(),['Palette',el('palette').value],['Darstellungsbereich °C',range().min+' bis '+range().max],
+    ['Isotherme',JSON.stringify(isotherm())]];
+  const lines=[];
+  for(const [k,v] of facts){
+    let rest=k+': '+v;
+    while(rest.length){let n=rest.length;while(n>1&&ctx.measureText(rest.slice(0,n)).width>canvas.width-24)n--;
+      lines.push(rest.slice(0,n));rest=rest.slice(n);}
+  }
+  canvas.height=state.height+24+lines.length*17;
+  ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.drawImage(el('thermal'),0,0);
+  ctx.font='12px system-ui';ctx.fillStyle='#000';
+  lines.forEach((line,i)=>ctx.fillText(line,12,state.height+20+i*17));
+  canvas.toBlob(blob=>{if(blob)download(name,blob);});
 }
 
 // ---------- series ----------
@@ -274,18 +360,17 @@ async function runSeries(){
   const group=state.groups.get(el('series-select').value);
   if(!group)return;
   const items=group.items.slice().sort((a,b)=>(a.time||'').localeCompare(b.time||''));
-  const results=new Array(items.length);let done=0;
+  const results=new Array(items.length);let done=0,next=0;
   el('series-run').disabled=true;el('series-csv').disabled=true;
   const worker=async()=>{
-    for(let i;(i=results.findIndex((r,k)=>r===undefined&&!items[k].started))!==-1;){
-      items[i].started=true;
+    while(next<items.length){
+      const i=next++;
       try{results[i]={item:items[i],meta:await getJson('/api/thermal/meta?'+q(items[i].bucket,items[i].key))};}
       catch(e){results[i]={item:items[i],error:e.message};}
       done++;el('series-status').textContent=done+' / '+items.length+' ausgewertet';
     }
   };
   await Promise.all([worker(),worker(),worker()]);
-  items.forEach(i=>delete i.started);
   state.series=results;
   renderSeries();
   el('series-run').disabled=false;el('series-csv').disabled=false;
@@ -326,11 +411,14 @@ function renderSeries(){
   series.forEach(([k,color],i)=>add('text',{x:W-R-270+i*90,y:Tp+2,fill:color},k==='max'?'Maximum':k==='min'?'Minimum':'Median'));
 }
 function seriesCsv(){
-  const rows=[['Zeit','Datei','Min °C','Median °C','Mittel °C','Max °C','Hotspot x','Hotspot y','Entfernung m','Neigung °']];
+  const rows=[['Hinweis',T.ESTIMATE],['Software-/Berechnungsstand',T.CALCULATION],
+    ['Berechnung','Unkorrigierte Dateischätzung; Einzelbild-Einstellungen werden nicht angewendet'],[],
+    ['Zeit','Datei','Min °C','Median °C','Mittel °C','Max °C','Hotspot x','Hotspot y','Entfernung m','Neigung °','Bucket','Objektschlüssel','Quellversion SHA-256','Emissionsgrad Datei']];
   for(const r of state.series){
     if(!r.meta){rows.push([timeLabel(r.item),r.item.name,'Fehler']);continue;}
     const s=r.meta.stats,m=r.meta.meta||{};
-    rows.push([timeLabel(r.item),r.item.name,s.min,s.median,s.mean,s.max,s.hotspot.x,s.hotspot.y,m.lrfDistance??'',m.gimbalPitch??'']);
+    rows.push([timeLabel(r.item),r.item.name,s.min,s.median,s.mean,s.max,s.hotspot.x,s.hotspot.y,m.lrfDistance??'',m.gimbalPitch??'',
+      r.item.bucket,r.item.key,r.meta.version,r.meta.emissivity??'fehlt']);
   }
   download('thermal_serie.csv',new Blob([T.csv(rows)],{type:'text/csv;charset=utf-8'}));
 }
@@ -342,11 +430,12 @@ function selectTab(name){
 
 // ---------- start ----------
 async function start(){
+  setReady(false);
   for(const name of T.PALETTES){const o=node('option',null,T.PALETTE_LABELS[name]);o.value=name;el('palette').append(o);}
   for(const id of ['palette','iso-mode','iso-t1','iso-t2'])el(id).addEventListener('input',()=>state.temps&&draw());
   for(const id of ['range-min','range-max'])el(id).addEventListener('input',()=>{el('auto-range').checked=false;state.temps&&draw();});
   el('auto-range').addEventListener('change',()=>state.temps&&recompute());
-  for(const id of ['eps','reflected'])el(id).addEventListener('change',()=>state.temps&&recompute());
+  for(const id of ['eps','reflected'])el(id).addEventListener('input',()=>state.frame&&recompute());
   el('show-spots').addEventListener('change',()=>state.temps&&draw());
   el('show-visual').addEventListener('change',()=>{el('visual-figure').hidden=!el('show-visual').checked;});
   for(const b of document.querySelectorAll('[data-tool]'))b.addEventListener('click',()=>{
@@ -354,10 +443,10 @@ async function start(){
     for(const o of document.querySelectorAll('[data-tool]'))o.setAttribute('aria-pressed',String(o===b));
   });
   el('clear-measurements').addEventListener('click',()=>{state.measurements.length=0;renderMeasurements();state.temps&&draw();});
-  el('export-png').addEventListener('click',()=>state.temps&&el('thermal').toBlob(b=>download(base()+'_'+el('palette').value+'.png',b)));
-  el('export-csv').addEventListener('click',()=>state.temps&&exportCsv());
-  el('export-matrix').addEventListener('click',()=>state.temps&&download(base()+'_temperaturen.csv',
-    new Blob([T.matrixCsv(state.temps,state.width,state.height)],{type:'text/csv;charset=utf-8'})));
+  el('export-png').addEventListener('click',exportPng);
+  el('export-csv').addEventListener('click',exportCsv);
+  el('export-matrix').addEventListener('click',()=>state.ready&&download(base()+'_temperaturen.csv',
+    new Blob([T.matrixCsv(state.temps,state.width,state.height,provenance())],{type:'text/csv;charset=utf-8'})));
   el('list-search').addEventListener('input',renderList);
   el('tab-image').addEventListener('click',()=>selectTab('image'));
   el('tab-series').addEventListener('click',()=>selectTab('series'));

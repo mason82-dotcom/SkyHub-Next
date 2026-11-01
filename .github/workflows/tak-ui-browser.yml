@@ -42,6 +42,12 @@ jobs:
         env:
           SKYHUB_BROWSER_ARTIFACTS: browser-evidence
         run: node scripts/tak-ui-browser-ci.js
+      - name: Install locked backend dependencies for synthetic Thermal API
+        run: npm ci --prefix backend --ignore-scripts --no-audit --no-fund
+      - name: Thermal image identity, correction and actual download regression
+        env:
+          SKYHUB_BROWSER_ARTIFACTS: browser-evidence
+        run: node scripts/thermal-browser-ci.js
       - name: Upload screenshots and acceptance report
         if: always()
         uses: actions/upload-artifact@v4

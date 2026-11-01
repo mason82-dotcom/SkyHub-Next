@@ -57,3 +57,14 @@
 | Select/Listbox | Nativer `<select id="deviceFilter">` in `frontend/public/index.html` | Gerätelisten-Vertrag oben | Einzelauswahl für lokalen Statusfilter | Browser: Tastatur, schmale Ansicht, Popup |
 
 Weitere Standardkomponenten entstehen erst mit einem tatsächlichen zweiten Workflow. Neue Schreibaktionen benötigen vor der UI-Umsetzung einen expliziten Rollen-, Fehler- und Bestätigungsvertrag; die lesende Karte definiert dafür keine Freigabe.
+
+## Thermal-Bildanalyse und Exportintegrität
+
+Fachquelle: [Thermalvertrag](docs/thermal.md), `backend/thermal.js` und `frontend/public/thermal-core.js`. Die native Eingabe- und Select-Bedienung der Medienansichten bleibt erhalten.
+
+- Laden/Fehler leert den bisherigen Bildzustand und sperrt Exporte. Nur der neueste vollständige Quell-Snapshot darf Bild und Exporte freigeben; Version, Auflösung und Bytezahl müssen zusammenpassen.
+- Messungsbeschriftungen und Tabelle verwenden denselben Berechnungszustand. Asynchroner PNG-Export hält Bild und Dateiname gemeinsam fest.
+- Fehlende Dateiemissivität wird als Annahme bezeichnet; 0 °C reflektierte Temperatur bleibt erhalten. Ungültige Werte erhalten `aria-invalid` und eine textliche Erklärung und sperren Exporte bis zur Korrektur.
+- Jeder Export enthält Schätzhinweis und nachvollziehbare Quelle/Berechnungsgrundlage. Die Serie benennt die abweichende, unkorrigierte Berechnung ausdrücklich.
+- Fotokandidaten bleiben als Heuristik gekennzeichnet. Mehrdeutigkeit ist kein erfolgreicher Treffer. Keine dieser UI-Prüfungen erteilt eine Hardware- oder Messfreigabe.
+- Nachweise: `backend/test/thermal-ui-integrity.test.js`, `scripts/thermal-browser-ci.js` sowie die Backendtests.
