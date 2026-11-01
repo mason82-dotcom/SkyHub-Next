@@ -208,3 +208,47 @@ test('photo pairing ignores unknown lenses and refuses equally ranked candidates
   objects=[thermal,object('v','080522','V')];
   result=await (await request('/list')).json();assert.equal(result.items[0].visualKey,null);
 });
+
+test('JPEG EOI can precede an opaque 490-byte trailer without changing thermal values',()=>{
+  const original=rjpeg({width:640,height:512,hot:{x:12,y:23,t:40}});
+  const trailer=Buffer.alloc(490,0x5A);
+  const before=parseRJpeg(original),after=parseRJpeg(Buffer.concat([original,trailer]));
+  assert.ok(after);assert.equal(after.width,640);assert.equal(after.height,512);
+  assert.equal(after.emissivity,before.emissivity);assert.deepEqual(after.values,before.values);
+  assert.equal(after.formatVerified,false);
+});
+
+test('EOI inside APP payload or stuffed scan data cannot conceal a missing scan EOI',()=>{
+  const original=rjpeg({width:320,height:256});
+  // 0xD9FF as a UInt16 sample becomes FF D9 inside an APP3 segment.
+  const falseEnd=Buffer.from(original.subarray(0,original.length-2));
+  const app3=falseEnd.indexOf(Buffer.from([255,227]));
+  falseEnd[app3+4]=255;falseEnd[app3+5]=217;
+  assert.equal(parseRJpeg(falseEnd),null);
+  const noEnd=Buffer.concat([original.subarray(0,original.length-2),Buffer.from([0x11,255,0,217,0x22])]);
+  assert.equal(parseRJpeg(noEnd),null);
+  assert.equal(parseRJpeg(Buffer.concat([original.subarray(0,original.length-2),Buffer.from([255])])),null);
+});
+
+test('JPEG marker walk handles stuffed bytes, restart markers and subsequent scans',()=>{
+  const original=rjpeg({width:320,height:256});
+  const beforeEnd=original.subarray(0,original.length-2);
+  const entropy=Buffer.from([0x11,255,0,217,0x22,255,208,0x33,255,215]);
+  const more=Buffer.concat([segment(0xC4,Buffer.from([255,217])),segment(0xDA,Buffer.alloc(0)),Buffer.from([0x44,255,255,217])]);
+  assert.ok(parseRJpeg(Buffer.concat([beforeEnd,entropy,more,Buffer.alloc(490)])));
+  assert.equal(parseRJpeg(Buffer.concat([beforeEnd,entropy,segment(0xC4,Buffer.from([255,217]))])),null);
+  assert.equal(parseRJpeg(Buffer.concat([beforeEnd,entropy,Buffer.from([255,196,255,255,255,217])])),null);
+});
+
+test('opaque trailers remain subject to the total object limit and full-source snapshot hash',async t=>{
+  const original=rjpeg({width:320,height:256});let current=Buffer.concat([original,Buffer.alloc(490,0x5A)]);
+  const request=await api(t,{...emptyIndex,storage:{getObject:async()=>({body:Readable.from([current]),contentLength:current.length})}});
+  let response=await request('/meta');assert.equal(response.status,200);const first=await response.json();
+  current=Buffer.concat([original,Buffer.alloc(490,0x5B)]);
+  response=await request('/meta');assert.equal(response.status,200);const second=await response.json();
+  assert.notEqual(first.version,second.version);assert.equal(second.sourceBytes,original.length+490);
+  const raw=await request('/raw?version='+second.version);
+  assert.equal(raw.status,200);assert.equal((await raw.arrayBuffer()).byteLength,320*256*2);
+  const oversized=Buffer.concat([original,Buffer.alloc(20*1024*1024)]);
+  assert.equal(parseRJpeg(oversized),null);
+});

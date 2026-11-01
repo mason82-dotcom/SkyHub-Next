@@ -17,7 +17,7 @@ Die Näherung nimmt dieselbe reflektierte Temperatur für Ausgangszustand und Ko
 ## Parsergrenzen und Fotokandidaten
 
 - Maximal 20 MiB pro Quelldatei, auch bei fehlender Größenangabe im Stream; maximal acht gleichzeitig laufende unterschiedliche Objektladevorgänge.
-- Begrenzte Prüfung der JPEG-Marker vor dem Scan und des abschließenden EOI; kein vollständiger JPEG-/Entropie-Decoder.
+- Begrenzte Prüfung der JPEG-Marker bis zu einem EOI nach Scanbeginn, einschließlich Byte-Stuffing, Restart-Markern und weiteren Scans; kein vollständiger JPEG-/Entropie-Decoder. Bytes hinter dem EOI werden als opaker Anhang toleriert, nicht interpretiert. Sie zählen vollständig zur 20-MiB-Grenze und zum SHA-256-Quellhash. Ein EOI innerhalb eines APP-Segments oder einer anderen längencodierten Struktur ersetzt keinen tatsächlichen JPEG-Endmarker.
 - APP3-Nutzdaten müssen exakt einem UInt16-LE-Frame mit 320×256, 640×512 oder 1280×1024 entsprechen. Zusätzlich ist ein `iirp`-Block oder der DJI-XMP-Hinweis `ImageSource="InfraredCamera"` erforderlich. **Die Kamerakompatibilität bleibt als nicht verifiziert gekennzeichnet.**
 - XMP wird nur in den ersten 200.000 Bytes ausgewertet; das ist keine allgemeine XML-/Extended-XMP-Implementierung.
 - `…_T.JPG`/`…_T.JPEG` dient der Listenerkennung; die Liste allein beweist keine Radiometrie.
@@ -54,3 +54,7 @@ Bildstatistik, Messungsstatistik und Canvas-Beschriftung werden gemeinsam neu be
 Historische Angaben aus PR #217 (2.088 Bilder, sechs Serien, plausible M4T-Innenraumwerte und manuelle Klicktests) sind Berichte, keine unabhängige radiometrische Abnahme. Offen bleiben Originaldateien samt Referenzauswertung bei identischen Parametern, Firmware-/Modellvarianten, echte Aufnahmezuordnung, Pi-Ressourcen und laufende Proxy-/IAM-Konfiguration. Ein grüner CI-Lauf bestätigt weder Deployment noch Hardwaregenauigkeit.
 
 Deployment nur über den bestehenden, backupgestützten Pi-Backend-Updatepfad in [Betrieb](ops.md); kein Neuaufbau von MinIO, Datenbank oder Broker für diese Korrektur.
+
+### Nachtrag zur Pi-Parserprüfung
+
+Bei der ersten Prüfung nach PR #220 lieferte `/meta` HTTP 422. Die lokale Strukturdiagnose meldete einen Scananfang, elf APP3-Segmente mit zusammen 655.360 Bytes, einen `iirp`-Block und 490 Bytes hinter dem letzten gefundenen EOI. Die in #220 eingeführte Forderung „EOI direkt am Dateiende“ war dafür zu streng. Der korrigierte Parser sucht den EOI über JPEG-Markergrenzen und toleriert den opaken Anhang. Die Diagnose belegt weder dessen Inhalt noch Bild-/Temperaturgenauigkeit. Die erneute Pi-API-Prüfung nach dem Update bleibt erforderlich.

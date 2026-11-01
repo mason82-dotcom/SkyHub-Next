@@ -13,22 +13,32 @@ const MAX_OBJECT_BYTES=20*1024*1024;
 const HIST_BINS=64;
 const ESTIMATE='raw/64-273.15 (Schätzung ohne DJI Thermal SDK)';
 
-// Validate the bounded pre-scan marker structure. This is not a JPEG decoder.
+// Walk bounded JPEG markers through the scan to a real EOI. Opaque bytes after
+// EOI are permitted, included in the source hash/20 MiB limit and never decoded.
+// This validates marker boundaries, not the compressed image or calibration.
 function segments(buffer){
   if(!Buffer.isBuffer(buffer)||buffer.length<4||buffer.length>MAX_OBJECT_BYTES||
-     buffer[0]!==0xFF||buffer[1]!==0xD8||
-     buffer[buffer.length-2]!==0xFF||buffer[buffer.length-1]!==0xD9)return null;
-  const out=[];let pos=2;
-  while(pos+4<=buffer.length){
-    if(buffer[pos]!==0xFF)return null;
+     buffer[0]!==0xFF||buffer[1]!==0xD8)return null;
+  const out=[];let pos=2,inScan=false,sawScan=false;
+  while(pos<buffer.length){
+    if(inScan){
+      pos=buffer.indexOf(0xFF,pos);
+      if(pos<0)return null;
+    }else if(buffer[pos]!==0xFF)return null;
     while(buffer[pos+1]===0xFF)pos++;
+    if(pos+2>buffer.length)return null;
     const marker=buffer[pos+1];
-    if(marker===0x00||marker===0xD8||marker===0xD9||marker===0x01||
+    // Stuffed FF and restart markers belong to entropy data, not APP payloads.
+    if(inScan&&(marker===0x00||(marker>=0xD0&&marker<=0xD7))){pos+=2;continue;}
+    if(marker===0xD9)return sawScan?out:null;
+    if(marker===0x00||marker===0xD8||marker===0x01||
        (marker>=0xD0&&marker<=0xD7)||pos+4>buffer.length)return null;
     const length=buffer.readUInt16BE(pos+2);
-    if(length<2||pos+2+length>buffer.length-2)return null;
-    if(marker===0xDA)return out;
-    out.push({marker,data:buffer.subarray(pos+4,pos+2+length)});
+    if(length<2||pos+2+length>buffer.length)return null;
+    // Preserve the original contract: thermal APP data precedes the first scan.
+    if(!sawScan&&marker!==0xDA)out.push({marker,data:buffer.subarray(pos+4,pos+2+length)});
+    inScan=marker===0xDA||(inScan&&marker===0xDC);
+    if(marker===0xDA)sawScan=true;
     pos+=2+length;
   }
   return null;
