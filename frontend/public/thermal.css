@@ -17,16 +17,16 @@
 .thermal-toolbar label.check{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink);min-height:40px}
 .thermal-toolbar input[type=number]{width:96px}
 .thermal-toolbar input[type=checkbox]{min-height:0;width:18px;height:18px}
-.thermal-stage{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.thermal-stage{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px}
 .thermal-figure{margin:0;background:#050c15;border:1px solid var(--line);border-radius:12px;overflow:hidden}
 .thermal-figure canvas,.thermal-figure img{display:block;width:100%;height:auto;aspect-ratio:5/4;object-fit:contain;background:#000}
 #thermal{cursor:crosshair;touch-action:none}
 .readout{padding:7px 10px;font:12px/1.4 ui-monospace,Menlo,monospace;color:#d8eef8;border-top:1px solid var(--line)}
-.thermal-panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.thermal-panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:12px}
 .panel-box{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:0}
 .panel-box.wide{grid-column:1/-1}
 .panel-box h2{font-size:15px;margin:0 0 8px}
-.facts{display:grid;grid-template-columns:max-content 1fr;gap:3px 14px;margin:0 0 10px;font-size:13px}
+.facts{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:3px 14px;margin:0 0 10px;font-size:13px}
 .facts dt{color:var(--muted)}.facts dd{margin:0;overflow-wrap:anywhere}
 #histogram{width:100%;height:auto;background:#0b1726;border-radius:8px}
 .legend{height:14px;border-radius:4px;margin-top:6px;display:flex;justify-content:space-between;align-items:center;padding:0 6px;font-size:10px;color:#000;font-weight:700}
@@ -38,3 +38,9 @@
 .series-chart text{fill:#acc2d3;font-size:10px}
 .fine{color:var(--muted);font-size:12px}
 @media (max-width:900px){.thermal-layout{grid-template-columns:1fr}.thermal-list{position:static;max-height:320px}}
+
+@media (max-width:660px){.table{display:block;overflow-x:auto}.facts{grid-template-columns:minmax(0,1fr)}.facts dd{margin-bottom:6px}}
+
+.thermal-toolbar .segmented{flex-wrap:wrap;max-width:100%}
+.thermal-toolbar label{min-width:0;max-width:100%}
+.thermal-toolbar select{min-width:0;max-width:100%}

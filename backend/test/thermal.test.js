@@ -118,3 +118,93 @@ test('SD-import hash folders are grouped; photo pairing needs the same shot time
   assert.equal(groupFolder('ws/media/s/org_1.jpg'),'ws/media/s/');
   assert.equal(groupFolder('top.jpg'),'');
 });
+
+test('parser rejects truncated JPEGs, malformed markers and an unmarked APP3 payload',()=>{
+  const good=rjpeg({width:320,height:256});
+  assert.equal(parseRJpeg(good.subarray(0,good.length-2)),null);
+  const broken=Buffer.from(good);broken.writeUInt16BE(65535,4);
+  assert.equal(parseRJpeg(broken),null);
+  const raw=Buffer.alloc(320*256*2);
+  const parts=[Buffer.from([255,216])];
+  for(let off=0;off<raw.length;off+=65000)parts.push(segment(0xE3,raw.subarray(off,off+65000)));
+  parts.push(Buffer.from([255,218,0,2,255,217]));
+  assert.equal(parseRJpeg(Buffer.concat(parts)),null);
+  assert.equal(parseRJpeg(good).formatVerified,false);
+});
+
+test('correction validates parameters, preserves zero reflection and labels matrix provenance',()=>{
+  assert.throws(()=>T.correct(30,{eps:2}),RangeError);
+  assert.throws(()=>T.correct(30,{reflected:NaN}),RangeError);
+  assert.throws(()=>T.correct(30,{reflected:-274}),RangeError);
+  assert.notEqual(T.correct(30,{eps:.85,reflected:0}),T.correct(30,{eps:.85,reflected:20}));
+  assert.equal(T.correct(30,{eps:.95,epsFile:.95,reflected:0}),30);
+  const matrix=T.matrixCsv(new Float32Array([1,2]),2,1,[['Hinweis',T.ESTIMATE],['Version','abc']]);
+  assert.match(matrix,/Schätzung/);assert.match(matrix,/Version;abc/);assert.match(matrix,/1,00;2,00/);
+  assert.throws(()=>T.matrixCsv(new Float32Array(1),2,1),RangeError);
+  assert.match(T.csv([['=HYPERLINK("evil")']]),/'=HYPERLINK/);
+});
+
+async function api(t,options){
+  const app=express();app.use('/api/thermal',createThermalRouter(options));
+  const server=app.listen(0,'127.0.0.1');
+  await new Promise(r=>server.once('listening',r));
+  t.after(()=>new Promise(r=>{server.close(r);server.closeAllConnections();}));
+  const base='http://127.0.0.1:'+server.address().port+'/api/thermal';
+  return (path,key='same')=>fetch(base+path+(path.includes('?')?'&':'?')+
+    new URLSearchParams({bucket:'dji-cloud',key}));
+}
+const emptyIndex={bucketIndex:async()=>({objects:[]}),buckets:async()=>['dji-cloud']};
+
+test('metadata revalidates source; pinned raw is immutable or expires with 409',async t=>{
+  let current=rjpeg({width:320,height:256,fill:15});
+  const request=await api(t,{...emptyIndex,storage:{getObject:async()=>({body:Readable.from([current]),contentLength:current.length})}});
+  const old=await (await request('/meta')).json();
+  assert.equal(old.width,320);assert.match(old.version,/^[0-9a-f]{64}$/);
+  current=rjpeg({width:640,height:512,fill:25});
+  const updated=await (await request('/meta')).json();
+  assert.equal(updated.width,640);assert.notEqual(updated.version,old.version);
+  const pinned=await request('/raw?version='+old.version);
+  assert.equal(pinned.headers.get('x-thermal-width'),'320');
+  assert.equal(pinned.headers.get('x-thermal-version'),old.version);
+  assert.equal(pinned.headers.get('cache-control'),'no-store');
+  assert.equal((await pinned.arrayBuffer()).byteLength,320*256*2);
+  for(let i=0;i<24;i++)await (await request('/meta','other-'+i)).json();
+  assert.equal((await request('/raw?version='+old.version)).status,409);
+  assert.equal((await request('/raw?version=invalid')).status,400);
+});
+
+test('cold concurrent metadata/raw reads share one bounded object load',async t=>{
+  let reads=0;const body=rjpeg({width:320,height:256});
+  const request=await api(t,{...emptyIndex,storage:{getObject:async()=>{
+    reads++;return {body:Readable.from((async function*(){await new Promise(r=>setTimeout(r,30));yield body;})())};
+  }}});
+  const [meta,raw]=await Promise.all([request('/meta'),request('/raw')]);
+  assert.equal(meta.status,200);assert.equal(raw.status,200);assert.equal(reads,1);
+  const result=await meta.json();assert.equal(raw.headers.get('x-thermal-version'),result.version);
+  await raw.arrayBuffer();
+});
+
+test('object limits and invalid keys fail closed before parsing',async t=>{
+  let destroyed=0;
+  const request=await api(t,{...emptyIndex,storage:{getObject:async(_bucket,key)=>key==='declared'?
+    {contentLength:20*1024*1024+1,body:{destroy:()=>destroyed++}}:
+    {body:Readable.from([Buffer.alloc(20*1024*1024+1)])}}});
+  assert.equal((await request('/meta','declared')).status,413);assert.equal(destroyed,1);
+  assert.equal((await request('/meta','stream')).status,413);
+  assert.equal((await request('/meta','bad\nkey')).status,400);
+});
+
+test('photo pairing ignores unknown lenses and refuses equally ranked candidates',async t=>{
+  let objects=[];
+  const request=await api(t,{storage:storage({}),bucketIndex:async()=>({objects}),buckets:async()=>['dji-cloud']});
+  const object=(key,time,lens)=>({key:'s/'+key,displayName:'DJI_20261022'+time+'_0001_'+lens+'.JPG'});
+  const thermal=object('t','080518','T');
+  objects=[thermal,object('x','080518','X'),object('v','080521','V'),object('z','080518','Z')];
+  let result=await (await request('/list')).json();
+  assert.equal(result.items[0].visualKey,'s/v');assert.equal(result.items[0].visualMatch,'filename-heuristic');
+  objects.push(object('w','080515','W'));
+  result=await (await request('/list')).json();
+  assert.equal(result.items[0].visualKey,null);assert.equal(result.items[0].visualMatch,'ambiguous');
+  objects=[thermal,object('v','080522','V')];
+  result=await (await request('/list')).json();assert.equal(result.items[0].visualKey,null);
+});
