@@ -24,6 +24,10 @@ services:
     env_file:
       - path: ${SKYHUB_SHARED_MINIO_CREDENTIALS_FILE:?Set private MinIO env file}
         format: raw
+    environment:
+      # Lexar NM620 (DRAM-less) under /mnt/hc4backup gets FLUSH timeouts under constant
+      # small fsync writes; the scanner rewrites usage/bloom metadata every few minutes.
+      MINIO_SCANNER_SPEED: slowest
     volumes:
       - type: bind
         source: /mnt/hc4backup/skyhub-next/minio
