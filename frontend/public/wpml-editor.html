@@ -141,9 +141,12 @@ hr{border:0;border-top:1px solid var(--edge);margin:16px 0}
    <hr>
    <section aria-label="MinIO-Missionsbibliothek">
      <h2>Missionsbibliothek (MinIO S3)</h2>
-     <p class="caption">Validierte KMZ-Dateien werden im SkyHub-Bucket <code>skyhub-wpml</code> unveränderlich abgelegt (Inhalts-Hash als ID, kein Überschreiben, kein Löschen über SkyHub). Nur mit SkyHub-Zugangstoken; der Token bleibt ausschließlich im Arbeitsspeicher dieser Seite. Ablage ist KEINE Übertragung an DJI Pilot 2 und KEIN Flugauftrag.</p>
-     <label for="store-token">SkyHub-Zugangstoken</label>
-     <input id="store-token" type="password" autocomplete="off" spellcheck="false" placeholder="Bearer-Token (wird nicht gespeichert)">
+     <p class="caption">Validierte KMZ-Dateien werden im Bucket <code>skyhub-wpml</code> unveränderlich abgelegt. Im ausdrücklich freigegebenen HTTPS-Heimnetz (Dashboard-Port 4443) ist kein Token nötig. Außerhalb dieses Zugangs bleibt ein Token erforderlich. Kein DJI-Flugauftrag.</p>
+     <details>
+       <summary>Erweiterter Zugriff: Zugangstoken optional</summary>
+       <label for="store-token">SkyHub-Zugangstoken</label>
+       <input id="store-token" type="password" autocomplete="off" spellcheck="false" placeholder="Nur nötig, wenn die Heimnetzfreigabe nicht aktiv ist">
+     </details>
      <div class="tools">
        <button type="button" id="store-save">Entwurf in MinIO speichern</button>
        <button type="button" id="store-refresh">Bibliothek laden</button>
