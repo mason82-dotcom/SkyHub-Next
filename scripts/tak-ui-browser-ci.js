@@ -125,7 +125,9 @@ async function run(){
     const file=route.request().url().endsWith('.css')?'leaflet.css':'leaflet.js';
     return route.fulfill({
       path:path.join(deps,'leaflet','dist',file),
-      contentType:file.endsWith('.css')?'text/css':'application/javascript'
+      contentType:file.endsWith('.css')?'text/css':'application/javascript',
+      // index.html loads Leaflet with SRI + crossorigin="anonymous": a CORS response is required.
+      headers:{'Access-Control-Allow-Origin':'*'}
     });
   });
   await context.route('https://tile.openstreetmap.org/**',route=>

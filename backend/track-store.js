@@ -11,7 +11,9 @@ const MIGRATION=[
      ADD COLUMN IF NOT EXISTS rtk_satellites SMALLINT,
      ADD COLUMN IF NOT EXISTS rtk_fix_state SMALLINT,
      ADD COLUMN IF NOT EXISTS position_quality SMALLINT`,
-  `CREATE INDEX IF NOT EXISTS idx_telemetry_device_time ON drone_telemetry (device_sn, created_at DESC)`
+  `CREATE INDEX IF NOT EXISTS idx_telemetry_device_time ON drone_telemetry (device_sn, created_at DESC)`,
+  // Hourly retention deletes filter on created_at alone; PostgreSQL 15 cannot skip-scan the index above.
+  `CREATE INDEX IF NOT EXISTS idx_telemetry_created_at ON drone_telemetry (created_at)`
 ];
 const MAX_POINTS=5000;
 const MAX_MINUTES=1440;

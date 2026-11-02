@@ -62,6 +62,16 @@ services:
     restart: unless-stopped
     logging: *default-logging
     labels: *no-watchtower
+    # Node needs no Linux capabilities (port 4000/4002 > 1024, runs as user node).
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    # Liveness only: /api/health answers 200 even while MQTT is degraded.
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/api/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
     ports:
       - "${SKYHUB_BIND_ADDRESS:-127.0.0.1}:${SKYHUB_HTTP_PORT:-4001}:4000"
       # Narrow S3 upload proxy for DJI Pilot 2 media sync (only answers when enabled; Caddy :9446 in front).

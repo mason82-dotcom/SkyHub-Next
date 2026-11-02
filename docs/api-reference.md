@@ -9,6 +9,7 @@
 - **Pilot:** Separate HTTPS-Pilot-Konfiguration plus Pilot-Zugriffstoken oder über Redis verifizierter Pairing-Token, je nach Route. Pairing-Start und -Poll verlangen HTTPS, haben jedoch bewusst **kein vorab ausgegebenes Operator-Token**; eine Freigabe erfolgt später über die geschützte Administration.
 - **DJI-Kartengruppen:** Separater `x-auth-token` (kein View-Token), exakte Workspace-UUID und Pilot-RBAC, TLS/HTTPS zwingend. Bei Pilot-Identitäten ausschließlich verteilte Gruppen.
 - **Health:** `/api/health` ist ohne Token erreichbar, darf aber nicht als Gesamtbereitschaft interpretiert werden.
+- **Fehlerantworten:** Ungültiges JSON (`400`), zu große Bodies über 128 kB (`413`) und unerwartete Routenfehler (`500`) antworten einheitlich als JSON `{"error":"…"}` ohne Parser-Details oder Stacktrace.
 
 Die Trennung ist im Code implementiert; produktive Proxy-/ACL- und Gerätefreigaben sind **separate Betriebsprüfungen**.
 
@@ -18,7 +19,7 @@ Die Trennung ist im Code implementiert; produktive Proxy-/ACL- und Gerätefreiga
 | --- | --- | --- |
 | GET | `/` | Statisches Hauptdashboard; Port standardmäßig nur Host-Loopback |
 | GET | `/pilot-login` | Statische Pilot-2-Webview, mit CSP |
-| GET | `/api/health` | Ohne Token; aggregierte Status-/MQTT-/Topologie-/Track-Zähler, `online`/`degraded` beschreibt zunächst Broker+Subscription, keine Flugsicherheit |
+| GET | `/api/health` | Ohne Token; aggregierte Status-/MQTT-/Topologie-/Track-Zähler, `online`/`degraded` beschreibt zunächst Broker+Subscription, keine Flugsicherheit; `deviceCacheSkipped` zählt bei nicht bereitem Redis ausgelassene Geräte-Cache-Schreibvorgänge. Dient zugleich als Docker-Liveness-Check |
 | GET | `/api/pilot/status` | Ohne Token; begrenzte Pilot-Konfigurationsbereitschaft, fehlende **Schlüsselnamen**, keine Secret-Werte |
 | GET | `/api/devices` | View oder freigegebene LAN-GET-Ausnahme; Live-Registry-Snapshot |
 | GET | `/api/topology` | View oder LAN-GET-Ausnahme; begrenzte Rollen-/Gateway-Topologie |

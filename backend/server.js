@@ -172,7 +172,7 @@ app.get('/api/health',(req,res)=>res.json({
   topologyReplyErrors:ack.failed,topologyReplySkipped:ack.skipped,
   topologyReplyLastAt:ack.lastAt,topologyRestoredDevices:topologyRestored,
   lanViewEnabled:lanAccess.enabled,...trackRecorder.snapshot(),
-  trackRetentionDays,...mqttStats.snapshot(),
+  trackRetentionDays,...mqttStats.snapshot(),...ingest.cacheStats(),
   ...(tsaHub?{tsa:tsaHub.stats()}:{}),
   ...(mediaUpload?{pilotMediaUpload:mediaUpload.stats()}:{})
 }));
@@ -313,6 +313,14 @@ app.get('/api/drone/:sn/telemetry',(req,res)=>{
 });
 app.use(express.static(path.resolve(__dirname,'../frontend/public'),{index:'index.html'}));
 app.use((req,res)=>res.status(404).json({error:'Not found'}));
+// Body-parser and router errors answer in JSON; never an HTML page, stack trace or parser detail.
+app.use((err,req,res,next)=>{
+  if(res.headersSent)return next(err);
+  const status=Number.isInteger(err?.status)&&err.status>=400&&err.status<500?err.status:500;
+  if(status===500)console.error('[http] unhandled route error');
+  res.status(status).json({error:{400:'Invalid request body',413:'Request body too large',
+    415:'Unsupported content encoding'}[status]||(status===500?'Internal error':'Invalid request')});
+});
 const port=Number(process.env.PORT||4000);
 const listenAddress=process.env.NODE_ENV==='test'?'127.0.0.1':'0.0.0.0';
 server.listen(port,listenAddress,()=>console.log('[skyhub] Port '+server.address().port+' / read-only'));
@@ -323,6 +331,12 @@ function stop(){
   io.close();server.close();
   redis.disconnect();if(pool)pool.end().catch(()=>{});
 }
-process.once('SIGTERM',stop);
-process.once('SIGINT',stop);
+// Signals: close cleanly, but never outlive Docker's stop timeout because of idle keep-alive sockets.
+function shutdown(){
+  stop();
+  if(typeof server.closeIdleConnections==='function')server.closeIdleConnections();
+  setTimeout(()=>process.exit(0),5000).unref();
+}
+process.once('SIGTERM',shutdown);
+process.once('SIGINT',shutdown);
 module.exports={server,stop};
