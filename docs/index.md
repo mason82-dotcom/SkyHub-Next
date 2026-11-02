@@ -123,6 +123,7 @@ Diese Dokumente waren bisher nur über Suche oder PR-Beschreibungen erreichbar. 
 - [M3M P3: separat autorisierter, ungemounteter GIS-HTTP-Vertrag (isoliertes Labor)](smart-farming-scoped-geo-http-contract.md)
 - [M3M P3.1: echter isolierter HTTP→Python→Rasterio-Testpfad (synthetische Daten)](smart-farming-http-python-rasterio-lab.md)
 - [M3M P3.2: private EPSG:3857-Vegetationskarten mit lokalem SHA-verifiziertem GeoJSON-Zeichentool](smart-farming-private-map-lab.md)
+- [M3M P3.3: privater numerischer GeoTIFF-/CSV-Polygonexport für GIS (offline)](smart-farming-private-numeric-gis-export.md)
 - [SkyHub-Next: M3M-Konsolidierung und Offline-Abnahme](smart-farming-m3m-release-status-2026-10-24.md)
 - [Mavic 3M über bestehenden MinIO: sichere Pi-End-to-End-Leseprüfung](smart-farming-m3m-s3-hardware-smoke.md)
 
