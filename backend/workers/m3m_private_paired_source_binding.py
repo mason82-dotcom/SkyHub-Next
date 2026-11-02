@@ -76,9 +76,12 @@ def _canonical_existing(path):
 def _actual_evidence(field, root, expected_pin):
     root = _canonical_existing(root)
     need(root.is_dir(), 'Private evidence directory is absent')
-    field._validate_evidence(root, expected_pin)
-    contents = field._read_file(root / 'field-evidence-manifest.json',
-                                field.MAX_MANIFEST, private=True)
+    try:
+        field._validate_evidence(root, expected_pin)
+        contents = field._read_file(root / 'field-evidence-manifest.json',
+                                    field.MAX_MANIFEST, private=True)
+    except Exception as exc:
+        raise BindingError('Pinned DLS/panel asset inventory refused') from exc
     need(hashlib.sha256(contents).hexdigest() == expected_pin,
          'Evidence manifest changed during independent binding')
     data = field._parse(contents)
