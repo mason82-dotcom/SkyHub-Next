@@ -183,6 +183,50 @@ Ablauf und Widerruf sowie einen isolierten Ende-zu-Ende-Test mit
 Workspace-Berechtigung. Testsignaturschlüssel sind rein zufällig erzeugt
 und werden weder in Dateien noch in Produktionsschlüsselmaterial übernommen.
 
+## P0.5 – kryptografisch authentisierte Sitzungsdatensätze (Phase 7)
+
+Die isolierte Redis-Leseprüfung verlangt ab dieser Phase ausschließlich
+`skyhub-wpml-operator-session-v2` unter dem neuen
+`skyhub:wpml:operator-session:v2:`-Schlüsselpräfix.
+Die früheren **v1**-Einträge sind bewusst **nicht kompatibel**; es gibt
+keine Fallback- oder automatische Datenmigration.
+
+- **Zwei unabhängige Geheimnisse** mit mindestens 32 Bytes sind bei der
+  Erstellung des Adapters zwingend: `keySecret` für die HMAC-geschützte
+  Redis-Schlüsselableitung und `recordMacSecret` für den **eigenen**
+  Integritätsnachweis des Sitzungsinhalts. Gleiche Geheimnisse werden
+  zurückgewiesen. Diese dürfen nicht aus Dashboard-, MQTT- oder
+  Pilot-2-Secrets wiederverwendet werden.
+- Der `mac`-Wert des Datensatzes ist ein kanonisch kodierter,
+  kleingeschriebener 64-stelliger Hex-HMAC-SHA-256. Die Signatur bindet
+  **in festgelegter Reihenfolge** das Schema, den Issuer, die Operator-ID,
+  Workspace-ID, Rolle, Sitzungs-ID, Ablaufzeit und den Aktiv-Status.
+  Die HMAC-Berechnung verwendet den UTF-8-Kontext
+  `skyhub:wpml:operator-session:record:v2` gefolgt von einem
+  **Nullbyte (0x00)** und danach den JSON-kodierten Wertvektor
+  `[schema,issuer,subject,workspaceId,role,sessionId,expiresAt,status]`.
+  Der Reader vergleicht den erwarteten und empfangenen MAC mit
+  `crypto.timingSafeEqual`.
+- Unsigned/v1-Datensätze, ein geänderter Workspace, eine abweichende
+  Rolle oder Expiry sowie fremde/ungültige MACs werden **ohne Zugriff**
+  abgewiesen. Ein gültiger MAC allein reicht weiterhin **nicht**:
+  Der JWT muss gültig und noch aktuell sein, der Redis-Eintrag
+  `status:'active'` tragen und exakt zur Signatur und zum Workspace passen.
+- Der isolierte Reader stellt **keinen Signierer, Session-Aussteller,
+  Redis-Writer, API-Endpunkt oder Schlüssel-Download** bereit. Ein
+  späteres Provisionierungssystem darf `recordMacSecret` nur nach
+  nachgewiesener IdP- und Workspace-Mitgliedschaft nutzen und muss
+  separate Redis-ACL/TLS, atomische Widerrufslogik, Key-Rotation,
+  TTL-Bindung und ein kontrolliertes Rollout-Konzept vorweisen.
+  Ein MAC schützt nur gegen Änderungen **ohne Kenntnis dieses
+  Geheimnisses**; kompromittierte IdP-, Signier- oder Redis-Writer-
+  Berechtigungen erfordern eigene organisatorische und technische
+  Schutzmaßnahmen.
+
+Der neue Vertrag wird mit dem bereits vorhandenen
+`backend/test/wpml-operator-session-redis.test.js` geprüft.
+Der vollständige WPML-Service verbleibt vom Produktivserver isoliert.
+
 ## Redis-Sessionprüfung – nur lesend, ohne Provisionierung (Phase 5)
 
 `backend/wpml-operator-session-redis.js` ist ein strikt isolierter
@@ -196,8 +240,9 @@ Schreiben, Verlängern, Ausstellen oder Widerrufen von Sitzungen.
   der Sitzungs-UUID, keine Rohkennung oder GPS-Daten.
 - Ein zukünftiger, **unabhängig gesicherter Provisionierungsdienst**
   müsste nach erfolgreicher IdP-Anmeldung ein strikt versioniertes
-  Redis-Dokument mit `issuer`, `subject`, `workspaceId`, `role`,
-  `sessionId`, `expiresAt` und `status:'active'` speichern. Die
+  **v2**-Redis-Dokument mit `issuer`, `subject`, `workspaceId`, `role`,
+  `sessionId`, `expiresAt`, `status:'active'` und gültigem
+  datensatzspezifischem `mac` speichern. Die
   Implementierung dieses vertrauenswürdigen Ausstellungs-/Widerrufsprozesses,
   Redis-ACL und TLS-Verbindung fehlen weiterhin.
 - Der Prüfer akzeptiert nur exakt diese Felder, lehnt doppelte
