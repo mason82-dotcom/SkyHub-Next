@@ -60,7 +60,7 @@ Weitere Standardkomponenten entstehen erst mit einem tatsächlichen zweiten Work
 
 ## M3M-Capture-Bewertung
 
-Fachquelle: [Capture-Vertrag v2](docs/smart-farming-m3m-capture-assessment.md) und
+Fachquelle: [Capture-Vertrag v3](docs/smart-farming-m3m-capture-assessment.md) und
 `backend/smart-farming-captures.js`. Die bestehende Smart-Farming-Kartenansicht
 und die gemeinsamen Light-Tokens bleiben erhalten.
 
@@ -75,6 +75,11 @@ und die gemeinsamen Light-Tokens bleiben erhalten.
   geben Neuladen frei. Keine neue Token- oder Browserpersistenz.
 - Nachweise: Capture-Backendtests und
   `scripts/smart-farming-captures-browser-ci.js` (synthetisch, kein Pi-Nachweis).
+
+Die GPS-Anzeige trennt gültige Objektpositionen, exakten gemeinsamen Wert und
+maximale paarweise Distanz. Abweichende gültige Positionen heißen nicht „kein GPS“.
+Die Distanz ist keine GNSS-Genauigkeit und erzeugt keine automatische Toleranz
+oder Positionsmittelung; auch Zentimeterabweichungen bleiben blockiert.
 
 ## Thermal-Bildanalyse und Exportintegrität
 

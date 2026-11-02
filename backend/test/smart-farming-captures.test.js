@@ -87,7 +87,7 @@ test('captures API joins bands from SD import and Pilot 2 uploads by CaptureUUID
     const entry=m.captures.find(c=>c.captureUUID===UUID);
     for(const key of ['complete','completeness','usability','usable','blockers','bandCounts',
       'missingBands','duplicateBands','metadataConflicts','irradianceComplete',
-      'minIrradiance','sourceAuthenticityVerified','radiometryVerified','mappingReady'])assert.deepEqual(entry[key],day[key],key);
+      'minIrradiance','gpsAssessment','sourceAuthenticityVerified','radiometryVerified','mappingReady'])assert.deepEqual(entry[key],day[key],key);
     assert.equal(m.captures.find(c=>c.captureUUID===UUID).bands.NIR.etag,'"e"');
   }finally{server.close();}
 });
@@ -212,4 +212,69 @@ test('positive metadata candidate and manifest remain explicitly unverified',asy
   assert.equal(entry.usable,true);assert.equal(entry.mappingReady,false);
   assert.equal(entry.radiometryVerified,false);
   assert.equal(entry.sourceAuthenticityVerified,false);
+});
+
+
+test('centimetre band differences are valid GPS but remain blocked without tolerance',async()=>{
+  const module=runtime(flightObjects({R:{lat:'49.15000008'},RE:{lat:'49.15000017'},NIR:{lat:'49.15000025'}}));
+  const c=(await module.captures())[0],g=c.gpsAssessment;
+  assert.equal(c.complete,true);assert.equal(c.usable,false);assert.equal(c.gps,null);
+  assert.equal(g.validPositionCount,4);assert.equal(g.positionCount,4);
+  assert.equal(g.allPositionsValid,true);assert.equal(g.commonPositionAvailable,false);
+  assert.equal(g.consistency,'different');assert.equal(g.toleranceApplied,false);
+  assert.ok(g.maxSpreadMetres>.027&&g.maxSpreadMetres<.029);
+  assert.ok(c.blockers.includes('gps-disagreement'));assert.ok(!c.blockers.includes('invalid-gps'));
+  assert.deepEqual(c.metadataConflicts,['gps']);
+  module.index.reverse();assert.deepEqual((await module.captures())[0],c);
+  assert.deepEqual((await manifestOf(module)).captures[0].gpsAssessment,g);
+  assert.equal(c.sourceAuthenticityVerified,false);assert.equal(c.radiometryVerified,false);
+  assert.equal(c.mappingReady,false);
+  // Summary contains no extra raw positions; consensus is never averaged.
+  assert.ok(!JSON.stringify(g).includes('49.15'));
+});
+
+test('exact GPS consensus remains a candidate with zero diagnostic spread',async()=>{
+  const c=(await runtime(flightObjects()).captures())[0];
+  assert.equal(c.usable,true);assert.deepEqual(c.gps,{lat:49.15,lon:8.589});
+  assert.equal(c.gpsAssessment.consistency,'exact');
+  assert.equal(c.gpsAssessment.commonPositionAvailable,true);
+  assert.equal(c.gpsAssessment.maxSpreadMetres,0);
+});
+
+test('invalid GPS reasons and partial disagreement are not hidden by valid bands',async()=>{
+  for(const [override,reason] of [
+    [{lat:'invalid'},'missingOrNonNumericCount'],[{lat:'91'},'outOfRangeCount'],
+    [{lat:'0',lon:'0'},'zeroSentinelCount']
+  ]){
+    const c=(await runtime(flightObjects({R:override,NIR:{lat:'49.15000025'}})).captures())[0];
+    const g=c.gpsAssessment;
+    assert.equal(g[reason],1);assert.equal(g.validPositionCount,3);
+    assert.equal(g.allPositionsValid,false);assert.equal(g.commonPositionAvailable,false);
+    assert.equal(g.consistency,'different');assert.equal(g.maxSpreadMetres,null);
+    assert.equal(c.gps,null);assert.equal(c.usable,false);
+    assert.ok(c.blockers.includes('invalid-gps'));assert.ok(!c.blockers.includes('gps-disagreement'));
+  }
+  const zero=Object.fromEntries(['G','R','RE','NIR'].map(b=>[b,{lat:'0',lon:'0'}]));
+  const c=(await runtime(flightObjects(zero)).captures())[0];
+  assert.equal(c.gpsAssessment.zeroSentinelCount,4);
+  assert.equal(c.gpsAssessment.validPositionCount,0);
+  assert.equal(c.gpsAssessment.consistency,'unavailable');
+  assert.equal(c.gpsAssessment.maxSpreadMetres,null);
+});
+
+test('spread is bounded to unique complete groups and measures spherical separation',async()=>{
+  const objects=flightObjects({G:{lon:'179.9999999'},R:{lon:'-179.9999999'},
+    RE:{lon:'179.9999999'},NIR:{lon:'-179.9999999'}});
+  const c=(await runtime(objects).captures())[0];
+  assert.ok(c.gpsAssessment.maxSpreadMetres>0&&c.gpsAssessment.maxSpreadMetres<.03);
+  assert.equal(c.usable,false); // no longitude wrapping consensus or tolerance
+  objects['duplicate/G.tif']=bandTiff({band:'Green',rel:'30',lat:'-49'});
+  const dup=(await runtime(objects).captures())[0];
+  assert.equal(dup.gpsAssessment.positionCount,5);
+  assert.equal(dup.gpsAssessment.maxSpreadMetres,null);
+  assert.equal(dup.bands.G,undefined);assert.equal(dup.usable,false);
+  delete objects['duplicate/G.tif'];delete objects['source/G.tif'];
+  const partial=(await runtime(objects).captures())[0];
+  assert.equal(partial.gpsAssessment.positionCount,3);
+  assert.equal(partial.gpsAssessment.maxSpreadMetres,null);assert.equal(partial.complete,false);
 });
