@@ -14,6 +14,7 @@ const SUBSCRIPTIONS=[
 // Read-only DJI MQTT ingest plus the optional, ACL-restricted status_reply publisher.
 function createMqttIngest({broker,env,registry,io,redis,topologyStore,trackRecorder,
   trackRecordingEnabled,pool,mqttStats,mqttShapes,mqttModelShapes,onTopologyChanged=null,
+  onHmsSnapshot=null,
   mqttConnect=mqtt.connect}){
   const ackEnabled=env.SKYHUB_TOPOLOGY_ACK_ENABLED==='true';
   const ackUser=env.SKYHUB_TOPOLOGY_ACK_MQTT_USER||'';
@@ -75,6 +76,11 @@ function createMqttIngest({broker,env,registry,io,redis,topologyStore,trackRecor
       const result=registry.ingest(parsed,observedAt);
       if(result.dropReason){mqttStats.rejected(result.dropReason);return;}
       mqttStats.accepted(parsed,result,observedAt);
+      if(onHmsSnapshot&&Array.isArray(parsed.hms)){
+        Promise.resolve().then(()=>onHmsSnapshot(parsed.sn,parsed.hms,
+          parsed.timestamp===null?observedAt:parsed.timestamp,parsed.timestamp!==null))
+          .catch(()=>console.error('[hms history] store unavailable'));
+      }
       // Only count already validated packets and confirmed topology models.
       // Nothing from raw DJI identifiers or payload values enters this catalog.
       if(['osd','state'].includes(parsed.channel)){
