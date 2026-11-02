@@ -99,6 +99,7 @@ Diese Dokumente waren bisher nur über Suche oder PR-Beschreibungen erreichbar. 
 - [DJI Mavic 3M – Offline-Kamera-/Kadenzreferenzen (nicht flugfähig)](wpml-m3m-camera-reference.md)
 - [Mavic 3M: unabhängiger RGB-/Multispektral-Footprint (Offline-Vergleich)](wpml-m3m-dual-optics.md)
 - [WPML-Integration auf aktueller SkyHub-Next-Main-Basis](wpml-main-integration.md)
+- [WPML Central Routes P0.5 – **isolierter Draft**, v2-Sitzungs-HMAC, PostgreSQL-RLS und Audit, **nicht produktiv**](wpml-central-routes-isolated.md)
 - [SkyHub Next – WPML-Karten: OSM-403-Diagnose (25.10.2026)](wpml-map-tiles-403.md)
 - [WPML Survey: begrenzte Geometrie mit Aussparungen (Offline)](wpml-survey-topology.md)
 
