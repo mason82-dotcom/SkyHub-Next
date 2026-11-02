@@ -86,6 +86,9 @@ def _read_private(path):
         if part == part.parent:
             break
         part = part.parent
+    require(path.parent.is_dir() and
+            (path.parent.stat().st_mode & 0o077) == 0,
+            'Private 0700 parent directory required')
     try:
         descriptor = os.open(path, os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0))
     except OSError as exc:
@@ -227,10 +230,18 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--plan', type=Path, required=True)
     parser.add_argument('--plan-sha256', required=True)
+    parser.add_argument('--require-complete-operator-plan', action='store_true',
+                        help='Exit 3 for unmatched, unmeasured or missing declared DLS/panel evidence; never a science approval')
     opts = parser.parse_args(argv)
     try:
-        print(json.dumps(inspect(plan=opts.plan, plan_sha256=opts.plan_sha256),
-                         sort_keys=True, allow_nan=False))
+        report = inspect(plan=opts.plan, plan_sha256=opts.plan_sha256)
+        print(json.dumps(report, sort_keys=True, allow_nan=False))
+        if (opts.require_complete_operator_plan and (
+                report['pairsMatchingAllOperatorTolerances'] !=
+                report['pairedCaptureCount'] or
+                report['pairsMissingPanelEvidenceDeclaration'] != 0 or
+                report['pairsMissingDlsEvidenceDeclaration'] != 0)):
+            return 3
         return 0
     except Exception as exc:
         print('Private M3M field-pairing screen refused: ' +

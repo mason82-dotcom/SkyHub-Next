@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -179,6 +179,43 @@ class PrivateFieldPairingTests(unittest.TestCase):
         alias.symlink_to(self.file)
         with self.assertRaises(worker.PairingError):
             self.run_audit(plan=alias)
+
+    def test_world_readable_plan_directory_rejected_even_with_0600_file(self):
+        self.assertEqual(self.file.stat().st_mode & 0o077, 0)
+        self.root.chmod(0o755)
+        with self.assertRaises(worker.PairingError):
+            self.run_audit()
+        self.root.chmod(0o700)
+
+    def test_require_complete_operator_plan_exit_code_is_only_structural(self):
+        argv = ['--plan', str(self.file), '--plan-sha256', self.pin,
+                '--require-complete-operator-plan']
+        output=io.StringIO()
+        with redirect_stdout(output):
+            self.assertEqual(worker.main(argv), 3)
+        result=json.loads(output.getvalue())
+        self.assertEqual(result['pairsMatchingAllOperatorTolerances'], 0)
+        self.assertFalse(result['scienceReady'])
+        self.plan['pairs'][0]['B']['irradianceMilli'] = 9600
+        self.save()
+        argv[3] = self.pin
+        output=io.StringIO()
+        with redirect_stdout(output):
+            self.assertEqual(worker.main(argv), 0)
+        self.assertFalse(json.loads(output.getvalue())['flightMissionAllowed'])
+        self.plan['pairs'][0]['A']['dlsEvidenceSha256'] = None
+        self.save()
+        argv[3] = self.pin
+        with redirect_stdout(io.StringIO()):
+            self.assertEqual(worker.main(argv), 3)
+
+    def test_missing_covariate_with_strict_mode_is_not_pass(self):
+        self.plan['pairs'][0]['A']['exposureUs'] = None
+        self.save()
+        with redirect_stdout(io.StringIO()):
+            self.assertEqual(worker.main([
+                '--plan', str(self.file), '--plan-sha256', self.pin,
+                '--require-complete-operator-plan']), 3)
 
     def test_parent_directory_symlink_refused(self):
         alias=self.root/'linked'
