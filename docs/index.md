@@ -2,9 +2,11 @@
 
 **Repository:** https://github.com/mason82-dotcom/SkyHub-Next. Historische GitHub-Links wurden auf den neuen Slug normalisiert; die lokalen Pi-Verzeichnisse `SkyHub` (Legacy) und `SkyHub-Next` (Entwicklung) bleiben unterschiedlich.
 
+**GitHub-Audit 02.11.2026:** [Aktuelle Bestandsaufnahme, PR-Triage und sichere Bereinigung](repository-audit-2026-11-02.md). Diese Momentaufnahme ersetzt nicht die auf dem Pi zu verifizierenden Betriebsdaten.
+
 **Repository und PRs:** [Offene Pull Requests](https://github.com/mason82-dotcom/SkyHub-Next/pulls) und [`main`](https://github.com/mason82-dotcom/SkyHub-Next/tree/main) sind die Live-Ansichten. Die [GitHub-Bestandsaufnahme vom 25.10.2026](repository-status-2026-10-25.md), die [Hygieneprüfung](repository-hygiene-2026-10-25.md) und der [PR-Triagebericht](pr-triage-2026-10-24.md) sind datierte Momentaufnahmen, keine Live-Zahlen oder Mergefreigaben.
 
-**Aktualisiert am 27.10.2026.** Primäre Einstiegspunkte sind der [Betriebsstand des Pi vom 27.10.2026](stand-2026-10-27-betriebsstand.md), der [Main-Audit des Quellcodes](stand-2026-10-25-main-audit.md) und die [Dokumentationspflege](dokumentationspflege.md). Die bisherige Repository-Statusdatei und die umfangreichen PR-Triageberichte sind ältere Messungen **desselben Tages** und kein Ersatz für eine aktuelle GitHub-Abfrage. Diese Navigation gilt für den Root-Stack `skyhub-next`. Die wichtigste Unterscheidung ist die zwischen dem **Code auf `main`** und **noch nicht integrierten Entwicklungszweigen**.
+**Navigationsstand ergänzt am 02.11.2026; dokumentierter Raspberry-Pi-Betriebsstand weiter vom 27.10.2026.** Primäre Einstiegspunkte sind der [Betriebsstand des Pi vom 27.10.2026](stand-2026-10-27-betriebsstand.md), der [Main-Audit des Quellcodes](stand-2026-10-25-main-audit.md) und die [Dokumentationspflege](dokumentationspflege.md). Die bisherige Repository-Statusdatei und die umfangreichen PR-Triageberichte sind ältere Messungen **desselben Tages** und kein Ersatz für eine aktuelle GitHub-Abfrage. Diese Navigation gilt für den Root-Stack `skyhub-next`. Die wichtigste Unterscheidung ist die zwischen dem **Code auf `main`** und **noch nicht integrierten Entwicklungszweigen**.
 
 ## Raspberry-Pi-Betrieb (Stand 27.10.2026)
 

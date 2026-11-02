@@ -3,6 +3,8 @@
 **GitHub-Repository:** https://github.com/mason82-dotcom/SkyHub-Next  
 **Hinweis:** Der frühere Repository-Slug `mason82-dotcom/SkyHub` leitet auf `SkyHub-Next` weiter. Das lokale Legacy-Verzeichnis `~/Projekte/SkyHub` ist weiterhin getrennt vom Entwicklungsverzeichnis `~/Projekte/SkyHub-Next` zu behandeln.
 
+**Aktuelle GitHub-Bestandsaufnahme (02.11.2026):** [Repository-Audit und sichere Bereinigungsstrategie](docs/repository-audit-2026-11-02.md). Der Bericht dokumentiert den geprüften `main`-SHA, 24 offene PRs, Branch-Inventur und kritische MinIO-/M3M-Merge-Gates; das ist eine Momentaufnahme, keine Pi- oder Flugfreigabe.
+
 **Repository-Stand:** [Offene Pull Requests auf GitHub](https://github.com/mason82-dotcom/SkyHub-Next/pulls) und [aktueller `main`-Branch](https://github.com/mason82-dotcom/SkyHub-Next/tree/main) zeigen den Live-Stand. Die [Bestandsaufnahme vom 25.10.2026](docs/repository-status-2026-10-25.md) und die [Hygieneprüfung](docs/repository-hygiene-2026-10-25.md) sind datierte Momentaufnahmen; ihre PR-Zahlen und Commit-IDs gelten nur für den jeweils genannten Prüfzeitpunkt. GitHub-Checks belegen keinen aktuellen Pi-Betrieb oder eine DJI-Hardwarefreigabe.
 
 **Version 0.1.0 – Entwicklungsstand.** Die Branch-Suffixe v1/v2/v3/v4 sind keine Produktversionen.
