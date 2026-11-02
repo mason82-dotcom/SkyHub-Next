@@ -49,7 +49,7 @@ code{font-size:12px}a{color:#9de5fb}hr{border:0;border-top:1px solid #375b72;mar
 <main id="skyhubMain" tabindex="-1">
 <section id="routeLibrarySection" tabindex="-1" aria-label="Routenverwaltung">
 <h2>P0 · Routenbibliothek</h2>
-<p class="caption">Nur nach Klick auf „Revision speichern“ werden Missionsdaten samt GPS-Koordinaten im <strong>lokalen Browser-Speicher im Klartext</strong> hinterlegt. Nicht auf gemeinsam genutzten Geräten verwenden. Keine Synchronisation mit SkyHub-Server oder DJI.</p>
+<p class="caption">Revisionen werden zuerst im <strong>lokalen Browser-Speicher im Klartext</strong> gesichert. Die optionale MinIO-Synchronisierung überträgt diese erst nach ausdrücklicher Zustimmung. Kein DJI-Flugauftrag.</p>
 <label for="route-name">Missionsname</label><input id="route-name" maxlength="70" value="Neue WPML-Mission">
 <label for="route-folder">Ordner</label><input id="route-folder" maxlength="40" value="Allgemein">
 <div class="row">
@@ -70,6 +70,14 @@ code{font-size:12px}a{color:#9de5fb}hr{border:0;border-top:1px solid #375b72;mar
 <button id="clear-storage" type="button">Alle lokalen Daten löschen</button>
 </div>
 <p id="library-status" role="status" class="caption"></p>
+<h3>MinIO · Routen und Revisionen synchronisieren</h3>
+<p class="caption">Einmalige Freigabe je Browser: Bereits lokal gespeicherte Revisionen werden als einzelne, serverseitig validierte KMZ-Dateien nach MinIO übertragen. Danach werden neu gespeicherte Revisionen automatisch nachgereicht. Benötigt die tokenfreie HTTPS-Heimnetzfreigabe auf Port 4443; alle ursprünglichen Browserdaten bleiben erhalten. Ordnerstruktur und editierbare Revisionshistorie werden auf dem Server nicht rekonstruiert. Kein DJI-Flugauftrag.</p>
+<div class="row">
+<button id="route-sync-enable" type="button">MinIO-Synchronisierung einschalten und bestehende Routen übernehmen</button>
+<button id="route-sync-now" type="button" disabled>Jetzt synchronisieren</button>
+<button id="route-sync-disable" type="button" disabled>Synchronisierung ausschalten</button>
+</div>
+<p id="route-sync-status" class="caption" role="status" aria-live="polite">Keine Synchronisierung aktiv.</p>
 <p id="revision-diff" role="status" class="caption">Noch kein Revisionsvergleich. Keine Koordinaten werden in dieser Zusammenfassung ausgegeben.</p>
 <hr>
 <h3>Lokale Sicherung und Wiederherstellung</h3>
@@ -140,5 +148,7 @@ code{font-size:12px}a{color:#9de5fb}hr{border:0;border-top:1px solid #375b72;mar
 <script src="/wpml-route-library-core.js"></script>
 <script src="/wpml-waylines-reference.js"></script>
 <script src="/wpml-route-library-backup.js"></script>
+<script src="/wpml-mission-store-client.js"></script>
+<script src="/wpml-route-sync.js"></script>
 <script src="/wpml-route-library.js"></script>
 </body></html>
