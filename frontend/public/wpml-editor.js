@@ -526,15 +526,16 @@
       throw new TypeError('Für die Bibliothek verlangt DJI einen eindeutigen Namen (max. 64 Zeichen) ohne < > : " / | ? * . _ \\');
     return name;
   }
-  async function saveToStore(bytes,name){
+  async function saveToStore(bytes,name,{markCurrentDraft=false}={}){
     // Explicit confirmation contract (UX-CONTRACT.md): name, target, no flight task.
     if(!window.confirm('„'+name+'“ in die SkyHub-Missionsbibliothek (MinIO-Bucket skyhub-wpml) hochladen?\n'+
       'Die Datei wird serverseitig geprüft und unveränderlich abgelegt. Kein Flugauftrag, keine Flugfreigabe.')){
       storeStatus('Upload abgebrochen. Nichts gesendet.');
       return;
     }
+    const signatureAtUpload=markCurrentDraft?planSignature():null;
     const stored=await store.upload(token(),bytes,name);
-    savedPlanSignature=planSignature();
+    if(markCurrentDraft)savedPlanSignature=signatureAtUpload;
     updateSaveState();
     storeStatus((stored.created?'Gespeichert':'Bereits vorhanden')+': „'+stored.name+'“ · '+
       (stored.validation?.aircraft||'Fluggerät ?')+' · '+(stored.validation?.waypointCount??'?')+
@@ -551,7 +552,7 @@
       const name=missionName();
       const output=core.build({...currentPlan(),name});
       storeStatus('Speichere in MinIO …');
-      await saveToStore(output.kmz,name);
+      await saveToStore(output.kmz,name,{markCurrentDraft:true});
     }catch(error){storeStatus(error instanceof Error?error.message:'Speichern fehlgeschlagen.',true);}
     finally{
       storeBusy=false;
