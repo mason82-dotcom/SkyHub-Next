@@ -159,6 +159,48 @@ class P39OriginalPairLinkageTests(unittest.TestCase):
         with self.assertRaises(worker.LinkageError):
             self.audit()
 
+    def test_symlinked_evidence_directory_is_refused_even_when_bytes_are_pinned(self):
+        sample=self.matrix.samples[0]
+        alias=self.plan.root/'linked-evidence'
+        alias.symlink_to(sample.f.evidence, target_is_directory=True)
+        self.matrix.items[0]['evidenceDir']=str(alias)
+        self.matrix.save()
+        with self.assertRaises(worker.LinkageError):
+            self.audit()
+
+    def test_symlinked_parent_of_private_evidence_directory_is_refused(self):
+        sample=self.matrix.samples[0]
+        parent=self.plan.root/'evidence-root-alias'
+        parent.symlink_to(sample.f.root, target_is_directory=True)
+        self.matrix.items[0]['evidenceDir']=str(parent/sample.f.evidence.name)
+        self.matrix.save()
+        with self.assertRaises(worker.LinkageError):
+            self.audit()
+
+    def test_symlinked_evidence_parent_rejected_without_private_output(self):
+        sample=self.matrix.samples[0]
+        parent=self.plan.root/'linked-parent-privacy'
+        parent.symlink_to(sample.f.root, target_is_directory=True)
+        self.matrix.items[0]['evidenceDir']=str(parent/sample.f.evidence.name)
+        self.matrix.save()
+        stdout,stderr=io.StringIO(),io.StringIO()
+        with redirect_stdout(stdout),redirect_stderr(stderr):
+            status=worker.main(self.args())
+        self.assertEqual(status,2)
+        self.assertEqual(stdout.getvalue(),'')
+        for private in (str(parent),str(sample.f.root),
+                        self.matrix.items[0]['sourceReceiptSha256'],
+                        self.matrix.pin):
+            self.assertNotIn(private,stderr.getvalue())
+
+    def test_private_evidence_root_helper_rejects_relative_and_parent_traversal(self):
+        with self.assertRaises(worker.LinkageError):
+            worker._canonical_evidence_root('relative/field')
+        with self.assertRaises(worker.LinkageError):
+            worker._canonical_evidence_root(self.matrix.samples[0].f.root/'..'/'field')
+        self.assertEqual(worker._canonical_evidence_root(
+            self.matrix.samples[0].f.evidence),self.matrix.samples[0].f.evidence)
+
     def test_noncanonical_or_modified_manifest_refused_without_raw_exception(self):
         with self.assertRaises(worker.LinkageError):
             self.audit(cohort_manifest_sha256='0'*64)
