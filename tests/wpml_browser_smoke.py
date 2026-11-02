@@ -643,6 +643,105 @@ def main() -> None:
                           "Reference mode must not imply camera hardware verification")
                     check(metadata["properties"]["flightReady"] is False,
                           "Reference mode cannot grant flight readiness")
+                    # P1 opt-in dual optics: independent RGB physical inputs,
+                    # no photomarkers, no remote writes, and no flight rights.
+                    check(survey.locator("#dual-optics-enable").is_enabled(),
+                          "Combined M3M reference did not enable optional dual optics")
+                    survey.locator("#dual-optics-enable").check()
+                    check(survey.locator("#dual-optics-fields").is_visible(),
+                          "Independent RGB optics inputs should be visible")
+                    survey.locator("#preview").click()
+                    check("Photogrammetry estimate invalid" in
+                          survey.locator("#status").inner_text(),
+                          "Missing RGB physical optics must fail closed")
+                    check(survey.locator("#geojson").is_disabled(),
+                          "Missing RGB optics must block GeoJSON download")
+                    rgb_fields = {
+                        "dual-rgb-width": "10", "dual-rgb-height": "7.5",
+                        "dual-rgb-focal": "8", "dual-rgb-side": "70",
+                        "dual-rgb-front": "70"
+                    }
+                    for key, value in rgb_fields.items():
+                        survey.locator("#" + key).fill(value)
+                    survey.locator("#preview").click()
+                    dual_text = survey.locator("#status").inner_text()
+                    check("DUALOPTIK" in dual_text and "MS GSD" in dual_text and
+                          "RGB GSD" in dual_text,
+                          "Separate RGB/MS results missing from dual-mode survey")
+                    check("Keine Co-Registrierung" in dual_text,
+                          "Unregistered dual optics were represented as calibrated")
+                    check(survey.locator("#show-photo-centers").is_disabled(),
+                          "Dual optics must not enable nominal photo center markers")
+                    with survey.expect_download() as event:
+                        survey.locator("#geojson").click()
+                    dual_export = json.loads(Path(event.value.path()).read_text(encoding="utf-8"))
+                    comparison = dual_export["properties"]["dualSensorComparison"]
+                    check(comparison["kind"] == "unregistered-theoretical-optics-comparison",
+                          "Dual-mode GeoJSON lost unverified comparison marker")
+                    check(dual_export["properties"]["cameraReferenceMode"] ==
+                          "m3m-rgb-ms-tiff",
+                          "Dual-mode GeoJSON lost its original mixed acquisition mode")
+                    check(comparison["schema"] == "skyhub-wpml-dual-optics-inspection-v1"
+                          and comparison["referenceMode"] == "m3m-rgb-ms-tiff",
+                          "Export lacks explicit version and mixed mode evidence")
+                    check(comparison["nominalTotalFiles"] ==
+                          comparison["nominalRGBJpegFiles"] +
+                          comparison["nominalMultispectralTiffFiles"] ==
+                          5 * comparison["nominalCaptureEvents"],
+                          "Dual camera theoretical file counts inconsistent")
+                    check(comparison["photoActionsGenerated"] is False
+                          and comparison["dispatchAllowed"] is False
+                          and comparison["relativeBoresightVerified"] is False
+                          and comparison["opticalCalibrationVerified"] is False
+                          and comparison["terrainVerified"] is False
+                          and comparison["actualCaptureSupported"] is None,
+                          "Dual export promoted unverified optical data to flight evidence")
+                    check(not any(feature["properties"].get("kind") ==
+                          "nominal-photo-centers-NOT-DJI-actions"
+                          for feature in dual_export["features"]),
+                          "Combined mode must not export unverified photo centers")
+                    check(comparison["coRegistrationVerified"] is False and
+                          comparison["flightReady"] is False and
+                          comparison["pilot2HardwareVerified"] is False and
+                          comparison["exportableAsWaylines"] is False,
+                          "Dual comparison illegally received operational authorization")
+                    check(dual_export["properties"]["flightReady"] is False,
+                          "Dual export must remain not flight-ready")
+                    survey.locator("#photo-speed").fill("12")
+                    survey.locator("#preview").click()
+                    check("NICHT erfüllt" in survey.locator("#status").inner_text(),
+                          "Fast dual-camera cadence violation not reported")
+                    survey.locator("#photo-speed").fill("6")
+                    survey.locator("#dual-rgb-focal").fill("")
+                    survey.locator("#preview").click()
+                    check(survey.locator("#geojson").is_disabled(),
+                          "Cleared RGB focal length should invalidate dual export")
+                    # Returning to ordinary MS preview must drop ALL dual-mode
+                    # metadata without retaining a previous RGB calibration.
+                    survey.locator("#dual-optics-enable").uncheck()
+                    check(survey.locator("#dual-optics-fields").is_hidden(),
+                          "Disabled comparison still shows independent RGB inputs")
+                    survey.locator("#preview").click()
+                    check("DJI-M3M-Referenz m3m-rgb-ms-tiff" in
+                          survey.locator("#status").inner_text(),
+                          "Original single-sensor reference preview not restored")
+                    with survey.expect_download() as event:
+                        survey.locator("#geojson").click()
+                    single_export = json.loads(Path(event.value.path()).read_text(
+                        encoding="utf-8"))
+                    check(single_export["properties"]["cameraReferenceMode"] ==
+                          "m3m-rgb-ms-tiff"
+                          and single_export["properties"]["dualSensorComparison"] is None,
+                          "Old RGB dual optics leaked into single-sensor preview export")
+                    survey.locator("#camera-mode").select_option("manual")
+                    check(survey.locator("#dual-optics-enable").is_disabled(),
+                          "Manual reference mode must disable specialized dual optics")
+                    check(survey.locator("#geojson").is_disabled(),
+                          "Changing the camera reference must invalidate export")
+                    check(not survey_requests,
+                          "Dual optics triggered unexpected off-origin or write traffic")
+                    check(not survey_errors,
+                          "Dual optics browser errors: " + " | ".join(survey_errors[:2]))
                     survey.screenshot(path=str(ARTIFACT_DIR / "synthetic-survey-exclusion.png"),
                                       full_page=True)
                     for width_px in (390, 320):
