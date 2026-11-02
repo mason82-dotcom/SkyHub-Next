@@ -151,6 +151,31 @@ class PrivateCogTests(unittest.TestCase):
             self.produce(source_manifest_sha256=updated_pin)
         self.assertFalse(self.output.exists())
 
+    def test_reject_nested_source_or_output_symlink(self):
+        parent = self.source.parent
+        alias = parent / 'alias-to-source'
+        alias.symlink_to(self.source, target_is_directory=True)
+        with self.assertRaises(cog.CogError):
+            self.produce(input_dir=alias)
+        self.assertFalse(self.output.exists())
+
+        private = self.output.parent / 'private-parent'
+        private.mkdir(mode=0o700)
+        nested = private / 'nested'
+        nested.mkdir(mode=0o700)
+        output_alias = self.output.parent / 'alias-to-output'
+        output_alias.symlink_to(private, target_is_directory=True)
+        with self.assertRaises(cog.CogError):
+            self.produce(output_dir=output_alias / 'nested' / 'cog')
+        self.assertFalse((nested / 'cog').exists())
+
+    def test_binary_float32_signed_zero_is_not_mistaken_for_bit_identity(self):
+        source = np.array([[0.0, -0.0]], dtype='float32')
+        different = np.array([[-0.0, 0.0]], dtype='float32')
+        self.assertTrue(np.array_equal(source, different))
+        self.assertFalse(np.array_equal(source.view(np.uint32),
+                                        different.view(np.uint32)))
+
     def test_larger_raster_has_real_pyramid_not_just_tiled_tiff(self):
         # This test exercises the conversion subroutine with a large synthetic
         # TIFF; it does not bypass the pinned manifest gate in create_cogs().

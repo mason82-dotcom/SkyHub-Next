@@ -1,6 +1,6 @@
 # SkyHub Smart Farming P3.4 – private COG-Konvertierung, strukturierte Abnahme, zweiter TIFF-Decoder
 
-Stand: 24. Oktober 2026. **Isoliertes P3.4-Labor, Draft auf P3.3 #125 → P3.2 #122 → #117 → #116 → #115 → #114 → #113 → #104.** Keine Änderungen an `main`, Pi, Server-HTTP, MQTT, DJI, Agras oder Frontend.
+Stand: 2. November 2026. **P3.4-COG-Labor, separat aus historischem Draft #128 auf aktuellen `main` konsolidiert**. Der numerische P3.3-Polygonexport liegt bereits in `main` (PR #239). Keine Änderungen an laufenden Pi-Diensten, Server-HTTP, MQTT, DJI, Agras oder Frontend.
 
 ## Zweck und Grenzen
 
@@ -39,3 +39,5 @@ Der Terminal-Report gibt nur Anzahl, einen extern verwahrbaren Manifest-Hash und
 Der Laborcheck ist **noch keine externe QGIS-GUI-Abnahme**. Für das spätere Release muss zusätzlich ein unabhängiger QGIS-Import und – falls auf dem Zielsystem vorhanden – `gdal driver cog validate --full-check yes` bzw. ein zur installierten GDAL-Version passender COG-Validator durchgeführt werden. GDAL <3.13 hat noch nicht den neuen `gdal driver cog validate`-Befehl. Die neu hinzugefügte lokale Validierung ersetzt auch keine Rechte-/Workspace-/Field-ACL, keinen cgroup-isolierten Worker und keine realen DJI-M3M-Originaldaten mit DLS-/Panelreferenz und Bandregistrierungsprüfung.
 
 Die CI des isolierten M3M-Projekts führt Python-Synthetiktests und Node-HTTP-Verträge weiter aus. **Keine Bereitstellung** auf dem Pi oder Aktivierung einer GIS-/Karten-URL durch diesen PR.
+
+**Zusätzliche Konsolidierungsprüfungen:** Der Quell- und Ausgabepfad wird vor Schreibzugriff auf nichtkanonische Pfade und verschachtelte Symlinks geprüft. Der GDAL- und TIFF-Readback vergleicht die `uint32`-Bitdarstellung der Float32-Daten (einschließlich Vorzeichen von ±0) statt bloßer arithmetischer Gleichheit. Das schließt keine Race Condition bei konkurrierender Pfadmutation aus und ersetzt keine isolierte Produktions-Worker-Sandbox.

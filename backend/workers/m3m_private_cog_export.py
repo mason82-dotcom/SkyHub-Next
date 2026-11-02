@@ -212,7 +212,7 @@ def convert_and_check(source, output, *, expected_crs, expected_dims,
                     generated.tags(ns='IMAGE_STRUCTURE').get('LAYOUT') == 'COG' and
                     generated.is_tiled and
                     generated.block_shapes == [(256, 256)] and
-                    np.array_equal(generated.read(1), arr),
+                    np.array_equal(generated.read(1).view(np.uint32), arr.view(np.uint32)),
                     'COG structural/GeoTIFF/numerical GDAL readback failed')
             levels = generated.overviews(1)
             if max(expected_dims) > overview_min_dim:
@@ -223,7 +223,7 @@ def convert_and_check(source, output, *, expected_crs, expected_dims,
             require(page.is_tiled and 'TileOffsets' in page.tags and
                     'TileByteCounts' in page.tags and page.sampleformat == 3,
                     'Independent TIFF tile layout invalid')
-            require(np.array_equal(page.asarray(), arr),
+            require(np.array_equal(page.asarray().view(np.uint32), arr.view(np.uint32)),
                     'Independent TIFF decoder pixel comparison failed')
         # Older COG drivers may reasonably have no overviews for tiny ROIs.
         return {'overviewCount': len(levels),
@@ -255,6 +255,11 @@ def create_cogs(*, input_dir: Path, source_manifest_sha256: str,
             target not in root.parents and
             not os.path.lexists(target),
             'COG target must be a new independent directory')
+    # Refuse nested symlink/alias components in either trusted path.
+    # This is a static precheck, not a complete concurrent openat sandbox.
+    for candidate in (root, root.parent, target.parent):
+        require(candidate.resolve(strict=True) == candidate,
+                'Nested symlink or noncanonical private path')
     require_private_dir(target.parent, 'Output parent')
     verified = verify_source(root, source_manifest_sha256)
 
