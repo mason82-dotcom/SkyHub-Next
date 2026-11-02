@@ -7,6 +7,8 @@
   const backup=window.SkyHubWpmlRouteBackup;
   const $=id=>document.getElementById(id);
   const STORAGE='skyhub.wpml.local-route-library.v1';
+  const syncModule=window.SkyHubWpmlRouteSync;
+  const missionStore=window.SkyHubWpmlMissionStore;
   if(!core||!lib||!actionDraft||!backup){
     $('status').textContent='Routenbibliothek konnte nicht geladen werden.';return;
   }
@@ -26,10 +28,11 @@
     b.addEventListener('click',click);return b;
   };
   function persist(next){
-    // Explicit saves only; no passive tracking or background writes.
+    // Never replace local data with the remote copy. Write locally before opt-in sync.
     const raw=lib.serialize(next);
     window.localStorage.setItem(STORAGE,raw);
     library=next;
+    triggerSync();
   }
   try{
     const raw=window.localStorage.getItem(STORAGE);
@@ -37,6 +40,54 @@
   }catch{
     libraryMessage('Lokaler Speicher unlesbar oder gesperrt. Daten nicht überschrieben.');
   }
+  // Per-browser opt-in: existing revisions are migrated only after user confirmation.
+  // All requests use the SAME HTTPS origin as the route editor; no DJI control API.
+  const syncStatus=$('route-sync-status');
+  function syncMessage(status){
+    if(!syncStatus)return;
+    const phase=status.phase;
+    if(phase==='enabled')syncStatus.textContent='Synchronisierung aktiviert; lokale Originale bleiben erhalten.';
+    else if(phase==='disabled')syncStatus.textContent='Synchronisierung aus. Bereits gespeicherte MinIO-Dateien bleiben erhalten.';
+    else if(phase==='blocked')syncStatus.textContent='Übertragung gesperrt: '+status.error;
+    else if(phase==='running'||phase==='complete'){
+      syncStatus.textContent='MinIO: '+status.processed+'/'+status.total+
+        ' Revisionen geprüft, '+status.uploaded+' übertragen, '+
+        status.skipped+' bereits bestätigt, '+status.failed+' fehlgeschlagen. '+
+        (phase==='complete'?'Keine DJI-Flugfreigabe.':'Übertragung läuft …');
+    }else syncStatus.textContent='Keine Synchronisierung aktiv.';
+  }
+  let sync=null;
+  try{
+    if(syncModule&&missionStore&&window.crypto?.subtle)
+      sync=syncModule.create({storage:window.localStorage,library:lib,planner:core,
+        store:missionStore,cryptoApi:window.crypto,onStatus:syncMessage});
+  }catch{syncMessage({phase:'unavailable'});}
+  function syncControls(){
+    $('route-sync-now').disabled=!sync||!sync.enabled();
+    $('route-sync-enable').disabled=!sync||sync.enabled();
+    $('route-sync-disable').disabled=!sync||!sync.enabled();
+  }
+  function triggerSync(){
+    if(!sync||!sync.enabled())return;
+    void sync.sync(library).catch(()=>{
+      syncStatus.textContent='MinIO-Synchronisierung fehlgeschlagen; lokale Revisionen bleiben erhalten.';
+    });
+  }
+  $('route-sync-enable').addEventListener('click',()=>{
+    if(!sync)return;
+    if(!window.confirm('Alle vorhandenen lokal gespeicherten Routenrevisionen als KMZ in die zentrale MinIO-Bibliothek übertragen? GPS-Koordinaten werden auf dem Heimserver gespeichert. Künftige lokale Revisionen werden danach automatisch übertragen. Kein Flugauftrag.'))return;
+    try{sync.setEnabled(true);syncControls();triggerSync();}
+    catch{syncStatus.textContent='Aktivierung fehlgeschlagen; Browserspeicher prüfen.';}
+  });
+  $('route-sync-now').addEventListener('click',triggerSync);
+  $('route-sync-disable').addEventListener('click',()=>{
+    if(!sync)return;
+    try{sync.setEnabled(false);syncControls();}
+    catch{syncStatus.textContent='Deaktivierung fehlgeschlagen; Browserspeicher prüfen.';}
+  });
+  syncControls();
+  if(sync?.enabled())syncMessage({phase:'enabled'});
+  else syncMessage({phase:sync?'disabled':'unavailable'});
   function input(label,value,fn,{type='text',min,max,step}={}){
     const wrap=make('label',label),control=make('input');
     control.type=type;control.value=value==null?'':String(value);
@@ -461,4 +512,6 @@
   for(const id of ['route-name','route-folder','model','speed','height','takeoff','finish'])
     $(id).addEventListener('input',()=>{dirty=true;});
   renderEditor();renderRoutes();
+  // Resume pending revisions on future visits, but ONLY after this browser opted in.
+  triggerSync();
 })();
