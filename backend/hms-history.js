@@ -89,4 +89,25 @@ function createHmsHistory(pool){
     }
   };
 }
-module.exports={createHmsHistory,cleanAlert,normalize,transitions,MAX_EVENTS};
+// Read-only HTTP handler: stored transitions plus German/English HMS text for the dashboard.
+// The text is resolved at read time from the bundled DJI catalogue; nothing textual is stored.
+function createHmsHistoryHandler({history,registry,describe=require('./hms-catalog').describeHms}){
+  return async(req,res)=>{
+    if(!history)return res.status(503).json({error:'HMS history disabled',enabled:false});
+    const device=req.query.device===undefined||req.query.device===''?null:req.query.device;
+    const limit=req.query.limit===undefined?50:Number(req.query.limit);
+    const offset=req.query.offset===undefined?0:Number(req.query.offset);
+    try{
+      const rows=await history.list(device,limit,offset);
+      const items=rows.map(row=>{
+        const known=registry.get(row.deviceSn);
+        return {...row,modelName:known?.modelName??null,
+          text:describe(row,{domain:known?.model?.domain??null})};
+      });
+      res.json({enabled:true,items,limit,offset,hasMore:items.length===limit});
+    }catch(err){
+      res.status(err instanceof TypeError?400:503).json({error:err instanceof TypeError?'Invalid query':'HMS history unavailable'});
+    }
+  };
+}
+module.exports={createHmsHistory,createHmsHistoryHandler,cleanAlert,normalize,transitions,MAX_EVENTS};

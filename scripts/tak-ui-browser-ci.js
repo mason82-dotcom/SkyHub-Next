@@ -30,6 +30,13 @@ const marker=()=>({
   hms:[]
 });
 let authorized=true;
+// Synthetic HMS history: 25 transitions (two pages of 20) or an explicitly disabled store.
+let hmsHistoryEnabled=true;
+const hmsQueries=[];
+const hmsRow=i=>({id:100-i,deviceSn:i%2?'SYNTHETIC-RC-01':'SYNTHETIC-DEVICE-01',code:'0x1100000'+(i%10),
+  level:i%3,componentIndex:0,sensorIndex:0,action:['appeared','updated','resolved'][i%3],
+  sourceAt:new Date(Date.now()-i*60000).toISOString(),timeVerified:i!==1,
+  modelName:'Testfluggerät',text:i===0?{de:'<img src=x onerror=alert(1)> Synthetischer Hinweis',en:'x'}:{de:'Synthetische Meldung '+i,en:'x'}});
 const errors=[];
 const requests=[];
 const json=(response,data,code=200)=>{
@@ -40,7 +47,7 @@ const server=http.createServer((request,response)=>{
   const url=new URL(request.url,'http://127.0.0.1');
   requests.push({method:request.method,path:url.pathname});
   if(url.pathname==='/'){response.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});response.end(get('index.html'));return;}
-  if(['/workspace-tabs.js','/telemetry-freshness.js'].includes(url.pathname)){
+  if(['/workspace-tabs.js','/telemetry-freshness.js','/hms-history-panel.js'].includes(url.pathname)){
     response.writeHead(200,{'Content-Type':'application/javascript'});response.end(get(url.pathname.slice(1)));return;
   }
   // Same-origin tile route of the backend; a neutral synthetic tile, never real geography.
@@ -75,6 +82,16 @@ const server=http.createServer((request,response)=>{
     return;
   }
   if(url.pathname==='/api/devices'){json(response,authorized?[marker()]:{error:'unauthorized'},authorized?200:401);return;}
+  if(url.pathname==='/api/diagnostics/hms-history'){
+    hmsQueries.push(Object.fromEntries(url.searchParams));
+    if(!authorized){json(response,{error:'unauthorized'},401);return;}
+    if(!hmsHistoryEnabled){json(response,{error:'HMS history disabled',enabled:false},503);return;}
+    const limit=Number(url.searchParams.get('limit')),offset=Number(url.searchParams.get('offset'));
+    const device=url.searchParams.get('device');
+    const all=Array.from({length:25},(_,i)=>hmsRow(i)).filter(r=>!device||r.deviceSn===device);
+    const items=all.slice(offset,offset+limit);
+    json(response,{enabled:true,items,limit,offset,hasMore:offset+items.length<all.length});return;
+  }
   if(url.pathname==='/api/events'){json(response,authorized?[]:{error:'unauthorized'},authorized?200:401);return;}
   if(url.pathname.startsWith('/api/drone/')&&url.pathname.endsWith('/track')){
     json(response,authorized?[]:{error:'unauthorized'},authorized?200:401);return;
@@ -368,6 +385,41 @@ async function run(){
   if(errors.length)throw new Error('browser exceptions: '+errors.join('; '));
   const unexpectedWrites=requests.filter(x=>x.method!=='GET');
   assert.equal(unexpectedWrites.length,0,'no API mutations (Socket.IO may use WS)');
+  // HMS history in a fresh dashboard page: lazy load, paging, device filter, literal text, disabled store.
+  authorized=true;hmsHistoryEnabled=true;
+  const hmsPage=await context.newPage();
+  hmsPage.on('pageerror',error=>errors.push(error.message));
+  const hmsBefore=hmsQueries.length;
+  await hmsPage.goto(url,{waitUntil:'domcontentloaded'});
+  await hmsPage.waitForFunction(()=>document.querySelector('#count')?.textContent==='1',{timeout:15000});
+  assert.equal(hmsQueries.length,hmsBefore,'HMS history loads lazily, only when opened');
+  // HMS history: nothing is fetched until the operator opens the panel.
+  assert.match(await hmsPage.locator('.notice').first().textContent(),/ohne Internet verfügbar/);
+  await hmsPage.locator('#hmsHistoryPanel summary').click();
+  await hmsPage.waitForFunction(()=>document.querySelectorAll('#hmsHistoryList li').length===20,{timeout:10000});
+  assert.match(await hmsPage.locator('#hmsHistorySummary').textContent(),/^20\+ Einträge$/);
+  const firstHms=hmsPage.locator('#hmsHistoryList li').first();
+  assert.equal(await firstHms.getAttribute('data-action'),'appeared');
+  assert.match(await firstHms.textContent(),/<img src=x onerror=alert\(1\)> Synthetischer Hinweis/,'HMS text stays literal');
+  assert.equal(await hmsPage.locator('#hmsHistoryList img').count(),0,'no markup injected from HMS text');
+  assert.match(await hmsPage.locator('#hmsHistoryList li').nth(1).textContent(),/Zeit ungeprüft/);
+  await hmsPage.locator('#hmsHistoryMore').click();
+  await hmsPage.waitForFunction(()=>document.querySelectorAll('#hmsHistoryList li').length===25,{timeout:10000});
+  assert.equal(await hmsPage.locator('#hmsHistoryMore').isHidden(),true,'no further page after the last entry');
+  assert.equal(hmsQueries.at(-1).offset,'20');
+  await hmsPage.locator('#hmsHistoryDevice').selectOption('SYNTHETIC-DEVICE-01');
+  await hmsPage.waitForFunction(()=>document.querySelectorAll('#hmsHistoryList li').length===13,{timeout:10000});
+  assert.equal(hmsQueries.at(-1).device,'SYNTHETIC-DEVICE-01');
+  await hmsPage.locator('#hmsHistoryPanel').scrollIntoViewIfNeeded();
+  await hmsPage.screenshot({path:path.join(output,'dashboard-hms-history.png')});
+  hmsHistoryEnabled=false;
+  await hmsPage.locator('#hmsHistoryRefresh').click();
+  await hmsPage.waitForFunction(()=>document.querySelector('#hmsHistorySummary').textContent==='nicht aktiviert',{timeout:10000});
+  assert.match(await hmsPage.locator('#hmsHistoryNote').textContent(),/SKYHUB_HMS_HISTORY_ENABLED/);
+  assert.equal(await hmsPage.locator('#hmsHistoryList li').count(),0);
+  hmsHistoryEnabled=true;
+  await hmsPage.locator('#hmsHistoryPanel summary').click();
+  await hmsPage.close();
   const results={schema:'skyhub-tak-browser-v1',frontend:'actual frontend/public/index.html',
     clientLibraries:'real Leaflet 1.9.4 / Socket.IO 4.8.1',
     backend:'SYNTHETIC LOOPBACK ONLY; no full SkyHub server, no Pi, no DJI',
@@ -378,7 +430,8 @@ async function run(){
     dashboardSmartFarmingNavigationChecked:true,
     forcedColorsAndReducedMotionChecked:true,
     mobileFleetShortcutFocusChecked:true,
-    singleSocketSessionDuringTabNavigation:true,leafletRecalculatedOnEveryReturn:true};
+    singleSocketSessionDuringTabNavigation:true,leafletRecalculatedOnEveryReturn:true,
+    hmsHistoryPanelChecked:true};
   fs.writeFileSync(path.join(output,'report.json'),JSON.stringify(results,null,2)+'\n');
   process.stdout.write(JSON.stringify(results,null,2)+'\n');
   await context.close();

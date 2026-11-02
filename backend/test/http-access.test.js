@@ -82,6 +82,12 @@ test('LAN view is read-only; pairing administration still needs the view token',
   assert.equal((await request('/api/devices',{lan:'192.168.178.70'})).status,200);
   assert.equal((await request('/api/devices',{lan:'203.0.113.9'})).status,401);
   assert.equal((await request('/api/diagnostics/mqtt-shapes',{lan:'192.168.178.70'})).status,200);
+  // HMS history is a dashboard read: LAN-visible, here disabled -> explicit 503, outside the LAN 401.
+  const hms=await request('/api/diagnostics/hms-history',{lan:'192.168.178.70'});
+  assert.equal(hms.status,503);
+  assert.deepEqual(await hms.json(),{error:'HMS history disabled',enabled:false});
+  assert.equal((await request('/api/diagnostics/hms-history',{lan:'203.0.113.9'})).status,401);
+  assert.equal((await request('/api/diagnostics/hms-history',{method:'POST',lan:'192.168.178.70'})).status,401);
   assert.equal((await request('/api/drone/AIR01/track',{lan:'192.168.178.70'})).status,200);
   assert.equal((await request('/api/drone/AIR01/telemetry',{lan:'192.168.178.70'})).status,404);
   assert.equal((await request('/api/drone/AIR01/secrets',{lan:'192.168.178.70'})).status,401);

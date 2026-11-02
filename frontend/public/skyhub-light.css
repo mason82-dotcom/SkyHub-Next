@@ -287,6 +287,15 @@ body[data-skyhub-page="dashboard"] .warning-preview { color: var(--sky-warning);
 body[data-skyhub-page="dashboard"] .hms li { border-color: #9baec4; }
 body[data-skyhub-page="dashboard"] .hms li.l1 { border-color: #c68c28; }
 body[data-skyhub-page="dashboard"] .hms li.l2 { border-color: var(--sky-danger); }
+body[data-skyhub-page="dashboard"] #hmsHistoryPanel { margin-top: 10px; }
+body[data-skyhub-page="dashboard"] .hms-history-item { border-top-color: var(--sky-border); border-left-color: #9baec4; color: var(--sky-ink); }
+body[data-skyhub-page="dashboard"] .hms-history-item[data-level="1"] { border-left-color: #c68c28; }
+body[data-skyhub-page="dashboard"] .hms-history-item[data-level="2"] { border-left-color: var(--sky-danger); }
+body[data-skyhub-page="dashboard"] .hms-history-item small { color: var(--sky-muted); }
+body[data-skyhub-page="dashboard"] .hms-history-badge { background: var(--sky-muted-bg); color: var(--sky-ink); }
+body[data-skyhub-page="dashboard"] .hms-history-item[data-action="appeared"] .hms-history-badge { background: var(--sky-danger-soft); color: var(--sky-danger); }
+body[data-skyhub-page="dashboard"] .hms-history-item[data-action="updated"] .hms-history-badge { background: var(--sky-warning-soft); color: var(--sky-warning); }
+body[data-skyhub-page="dashboard"] .hms-history-item[data-action="resolved"] .hms-history-badge { background: var(--sky-success-soft); color: var(--sky-success); }
 body[data-skyhub-page="dashboard"] #takPanel { background: var(--sky-bg); padding: 24px; }
 body[data-skyhub-page="dashboard"] .tak-heading,
 body[data-skyhub-page="dashboard"] .tak-card {

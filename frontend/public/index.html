@@ -79,6 +79,19 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;margin:14px 0 8p
 .events-list small{font-size:10px;white-space:nowrap}
 .events-note{margin:0;color:var(--muted);font-size:11px}
 .events-panel button{margin-top:8px;padding:4px 8px;font-size:11px;background:#203c50}
+.hms-history-tools{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
+.hms-history-tools select{min-width:0;flex:1 1 160px;font-size:11px;padding:3px 6px}
+.hms-history-tools button,.events-panel #hmsHistoryMore{margin-top:0}
+.hms-history-list{list-style:none;padding:0;margin:0;display:grid;gap:5px}
+.hms-history-item{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:start;padding:5px 0 5px 8px;border-top:1px solid #2c4054;border-left:3px solid #6f8396}
+.hms-history-item[data-level="1"]{border-left-color:#f0b84a}.hms-history-item[data-level="2"]{border-left-color:#ff6b5b}
+.hms-history-item[data-action="resolved"]{opacity:.78}
+.hms-history-item strong{display:block;font-size:11px;font-weight:600;overflow-wrap:anywhere}
+.hms-history-item small{display:block;font-size:10px;overflow-wrap:anywhere}
+.hms-history-time{white-space:nowrap}
+.hms-history-badge{display:inline-block;margin-bottom:2px;font-size:10px;font-weight:700;padding:1px 6px;border-radius:999px;background:#203c50;white-space:nowrap}
+.hms-history-item[data-action="appeared"] .hms-history-badge{background:#5b2a2a}
+.hms-history-item[data-action="resolved"] .hms-history-badge{background:#1f4a35}
 @media(max-width:850px){header{height:auto;flex-direction:column;align-items:flex-start} #operationsPanel{grid-template-columns:1fr;height:auto}#map{height:clamp(300px,38vh,420px);min-height:300px}aside{border-left:0}.map-shell{min-height:300px}}
 /* Main tabs mirror the design reference; TAK remains a read-only, offline placeholder. */
 .workspace-tabs{display:flex;align-items:center;gap:8px;min-height:52px;padding:6px 18px;background:var(--bg);border-bottom:1px solid var(--edge)}
@@ -139,7 +152,7 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;margin:14px 0 8p
   </section>
   <aside id="fleetPanel" tabindex="-1" aria-labelledby="fleetHeading">
     <div class="sidebar-heading"><div><p class="skyhub-eyebrow">FLOTTE / TELEMETRIE</p><h2 id="fleetHeading">Gerätestatus</h2></div><span class="readonly-pill">Nur Lesen</span></div>
-    <div class="notice">Lesende Ansicht · keine Flugsteuerung. Fehlende Werte: —. Karte benötigt Internet.</div>
+    <div class="notice">Lesende Ansicht · keine Flugsteuerung. Fehlende Werte: —. Bereits angesehene Kartenbereiche bleiben ohne Internet verfügbar.</div>
     <div class="grid">
       <div class="tile"><small>Geräte</small><strong id="count">0</strong></div>
       <div class="tile"><small>OSD &lt;15 s</small><strong id="live">0</strong></div>
@@ -203,6 +216,16 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;margin:14px 0 8p
       <ol id="eventsList" class="events-list"></ol>
       <button id="refreshEvents" type="button" disabled>Aktualisieren</button>
     </details>
+    <details id="hmsHistoryPanel" class="events-panel">
+      <summary>HMS-Verlauf · <span id="hmsHistorySummary">aufklappen zum Laden</span></summary>
+      <div class="hms-history-tools">
+        <select id="hmsHistoryDevice" aria-label="Gerät für den HMS-Verlauf"><option value="">Alle Geräte</option></select>
+        <button id="hmsHistoryRefresh" type="button">Aktualisieren</button>
+      </div>
+      <p id="hmsHistoryNote" class="events-note" role="status" hidden></p>
+      <ol id="hmsHistoryList" class="hms-history-list" aria-label="Gespeicherte HMS-Übergänge, neueste zuerst"></ol>
+      <button id="hmsHistoryMore" type="button" hidden>Ältere laden</button>
+    </details>
     <label class="toggle"><input type="checkbox" id="showTrack" checked> Flugspur der letzten 60 Minuten anzeigen</label>
     <div id="trackFeedback" class="track-feedback"><span id="trackStatus" role="status">Flugspur wird nach Verbindung geladen.</span><button id="retryTracks" type="button" hidden disabled>Erneut laden</button></div>
     <h2>Geräte im Überblick</h2>
@@ -253,6 +276,7 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;margin:14px 0 8p
 </main>
 <script src="/vendor/leaflet/1.9.4/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="></script>
 <script src="/socket.io/socket.io.js"></script>
+<script src="/hms-history-panel.js"></script>
 <script src="/telemetry-freshness.js"></script>
 <script src="/telemetry-cockpit.js"></script>
 <script src="/workspace-tabs.js"></script>
@@ -308,6 +332,9 @@ let socket=null,centered=false,authToken=null,selectedSn=null,connectAttempt=0;
 let trackLoadId=0,trackController=null;
 let healthController=null;
 let eventsController=null,eventsLoadId=0;
+// Stored HMS transitions (opt-in on the server); loaded only when the panel is opened.
+const hmsHistoryPanel=window.SkyHubHmsHistory?window.SkyHubHmsHistory.createPanel({
+  document,fetchImpl:(...args)=>fetch(...args),getToken:()=>authToken,getDevices:()=>records.values()}):null;
 const recentEvents=[];
 const expanded=new Set();
 let listState='loading',composingSearch=false;
@@ -616,6 +643,7 @@ function update(){
 async function connect(token=null,quiet=false){
   const attempt=++connectAttempt;
   resetEvents('Verbindung wird hergestellt.');
+  if(hmsHistoryPanel)hmsHistoryPanel.reset();
   cancelTrackLoad();
   setTrackStatus('Warte auf Verbindung.');
   if(socket){const previous=socket;socket=null;previous.disconnect();}
@@ -636,6 +664,7 @@ async function connect(token=null,quiet=false){
     update();
     authToken=token;
     loadEvents();
+    if(hmsHistoryPanel){hmsHistoryPanel.syncDevices();hmsHistoryPanel.reset();}
     loadTracks();
     const label=token?'Live verbunden':'Live verbunden (Heimnetz)';
     const current=io({auth:token?{token}:{},reconnectionDelayMax:5000});
@@ -645,7 +674,8 @@ async function connect(token=null,quiet=false){
     current.on('disconnect',()=>{if(socket===current)el('message').textContent='Verbindung getrennt';});
     current.on('snapshot',list=>{if(socket!==current)return;records.clear();for(const d of list)records.set(d.sn,d);update();});
     current.on('device_update',d=>{if(socket!==current)return;records.set(d.sn,d);update();});
-    current.on('device_event',event=>{if(socket!==current)return;addRecentEvent(event);});
+    current.on('device_event',event=>{if(socket!==current)return;addRecentEvent(event);
+      if(hmsHistoryPanel&&event&&event.method==='hms')hmsHistoryPanel.changed();});
     return true;
   }catch(err){
     if(attempt!==connectAttempt)return false;

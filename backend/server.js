@@ -34,7 +34,7 @@ const {createHttpAuth}=require('./http-auth');
 const {mapPageReferrerPolicy}=require('./map-page-referrer');
 const {registerPilotRoutes,registerPilotAdminRoutes}=require('./pilot-routes');
 const {createMqttIngest}=require('./mqtt-ingest');
-const {createHmsHistory}=require('./hms-history');
+const {createHmsHistory,createHmsHistoryHandler}=require('./hms-history');
 const {createPilotAuth}=require('./pilot-auth');
 const {createTsaHub,createTopologyListHandler}=require('./tsa-hub');
 const {createTileCache,createTileRedirect,tileCacheSettings}=require('./tile-cache');
@@ -175,7 +175,7 @@ app.get('/api/health',(req,res)=>res.json({
   topologyReplyConnected:ack.connected,topologyReplySent:ack.sent,
   topologyReplyErrors:ack.failed,topologyReplySkipped:ack.skipped,
   topologyReplyLastAt:ack.lastAt,topologyRestoredDevices:topologyRestored,
-  lanViewEnabled:lanAccess.enabled,...trackRecorder.snapshot(),
+  lanViewEnabled:lanAccess.enabled,hmsHistoryEnabled:Boolean(hmsHistory),...trackRecorder.snapshot(),
   trackRetentionDays,...mqttStats.snapshot(),...ingest.cacheStats(),
   tileCache:tiles.stats(),
   ...(tsaHub?{tsa:tsaHub.stats()}:{}),
@@ -279,14 +279,7 @@ app.get('/api/devices',(req,res)=>res.json(registry.snapshot()));
 app.get('/api/topology',(req,res)=>res.json(registry.snapshot().map(d=>({sn:d.sn,role:d.role,gatewaySn:d.gatewaySn,model:d.model,topologyOnline:d.topologyOnline,online:d.online,
   lastTopologyAt:d.lastTopologyAt,topologyTimeVerified:d.topologyTimeVerified,children:d.children}))));
 app.get('/api/events',(req,res)=>res.json(registry.events()));
-app.get('/api/diagnostics/hms-history',async(req,res)=>{
-  if(!hmsHistory)return res.status(503).json({error:'HMS history disabled'});
-  const device=req.query.device===undefined?null:req.query.device;
-  const limit=req.query.limit===undefined?50:Number(req.query.limit);
-  const offset=req.query.offset===undefined?0:Number(req.query.offset);
-  try{res.json({items:await hmsHistory.list(device,limit,offset),limit,offset});}
-  catch(err){res.status(err instanceof TypeError?400:503).json({error:err instanceof TypeError?'Invalid query':'HMS history unavailable'});}
-});
+app.get('/api/diagnostics/hms-history',createHmsHistoryHandler({history:hmsHistory,registry}));
 registerPilotAdminRoutes(app,{pairing});
 // Field names per channel/method as actually received; no values or serial numbers.
 app.get('/api/diagnostics/mqtt-shapes',(req,res)=>res.json(mqttShapes.snapshot()));

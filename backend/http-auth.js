@@ -6,7 +6,7 @@ const crypto=require('crypto');
 // The web UI asks for no token or password: inside the home LAN every read (GET) of the
 // dashboard, the media gallery (MinIO), the thermal module and the Smart Farming catalog works without one.
 // Pairing administration, DR reports and other diagnostics still need the view token.
-const lanReadPaths=new Set(['/devices','/topology','/events','/diagnostics/mqtt-shapes']);
+const lanReadPaths=new Set(['/devices','/topology','/events','/diagnostics/mqtt-shapes','/diagnostics/hms-history']);
 const lanReadPatterns=[
   /^\/drone\/[^/]+\/(track|telemetry)$/,
   /^\/media\/(status|buckets|objects|summary|index|file|thumb|mission|m3m\/inventory)$/,
