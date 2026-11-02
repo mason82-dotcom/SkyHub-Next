@@ -22,6 +22,7 @@ const {createTrackRecorder}=require('./track-recorder');
 const {createS3Storage}=require('./s3-storage');
 const {createMediaRouter}=require('./media-api');
 const {createThermalRouter}=require('./thermal');
+const {createThermalSdkClient}=require('./thermal-sdk');
 const {createSmartFarmingCaptures}=require('./smart-farming-captures');
 const {createPilotMediaLibraryRuntime}=require('./pilot-media-library-runtime');
 const {createPilotMediaUploadRuntime}=require('./pilot-media-upload-runtime');
@@ -211,8 +212,17 @@ if(mediaStorage){
   const mediaRouter=createMediaRouter(mediaStorage,{labels:pool?pilotMediaLabels:null});
   app.use('/api/media',mediaRouter);
   // Thermal module: radiometric R-JPEGs from the same storage, read-only.
+  // Optional DJI Thermal SDK: isolated thermal-sdk service (compose profile), internal network only.
+  let thermalSdk=null;
+  if(process.env.SKYHUB_THERMAL_SDK_URL){
+    try{
+      thermalSdk=createThermalSdkClient({url:process.env.SKYHUB_THERMAL_SDK_URL,
+        token:process.env.SKYHUB_THERMAL_SDK_TOKEN});
+      console.log('[thermal sdk] DJI Thermal SDK service configured');
+    }catch(err){console.error('[thermal sdk] disabled:',err.message);}
+  }
   app.use('/api/thermal',createThermalRouter({storage:mediaStorage,
-    bucketIndex:mediaRouter.bucketIndex,buckets:()=>mediaStorage.buckets()}));
+    bucketIndex:mediaRouter.bucketIndex,buckets:()=>mediaStorage.buckets(),sdk:thermalSdk}));
   // Smart Farming: Mavic 3M multispectral captures grouped by CaptureUUID (read-only).
   app.use('/api/smart-farming/captures',createSmartFarmingCaptures({storage:mediaStorage,
     bucketIndex:mediaRouter.bucketIndex}).router);

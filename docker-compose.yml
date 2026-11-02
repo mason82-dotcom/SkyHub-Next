@@ -92,6 +92,9 @@ services:
       SKYHUB_WPML_S3_SECRET_KEY: ${SKYHUB_WPML_S3_SECRET_KEY:-}
       SKYHUB_WPML_S3_PUBLIC_ENDPOINT: ${SKYHUB_WPML_S3_PUBLIC_ENDPOINT:-}
       SKYHUB_PILOT_WAYLINE_ENABLED: ${SKYHUB_PILOT_WAYLINE_ENABLED:-false}
+      # Optional DJI Thermal SDK service (profile "thermal-sdk"); empty = thermal estimate only.
+      SKYHUB_THERMAL_SDK_URL: ${SKYHUB_THERMAL_SDK_URL:-}
+      SKYHUB_THERMAL_SDK_TOKEN: ${SKYHUB_THERMAL_SDK_TOKEN:-}
       # Pilot 2 verified library stays off until migrations 003-005 and the
       # separate identity, backup and Pi acceptance gates have passed.
       SKYHUB_MEDIA_LIBRARY_ENABLED: ${SKYHUB_MEDIA_LIBRARY_ENABLED:-false}
@@ -147,7 +150,42 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - default
+      - thermal_sdk
+  # DJI Thermal SDK (dji_irp, x86-64) via box64 on the Pi 5. Opt-in: compose profile "thermal-sdk".
+  # Internal network only (no host port, no internet); the SDK directory is mounted read-only and is
+  # never part of the image (DJI license). The backend talks to it with SKYHUB_THERMAL_SDK_TOKEN.
+  thermal-sdk:
+    profiles: ["thermal-sdk"]
+    build:
+      context: docker/dji-tsdk-box64
+    image: skyhub-dji-box64:trixie
+    restart: unless-stopped
+    logging: *default-logging
+    labels: *no-watchtower
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=128m
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 1g
+    cpus: 1.0
+    pids_limit: 64
+    environment:
+      SKYHUB_THERMAL_SDK_TOKEN: ${SKYHUB_THERMAL_SDK_TOKEN:-}
+    volumes:
+      - type: bind
+        source: ${SKYHUB_DJI_TSDK_DIR:-./storage/dji-tsdk-not-configured}
+        target: /sdk
+        read_only: true
+    networks:
+      - thermal_sdk
 volumes:
   pgdata:
   redis_data:
   minio_data:
+networks:
+  # Backend <-> thermal-sdk only; internal: no route to the outside.
+  thermal_sdk:
+    internal: true

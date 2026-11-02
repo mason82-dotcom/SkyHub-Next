@@ -4,7 +4,8 @@
 const T=window.SkyhubThermal;
 const el=id=>document.getElementById(id);
 const state={items:[],current:null,frame:null,temps:null,width:640,height:512,tool:'view',
-  measurements:[],drag:null,series:[],seriesKey:null,ready:false,loadTicket:0,controller:null};
+  measurements:[],drag:null,series:[],seriesKey:null,ready:false,loadTicket:0,controller:null,
+  sdkAvailable:false,computeTicket:0,computeController:null,computeTimer:null};
 const store=new Map(); // per-image measurements while the page is open
 
 function node(tag,className,text){
@@ -57,38 +58,93 @@ function setReady(ready){
   state.ready=ready;
   for(const id of ['export-png','export-csv','export-matrix'])el(id).disabled=!ready;
 }
+function mode(){return state.sdkAvailable&&el('calibration').value==='sdk'?'sdk':'estimate';}
+const numberOf=id=>{const v=el(id).value.trim();return v===''?NaN:Number(v);};
 function params(){
   const epsFile=state.frame?.emissivity??0.95;
-  const eps=el('eps').value.trim()===''?NaN:Number(el('eps').value);
-  const reflected=el('reflected').value.trim()===''?NaN:Number(el('reflected').value);
-  const validEps=Number.isFinite(eps)&&eps>=0.1&&eps<=1;
-  const validRef=Number.isFinite(reflected)&&reflected>=-T.KELVIN;
+  const eps=numberOf('eps'),reflected=numberOf('reflected');
+  const sdk=mode()==='sdk',R=T.SDK_RANGES;
+  const inRange=(v,[lo,hi])=>Number.isFinite(v)&&v>=lo&&v<=hi;
+  const validEps=inRange(eps,R.emissivity);
+  const validRef=sdk?inRange(reflected,R.reflection):Number.isFinite(reflected)&&reflected>=-T.KELVIN;
   el('eps').setAttribute('aria-invalid',String(!validEps));
   el('reflected').setAttribute('aria-invalid',String(!validRef));
-  if(!validEps||!validRef)throw new RangeError('Emissionsgrad muss 0,1 bis 1 sein; reflektierte Temperatur mindestens −273,15 °C.');
-  return {epsFile,eps,reflected,emissivityAssumed:state.frame?.emissivity==null};
+  if(!sdk){
+    if(!validEps||!validRef)throw new RangeError('Emissionsgrad muss 0,1 bis 1 sein; reflektierte Temperatur mindestens −273,15 °C.');
+    return {mode:'estimate',epsFile,eps,reflected,emissivityAssumed:state.frame?.emissivity==null};
+  }
+  const distance=numberOf('sdk-distance'),humidity=numberOf('sdk-humidity'),ambient=numberOf('sdk-ambient');
+  const checks=[['sdk-distance',distance,R.distance],['sdk-humidity',humidity,R.humidity],['sdk-ambient',ambient,R.ambient]];
+  for(const [id,v,r] of checks)el(id).setAttribute('aria-invalid',String(!inRange(v,r)));
+  if(!validEps||!validRef||checks.some(([,v,r])=>!inRange(v,r)))
+    throw new RangeError('DJI Thermal SDK: Emissionsgrad 0,1–1, reflektierte Temperatur −40–500 °C, Abstand 1–25 m, '+
+      'Luftfeuchte 20–100 %, Umgebung −40–80 °C.');
+  return {mode:'sdk',epsFile,eps,reflected,distance,humidity,ambient,emissivityAssumed:state.frame?.emissivity==null};
 }
-function recompute(){
+function scheduleRecompute(){
+  clearTimeout(state.computeTimer);
+  state.computeTimer=setTimeout(recompute,mode()==='sdk'?400:0);
+}
+// DJI Thermal SDK temperatures for exactly the loaded source version; stale answers are discarded.
+async function sdkTemperatures(p){
+  const ticket=++state.computeTicket;
+  state.computeController?.abort();
+  const controller=new AbortController();state.computeController=controller;
+  const timer=setTimeout(()=>controller.abort(),60000);
+  try{
+    const qs=new URLSearchParams({bucket:state.current.bucket,key:state.current.key,version:state.frame.meta.version,
+      emissivity:String(p.eps),reflection:String(p.reflected),distance:String(p.distance),
+      humidity:String(p.humidity),ambient:String(p.ambient)});
+    const r=await fetch('/api/thermal/measure?'+qs,{cache:'no-store',signal:controller.signal});
+    if(!r.ok)throw Object.assign(new Error('HTTP '+r.status),{status:r.status});
+    const buf=await r.arrayBuffer();
+    if(ticket!==state.computeTicket)return null;
+    if(r.headers.get('X-Thermal-Version')!==state.frame.meta.version||r.headers.get('X-Thermal-Calibration')!=='dji-tsdk'||
+       Number(r.headers.get('X-Thermal-Width'))!==state.width||Number(r.headers.get('X-Thermal-Height'))!==state.height||
+       buf.byteLength!==state.width*state.height*4)throw new Error('SDK-Ergebnis gehört nicht zu dieser Bildversion');
+    const view=new DataView(buf),temps=new Float32Array(state.width*state.height);
+    for(let i=0;i<temps.length;i++)temps[i]=view.getFloat32(i*4,true);
+    return temps;
+  }finally{clearTimeout(timer);}
+}
+async function recompute(){
   if(!state.frame)return;
   setReady(false);
+  const loadTicket=state.loadTicket;
+  let computeTicket=null;
   try{
     const p=params();
-    state.temps=T.temperatures(state.frame.raw,p);
+    let temps;
+    if(p.mode==='sdk'){
+      computeTicket=state.computeTicket+1; // sdkTemperatures() claims exactly this ticket
+      say('DJI Thermal SDK berechnet …');
+      temps=await sdkTemperatures(p);
+      if(!temps||loadTicket!==state.loadTicket)return; // newer image or parameters took over
+    }else{
+      ++state.computeTicket;state.computeController?.abort();
+      temps=T.temperatures(state.frame.raw,p);
+    }
+    state.temps=temps;
     state.whole=T.regionStats(state.temps,state.width,state.height);
     if(!state.whole||state.whole.pixels!==state.width*state.height)throw new Error('Ungültige Temperaturwerte');
     if(el('auto-range').checked){
       el('range-min').value=state.whole.p1.toFixed(1);el('range-max').value=state.whole.p99.toFixed(1);
     }
-    renderMeasurements();draw();renderStats();
     state.appliedParams={...p};
+    renderMeasurements();draw();renderStats();
     setReady(true);say('');
   }catch(error){
+    // Superseded by a newer image or newer parameters: that run reports, not this one.
+    if(loadTicket!==state.loadTicket||(computeTicket!==null&&computeTicket!==state.computeTicket))return;
     state.temps=null;state.whole=null;
     el('thermal').getContext('2d').clearRect(0,0,state.width,state.height);
     el('measurements').replaceChildren();el('stats').replaceChildren();el('legend').replaceChildren();
     el('histogram').getContext('2d').clearRect(0,0,480,110);
     el('readout').textContent='Keine gültige Auswertung';
-    say(error.message,'error');
+    say(error.status===422?'Das DJI Thermal SDK kann dieses Bild nicht auswerten (Kamera/Format nicht unterstützt). „Schätzung“ wählen.':
+      error.status===504||error.name==='AbortError'?'DJI Thermal SDK: Zeitlimit überschritten. Erneut versuchen oder „Schätzung“ wählen.':
+      error.status===503||error.status===404?'DJI Thermal SDK derzeit nicht erreichbar. „Schätzung“ wählen.':
+      error.status===409?'Bild wurde im Speicher geändert. Wärmebild erneut auswählen.':error.message,'error');
   }
 }
 function range(){
@@ -161,14 +217,21 @@ function facts(list,rows){
   for(const [k,v] of rows){if(v===null||v===undefined||v==='')continue;list.append(node('dt',null,k),node('dd',null,v));}
 }
 function renderStats(){
-  const s=state.whole,p=params();
+  const s=state.whole,p=state.appliedParams;
   facts(el('stats'),[
     ['Minimum',T.format(s.min)+' ('+s.cold.x+'/'+s.cold.y+')'],['Median',T.format(s.median)],
     ['Mittelwert',T.format(s.mean)],['Maximum',T.format(s.max)+' ('+s.hot.x+'/'+s.hot.y+')'],
     ['Spanne',T.format(s.max-s.min)],
     ['Emissionsgrad',p.eps.toLocaleString('de-DE')+(p.emissivityAssumed?' (Dateiwert fehlt; Ausgangswert 0,95 angenommen)':
       Math.abs(p.eps-p.epsFile)>1e-9?' (Datei: '+p.epsFile+', korrigiert)':' (aus Datei)')],
-    ['Korrektur',Math.abs(p.eps-p.epsFile)>1e-9?'Gesamtstrahlungs-Näherung':'Keine Umrechnung; reflektierte Temperatur wirkt nur bei geändertem Emissionsgrad']
+    ...(p.mode==='sdk'?[
+      ['Berechnung','DJI Thermal SDK (kalibriert)'],
+      ['SDK-Parameter','Abstand '+p.distance.toLocaleString('de-DE')+' m · Luftfeuchte '+p.humidity.toLocaleString('de-DE')+
+        ' % · Umgebung '+p.ambient.toLocaleString('de-DE')+' °C · reflektiert '+p.reflected.toLocaleString('de-DE')+' °C']
+    ]:[
+      ['Berechnung','Schätzung raw/64 − 273,15 (ohne DJI-Kalibrierung)'],
+      ['Korrektur',Math.abs(p.eps-p.epsFile)>1e-9?'Gesamtstrahlungs-Näherung':'Keine Umrechnung; reflektierte Temperatur wirkt nur bei geändertem Emissionsgrad']
+    ])
   ]);
 }
 function renderMeta(meta){
@@ -211,6 +274,7 @@ async function open(item){
   const timeout=setTimeout(()=>controller.abort(),20000);
   state.current=item;state.frame=null;state.temps=null;state.whole=null;state.drag=null;
   state.measurements=[];state.appliedParams=null;
+  ++state.computeTicket;state.computeController?.abort();clearTimeout(state.computeTimer);
   setReady(false);
   el('thermal').getContext('2d').clearRect(0,0,el('thermal').width,el('thermal').height);
   el('histogram').getContext('2d').clearRect(0,0,480,110);
@@ -240,6 +304,11 @@ async function open(item){
     state.width=meta.width;state.height=meta.height;
     state.frame={raw:values,emissivity:meta.emissivity,meta};
     el('eps').value=String(meta.emissivity??0.95);
+    state.sdkAvailable=meta.sdk?.available===true;
+    el('sdk-controls').hidden=!state.sdkAvailable;el('sdk-help').hidden=!state.sdkAvailable;
+    const lrf=meta.meta?.lrfDistance;
+    // Laser rangefinder distance as suggestion, limited to the SDK range (1–25 m).
+    if(Number.isFinite(lrf)&&lrf>0)el('sdk-distance').value=String(Math.min(25,Math.max(1,Math.round(lrf*10)/10)));
     const identity=JSON.stringify([item.bucket,item.key,meta.version]);
     if(!store.has(identity))store.set(identity,[]);
     state.measurements=store.get(identity);
@@ -300,6 +369,13 @@ function download(name,blob){
 const base=()=>state.current.name.replace(/\.[^.]+$/,'')+'_'+state.frame.meta.version.slice(0,12);
 function provenance(){
   const p=state.appliedParams,m=state.frame.meta;
+  if(p.mode==='sdk')return [['Hinweis',T.SDK_LABEL],['Software-/Berechnungsstand',T.SDK_CALCULATION],
+    ['Datei',state.current.name],['Bucket',state.current.bucket],['Objektschlüssel',state.current.key],
+    ['Quellversion SHA-256',m.version],['Quellgröße Byte',m.sourceBytes],
+    ['Breite Pixel',state.width],['Höhe Pixel',state.height],['Einheit','°C'],
+    ['Emissionsgrad Datei',m.emissivity??'fehlt'],['Emissionsgrad gewählt',p.eps],
+    ['Reflektierte Temperatur °C',p.reflected],['Abstand m',p.distance],['Luftfeuchte %',p.humidity],
+    ['Umgebungstemperatur °C',p.ambient],['Kalibrierung','DJI Thermal SDK dji_irp V1.7 (box64, Raspberry Pi)']];
   return [['Hinweis',T.ESTIMATE],['Software-/Berechnungsstand',T.CALCULATION],
     ['Datei',state.current.name],['Bucket',state.current.bucket],['Objektschlüssel',state.current.key],
     ['Quellversion SHA-256',m.version],['Quellgröße Byte',m.sourceBytes],
@@ -435,7 +511,9 @@ async function start(){
   for(const id of ['palette','iso-mode','iso-t1','iso-t2'])el(id).addEventListener('input',()=>state.temps&&draw());
   for(const id of ['range-min','range-max'])el(id).addEventListener('input',()=>{el('auto-range').checked=false;state.temps&&draw();});
   el('auto-range').addEventListener('change',()=>state.temps&&recompute());
-  for(const id of ['eps','reflected'])el(id).addEventListener('input',()=>state.frame&&recompute());
+  for(const id of ['eps','reflected','sdk-distance','sdk-humidity','sdk-ambient'])
+    el(id).addEventListener('input',()=>state.frame&&scheduleRecompute());
+  el('calibration').addEventListener('change',()=>state.frame&&recompute());
   el('show-spots').addEventListener('change',()=>state.temps&&draw());
   el('show-visual').addEventListener('change',()=>{el('visual-figure').hidden=!el('show-visual').checked;});
   for(const b of document.querySelectorAll('[data-tool]'))b.addEventListener('click',()=>{
