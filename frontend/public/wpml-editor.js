@@ -395,8 +395,10 @@
       planSignature()===savedPlanSignature?'Aktueller Entwurf ist zentral gespeichert.':
       'Ungespeicherte Änderungen – erst mit „In Bibliothek speichern“ veröffentlichen.';
   }
-  document.querySelector('form')?.addEventListener('input',updateSaveState);
-  document.querySelector('form')?.addEventListener('change',updateSaveState);
+  // Headless editor tests provide getElementById but no querySelector.
+  // In browsers the form listener tracks all editable mission fields.
+  document.querySelector?.('form')?.addEventListener('input',updateSaveState);
+  document.querySelector?.('form')?.addEventListener('change',updateSaveState);
   // ASCII-only, filesystem-safe download name derived from the mission name.
   function fileStem(name){
     const stem=String(name||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
