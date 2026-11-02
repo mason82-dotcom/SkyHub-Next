@@ -16,50 +16,74 @@ const USER='69ecb38c-04f2-44d0-adc6-3441cb4f9449';
 const SESSION='4d8779ac-4573-444d-ab9c-23ac0814f8b1';
 const NOW=1800000000;
 const PEPPER='dedicated-ci-only-wpml-operator-session-hmac-pepper';
+const MAC_SECRET='independent-ci-only-record-integrity-hmac-secret';
+const MAC_CONTEXT='skyhub:wpml:operator-session:record:v2\u0000';
 const claim=()=>({issuer:ISSUER,subject:USER,workspaceId:A,role:'operator',
   sessionId:SESSION,expiresAt:NOW+300,keyId:'kidA'});
 const record=()=>({schema:SESSION_SCHEMA,issuer:ISSUER,subject:USER,
   workspaceId:A,role:'operator',sessionId:SESSION,expiresAt:NOW+600,
   status:'active'});
-const redisKey=()=> 'skyhub:wpml:operator-session:v1:'+
+function signedRecord(source=record()){
+  const fields=[source.schema,source.issuer,source.subject,source.workspaceId,
+    source.role,source.sessionId,source.expiresAt,source.status];
+  const mac=crypto.createHmac('sha256',MAC_SECRET)
+    .update(MAC_CONTEXT+JSON.stringify(fields),'utf8').digest('hex');
+  return JSON.stringify({...source,mac});
+}
+const redisKey=()=> 'skyhub:wpml:operator-session:v2:'+
   crypto.createHmac('sha256',PEPPER).update(SESSION).digest('hex');
-function registry(initial=JSON.stringify(record())){
+function registry(initial=signedRecord()){
   let data=initial;const keys=[];
   return {keys,get:async key=>{keys.push(key);return data;},
     update:v=>{data=v;}};
 }
 function session(redis,options={}){return createWpmlRedisSessionCheck({
-  redis,keySecret:PEPPER,clock:()=>NOW*1000,...options});}
+  redis,keySecret:PEPPER,recordMacSecret:MAC_SECRET,
+  clock:()=>NOW*1000,...options});}
 test('requires dedicated key material and independent read-only lookup',()=>{
   assert.throws(()=>createWpmlRedisSessionCheck(),/read-only Redis/);
   assert.throws(()=>createWpmlRedisSessionCheck({redis:{get:async()=>null},
     keySecret:'short'}),/Dedicated 32/);
   assert.throws(()=>createWpmlRedisSessionCheck({redis:{get:async()=>null},
-    keySecret:PEPPER,clock:25}),/Clock/);
+    keySecret:PEPPER,recordMacSecret:MAC_SECRET,clock:25}),/Clock/);
+});
+test('requires separate integrity key and rejects invalid MAC key material',()=>{
+  assert.throws(()=>createWpmlRedisSessionCheck({redis:registry(),
+    keySecret:PEPPER}),/integrity secret/);
+  assert.throws(()=>createWpmlRedisSessionCheck({redis:registry(),
+    keySecret:PEPPER,recordMacSecret:'short'}),/integrity secret/);
+  assert.throws(()=>createWpmlRedisSessionCheck({redis:registry(),
+    keySecret:PEPPER,recordMacSecret:PEPPER}),/must differ/);
+  assert.equal(signedRecord().includes('"mac":"'),true);
 });
 test('read-only GET uses HMAC-scoped key and never leaks raw session UUID or token',async()=>{
   const r=registry();
   assert.equal(await session(r)(claim()),true);
   assert.deepEqual(r.keys,[redisKey()]);
   assert.doesNotMatch(r.keys[0],new RegExp(SESSION+'|'+USER+'|'+A));
-  assert.equal(r.keys[0].length,'skyhub:wpml:operator-session:v1:'.length+64);
+  assert.equal(r.keys[0].length,'skyhub:wpml:operator-session:v2:'.length+64);
 });
 test('rejected, altered or revoked session records fail closed without retries or writes',async()=>{
   const wrong=[
     null,'','{}','not-json',
-    JSON.stringify({...record(),status:'revoked'}),
-    JSON.stringify({...record(),status:'pending'}),
-    JSON.stringify({...record(),workspaceId:B}),
-    JSON.stringify({...record(),subject:B}),
-    JSON.stringify({...record(),role:'admin'}),
-    JSON.stringify({...record(),issuer:'https://unknown'}),
-    JSON.stringify({...record(),sessionId:B}),
-    JSON.stringify({...record(),expiresAt:NOW+299}),
-    JSON.stringify({...record(),expiresAt:NOW-1}),
-    JSON.stringify({...record(),schema:'old-format'}),
-    JSON.stringify({...record(),extraGrant:true}),
-    JSON.stringify({...record(),status:true}),
-    JSON.stringify(record()).replace('"status":"active"',
+    signedRecord({...record(),status:'revoked'}),
+    signedRecord({...record(),status:'pending'}),
+    signedRecord({...record(),workspaceId:B}),
+    signedRecord({...record(),subject:B}),
+    signedRecord({...record(),role:'admin'}),
+    signedRecord({...record(),issuer:'https://unknown'}),
+    signedRecord({...record(),sessionId:B}),
+    signedRecord({...record(),expiresAt:NOW+299}),
+    signedRecord({...record(),expiresAt:NOW-1}),
+    signedRecord({...record(),schema:'old-format'}),
+    signedRecord({...record(),extraGrant:true}),
+    signedRecord({...record(),status:true}),
+    // Valid-looking unsigned/previous-schema records are never accepted.
+    JSON.stringify(record()),
+    JSON.stringify({...record(),schema:'skyhub-wpml-operator-session-v1'}),
+    signedRecord().replace(/"mac":"[a-f0-9]{64}"/, '"mac":"'+'0'.repeat(64)+'"'),
+    signedRecord().replace('"workspaceId":"'+A+'"', '"workspaceId":"'+B+'"'),
+    signedRecord().replace('"status":"active"',
       '"status":"active","status":"active"'),
     'x'.repeat(2049)
   ];
@@ -76,22 +100,22 @@ test('stalled or extremely slow Redis lookup rejects by a bounded deadline',asyn
   const hanging={get:()=>new Promise(()=>{})};
   const start=Date.now();
   const check=createWpmlRedisSessionCheck({
-    redis:hanging,keySecret:PEPPER,clock:()=>NOW*1000,lookupTimeoutMs:25});
+    redis:hanging,keySecret:PEPPER,recordMacSecret:MAC_SECRET,clock:()=>NOW*1000,lookupTimeoutMs:25});
   assert.equal(await check(claim()),false);
   assert.ok(Date.now()-start<1000,'stalled lookup must not block the session gate');
   assert.throws(()=>createWpmlRedisSessionCheck({
-    redis:hanging,keySecret:PEPPER,lookupTimeoutMs:0}),/Bounded Redis/);
+    redis:hanging,keySecret:PEPPER,recordMacSecret:MAC_SECRET,lookupTimeoutMs:0}),/Bounded Redis/);
   assert.throws(()=>createWpmlRedisSessionCheck({
-    redis:hanging,keySecret:PEPPER,lookupTimeoutMs:60000}),/Bounded Redis/);
+    redis:hanging,keySecret:PEPPER,recordMacSecret:MAC_SECRET,lookupTimeoutMs:60000}),/Bounded Redis/);
   let release;
   const late={get:()=>new Promise(resolve=>{release=resolve;})};
   const delayed=createWpmlRedisSessionCheck({
-    redis:late,keySecret:PEPPER,clock:()=>NOW*1000,lookupTimeoutMs:25});
+    redis:late,keySecret:PEPPER,recordMacSecret:MAC_SECRET,clock:()=>NOW*1000,lookupTimeoutMs:25});
   assert.equal(await delayed(claim()),false);
-  release(JSON.stringify(record())); // must never authorize after timeout
+  release(signedRecord()); // must never authorize after timeout
 });
 test('multibyte session response exceeding the byte budget is rejected',async()=>{
-  const r=registry(JSON.stringify(record())+'🛰️'.repeat(700));
+  const r=registry(signedRecord()+'🛰️'.repeat(700));
   assert.equal(await session(r)(claim()),false);
 });
 test('concurrency cap denies excess lookups and releases slots after success/failure',async()=>{
@@ -99,13 +123,13 @@ test('concurrency cap denies excess lookups and releases slots after success/fai
   const firstGet=new Promise(resolve=>{resolveFirst=resolve;});
   const adapter={get:async()=>{
     requests++;
-    return requests===1?firstGet:JSON.stringify(record());
+    return requests===1?firstGet:signedRecord();
   }};
   const check=session(adapter,{maxConcurrentLookups:1,lookupTimeoutMs:100});
   const pending=check(claim());
   assert.equal(await check(claim()),false);
   assert.equal(requests,1);
-  resolveFirst(JSON.stringify(record()));
+  resolveFirst(signedRecord());
   assert.equal(await pending,true);
   assert.equal(await check(claim()),true);
   assert.equal(requests,2);
@@ -117,7 +141,7 @@ test('expiring during a delayed Redis lookup always fails closed',async()=>{
   let now=NOW*1000;
   const delayed={get:async()=>{
     now=(NOW+301)*1000;
-    return JSON.stringify(record());
+    return signedRecord();
   }};
   const check=session(delayed,{clock:()=>now});
   assert.equal(await check(claim()),false);
@@ -125,7 +149,7 @@ test('expiring during a delayed Redis lookup always fails closed',async()=>{
   now=NOW*1000;
   const staleRecord={get:async()=>{
     now=(NOW+601)*1000;
-    return JSON.stringify(record());
+    return signedRecord();
   }};
   assert.equal(await session(staleRecord,{clock:()=>now})(claim()),false);
 });
@@ -134,7 +158,7 @@ test('timed-out Redis I/O holds its concurrency slot until actual settlement',as
   const redis={get:()=>{
     requests++;
     return requests===1?new Promise(resolve=>{finish=resolve;}):
-      Promise.resolve(JSON.stringify(record()));
+      Promise.resolve(signedRecord());
   }};
   const check=session(redis,{lookupTimeoutMs:25,maxConcurrentLookups:1});
   const first=check(claim());
@@ -146,7 +170,7 @@ test('timed-out Redis I/O holds its concurrency slot until actual settlement',as
   // build an unbounded backlog during an outage.
   for(let i=0;i<5;i++)assert.equal(await check(claim()),false);
   assert.equal(requests,1,'timeout must not permit more pending Redis work');
-  finish(JSON.stringify(record()));
+  finish(signedRecord());
   // Redis's promise settles through more than one microtask (thenable
   // adoption + I/O slot accounting). Wait for the event-loop boundary.
   await new Promise(resolve=>setImmediate(resolve));
@@ -158,7 +182,7 @@ test('rejected Redis I/O eventually frees the slot but grants no session',async(
   const redis={get:()=>{
     requests++;
     return requests===1?new Promise((_,reject)=>{rejectFirst=reject;}):
-      Promise.resolve(JSON.stringify(record()));
+      Promise.resolve(signedRecord());
   }};
   const check=session(redis,{lookupTimeoutMs:25,maxConcurrentLookups:1});
   assert.equal(await check(claim()),false);
@@ -172,9 +196,9 @@ test('rejected Redis I/O eventually frees the slot but grants no session',async(
 test('revocation, expiry and actor tampering prevent access',async()=>{
   const r=registry(),check=session(r);
   assert.equal(await check(claim()),true);
-  r.update(JSON.stringify({...record(),status:'revoked'}));
+  r.update(signedRecord({...record(),status:'revoked'}));
   assert.equal(await check(claim()),false);
-  r.update(JSON.stringify(record()));
+  r.update(signedRecord());
   assert.equal(await check({...claim(),workspaceId:B}),false);
   assert.equal(await check({...claim(),role:'admin'}),false);
   assert.equal(await check({...claim(),expiresAt:NOW+1000}),false);
@@ -216,11 +240,11 @@ test('signed operator claim + server-side Redis session allows only matching wor
   await assert.rejects(svc.listRoutes({credential:sign(),workspaceId:B}),
     {code:'unauthorized'});
   assert.equal(db.calls.length,previous);
-  r.update(JSON.stringify({...record(),status:'revoked'}));
+  r.update(signedRecord({...record(),status:'revoked'}));
   await assert.rejects(svc.listRoutes({credential:sign(),workspaceId:A}),
     {code:'unauthorized'});
   assert.equal(db.calls.length,previous);
-  r.update(JSON.stringify(record()));
+  r.update(signedRecord());
   await assert.rejects(svc.listRoutes({credential:sign({...payload,role:'admin'}),
     workspaceId:A}),{code:'unauthorized'});
   assert.equal(db.calls.length,previous);
