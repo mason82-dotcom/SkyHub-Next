@@ -28,6 +28,15 @@ rpi5.fritz.box {
     }
 
 \ttls internal
+\tlog {
+\t\tformat filter {
+\t\t    wrap json
+\t\t    fields {
+\t\t        request>headers>X-Auth-Token delete
+\t\t        request>headers>Authorization delete
+\t\t    }
+\t\t}
+\t}
 \treverse_proxy 127.0.0.1:11000
 }
 
@@ -73,6 +82,9 @@ class PilotWaylineCaddyTest(unittest.TestCase):
         self.assertIn("path /skyhub-wpml/missions/*", block)
         self.assertLess(s3.index("handle @wayline_download"), s3.index('respond "Forbidden" 403'))
         self.assertNotIn("PUT", block)
+        # The 302 Location header (presigned link) is dropped from the main site's access log.
+        self.assertIn("resp_headers>Location delete", main)
+        self.assertEqual(out.count("resp_headers>Location delete"), 1)
         # Everything else stays byte-identical.
         removed = [l for l in FIXTURE.split("\n") if l not in out.split("\n")]
         self.assertEqual(removed, [])
@@ -86,6 +98,14 @@ class PilotWaylineCaddyTest(unittest.TestCase):
         result = render(without_media)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("pi-caddy-pilot-media.sh", result.stderr)
+
+    def test_partial_state_gets_only_the_missing_log_filter(self):
+        full = render(FIXTURE).stdout
+        old = full.replace("\t\t        resp_headers>Location delete\n", "")
+        self.assertNotIn("resp_headers>Location", old)
+        result = render(old)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, full)
 
     def test_apply_validates_and_restores(self):
         source = SCRIPT.read_text(encoding="utf-8")

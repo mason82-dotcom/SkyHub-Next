@@ -9,6 +9,8 @@
 # 2. Site :9446 (S3 endpoint, home LAN only): GET/HEAD /skyhub-wpml/missions/* -> narrow proxy 127.0.0.1:4002,
 #    which forwards only presigned requests for one wayline file (<uuid>.kmz) to MinIO. Signature query
 #    parameters are already removed from that site's access log.
+# 3. Site rpi5.fritz.box access log: also drop the response Location header, because the 302 of
+#    .../waylines/{id}/url carries the presigned download link. Each part is added only if missing.
 # Requires scripts/pi-caddy-pilot-media.sh to be applied first. Nothing else in the Caddyfile is changed.
 set -euo pipefail
 
@@ -23,8 +25,10 @@ python3 - "$1" "$MARKER" "$S3_PORT" <<'PY'
 import sys
 path, marker, port = sys.argv[1], sys.argv[2], sys.argv[3]
 text = open(path).read()
-if marker in text: sys.exit('Already applied')
 lines = text.split('\n')
+changed = False
+
+def l_strip(line): return line.strip()
 
 def block(head):
     start = [i for i, l in enumerate(lines) if l.strip() == head]
@@ -35,16 +39,31 @@ def block(head):
 
 # 1) Main site: after the existing pilot media handle.
 s, e = block('rpi5.fritz.box {')
+routes_present = any(l.strip() == '@skyhub_pilot_wayline {' for l in lines[s:e])
 media = [i for i in range(s, e) if lines[i].strip() == 'handle @skyhub_pilot_media {']
 if len(media) != 1: sys.exit('Pilot media routes missing: run scripts/pi-caddy-pilot-media.sh apply first')
-close = next(i for i in range(media[0] + 1, e) if lines[i].strip() == '}')
-api = ['', '    ' + marker, '    # Managed by SkyHub-Next/scripts/pi-caddy-pilot-wayline.sh',
-       '    @skyhub_pilot_wayline {', '        path /wayline/api/v1/workspaces/*', '    }',
-       '    handle @skyhub_pilot_wayline {', '        reverse_proxy 127.0.0.1:4001', '    }']
-lines[close + 1:close + 1] = api
+if not routes_present:
+    close = next(i for i in range(media[0] + 1, e) if lines[i].strip() == '}')
+    api = ['', '    ' + marker, '    # Managed by SkyHub-Next/scripts/pi-caddy-pilot-wayline.sh',
+           '    @skyhub_pilot_wayline {', '        path /wayline/api/v1/workspaces/*', '    }',
+           '    handle @skyhub_pilot_wayline {', '        reverse_proxy 127.0.0.1:4001', '    }']
+    lines[close + 1:close + 1] = api
+    changed = True
+
+# 1b) Main site access log: drop the Location response header (presigned link of the 302).
+s, e = block('rpi5.fritz.box {')
+if not any(l.strip() == 'resp_headers>Location delete' for l in lines[s:e]):
+    anchor = [i for i in range(s, e) if l_strip(lines[i]) == 'request>headers>X-Auth-Token delete']
+    if len(anchor) != 1: sys.exit('Log filter of the main site not found exactly once')
+    indent = lines[anchor[0]][:len(lines[anchor[0]]) - len(lines[anchor[0]].lstrip())]
+    lines[anchor[0] + 1:anchor[0] + 1] = [indent + 'resp_headers>Location delete']
+    changed = True
 
 # 2) S3 site: before its catch-all 403.
 s, e = block('rpi5.fritz.box:%s, 192.168.178.63:%s {' % (port, port))
+if any(l.strip() == '@wayline_download {' for l in lines[s:e]):
+    if not changed: sys.exit('Already applied')
+    print('\n'.join(lines), end=''); sys.exit(0)
 catch = [i for i in range(s, e) if lines[i] == '\thandle {']
 if len(catch) != 1: sys.exit('Catch-all handle of the S3 site not found exactly once')
 dl = ['\t' + marker + ' (download)', '\t# Managed by SkyHub-Next/scripts/pi-caddy-pilot-wayline.sh',
@@ -80,12 +99,14 @@ case "${1:-}" in
   print) transform "$CADDYFILE" ;;
   apply)
     [ "$(id -u)" -eq 0 ] || { echo "Bitte mit sudo ausführen."; exit 2; }
-    if grep -qF "$MARKER" "$CADDYFILE"; then echo "Bereits eingerichtet."; check; exit 0; fi
+    new=$(mktemp); trap 'rm -f "$new"' EXIT
+    if ! out=$(transform "$CADDYFILE" 2>&1 > "$new"); then
+      if [[ "$out" == *"Already applied"* ]]; then echo "Bereits vollständig eingerichtet."; check; exit 0; fi
+      echo "Abbruch: $out"; exit 1
+    fi
     backup="${CADDYFILE}.before-skyhub-wayline-$(date +%Y%m%d-%H%M%S)"
     cp -p "$CADDYFILE" "$backup"
     echo "Sicherung: $backup"
-    new=$(mktemp); trap 'rm -f "$new"' EXIT
-    transform "$CADDYFILE" > "$new"
     cat "$new" > "$CADDYFILE"
     if ! caddy validate >/dev/null 2>&1; then
       restore "$backup"; echo "Validierung fehlgeschlagen - Caddyfile unverändert wiederhergestellt."; exit 1
