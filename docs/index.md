@@ -131,6 +131,7 @@ Diese Dokumente waren bisher nur über Suche oder PR-Beschreibungen erreichbar. 
 - [M3M P3.6a: private Vier-TIFF-Aufnahme- und DLS-/Panel-Beleginventur (offline, unvalidiert)](smart-farming-p3-field-evidence-preflight.md)
 - [M3M P3.6b: begrenztes DJI-Radiometrie-XMP-Inventar ohne Veröffentlichung von Messwerten (offline)](smart-farming-p3-radiometric-xmp-audit.md)
 - [M3M P3.6c: privater DJI-XMP-Strukturvergleich, unbekannte Marker nur als Zähler (offline, keine Firmwarevalidierung)](smart-farming-p3-xmp-structure-cohort.md)
+- [M3M P3.6d: private Mehrfachaufnahme-/Firmwarekohortenmatrix mit reinen XMP-Strukturdifferenzen (offline)](smart-farming-p3-firmware-cohort-matrix.md)
 - [M3M P3.5d: privater versionsgebundener Referenz-Ergebnisbeleg mit vollständiger Reproduktion (offline)](smart-farming-p3-reference-receipt.md)
 - [SkyHub-Next: M3M-Konsolidierung und Offline-Abnahme](smart-farming-m3m-release-status-2026-10-24.md)
 - [Mavic 3M über bestehenden MinIO: sichere Pi-End-to-End-Leseprüfung](smart-farming-m3m-s3-hardware-smoke.md)
