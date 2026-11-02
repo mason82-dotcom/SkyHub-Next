@@ -127,6 +127,7 @@ Diese Dokumente waren bisher nur über Suche oder PR-Beschreibungen erreichbar. 
 - [M3M P3.4: private GDAL-COG-Validierung mit zweitem TIFF-Decoder (offline)](smart-farming-private-cog-validation.md)
 - [M3M P3.5a: privater quantitativer Referenzvergleich der vier Multispektralbänder (offline)](smart-farming-p3-reference-agreement.md)
 - [M3M P3.5b: separater numerischer Referenzvergleich von NDVI, NDRE, GNDVI und OSAVI (offline)](smart-farming-p3-reference-index-agreement.md)
+- [M3M P3.5c: private Konsistenzprüfung für operatorseitige Referenzpanel-Polygone (offline)](smart-farming-p3-panel-evidence-lab.md)
 - [SkyHub-Next: M3M-Konsolidierung und Offline-Abnahme](smart-farming-m3m-release-status-2026-10-24.md)
 - [Mavic 3M über bestehenden MinIO: sichere Pi-End-to-End-Leseprüfung](smart-farming-m3m-s3-hardware-smoke.md)
 
