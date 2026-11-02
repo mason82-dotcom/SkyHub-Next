@@ -60,12 +60,9 @@ class SqlMigrationInventoryTest(unittest.TestCase):
         self.write(data)
         self.assert_fails("Draft is not explicitly blocked")
         audit["status"] = "blocked_draft"
-        audit["requires"] = []
+        audit["requires"] = ["pilot-media-verified-003"]
         self.write(data)
-        # The inventory tool does not currently require explicit prerequisite
-        # declarations for all entries; preserve this mandatory WPML chain in
-        # its own regression check, without weakening default-deny checks.
-        self.assertNotEqual(audit["requires"], ["wpml-library-draft-003"])
+        self.assert_fails("cross-family dependency")
 
     def test_new_unregistered_sql_fails_closed(self) -> None:
         (self.root / DIRECTORY / "005_unreviewed.sql").write_text("-- unsafe draft", encoding="utf-8")
