@@ -158,6 +158,11 @@ services:
       SKYHUB_FH_MSDK_OBSERVER_ENABLED: ${SKYHUB_FH_MSDK_OBSERVER_ENABLED:-false}
       SKYHUB_FH_MSDK_OBSERVER_TOKEN: ${SKYHUB_FH_MSDK_OBSERVER_TOKEN:-}
       SKYHUB_FH_UGCS_URL: ${SKYHUB_FH_UGCS_URL:-}
+      # DJI Pilot 2 livestream (overlay docker-compose.live.yml): RC -> RTMP -> MediaMTX -> HLS via backend. OFF by default.
+      SKYHUB_LIVE_ENABLED: ${SKYHUB_LIVE_ENABLED:-false}
+      SKYHUB_LIVE_RTMP_URL: ${SKYHUB_LIVE_RTMP_URL:-}
+      SKYHUB_LIVE_PUBLISH_PASS: ${SKYHUB_LIVE_PUBLISH_PASS:-}
+      SKYHUB_LIVE_READ_PASS: ${SKYHUB_LIVE_READ_PASS:-}
       # Retention applies only while recording is enabled.
       SKYHUB_TRACK_RETENTION_DAYS: ${SKYHUB_TRACK_RETENTION_DAYS:-30}
       # Map tiles: OFF = redirect to tile.openstreetmap.org (as before); ON = on-demand disk cache that
@@ -175,6 +180,7 @@ services:
     networks:
       - default
       - thermal_sdk
+      - live
   # DJI Thermal SDK (dji_irp, x86-64) via box64 on the Pi 5. Opt-in: compose profile "thermal-sdk".
   # Internal network only (no host port, no internet); the SDK directory is mounted read-only and is
   # never part of the image (DJI license). The backend talks to it with SKYHUB_THERMAL_SDK_TOKEN.
@@ -212,3 +218,5 @@ networks:
   # Backend <-> thermal-sdk only; internal: no route to the outside.
   thermal_sdk:
     internal: true
+  # Backend <-> MediaMTX (HLS/API); not internal because the RTMP port is published from it.
+  live:

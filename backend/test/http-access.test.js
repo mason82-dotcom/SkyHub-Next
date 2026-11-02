@@ -115,7 +115,10 @@ test('Pilot bootstrap requires HTTPS and the Pilot token',async()=>{
   assert.equal((await request('/api/pilot/bootstrap',{method:'POST',https:true})).status,401);
   const response=await request('/api/pilot/bootstrap',{method:'POST',token:PILOT_TOKEN,https:true});
   assert.equal(response.status,200);
-  assert.equal((await response.json()).license,LICENSE);
+  const config=await response.json();
+  assert.equal(config.license,LICENSE);
+  // Livestream relay is off here: no RTMP target is handed to the RC.
+  assert.equal(Object.hasOwn(config,'live'),false);
   const status=await request('/api/pilot/status');
   const statusText=await status.text();
   assert.equal(statusText.includes(LICENSE),false);
@@ -249,4 +252,17 @@ test('self-hosted Leaflet is served publicly with an immutable cache policy',asy
   assert.equal(missing.status,404);
   assert.deepEqual(await missing.json(),{error:'Not found'});
   assert.equal((await request('/vendor/')).status,404);
+});
+
+test('livestream routes: LAN-readable, disabled by default, never writable',async()=>{
+  const lan=await request('/api/live/status',{lan:'192.168.178.70'});
+  assert.equal(lan.status,503);
+  assert.deepEqual(await lan.json(),{enabled:false});
+  assert.equal((await request('/api/live/hls/pilot/index.m3u8',{lan:'192.168.178.70'})).status,503);
+  assert.equal((await request('/api/live/status',{lan:'203.0.113.9'})).status,401);
+  assert.equal((await request('/api/live/hls/pilot/index.m3u8',{lan:'203.0.113.9'})).status,401);
+  assert.equal((await request('/api/live/hls/other/index.m3u8',{lan:'192.168.178.70'})).status,401);
+  assert.equal((await request('/api/live/status',{method:'POST',lan:'192.168.178.70'})).status,401);
+  const health=await (await request('/api/health')).json();
+  assert.deepEqual(health.liveStream,{enabled:false,playlists:0,segments:0,upstreamErrors:0});
 });

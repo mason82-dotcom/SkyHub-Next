@@ -118,6 +118,13 @@ main > p.detail:last-child {
     <p class="warning" id="security">Die Übermittlung der Zugangsdaten erfordert HTTPS.</p>
     <p id="result" role="status" aria-live="polite"></p>
   </section>
+  <section id="livePanel" class="panel" hidden aria-labelledby="liveHeadline">
+    <strong id="liveHeadline">Livestream an SkyHub</strong>
+    <p class="detail">Überträgt das Kamerabild an das SkyHub-Dashboard im Heimnetz. Start und Stopp nur hier oder in der DJI-Übertragungsansicht; SkyHub startet den Stream nie selbst.</p>
+    <p id="liveState" class="detail" role="status" aria-live="polite">Livestream nicht aktiv.</p>
+    <button id="liveStart" type="button" hidden disabled>Livestream starten</button>
+    <button id="liveStop" type="button" hidden disabled>Livestream beenden</button>
+  </section>
   <p class="detail">Die MQTT-Verbindung und der verwendete Broker-Port werden durch die serverseitige SkyHub-Konfiguration vorgegeben. Die geladene Kopplungsseite bestätigt weder die aktive Verbindung noch eine Freigabe zur Übernahme anderer SkyHub-Dienste.</p>
 </main>
 <script src="/pilot-login.js" defer></script>

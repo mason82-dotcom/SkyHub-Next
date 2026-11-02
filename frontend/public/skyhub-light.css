@@ -288,6 +288,10 @@ body[data-skyhub-page="dashboard"] .hms li { border-color: #9baec4; }
 body[data-skyhub-page="dashboard"] .hms li.l1 { border-color: #c68c28; }
 body[data-skyhub-page="dashboard"] .hms li.l2 { border-color: var(--sky-danger); }
 body[data-skyhub-page="dashboard"] #hmsHistoryPanel { margin-top: 10px; }
+body[data-skyhub-page="dashboard"] .live-panel { background: var(--sky-white); border: 1px solid var(--sky-border); border-radius: 13px; padding: 12px 13px; box-shadow: var(--sky-shadow); }
+body[data-skyhub-page="dashboard"] .live-head h2 { color: var(--sky-ink); font-size: 14px; text-transform: none; letter-spacing: 0; }
+body[data-skyhub-page="dashboard"] .live-status { color: var(--sky-muted); }
+body[data-skyhub-page="dashboard"] .live-badge { background: var(--sky-danger); }
 body[data-skyhub-page="dashboard"] .hms-history-item { border-top-color: var(--sky-border); border-left-color: #9baec4; color: var(--sky-ink); }
 body[data-skyhub-page="dashboard"] .hms-history-item[data-level="1"] { border-left-color: #c68c28; }
 body[data-skyhub-page="dashboard"] .hms-history-item[data-level="2"] { border-left-color: var(--sky-danger); }
