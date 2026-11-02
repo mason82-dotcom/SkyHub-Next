@@ -54,11 +54,15 @@
       for(const {route,revision} of items){
         if(!enabled())break;
         try{
-          const kmz=planner.build(revision.plan).kmz;
+          // Give each route/revision a unique stable WPML document name, even if
+          // a cloned route has byte-identical original plan contents.
+          const original=planner.build(revision.plan).kmz;
+          const sourceSha=await checksum(original);
+          const name=missionName(route.name,route.id,revision.revision,sourceSha);
+          const kmz=planner.build({...revision.plan,name}).kmz;
           const sha=await checksum(kmz);
           if(done.has(sha)){skipped++;}
           else{
-            const name=missionName(route.name,route.id,revision.revision,sha);
             const result=await store.upload('',kmz,name);
             if(!result||typeof result.id!=='string'||!result.id)
               throw new Error('Invalid mission-store confirmation');
