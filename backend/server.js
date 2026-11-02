@@ -15,14 +15,20 @@ const {pilotConfiguration}=require('./pilot-config');
 const {createPilotPairing,redisStore}=require('./pilot-pairing');
 const {createTopologyStore}=require('./topology-store');
 const {createLanAccess}=require('./lan-access');
+const {parseTrustedProxyIps,isTrustedProxyIp}=require('./proxy-trust');
 const {createTrackPolicy}=require('./track-policy');
 const {createTrackStore,retentionDays}=require('./track-store');
 const {createTrackRecorder}=require('./track-recorder');
 const {createS3Storage}=require('./s3-storage');
 const {createMediaRouter}=require('./media-api');
+const {createThermalRouter}=require('./thermal');
+const {createSmartFarmingCaptures}=require('./smart-farming-captures');
+const {createPilotMediaLibraryRuntime}=require('./pilot-media-library-runtime');
+const {createPilotMediaUploadRuntime}=require('./pilot-media-upload-runtime');
 const {createMinioDrRouter}=require('./minio-dr-api');
 const {createSmartFarmingCatalogRouter}=require('./smart-farming-catalog');
 const {createHttpAuth}=require('./http-auth');
+const {mapPageReferrerPolicy}=require('./map-page-referrer');
 const {registerPilotRoutes,registerPilotAdminRoutes}=require('./pilot-routes');
 const {createMqttIngest}=require('./mqtt-ingest');
 const {createPilotAuth}=require('./pilot-auth');
@@ -41,9 +47,10 @@ try {
   process.exit(1);
 }
 const pilot=pilotConfiguration(process.env);
-let lanAccess,trackRetentionDays;
+let lanAccess,trackRetentionDays,trustedProxyIps;
 try {
-  lanAccess=createLanAccess(process.env.SKYHUB_LAN_VIEW_CIDR);
+  trustedProxyIps=parseTrustedProxyIps(process.env.SKYHUB_TRUSTED_PROXY_IPS||'');
+  lanAccess=createLanAccess(process.env.SKYHUB_LAN_VIEW_CIDR,trustedProxyIps);
   trackRetentionDays=retentionDays(process.env.SKYHUB_TRACK_RETENTION_DAYS);
 } catch(err) {
   console.error('[config]',err.message);
@@ -51,9 +58,11 @@ try {
 }
 const app=express(),server=http.createServer(app);
 // Do not trust forged X-Forwarded-Proto when SkyHub occupies the legacy LAN port.
-// Trust proxy headers only when the backend is published exclusively on loopback.
+// Even with loopback-only host publication, sibling Docker containers can
+// reach the internal container port. Trust X-Forwarded-Proto only from the
+// explicitly named Caddy peer, never all private networks or Docker peers.
 if(['127.0.0.1','::1'].includes(process.env.SKYHUB_BIND_ADDRESS||'127.0.0.1')){
-  app.set('trust proxy',['loopback','linklocal','uniquelocal']);
+  app.set('trust proxy',ip=>isTrustedProxyIp(ip,trustedProxyIps));
 }
 // With the situation-awareness WebSocket enabled this process answers unknown upgrades itself.
 const tsaWanted=pilot.tsa.enabled;
@@ -73,6 +82,9 @@ app.use((req,res,next)=>{
   res.set('Cache-Control','no-store');
   next();
 });
+// Scope the OSM Referer exception to the two browser map documents only.
+// API, Pilot 2 and other routes retain the global no-referrer policy.
+app.use(mapPageReferrerPolicy);
 const {auth,socketAuth}=createHttpAuth({secret,lanAccess});
 io.use(socketAuth);
 io.on('connection',socket=>socket.emit('snapshot',registry.snapshot()));
@@ -155,7 +167,8 @@ app.get('/api/health',(req,res)=>res.json({
   topologyReplyLastAt:ack.lastAt,topologyRestoredDevices:topologyRestored,
   lanViewEnabled:lanAccess.enabled,...trackRecorder.snapshot(),
   trackRetentionDays,...mqttStats.snapshot(),
-  ...(tsaHub?{tsa:tsaHub.stats()}:{})
+  ...(tsaHub?{tsa:tsaHub.stats()}:{}),
+  ...(mediaUpload?{pilotMediaUpload:mediaUpload.stats()}:{})
 }));
 app.use('/api',auth);
 
@@ -184,9 +197,40 @@ if(process.env.SKYHUB_MINIO_DR_ENABLED==='true'){
       : {})
   }));
 }
-if(process.env.SKYHUB_MEDIA_ENABLED==='true'){
-  const mediaStorage=createS3Storage(process.env);
-  app.use('/api/media',createMediaRouter(mediaStorage));
+const mediaStorage=process.env.SKYHUB_MEDIA_ENABLED==='true'?
+  createS3Storage(process.env):null;
+// Pilot 2 uploads are stored as org_<fingerprint>_<ms>.jpg; show the DJI file name from PostgreSQL.
+async function pilotMediaLabels(){
+  const {rows}=await pool.query('SELECT object_key,file_name,pilot_metadata->>\'created_time\' AS created '+
+    'FROM dji_pilot_media_verified');
+  return new Map(rows.map(r=>[r.object_key,{fileName:r.file_name,capturedAt:r.created||null}]));
+}
+if(mediaStorage){
+  const mediaRouter=createMediaRouter(mediaStorage,{labels:pool?pilotMediaLabels:null});
+  app.use('/api/media',mediaRouter);
+  // Thermal module: radiometric R-JPEGs from the same storage, read-only.
+  app.use('/api/thermal',createThermalRouter({storage:mediaStorage,
+    bucketIndex:mediaRouter.bucketIndex,buckets:()=>mediaStorage.buckets()}));
+  // Smart Farming: Mavic 3M multispectral captures grouped by CaptureUUID (read-only).
+  app.use('/api/smart-farming/captures',createSmartFarmingCaptures({storage:mediaStorage,
+    bucketIndex:mediaRouter.bucketIndex}).router);
+}
+const mediaLibraryRouter=createPilotMediaLibraryRuntime({
+  env:process.env,db:pool,redis,authorize:pilotAuth.principal,
+  storage:mediaStorage,pilot
+});
+if(mediaLibraryRouter)app.use(mediaLibraryRouter);
+// DJI Pilot 2 media synchronisation (STS + upload callbacks + narrow S3 upload proxy); opt-in.
+let mediaUpload=null;
+if(pilot.media.issue)console.error('[pilot media] disabled:',pilot.media.issue);
+try{
+  mediaUpload=pilot.media.enabled?createPilotMediaUploadRuntime({env:process.env,pool,redis,
+    authorize:pilotAuth.principal,storage:mediaStorage,pilot,trustedProxyIps}):null;
+}catch(err){console.error('[pilot media] disabled:',err.message);}
+if(mediaUpload){
+  app.use(mediaUpload.router);
+  mediaUpload.start();
+  console.log('[pilot media] upload sync active, S3 endpoint '+mediaUpload.endpoint);
 }
 
 app.get('/api/devices',(req,res)=>res.json(registry.snapshot()));
@@ -230,6 +274,7 @@ server.listen(port,listenAddress,()=>console.log('[skyhub] Port '+server.address
 function stop(){
   ingest.stop();
   if(tsaHub)tsaHub.close();
+  if(mediaUpload)mediaUpload.stop();
   io.close();server.close();
   redis.disconnect();if(pool)pool.end().catch(()=>{});
 }

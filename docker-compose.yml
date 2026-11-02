@@ -1,8 +1,24 @@
 name: skyhub-next
+# ACHTUNG Raspberry Pi: nie `docker compose up -d` mit dieser Datei allein. Auf dem Pi gehoert docker-compose.arm64.yml dazu
+# (arm64-PostGIS-Image und Volume skyhub-next_pgdata_arm64). Immer: bash scripts/pi-compose.sh ... (siehe docs/ops.md).
+# Log-Rotation fuer alle Dienste: ohne Grenze wachsen die json-Logs unbegrenzt. Gilt beim naechsten `up`, wenn der Container neu
+# angelegt wird. Nicht per logrotate/copytruncate von aussen kuerzen: dann haengt `docker logs --tail`.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+# Watchtower auf dem Pi (ohne --label-enable) aktualisiert sonst nachts jedes Image mit beweglichem Tag und startet abhaengige
+# Container neu (27.10.2026: redis:7-alpine, dabei auch das Backend). SkyHub-Next wird bewusst von Hand aktualisiert.
+# Wie die Log-Grenze gilt das Label erst, wenn der Container neu angelegt wird.
+x-labels: &no-watchtower
+  com.centurylinklabs.watchtower.enable: "false"
 services:
   postgres:
     image: postgis/postgis:15-3.3
     restart: unless-stopped
+    logging: *default-logging
+    labels: *no-watchtower
     environment:
       POSTGRES_USER: skyhub_next
       POSTGRES_PASSWORD: ${SKYHUB_DB_PASSWORD:?Set SKYHUB_DB_PASSWORD}
@@ -17,6 +33,8 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    logging: *default-logging
+    labels: *no-watchtower
     command: ["redis-server", "--save", "60", "1", "--appendonly", "yes"]
     volumes:
       - redis_data:/data
@@ -26,8 +44,10 @@ services:
       retries: 5
   minio:
     profiles: ["media"]
-    image: minio/minio:RELEASE.2023-09-04T19-57-37Z
+    image: ${SKYHUB_MINIO_IMAGE:-minio/minio:RELEASE.2023-09-04T19-57-37Z}
     restart: unless-stopped
+    logging: *default-logging
+    labels: *no-watchtower
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${SKYHUB_MINIO_USER:?Set SKYHUB_MINIO_USER}
@@ -40,8 +60,12 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     restart: unless-stopped
+    logging: *default-logging
+    labels: *no-watchtower
     ports:
       - "${SKYHUB_BIND_ADDRESS:-127.0.0.1}:${SKYHUB_HTTP_PORT:-4001}:4000"
+      # Narrow S3 upload proxy for DJI Pilot 2 media sync (only answers when enabled; Caddy :9446 in front).
+      - "127.0.0.1:${SKYHUB_S3_UPLOAD_PROXY_HOST_PORT:-4002}:4002"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -61,6 +85,17 @@ services:
       SKYHUB_S3_ENDPOINT: ${SKYHUB_S3_ENDPOINT:-}
       SKYHUB_S3_ACCESS_KEY: ${SKYHUB_S3_ACCESS_KEY:-}
       SKYHUB_S3_SECRET_KEY: ${SKYHUB_S3_SECRET_KEY:-}
+      # Pilot 2 verified library stays off until migrations 003-005 and the
+      # separate identity, backup and Pi acceptance gates have passed.
+      SKYHUB_MEDIA_LIBRARY_ENABLED: ${SKYHUB_MEDIA_LIBRARY_ENABLED:-false}
+      SKYHUB_MEDIA_LIBRARY_CURSOR_SECRET: ${SKYHUB_MEDIA_LIBRARY_CURSOR_SECRET:-}
+      # DJI Pilot 2 media synchronisation: OFF unless enabled. Needs a dedicated MinIO uploader account
+      # (scripts/pi-minio-pilot-uploader.sh), SKYHUB_PILOT_PUBLIC_URL and the Caddy routes
+      # (scripts/pi-caddy-pilot-media.sh). Temporary credentials only allow uploads below one session prefix.
+      SKYHUB_PILOT_MEDIA_UPLOAD_ENABLED: ${SKYHUB_PILOT_MEDIA_UPLOAD_ENABLED:-false}
+      SKYHUB_PILOT_MEDIA_S3_PUBLIC_ENDPOINT: ${SKYHUB_PILOT_MEDIA_S3_PUBLIC_ENDPOINT:-}
+      SKYHUB_PILOT_UPLOAD_S3_ACCESS_KEY: ${SKYHUB_PILOT_UPLOAD_S3_ACCESS_KEY:-}
+      SKYHUB_PILOT_UPLOAD_S3_SECRET_KEY: ${SKYHUB_PILOT_UPLOAD_S3_SECRET_KEY:-}
       SKYHUB_BIND_ADDRESS: ${SKYHUB_BIND_ADDRESS:-127.0.0.1}
       SKYHUB_VIEW_TOKEN: ${SKYHUB_VIEW_TOKEN:?Set SKYHUB_VIEW_TOKEN}
       # EMQX/1884 by default; Mosquitto/1883 requires explicit opt-in in .env.
@@ -92,6 +127,8 @@ services:
       SKYHUB_TOPOLOGY_ACK_MQTT_PASSWORD: ${SKYHUB_TOPOLOGY_ACK_MQTT_PASSWORD:-}
       # Optional token-free read-only dashboard for one private LAN (e.g. 192.168.178.0/24).
       SKYHUB_LAN_VIEW_CIDR: ${SKYHUB_LAN_VIEW_CIDR:-}
+      # Explicit Caddy/Docker gateway socket peers only; no subnet trust.
+      SKYHUB_TRUSTED_PROXY_IPS: ${SKYHUB_TRUSTED_PROXY_IPS:-}
       # New position history is OFF by default; live OSD remains ON.
       SKYHUB_TRACK_RECORDING_ENABLED: ${SKYHUB_TRACK_RECORDING_ENABLED:-false}
       # Retention applies only while recording is enabled.

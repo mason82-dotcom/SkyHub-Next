@@ -12,6 +12,10 @@ COPY scripts/lib/minio-dr-iam-attestation.js /app/scripts/lib/minio-dr-iam-attes
 
 COPY backend/data ./data
 COPY frontend/public /app/frontend/public
+# Local Pi checkouts may carry 0600 source files. Docker COPY preserves their
+# read bits; the non-root node runtime must be able to read source and assets.
+# Restore only read/traverse rights (never write), after all source COPY steps.
+RUN chmod -R a+rX /app/backend /app/frontend/public
 EXPOSE 4000
 USER node
 CMD ["node", "server.js"]

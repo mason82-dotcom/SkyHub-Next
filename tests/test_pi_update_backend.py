@@ -34,6 +34,7 @@ STUBS = {
         '   *.Name*) echo /skyhub-next-backend-1;;\n'
         '   *.Image*) echo sha256:oldimage;;\n'
         '  esac;;\n'
+        ' network) echo "${STUB_GATEWAY:-172.25.0.1}";;\n'
         ' port) case "$2" in\n'
         '   skyhub-next-backend-1) echo 127.0.0.1:4001;;\n'
         '   skyhub_emqx) echo 0.0.0.0:1884;;\n'
@@ -54,7 +55,7 @@ STUBS = {
 }
 
 
-def compose_json(kind="mosquitto-dedicated", pin="1884", url=None, pilot=None):
+def compose_json(kind="mosquitto-dedicated", pin="1884", url=None, pilot=None, trusted=None):
     env = {
         "SKYHUB_MQTT_BROKER_KIND": kind,
         "SKYHUB_MQTT_REQUIRED_PORT": pin,
@@ -63,21 +64,34 @@ def compose_json(kind="mosquitto-dedicated", pin="1884", url=None, pilot=None):
     }
     if pilot:
         env["SKYHUB_PILOT_MQTT_URL"] = pilot
+    if trusted is not None:
+        env["SKYHUB_TRUSTED_PROXY_IPS"] = trusted
     return json.dumps({"services": {"backend": {"environment": env}}})
 
 
 class PiUpdateBackendTests(unittest.TestCase):
-    def run_update(self, args=("--apply",), compose=None, port="1884", env_file=True, **stub_env):
+    def test_pi_overlays_are_always_passed(self):
+        # 28.10.2026: without the arm64 overlay every update created the empty x86 volume skyhub-next_pgdata.
+        result = self.run_update(overlays=("docker-compose.yml", "docker-compose.arm64.yml", "docker-compose.override.yml"))
+        self.assertEqual(0, result.returncode, result.stderr)
+        compose_calls = [line for line in result.docker_log.splitlines() if " compose " in " " + line + " "]
+        self.assertTrue(compose_calls)
+        for line in compose_calls:
+            self.assertIn("-f docker-compose.yml -f docker-compose.arm64.yml -f docker-compose.override.yml", line)
+
+    def run_update(self, args=("--apply",), compose=None, port="1884", env_file=True, overlays=(), **stub_env):
         directory = tempfile.TemporaryDirectory()
         self.addCleanup(directory.cleanup)
         root = Path(directory.name)
         repo, bin_dir, home = root / "repo", root / "bin", root / "home"
         for path in (repo / "scripts", bin_dir, home):
             path.mkdir(parents=True)
-        for name in ("pi-update-backend.sh", "pi-preflight.sh"):
+        for name in ("pi-update-backend.sh", "pi-preflight.sh", "pi-proxy-peer-check.sh"):
             shutil.copy(SCRIPTS / name, repo / "scripts" / name)
         if env_file:
             (repo / ".env").write_text("SKYHUB_VIEW_TOKEN=not-a-real-secret\n", encoding="utf-8")
+        for name in overlays:
+            (repo / name).write_text("services: {}\n", encoding="utf-8")
         for name, text in STUBS.items():
             stub = bin_dir / name
             stub.write_text("#!/bin/sh\n" + text, encoding="utf-8")
@@ -87,7 +101,9 @@ class PiUpdateBackendTests(unittest.TestCase):
         log.write_text("", encoding="utf-8")
         env = dict(os.environ, PATH=str(bin_dir) + os.pathsep + os.environ["PATH"], HOME=str(home),
                    STUB_COMPOSE_JSON=str(root / "compose.json"), STUB_LOG=str(log), STUB_PORT=port,
-                   **stub_env)
+                   # Hermetic: never read the host's real Caddyfile unless a test passes one.
+                   SKYHUB_CADDYFILE="/nonexistent/Caddyfile")
+        env.update(stub_env)
         result = subprocess.run(["bash", str(repo / "scripts" / "pi-update-backend.sh"), *args],
                                 cwd=repo, env=env, text=True, capture_output=True, check=False)
         result.docker_log = log.read_text(encoding="utf-8")
@@ -103,6 +119,34 @@ class PiUpdateBackendTests(unittest.TestCase):
         self.assertEqual(result.backups, [], "a refused run must not create a backup")
         self.assertNotIn("build", result.docker_log)
         self.assertNotIn("up -d", result.docker_log)
+
+    def caddy_file(self, text="reverse_proxy 127.0.0.1:4001\n"):
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        path = Path(directory.name) / "Caddyfile"
+        path.write_text(text, encoding="utf-8")
+        return str(path)
+
+    def test_proxy_peer_must_name_the_real_caddy_gateway_when_caddy_serves_the_backend(self):
+        caddyfile = self.caddy_file()
+        ok = self.run_update(compose=compose_json(trusted="172.25.0.1"), SKYHUB_CADDYFILE=caddyfile)
+        self.assertEqual(ok.returncode, 0, ok.stdout + ok.stderr)
+        self.assertIn("SUCCESS", ok.stdout)
+        # Empty setting: Caddy's forwarded headers would be ignored after the update.
+        self.assert_refused(self.run_update(compose=compose_json(), SKYHUB_CADDYFILE=caddyfile),
+                            "does not match the real Caddy peer")
+        # Stale address after the network was recreated (gateway changed).
+        self.assert_refused(self.run_update(compose=compose_json(trusted="172.19.0.1"), SKYHUB_CADDYFILE=caddyfile),
+                            "does not match the real Caddy peer")
+        # Loopback alone is not the peer Docker's published-port proxy presents.
+        self.assert_refused(self.run_update(compose=compose_json(trusted="127.0.0.1"), SKYHUB_CADDYFILE=caddyfile),
+                            "does not match the real Caddy peer")
+
+    def test_proxy_peer_check_is_only_advisory_without_a_caddy_route(self):
+        for caddy in (self.caddy_file("reverse_proxy 127.0.0.1:11000\n"), "/nonexistent/Caddyfile"):
+            with self.subTest(caddyfile=caddy):
+                result = self.run_update(compose=compose_json(), SKYHUB_CADDYFILE=caddy)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_requires_explicit_apply_flag(self):
         for args in ((), ("--dry-run",), ("--apply", "extra")):
@@ -169,6 +213,21 @@ class PiUpdateBackendTests(unittest.TestCase):
         self.assertNotIn("up -d", result.docker_log)
         self.assertFalse(any((b / "postgis.dump").exists() for b in result.backups),
                          "an empty dump must not be left behind as a backup")
+
+
+class ProxyPeerCheckStaticTests(unittest.TestCase):
+    def test_helper_is_read_only_and_the_fixed_subnet_overlay_cannot_apply_by_accident(self):
+        helper = (SCRIPTS / "pi-proxy-peer-check.sh").read_text(encoding="utf-8")
+        for mutating in ("docker network create", "docker network rm", "docker network connect", "docker compose",
+                         "docker run", "docker rm", ">> ", "sed -i"):
+            self.assertNotIn(mutating, helper)
+        overlay = (SCRIPTS.parent / "docker-compose.fixed-subnet.yml").read_text(encoding="utf-8")
+        self.assertIn("${SKYHUB_NETWORK_SUBNET:?", overlay)
+        self.assertIn("${SKYHUB_NETWORK_GATEWAY:?", overlay)
+        self.assertNotIn("172.28.", overlay.replace("172.28.x", ""))  # that range is already in use on the Pi
+        update = (SCRIPTS / "pi-update-backend.sh").read_text(encoding="utf-8")
+        self.assertIn("pi-proxy-peer-check.sh --enforce", update)
+        self.assertLess(update.index("pi-proxy-peer-check.sh --enforce"), update.index("mkdir -p \"$backup_dir\""))
 
 
 if __name__ == "__main__":

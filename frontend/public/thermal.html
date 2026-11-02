@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex,nofollow">
+<title>SkyHub Next · Thermal</title>
+<link rel="stylesheet" href="/media-gallery.css">
+<link rel="stylesheet" href="/thermal.css">
+<script defer src="/thermal-core.js"></script>
+<script defer src="/thermal-app.js"></script>
+</head>
+<body data-skyhub-page="thermal">
+<a class="skip" href="#skyhubMain">Zum Inhalt springen</a>
+<header class="topbar">
+  <a class="brand" href="/" aria-label="SkyHub Next – Übersicht"><span class="brand-mark">✦</span> SkyHub <span>Next</span></a>
+  <nav class="skyhub-global-nav global-nav" aria-label="SkyHub-Bereiche">
+    <a href="/">Übersicht</a>
+    <a href="/wpml-editor.html">Missionen</a>
+    <a href="/wpml-route-library.html">Routen</a>
+    <a href="/wpml-survey-preview.html">Survey</a>
+    <a href="/smart-farming.html">Smart Farming</a>
+    <a href="/media-gallery.html">Medien</a>
+    <a href="/thermal.html" aria-current="page">Thermal</a>
+  </nav>
+</header>
+<main id="skyhubMain" tabindex="-1">
+  <div class="hero">
+    <div>
+      <p class="eyebrow">RADIOMETRISCHE WÄRMEBILDER</p>
+      <h1>Thermal<span>modul</span></h1>
+      <p>Alle Wärmebilder (DJI R-JPEG) aus dem SkyHub-Speicher: Darstellung mit Paletten, Temperatur an jeder Stelle, Messpunkte und -bereiche, Isothermen, Emissionsgrad-Korrektur, Serienauswertung und Export.</p>
+    </div>
+    <p class="estimate" id="estimate">Temperaturen sind Schätzwerte aus den Rohdaten (ohne DJI Thermal SDK), keine kalibrierte Messung. Kamerakompatibilität und Genauigkeit sind nicht verifiziert.</p>
+  </div>
+  <p id="message" class="message" role="status" aria-live="polite">Wärmebilder werden gesucht …</p>
+
+  <div class="tabs" role="tablist" aria-label="Thermal-Ansichten">
+    <button type="button" role="tab" id="tab-image" aria-selected="true" aria-controls="panel-image">Bildanalyse</button>
+    <button type="button" role="tab" id="tab-series" aria-selected="false" aria-controls="panel-series">Serienauswertung</button>
+  </div>
+
+  <section id="panel-image" role="tabpanel" aria-labelledby="tab-image" class="thermal-layout">
+    <aside class="thermal-list" aria-label="Wärmebilder">
+      <label class="search"><span class="sr-only">Wärmebilder suchen</span>
+        <input id="list-search" type="search" placeholder="Suchen (Name, Datum 20261022 …)" autocomplete="off"></label>
+      <p id="list-count" class="fine"></p>
+      <div id="list"></div>
+    </aside>
+
+    <div class="thermal-main">
+      <div class="thermal-toolbar">
+        <label>Palette <select id="palette"></select></label>
+        <label class="check"><input type="checkbox" id="auto-range" checked> Bereich automatisch</label>
+        <label>Min <input type="number" id="range-min" step="0.1" inputmode="decimal"></label>
+        <label>Max <input type="number" id="range-max" step="0.1" inputmode="decimal"></label>
+        <label>Emissionsgrad <input type="number" id="eps" aria-describedby="correction-help" min="0.1" max="1" step="0.01" inputmode="decimal"></label>
+        <label>Reflektierte Temp. °C <input type="number" id="reflected" aria-describedby="correction-help" min="-273.15" step="0.5" value="20" inputmode="decimal"></label>
+        <label>Isotherme <select id="iso-mode">
+          <option value="">aus</option><option value="above">über</option><option value="below">unter</option><option value="between">zwischen</option>
+        </select></label>
+        <label>T1 <input type="number" id="iso-t1" step="0.1" inputmode="decimal"></label>
+        <label>T2 <input type="number" id="iso-t2" step="0.1" inputmode="decimal"></label>
+      </div>
+      <p id="correction-help" class="fine">Reflektierte Temperatur wirkt nur bei geändertem Emissionsgrad. Fehlende Dateiemissivität wird ausdrücklich mit dem angenommenen Ausgangswert 0,95 ausgewiesen. Ungültige Eingaben sperren den Export.</p>
+      <div class="thermal-toolbar">
+        <div class="segmented" role="group" aria-label="Werkzeug">
+          <button type="button" data-tool="view" aria-pressed="true">Ansehen</button>
+          <button type="button" data-tool="spot" aria-pressed="false">Messpunkt</button>
+          <button type="button" data-tool="box" aria-pressed="false">Messbereich</button>
+        </div>
+        <label class="check"><input type="checkbox" id="show-spots" checked> Hot-/Cold-Spot</label>
+        <label class="check"><input type="checkbox" id="show-visual" checked> Foto daneben</label>
+        <button type="button" class="secondary" id="clear-measurements">Messungen löschen</button>
+        <button type="button" class="secondary" id="export-png" disabled>PNG</button>
+        <button type="button" class="secondary" id="export-csv" disabled>CSV Messungen</button>
+        <button type="button" class="secondary" id="export-matrix" disabled>CSV Temperaturmatrix</button>
+      </div>
+
+      <div class="thermal-stage" id="stage">
+        <figure class="thermal-figure">
+          <canvas id="thermal" width="640" height="512" aria-label="Wärmebild"></canvas>
+          <figcaption id="readout" class="readout" aria-live="off">Zeiger auf das Bild bewegen</figcaption>
+        </figure>
+        <figure class="thermal-figure" id="visual-figure">
+          <img id="visual" alt="Fotokandidat mit ungeprüfter Zuordnung">
+          <figcaption id="visual-caption" class="readout"></figcaption>
+        </figure>
+      </div>
+
+      <div class="thermal-panels">
+        <section class="panel-box" aria-labelledby="stats-title">
+          <h2 id="stats-title">Bildwerte</h2>
+          <dl id="stats" class="facts"></dl>
+          <canvas id="histogram" width="480" height="110" aria-label="Histogramm"></canvas>
+          <div id="legend" class="legend"></div>
+        </section>
+        <section class="panel-box" aria-labelledby="meta-title">
+          <h2 id="meta-title">Aufnahme</h2>
+          <dl id="meta" class="facts"></dl>
+        </section>
+        <section class="panel-box wide" aria-labelledby="meas-title">
+          <h2 id="meas-title">Messungen</h2>
+          <table class="table"><thead><tr><th>#</th><th>Art</th><th>Position</th><th>Min</th><th>Mittel</th><th>Max</th><th></th></tr></thead>
+            <tbody id="measurements"></tbody></table>
+          <p class="fine">Messpunkt: Klick ins Wärmebild. Messbereich: Rechteck aufziehen. Werte folgen der gewählten Emissionsgrad-Näherung; keine kalibrierte Messung.</p>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <section id="panel-series" role="tabpanel" aria-labelledby="tab-series" hidden>
+    <div class="thermal-toolbar">
+      <label>Serie <select id="series-select"></select></label>
+      <button type="button" id="series-run">Auswerten</button>
+      <button type="button" class="secondary" id="series-csv" disabled>CSV</button>
+      <span id="series-status" class="fine" aria-live="polite"></span>
+    </div>
+    <p class="fine">Serienwerte sind unkorrigierte Schätzwerte aus der Datei. Emissionsgrad und reflektierte Temperatur der Einzelbildanalyse werden hier nicht angewendet.</p>
+    <svg id="series-chart" class="series-chart" viewBox="0 0 900 260" role="img" aria-label="Temperaturverlauf der Serie"></svg>
+    <table class="table"><thead><tr><th>Zeit</th><th>Datei</th><th>Min</th><th>Median</th><th>Mittel</th><th>Max</th><th>Hotspot</th><th>Distanz</th><th>Neigung</th></tr></thead>
+      <tbody id="series-table"></tbody></table>
+  </section>
+</main>
+</body>
+</html>

@@ -4,7 +4,16 @@
 
 - Produkt- und Zugriffsgrenzen: [Sicherheitsmodell](docs/security.md), `backend/lan-access.js` und `backend/server.js`.
 - DJI-Fachreferenz und geplante Adapter: [DJI-Referenz-Roadmap](docs/dji-reference-roadmap.md).
-- Gilt für das ausgelieferte statische Dashboard `frontend/public/index.html`; die Pilot-2-Webview hat einen getrennten Kopplungsfluss.
+- Die folgenden fachlichen Interaktions- und Sicherheitsverträge gelten primär für das ausgelieferte `frontend/public/index.html`. Die Pilot-2-Webview besitzt einen getrennten Kopplungsfluss. Die ebenfalls statisch ausgelieferten Offline-/Experimentier-Ansichten behalten ihre jeweiligen gesonderten Sicherheitsgrenzen.
+
+## Light-UI-Vertrag (Entwicklungsbranch)
+
+- Die fünf Operator-Ansichten teilen eine sichtbare, vollständig per Tastatur erreichbare Navigation; nur die aktuelle Ansicht erhält `aria-current="page"`. Die kompakte Pilot-2-Webview enthält keine Operator-Navigation.
+- `frontend/public/skyhub-light.css` ist die gemeinsame visuelle Quelle der Light-Tokens. Die alte Inline-CSS-Schicht enthält vorerst Layoutregeln, darf aber keine neuen Dark-Theme-Werte erzeugen.
+- Fehlende Daten, veraltete Quellzeit, reine Offline-Entwürfe, eine nicht integrierte TAK-Schnittstelle und unkalibrierte Smart-Farming-Indexkandidaten bleiben explizit textlich gekennzeichnet; Farbe allein ist nie ein Statusnachweis.
+- Bei 320, 390, 834 und 1440 Pixeln dürfen Hauptnavigation, Inhaltsseiten und Geräteübersicht keinen ungewollten horizontalen Body-Overflow erzeugen. Die Karte ist nicht die einzige bedienbare Geräterepräsentation.
+- Keyboard-Fokus, Kontrast und dynamische Inhaltselemente sind getrennt zu prüfen. `scripts/tak-ui-browser-ci.js` muss die **tatsächliche** Light-CSS-Datei ausliefern und im Browser berechnete Farben/Styles prüfen; bloßer DOM-Test ohne geladenes Theme reicht nicht.
+- Visual-only: Keine Änderungen an MQTT, DJI-Kommandos, Freigabezuständen, API-Sicherheit oder Browser-Datenspeicherung allein durch das Theme.
 
 ## Kartenworkflow
 
@@ -35,7 +44,7 @@
 
 ## Geräteliste
 
-- Jede Karte zeigt zuerst Modell, Kennung, OSD-Zustand, Akku, relative Höhe, Position und die höchste aktive HMS-Warnung. Die aufklappbare Ansicht zeigt außerdem empfangene DJI-Felder für Heading/Kurs, Vertikalgeschwindigkeit, Nick-/Rollwinkel und Positionsqualitätscode. Optionale Felder ohne beobachteten Wert werden ausgeblendet; numerische Nullwerte bleiben sichtbar. Der RTK-Fix-Code ist kein Hinweis darauf, ob RTK manuell eingeschaltet ist. Zusätzliche DJI-OSD-Felder für Windgeschwindigkeit, Windrichtungssektor (Code 1–8), kumulierte Flugzeit/-strecke sowie SDR-/4G-Linkzustände werden nur bei tatsächlich geparsten Werten angezeigt; fehlende oder ungültige Werte werden nicht geschätzt. Jedes tatsächlich beobachtete normalisierte OSD-Feld besitzt seinen eigenen letzten Zeitstempel (verifizierte DJI-Zeit oder Empfangszeit) und das Quellzeit-Verifikationsbit. Die Oberfläche markiert Werte einzeln als „aktuell“ (unter 15 s mit verifizierter Zeit), „Zeit ungeprüft“, „veraltet“, „nicht empfangen“ bzw. „Zeitpunkt nicht bekannt“. Eine neue 0/0-Meldung aktualisiert die Zeit des letzten gültigen Breiten-/Längengrads nicht und markiert den Fix historisch. Feldalter werden regelmäßig ohne Neuaufbau der Gerätekarten aktualisiert. Der Aufklappzustand bleibt bei Live-Updates erhalten.
+- Jede Karte zeigt zuerst Modell, Kennung, OSD-Zustand, Akku, relative Höhe, Position und die höchste aktive HMS-Warnung. Die aufklappbare Ansicht zeigt außerdem empfangene DJI-Felder für Heading/Kurs, Vertikalgeschwindigkeit, Nick-/Rollwinkel und Positionsqualitätscode. Optionale Felder ohne beobachteten Wert werden ausgeblendet; numerische Nullwerte bleiben sichtbar. Der RTK-Fix-Code ist kein Hinweis darauf, ob RTK manuell eingeschaltet ist. Zusätzliche DJI-OSD-Felder für Windgeschwindigkeit, Windrichtungssektor (Code 1–8), kumulierte Flugzeit/-strecke sowie SDR-/4G-Linkzustände werden nur bei tatsächlich geparsten Werten angezeigt; fehlende oder ungültige Werte werden nicht geschätzt. Jedes tatsächlich beobachtete normalisierte OSD-Feld besitzt seinen eigenen letzten Zeitstempel (verifizierte DJI-Zeit oder Empfangszeit) und das Quellzeit-Verifikationsbit. Die Oberfläche markiert Werte einzeln als „aktuell“ (unter 15 s mit verifizierter Zeit), „Zeit ungeprüft“, „veraltet“, „nicht empfangen“ bzw. „Zeitpunkt nicht bekannt“. Eine neue 0/0-Meldung aktualisiert die Zeit des letzten gültigen Breiten-/Längengrads nicht und markiert den Fix historisch. Feldalter werden regelmäßig ohne Neuaufbau der Gerätekarten aktualisiert. Der Aufklappzustand bleibt bei Live-Updates erhalten. Auch der 5-Sekunden-Takt ersetzt die Karten nur, wenn sich mehr als reine Zeitangaben ändert (Alter, „vor x s“, `data-live`); `scripts/tak-ui-browser-ci.js` prüft das. Aufklappbare Zeilen und Schalter mit Beschriftung sind mindestens 24 px hoch.
 - Die lokale Suche gleicht Modell, Geräte- und Gateway-Kennung sowie Rolle ab. Der native Statusfilter wirkt nur auf die Liste; Marker und „Alle Positionen zeigen“ bleiben eine Gesamtsicht. Eine Markerwahl setzt verdeckende Filter zurück und zeigt das gewählte Gerät.
 - „Aktive HMS-Warnungen“ umfasst Stufen 1 und 2, solange die HMS-Meldung frisch ist. „OSD unter 15 Sekunden“ verlangt frische OSD-Telemetrie und ein nicht getrenntes Fluggerät. Ohne Treffer werden Suche und Filter mit einem Button zurückgesetzt.
 - Such- und Filterwerte bleiben während Live-Updates im Seitenspeicher erhalten. Sie werden wegen möglicher Gerätekennungen nicht in URL oder Browser-Speicher geschrieben. Der native Filter nutzt die Popup- und Tastaturbedienung des Browsers.
@@ -48,3 +57,32 @@
 | Select/Listbox | Nativer `<select id="deviceFilter">` in `frontend/public/index.html` | Gerätelisten-Vertrag oben | Einzelauswahl für lokalen Statusfilter | Browser: Tastatur, schmale Ansicht, Popup |
 
 Weitere Standardkomponenten entstehen erst mit einem tatsächlichen zweiten Workflow. Neue Schreibaktionen benötigen vor der UI-Umsetzung einen expliziten Rollen-, Fehler- und Bestätigungsvertrag; die lesende Karte definiert dafür keine Freigabe.
+
+## M3M-Capture-Bewertung
+
+Fachquelle: [Capture-Vertrag v2](docs/smart-farming-m3m-capture-assessment.md) und
+`backend/smart-farming-captures.js`. Die bestehende Smart-Farming-Kartenansicht
+und die gemeinsamen Light-Tokens bleiben erhalten.
+
+- Bandvollständigkeit und Metadaten-Kandidaten werden getrennt benannt. Ein
+  Kandidat ist keine Radiometrie-, Mapping- oder Flugfreigabe.
+- Mehrdeutige Bänder zeigen einen Konflikt; es gibt keinen automatisch gewählten
+  Banddownload. Fehlende GPS-/Höhen-/Irradiance-Daten blockieren den Kandidatenstatus.
+- Nur die aktuelle Bewertungskennung darf als Kandidat dargestellt werden.
+  Alte Backendantworten erhalten „Bewertung nicht aktuell“.
+- Während des lesenden Abrufs ist Neuladen gesperrt und die Ergebnisregion
+  `aria-busy`. Fehler/Timeout leeren die Ergebnisliste, erklären den Zustand und
+  geben Neuladen frei. Keine neue Token- oder Browserpersistenz.
+- Nachweise: Capture-Backendtests und
+  `scripts/smart-farming-captures-browser-ci.js` (synthetisch, kein Pi-Nachweis).
+
+## Thermal-Bildanalyse und Exportintegrität
+
+Fachquelle: [Thermalvertrag](docs/thermal.md), `backend/thermal.js` und `frontend/public/thermal-core.js`. Die native Eingabe- und Select-Bedienung der Medienansichten bleibt erhalten.
+
+- Laden/Fehler leert den bisherigen Bildzustand und sperrt Exporte. Nur der neueste vollständige Quell-Snapshot darf Bild und Exporte freigeben; Version, Auflösung und Bytezahl müssen zusammenpassen.
+- Messungsbeschriftungen und Tabelle verwenden denselben Berechnungszustand. Asynchroner PNG-Export hält Bild und Dateiname gemeinsam fest.
+- Fehlende Dateiemissivität wird als Annahme bezeichnet; 0 °C reflektierte Temperatur bleibt erhalten. Ungültige Werte erhalten `aria-invalid` und eine textliche Erklärung und sperren Exporte bis zur Korrektur.
+- Jeder Export enthält Schätzhinweis und nachvollziehbare Quelle/Berechnungsgrundlage. Die Serie benennt die abweichende, unkorrigierte Berechnung ausdrücklich.
+- Fotokandidaten bleiben als Heuristik gekennzeichnet. Mehrdeutigkeit ist kein erfolgreicher Treffer. Keine dieser UI-Prüfungen erteilt eine Hardware- oder Messfreigabe.
+- Nachweise: `backend/test/thermal-ui-integrity.test.js`, `scripts/thermal-browser-ci.js` sowie die Backendtests.

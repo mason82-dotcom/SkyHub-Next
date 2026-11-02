@@ -9,6 +9,11 @@ on:
     paths:
       - "frontend/public/**"
       - "scripts/tak-ui-browser-ci.js"
+      - "scripts/thermal-browser-ci.js"
+      - "scripts/smart-farming-captures-browser-ci.js"
+      - "backend/smart-farming-captures.js"
+      - "backend/thermal.js"
+      - "backend/media-preview.js"
       - ".github/workflows/tak-ui-browser.yml"
   workflow_dispatch:
 
@@ -42,6 +47,16 @@ jobs:
         env:
           SKYHUB_BROWSER_ARTIFACTS: browser-evidence
         run: node scripts/tak-ui-browser-ci.js
+      - name: Install locked backend dependencies for synthetic Thermal API
+        run: npm ci --prefix backend --ignore-scripts --no-audit --no-fund
+      - name: Thermal image identity, correction and actual download regression
+        env:
+          SKYHUB_BROWSER_ARTIFACTS: browser-evidence
+        run: node scripts/thermal-browser-ci.js
+      - name: Smart Farming capture assessment and conflict browser regression
+        env:
+          SKYHUB_BROWSER_ARTIFACTS: browser-evidence
+        run: node scripts/smart-farming-captures-browser-ci.js
       - name: Upload screenshots and acceptance report
         if: always()
         uses: actions/upload-artifact@v4

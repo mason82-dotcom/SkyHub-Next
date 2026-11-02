@@ -85,6 +85,19 @@ test('LAN view is read-only; pairing administration still needs the view token',
   assert.equal((await request('/api/drone/AIR01/track',{lan:'192.168.178.70'})).status,200);
   assert.equal((await request('/api/drone/AIR01/telemetry',{lan:'192.168.178.70'})).status,404);
   assert.equal((await request('/api/drone/AIR01/secrets',{lan:'192.168.178.70'})).status,401);
+  // Media gallery and Smart Farming reads need no token from the home LAN (here not enabled: 404, not 401).
+  assert.equal((await request('/api/media/summary',{lan:'192.168.178.70'})).status,404);
+  assert.equal((await request('/api/media/file?bucket=dji-cloud&key=a.jpg',{lan:'192.168.178.70'})).status,404);
+  assert.equal((await request('/api/media/summary',{lan:'203.0.113.9'})).status,401);
+  assert.equal((await request('/api/media/summary',{method:'POST',lan:'192.168.178.70'})).status,401);
+  assert.equal((await request('/api/media/unknown',{lan:'192.168.178.70'})).status,401);
+  assert.equal((await request('/api/thermal/list',{lan:'192.168.178.70'})).status,404);
+  assert.equal((await request('/api/smart-farming/captures',{lan:'192.168.178.70'})).status,404);
+  assert.equal((await request('/api/smart-farming/captures/manifest',{lan:'203.0.113.9'})).status,401);
+  assert.equal((await request('/api/thermal/list',{lan:'203.0.113.9'})).status,401);
+  // The Smart Farming UI requests the catalog with a trailing slash.
+  assert.equal((await request('/api/smart-farming/candidates/',{lan:'192.168.178.70'})).status,404);
+  assert.equal((await request('/api/smart-farming/candidates/',{lan:'203.0.113.9'})).status,401);
   assert.equal((await request('/api/pilot-admin/pairings',{lan:'192.168.178.70'})).status,401);
   assert.equal((await request('/api/unknown-future-route',{lan:'192.168.178.70'})).status,401);
   assert.equal((await request('/api/mission/create',{method:'POST',lan:'192.168.178.70'})).status,401);

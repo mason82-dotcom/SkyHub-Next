@@ -57,10 +57,20 @@ jobs:
       - name: Check repository hygiene (read-only Git index)
         run: python3 scripts/repository-hygiene.py
 
+      - name: Check complete SQL migration inventory (static, never execute SQL)
+        run: |
+          python3 -m py_compile scripts/audit_sql_migrations.py
+          python3 scripts/audit_sql_migrations.py
+
       - name: Validate staging helper and Python tests
         run: |
           python3 -m py_compile scripts/pi-prepare-staging-env.py
           python3 -m unittest discover -s tests -p 'test_*.py'
+
+      # Independent tests/test_minio_acceptance_contract.py runs through unittest discovery above.
+      # Run the original MinIO fixture suite here as well, without Docker/systemd/mount/S3.
+      - name: Verify isolated MinIO acceptance fixtures (no live storage)
+        run: python3 pi-minio-acceptance/test_local.py -v
 
       - name: Syntax-check Pi shell tools (never execute them)
         run: |
@@ -73,6 +83,20 @@ jobs:
         run: docker compose --env-file .env.example config --quiet
       - name: Validate explicit ARM64 PostGIS overlay
         run: docker compose -f docker-compose.yml -f docker-compose.arm64.yml --env-file .env.example config --quiet
+      - name: Validate opt-in shared MinIO overlay (configuration only)
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.storage.yml --profile media --env-file .env.example config --quiet
+          docker compose -f docker-compose.yml -f docker-compose.arm64.yml -f docker-compose.storage.yml --profile media --env-file .env.example config --quiet
+          docker compose -f docker-compose.yml -f docker-compose.storage.external.yml --env-file .env.example config --quiet
+      - name: Validate standalone copy-free SkyHub MinIO Compose (config only)
+        env:
+          SKYHUB_SHARED_MINIO_CREDENTIALS_FILE: .env.example
+        run: |
+          docker compose -f docker-compose.minio-shared.yml config --quiet
+          docker compose -f docker-compose.minio-shared.yml config --format json |
+            python3 -c 'import json,sys; cfg=json.load(sys.stdin); assert list(cfg["services"])==["minio"]; s=cfg["services"]["minio"]; assert not s.get("ports"); assert s["volumes"][0]["source"]=="/mnt/hc4backup/skyhub-next/minio"; assert s["volumes"][0]["bind"]["create_host_path"] is False'
+
+
       - name: Assert explicit legacy EMQX 1884 default
         run: |
           node -e 'const {execFileSync}=require("node:child_process"); const x=JSON.parse(execFileSync("docker",["compose","--env-file",".env.example","config","--format","json"],{encoding:"utf8"})); const b=x.services.backend.environment; if(b.MQTT_BROKER_URL!=="mqtt://host.docker.internal:1884" || b.SKYHUB_MQTT_BROKER_KIND!=="emqx" || b.SKYHUB_MQTT_REQUIRED_PORT!=="1884") process.exit(1);'
@@ -86,13 +110,39 @@ jobs:
           node -e 'const {execFileSync}=require("node:child_process"); const x=JSON.parse(execFileSync("docker",["compose","--env-file",".env.example","config","--format","json"],{encoding:"utf8"})); const b=x.services.backend.environment; const p=x.services.backend.ports; if(b.MQTT_BROKER_URL!=="mqtt://host.docker.internal:1883" || b.SKYHUB_MQTT_BROKER_KIND!=="mosquitto" || b.SKYHUB_MQTT_REQUIRED_PORT!=="1883" || b.SKYHUB_PILOT_MQTT_URL!=="mqtt://192.168.178.63:1883" || b.SKYHUB_PILOT_ENABLED!=="false" || p[0].host_ip!=="127.0.0.1" || Number(p[0].published)!==4001 || x.services.emqx || x.services.mosquitto) process.exit(1);'
       - name: Assert SkyHub Next remains isolated from the existing Pi backend
         run: |
-          node -e 'const {execFileSync}=require("node:child_process"); const x=JSON.parse(execFileSync("docker",["compose","--env-file",".env.example","config","--format","json"],{encoding:"utf8"})); const p=x.services.backend.ports; if(x.name!=="skyhub-next"||p.length!==1||Number(p[0].published)!==4001||Number(p[0].target)!==4000||p[0].host_ip!=="127.0.0.1"||x.services.emqx) process.exit(1);'
+          node -e 'const {execFileSync}=require("node:child_process"); const x=JSON.parse(execFileSync("docker",["compose","--env-file",".env.example","config","--format","json"],{encoding:"utf8"})); const p=x.services.backend.ports; if(x.name!=="skyhub-next"||p.length!==2||Number(p[0].published)!==4001||Number(p[0].target)!==4000||p[0].host_ip!=="127.0.0.1"||Number(p[1].published)!==4002||Number(p[1].target)!==4002||p[1].host_ip!=="127.0.0.1"||x.services.emqx) process.exit(1);'
       - name: Assert Pilot 2 disabled by default and Pi broker unchanged
         run: |
           node -e 'const {execFileSync}=require("node:child_process"); const x=JSON.parse(execFileSync("docker",["compose","--env-file",".env.example","config","--format","json"],{encoding:"utf8"})); const e=x.services.backend.environment; if(e.SKYHUB_PILOT_ENABLED!=="false"||e.SKYHUB_PILOT_MQTT_URL!=="mqtt://192.168.178.63:1884"||e.SKYHUB_BIND_ADDRESS!=="127.0.0.1") process.exit(1);'
 
+      # Reproduce the restrictive file modes actually observed on the Pi.
+      # The image must remain runnable by USER node after Docker COPY.
+      - name: Reproduce restrictive Pi source modes before image build
+        run: |
+          chmod 600 backend/map-page-referrer.js \
+            frontend/public/media-gallery-app.js \
+            frontend/public/media-library-model.js
       - name: Build the SkyHub Next container
         run: docker build -f backend/Dockerfile -t skyhub-next:test .
+      - name: Verify copied maps and media are readable by the image's non-root user
+        run: |
+          docker run --rm --network none --entrypoint sh skyhub-next:test -ec '
+            test "$(id -u)" != "0"
+            cd /app/backend
+            node --check server.js
+            node --check map-page-referrer.js
+            for file in \
+              /app/frontend/public/media-gallery.html \
+              /app/frontend/public/media-gallery.css \
+              /app/frontend/public/media-gallery-app.js \
+              /app/frontend/public/media-library-model.js
+            do
+              test -r "$file"
+            done
+            node --check /app/frontend/public/media-gallery-app.js
+            node --check /app/frontend/public/media-library-model.js
+            node --check /app/backend/media-preview.js
+          '
       - name: Smoke-test bundled runtime modules in the image
         run: |
           docker run --rm --network none --entrypoint node skyhub-next:test \
@@ -158,7 +208,7 @@ jobs:
       - name: Run real SQL and PostGIS integration in dedicated test database
         env:
           SKYHUB_TEST_DATABASE_URL: postgresql://skyhub_test:local_ci_only@127.0.0.1:${{ job.services.postgis.ports[5432] }}/skyhub_test
-        run: node --test backend/test/postgis.integration.test.js backend/test/map-element-mutation.integration.test.js backend/test/dji-flighttask-journal.integration.test.js backend/test/dji-flighttask-journal-retention.integration.test.js backend/test/wpml-route-schema.integration.test.js backend/test/dji-flighttask-multimission-router.integration.test.js backend/test/dji-flighttask-workspace-rls.integration.test.js backend/test/wpml-central-routes.integration.test.js backend/test/wpml-central-rls.integration.test.js
+        run: node --test backend/test/postgis.integration.test.js backend/test/map-element-mutation.integration.test.js backend/test/dji-flighttask-journal.integration.test.js backend/test/dji-flighttask-journal-retention.integration.test.js backend/test/wpml-route-schema.integration.test.js backend/test/dji-flighttask-multimission-router.integration.test.js backend/test/dji-flighttask-workspace-rls.integration.test.js backend/test/pilot-media-store.integration.test.js backend/test/pilot-media-http.integration.test.js backend/test/pilot-media-mutation.integration.test.js backend/test/pilot-media-library.integration.test.js backend/test/wpml-central-routes.integration.test.js backend/test/wpml-central-rls.integration.test.js
 
   isolated-postgis-backup-restore:
     runs-on: ubuntu-latest

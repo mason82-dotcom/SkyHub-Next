@@ -8,6 +8,18 @@ Diese Übersicht bezieht sich auf das **aktive SkyHub-Next-Repository-Root**. Ei
 
 | Tool | Aufruf / Modus | Wirkung | Betriebsregel |
 |---|---|---|---|
+| `pi-minio-migrate-from-aeronexus.sh` | `plan` / `status` | **Lesend**: prüft gestoppte AeroNexus-MinIO-Quellen, das geprüfte ARM64-Image, NVMe und Zielpfade | Vor jedem Umzug, keine Secrets ausgegeben |
+| `pi-minio-migrate-from-aeronexus.sh` | `move` | **Dateischreibend**: private 0600-Environment-Datei, atomare Verzeichnis-Umbenennung auf derselben NVMe, Symlink im SkyHub-Projekt | Kein Kopieren; nur nach Offline-Backup und genau geprüftem Ausgangszustand |
+| `pi-minio-migrate-from-aeronexus.sh` | `up` | **Docker-Änderung**: lokales Image umtaggen, neuen `skyhub-shared-minio` ohne Host-Port erstellen, Backend mit privater Storage-Bridge verbinden | Beide alten AeroNexus-Container bleiben gestoppt, keine vorhandenen Backend-/DB-Container neu starten |
+| `pi-minio-migrate-from-aeronexus.sh` | `start-plan` / `start` | `start-plan` **lesend**; `start` **Docker-Änderung**: nach abgeschlossenem `move` Image taggen, Netz anlegen, EINEN `skyhub-shared-minio` ohne Host-Port starten, Backend per `adopt` anbinden | Kein Vergleich mit dem nicht mehr vorhandenen AeroNexusAdvanced-Projekt; keine Secrets ausgegeben |
+| `pi-minio-env-from-aeronexusadvanced.py` | `locate` / `check` / `import --accept-different` | Findet private AeroNexusAdvanced-.env, vergleicht Root-Credentials ohne Werte auszugeben oder importiert sie in SkyHub | Keine Client-S3-Schlüssel als Root behandeln; vor abweichendem Import private Sicherung, nie bei laufendem MinIO |
+| `pi-minio-credentials.py` | `check` / `export` | Prüft nur MinIO-Variablennamen oder sichert Originalkonfiguration in private Datei | Nur lokale Datei 0600; Credentials niemals ausgeben oder in Git speichern |
+| `pi-minio-shared-mount-check.sh` | ohne Argumente | **Lesend**: Prüft tatsächliches Dateisystem und identische MinIO-Bind-Mount-Quellen unter `/mnt/hc4backup` | Pflicht vor dem Start eines historischen MinIO auf dem Backup-Datenträger |
+| `pi-minio-network.sh adopt` | Containername, erwarteter `/data`-Pfad per Umgebungsvariable | Übernimmt genau einen laufenden, persistenten MinIO mit internem S3-Docker-Port | Lehnt öffentlich oder lokal veröffentlichte S3-HostPorts 9000 ab |
+| `pi-minio-audit.py` | ohne Argumente | **Lesend**: Inventar gestoppter/laufender MinIO-Container und Mount-Metadaten | Keine Containerstarts, Secrets oder Objektzugriffe; lokale Pfade vor Weitergabe ggf. anonymisieren |
+| `pi-minio-network.sh` | `plan` / `verify` | **Lesend**: Docker-Netz-/Volume-Status bzw. HTTP-Readiness | Keine Buckets oder Datenwrites; Output ohne Secrets |
+| `pi-minio-network.sh` | `apply` / `adopt` / `attach` | **Live-Änderung**: MinIO-Container/Netz starten oder vorhandenen MinIO/Clients verbinden | `adopt` startet keinen Container; keine Neustarts anderer Dienste |
+| `pi-minio-s3-check.sh` | `--read` / `--write` | **Aktiver S3-Test**: temporärer Testcontainer mit per-Service-Credentials; optional Testobjekt schreiben/prüfen/löschen | Nur für isoliertes Testbucket, niemals mit Root- oder produktiven Anwendungszugängen |
 | `pi-m3m-media-inventory.js` | `node scripts/pi-m3m-media-inventory.js --directory /absoluter/pfad` | **Lokal lesend, opt-in**: unmittelbare Dateinamen, nur aggregierte RGB/G/R/RE/NIR-Zähler | Kein EXIF/XMP, kein S3/MinIO, keine Bildinhalte oder validierte Reflexionswerte; [Grenzen](m3m-offline-media-inventory.md) |
 | `pi-preflight.sh` | `bash scripts/pi-preflight.sh` | **Lesend**: Zeit, Listener und Docker-Portzuordnung | Geeignet vor Staging; beweist keine DJI-MQTT-Daten |
 | `pi-skyhub-takeover-audit.sh` | `bash scripts/pi-skyhub-takeover-audit.sh` | **Lesend**: Container-, HTTP-, Compose- und Secret-*Status* | Keine Geheimniswerte weitergeben; kein Cutover |
@@ -32,6 +44,31 @@ Diese Übersicht bezieht sich auf das **aktive SkyHub-Next-Repository-Root**. Ei
 | `build-hms-texts.js` | `node scripts/build-hms-texts.js <hms.json>` | **Dateischreibend**: erzeugt `backend/data/hms-texts.json` | Nur mit geprüftem DJI-HMS-Quelldokument und Lizenz |
 | `pi-migration-rehearsal.sh` | `bash scripts/pi-migration-rehearsal.sh <migration.sql> [...] [--tests]` | **Lesend an Produktion** (`pg_dump`), schreibt nur in einen Wegwerf-Container mit Kopie; Container und Dump werden gelöscht | Probelauf, keine Freigabe: produktive Migration braucht Sicherung und Entscheidung; [Details](dji-map-elements-aktivierung-2026-10-24.md) |
 | `stacks/legacy-skyhub/scripts/migrate-env.sh` | **Nicht ausführen** | Historisches Migrationswerkzeug des archivierten Stacks | Kein Teil der aktiven SkyHub-Next-Betriebslogik |
+
+## Pi-Betrieb seit 25.–27.10.2026
+
+| Tool | Aufruf / Modus | Wirkung | Betriebsregel |
+|---|---|---|---|
+| `pi-compose.sh` | `ps`, `config --quiet` | **Lesend** (Compose mit `docker-compose.yml` + `docker-compose.arm64.yml` + lokalem Override) | Auf dem Pi statt `docker compose` benutzen |
+| `pi-compose.sh` | `up -d --no-build <dienst>`, `restart <dienst>` … | **Docker-Änderung** nur für die genannten Dienste; `up`, `down`, `restart`, `stop`, `rm` ohne Dienstnamen werden abgelehnt (`--all-services` hebt das auf) | Nicht während eines Flugs; `postgres` neu anlegen nur im Wartungsfenster mit frischer Sicherung ([Vorfälle](vorfaelle-2026-10-26.md)) |
+| `pi-update-backend.sh` | – | **Docker-Änderung**: sichert `.env`, Override und einen PostGIS-Dump, taggt das alte Image, baut und legt nur `backend` neu an (`--no-deps`); verweigert bei falschem Proxy-Peer (`pi-proxy-peer-check.sh --enforce`) | Ausdrückliche Freigabe; Telemetrie kurz unterbrochen |
+| `pi-proxy-peer-check.sh` | `plan` / `--enforce` | **Lesend**: vergleicht `SKYHUB_TRUSTED_PROXY_IPS` mit dem Gateway der Backend-Bridge; `--enforce` beendet mit Code 3 bei Abweichung | Vor jedem Update; keine Secrets |
+| `pi-minio-backend-access.sh` | `plan` / `check` | **Lesend**: Konfiguration, Netz, Policy und HEAD je Bucket mit dem Reader-Konto (kurzlebiger Container, keine Zugangsdaten in der Ausgabe) | Nach jedem Neustart des MinIO |
+| `pi-minio-backend-access.sh` | `override` | **Nur Ausgabe**: der Inhalt für das lokale, per `.gitignore` ausgeschlossene `docker-compose.override.yml` (Backend bleibt nach einem Neuanlegen im Speichernetz); das Skript schreibt die Datei nicht | Inhalt selbst ablegen, nach `plan` |
+| `pi-minio-autostart.sh` | `plan` / `check` | **Lesend**: zeigt/prüft die systemd-Unit `skyhub-shared-minio.service` | – |
+| `pi-minio-autostart.sh` | `install` / `remove` (root) | **Systemänderung**: schreibt oder entfernt die Unit (Start nur bei gemountetem `/mnt/hc4backup` und bestandener Mount-Prüfung, nur `docker start`/`stop`); startet den Container nicht sofort | Vom Betreiber mit `sudo` |
+| `pi-minio-recreate.sh` | `plan` | **Lesend**: Voraussetzungen (Zugangsdatei, Mount, Image-ID, Netz, Unit, kein Backup/Restore), Label heute und nach dem Neuanlegen | – |
+| `pi-minio-recreate.sh` | `run` | **Container-Änderung**: Unit stoppen, `docker compose -f docker-compose.minio-shared.yml up --no-start --no-build --no-deps --force-recreate minio`, Unit starten, Nachprüfung (Image, `restart: no`, Datenpfad, keine Host-Ports, Alias, Label, `pi-minio-network.sh verify`); Daten bleiben | Vom Betreiber, ohne `sudo` aufrufen (fragt sudo nur für `systemctl`) |
+| `pi-minio-restart-test.sh` | ohne Argument | **Lesend** (Plan) | – |
+| `pi-minio-restart-test.sh` | `--execute-restart-test` | **Docker-Änderung**: hält denselben MinIO-Container an und startet ihn wieder (Medien-API kurz weg); prüft ID, Image, Netz, Alias und 5 Buckets | Ausdrückliche Freigabe |
+| `pi-reboot-test.sh` | `pre` / `post` | **Lesend** (`pre` schreibt eine Zustandsdatei unter `~/.local/state/skyhub/`): vergleicht Container, Ports, Mounts, Health und Proxy-Peer vor und nach einem Neustart | Das Skript startet den Pi nicht neu |
+| `pi-reboot-test.sh` | `start-minio` | **Docker-Änderung**: startet den MinIO nach Mount-Prüfung (nur ohne Autostart-Unit nötig) | Eingabe `START` |
+| `ops/cloud-api-demo/pi-caddy-cloud-api-demo.sh` | `print` / `check` / `ca` | **Lesend** | – |
+| `ops/cloud-api-demo/pi-caddy-cloud-api-demo.sh` | `apply` / `rollback` (root) | **Systemänderung**: hängt den HTTPS-Block für Port 4444 an das Caddyfile (mit Sicherung) bzw. stellt es wieder her | Vom Betreiber mit `sudo` |
+| `pi-minio-acceptance/launch_backup.py` | `--execute-backup` (root) | **Dienstunterbrechung**: stoppt den MinIO, erstellt ein verschlüsseltes Offline-Backup nach `/mnt/benz` | Ausdrückliche Freigabe; Passphrase nie im Chat |
+| `pi-minio-acceptance/restore.sh` | `--execute-restore <Backup>` (root) | **Dateischreibend, isoliert**: legt ein neues 48-GiB-LUKS-Testabbild und einen internen Test-MinIO an; Produktion bleibt unberührt | Ausdrückliche Freigabe; in `tmux` starten |
+
+Die Skripte für Log-Rotation und den Pi-Gesundheits-Dienst gehören zum Begleitprojekt [Pi-Hub](pi-hub.md).
 
 ## Reale Betriebspfade
 

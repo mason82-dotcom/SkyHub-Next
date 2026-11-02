@@ -3,8 +3,10 @@
 const {
   S3Client,
   HeadBucketCommand,
-  ListObjectsV2Command
+  ListObjectsV2Command,
+  GetObjectCommand
 }=require('@aws-sdk/client-s3');
+const {createPilotMediaHead}=require('./pilot-media-head');
 
 const BUCKETS=Object.freeze([
   'basemaps',
@@ -49,7 +51,17 @@ function createS3Storage(env=process.env,client){
     return available;
   }
 
-  async function objects(bucket,{prefix='',limit=100,cursor}={}){
+  function invalid(message){
+    const err=new Error(message);
+    err.status=400;
+    return err;
+  }
+  function validKey(key){
+    return typeof key==='string'&&key.length>0&&key.length<=1024&&
+      !/[\x00-\x1f\x7f]/.test(key);
+  }
+
+  async function objects(bucket,{prefix='',limit=100,cursor,delimiter}={}){
     if(!BUCKETS.includes(bucket)){
       const err=new Error('Invalid bucket');
       err.status=400;
@@ -58,16 +70,16 @@ function createS3Storage(env=process.env,client){
     if(typeof prefix!=='string' || prefix.length>512 ||
        !Number.isInteger(limit) || limit<1 || limit>200 ||
        (cursor!==undefined &&
-        (typeof cursor!=='string' || cursor.length>4096))){
-      const err=new Error('Invalid query');
-      err.status=400;
-      throw err;
+        (typeof cursor!=='string' || cursor.length>4096)) ||
+       (delimiter!==undefined && delimiter!=='/')){
+      throw invalid('Invalid query');
     }
 
     const result=await s3.send(new ListObjectsV2Command({
       Bucket:bucket,
       Prefix:prefix,
       MaxKeys:limit,
+      ...(delimiter?{Delimiter:delimiter}:{}),
       ...(cursor?{ContinuationToken:cursor}:{})
     }));
 
@@ -76,6 +88,7 @@ function createS3Storage(env=process.env,client){
     const entries=result?.Contents??[];
     if(!result||typeof result.IsTruncated!=='boolean'||
        !Array.isArray(entries)||entries.length>limit||
+       (result.CommonPrefixes!==undefined&&!Array.isArray(result.CommonPrefixes))||
        (result.IsTruncated &&
          (typeof result.NextContinuationToken!=='string'||
           !result.NextContinuationToken||
@@ -102,14 +115,53 @@ function createS3Storage(env=process.env,client){
       };
     });
 
+    const folders=(result.CommonPrefixes||[]).map(item=>item?.Prefix)
+      .filter(name=>typeof name==='string'&&name.startsWith(prefix)&&
+        name.length<=1024&&!/[\x00-\x1f\x7f]/.test(name));
+
     return {
       bucket,prefix,objects,
+      ...(delimiter?{folders}:{}),
       truncated:result.IsTruncated,
       nextCursor:result.IsTruncated?result.NextContinuationToken:null
     };
   }
 
-  return {buckets,objects};
+  // Read-only object payload (optionally a byte range) for the LAN media viewer.
+  async function getObject(bucket,key,{range}={}){
+    if(!BUCKETS.includes(bucket))throw invalid('Invalid bucket');
+    if(!validKey(key))throw invalid('Invalid key');
+    if(range!==undefined&&(typeof range!=='string'||!/^bytes=\d{0,15}-\d{0,15}$/.test(range)||range==='bytes=-')){
+      throw invalid('Invalid range');
+    }
+    try{
+      const result=await s3.send(new GetObjectCommand({
+        Bucket:bucket,Key:key,...(range?{Range:range}:{})
+      }));
+      return {
+        body:result.Body,
+        contentLength:result.ContentLength,
+        contentRange:result.ContentRange||null,
+        etag:result.ETag||null,
+        lastModified:result.LastModified?.toUTCString?.()||null
+      };
+    }catch(err){
+      const code=err.$metadata?.httpStatusCode;
+      if(code===404||err.name==='NoSuchKey'||err.name==='NotFound'){
+        const missing=new Error('Not found');
+        missing.status=404;
+        throw missing;
+      }
+      if(code===416||err.name==='InvalidRange'){
+        const bad=new Error('Range not satisfiable');
+        bad.status=416;
+        throw bad;
+      }
+      throw err;
+    }
+  }
+
+  return {buckets,objects,getObject,headObject:createPilotMediaHead(s3)};
 }
 
 module.exports={createS3Storage,BUCKETS};

@@ -23,6 +23,8 @@ function isObject(value){
 }
 function text(value,max,{required=false}={}){
   if(value===undefined||value===null)return required?undefined:null;
+  // Pilot 2 sends empty strings for absent optional fields (e.g. path, file_group_id).
+  if(value===''&&!required)return null;
   if(typeof value!=='string'||!value.length||value.length>max||
     /[\u0000-\u001f\u007f]/.test(value))return undefined;
   return value;
@@ -43,6 +45,10 @@ function bool(value){
   if(value===undefined||value===null)return null;
   return typeof value==='boolean'?value:undefined;
 }
+const NO_FIX_DEGREES=0.0001;
+function noPosition(lat,lng){
+  return Math.abs(lat)<NO_FIX_DEGREES&&Math.abs(lng)<NO_FIX_DEGREES;
+}
 function coordinate(value,limit){
   return Number.isFinite(value)&&Math.abs(value)<=limit?value:undefined;
 }
@@ -57,18 +63,17 @@ function fileExtension(input){
     ['payload_model_key',text(input.payload_model_key,64),MODEL_KEY]
   ];
   for(const [name,value,pattern] of fields){
-    if(value===undefined||(value!==null&&!pattern.test(value)))return undefined;
-    if(value!==null)out[name]=value;
+    // Informational only: an unexpected model key or group id is dropped, not fatal.
+    if(value!==undefined&&value!==null&&pattern.test(value))out[name]=value;
   }
   const tiny=fingerprint(input.tinny_fingerprint);
   const original=bool(input.is_original);
   if(tiny===undefined||original===undefined)return undefined;
   if(tiny!==null)out.tinny_fingerprint=tiny;
   if(original!==null)out.is_original=original;
-  if(input.sn!==undefined&&input.sn!==null){
+  if(input.sn!==undefined&&input.sn!==null&&input.sn!==''){
     const sn=serial(input.sn);
-    if(!sn)return undefined;
-    out.sn=sn;
+    if(sn)out.sn=sn;
   }
   return out;
 }
@@ -102,7 +107,11 @@ function parseFastUploadRequest(body){
 
 // POST .../upload-callback
 function parseUploadCallback(body){
-  if(!isObject(body)||!Number.isSafeInteger(body.result)||body.result<0)return null;
+  // DJI Pilot 2 (MediaUploadCallbackRequest) sends no "result"; it only calls back after a
+  // successful upload. The Dock variant sends result (0 = success).
+  if(!isObject(body))return null;
+  const result=body.result===undefined||body.result===null?0:body.result;
+  if(!Number.isSafeInteger(result)||result<0)return null;
   const name=text(body.name,MAX_NAME,{required:true});
   const objectKey=relativePath(body.object_key,MAX_KEY,{required:true});
   const print=fingerprint(body.fingerprint);
@@ -112,39 +121,34 @@ function parseUploadCallback(body){
     path===undefined||ext===undefined)return null;
   let subFileType=null;
   if(body.sub_file_type!==undefined){
-    if(![0,1].includes(body.sub_file_type))return null;
-    subFileType=body.sub_file_type;
+    if([0,1].includes(body.sub_file_type))subFileType=body.sub_file_type;
   }
   let metadata=null;
   if(body.metadata!==undefined&&body.metadata!==null){
-    const m=body.metadata;
-    if(!isObject(m))return null;
+    // Pilot metadata is informational: unreadable fields are dropped, never fatal.
+    const m=isObject(body.metadata)?body.metadata:{};
     metadata={};
     for(const [key,value] of [
       ['absolute_altitude',m.absolute_altitude],
       ['relative_altitude',m.relative_altitude],
       ['gimbal_yaw_degree',m.gimbal_yaw_degree]
     ]){
-      if(value===undefined||value===null)continue;
-      if(!Number.isFinite(value)||Math.abs(value)>100000)return null;
-      metadata[key]=value;
+      if(Number.isFinite(value)&&Math.abs(value)<=100000)metadata[key]=value;
     }
-    if(m.created_time!==undefined&&m.created_time!==null){
-      const created=text(m.created_time,64);
-      if(!created||!Number.isFinite(Date.parse(created)))return null;
+    const created=text(m.created_time,64);
+    // Java "yyyy-MM-dd'T'HH:mm:ssVV" may carry a zone id; keep it when the date part parses.
+    if(created&&Number.isFinite(Date.parse(created.replace(/[A-Za-z]+\/[A-Za-z_]+$/,''))))
       metadata.created_time=created;
-    }
-    if(m.shoot_position!==undefined&&m.shoot_position!==null){
+    if(isObject(m.shoot_position)){
       const p=m.shoot_position;
-      if(!isObject(p))return null;
       const lat=coordinate(p.lat,90),lng=coordinate(p.lng,180);
-      if(lat===undefined||lng===undefined)return null;
-      // DJI documents 0/0 as "no position"; it is not stored as a location.
-      if(!(lat===0&&lng===0))metadata.shoot_position={lat,lng};
+      // DJI documents 0/0 as "no position". Without a GPS fix the RC reports values like
+      // 1.9e-7/4.4e-7 instead of exact zeros, so anything within ~10 m of 0/0 is no position.
+      if(lat!==undefined&&lng!==undefined&&!noPosition(lat,lng))metadata.shoot_position={lat,lng};
     }
   }
   return {
-    uploaded:body.result===0,result:body.result,name,objectKey,
+    uploaded:result===0,result,name,objectKey,
     fingerprint:print,path,ext,subFileType,metadata
   };
 }
@@ -221,7 +225,19 @@ function stsResponse(grant,{workspace}={}){
   });
 }
 
-module.exports={
+// Redacted structure of a request body for diagnostics: field names and value types only.
+function bodyShape(body,depth=0){
+  if(Array.isArray(body))return 'array('+body.length+')';
+  if(body===null)return 'null';
+  if(typeof body==='string')return body===''?'empty-string':'string';
+  if(typeof body!=='object')return typeof body;
+  if(depth>1)return 'object';
+  const out={};
+  for(const key of Object.keys(body).slice(0,30))out[key.slice(0,40)]=bodyShape(body[key],depth+1);
+  return out;
+}
+
+module.exports={bodyShape,noPosition,
   parseTinyFingerprintRequest,parseFastUploadRequest,parseUploadCallback,
   parseGroupUploadCallback,objectKeyUnderPrefix,okEnvelope,errorEnvelope,
   tinyFingerprintResponse,uploadCallbackResponse,stsResponse,workspaceId,

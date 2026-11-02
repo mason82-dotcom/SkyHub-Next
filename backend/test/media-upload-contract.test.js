@@ -29,10 +29,15 @@ test('fast upload requires a fingerprint and rejects traversal and control chara
     {fingerprint:'abc123',name:null,path:null,ext:{}});
   for(const bad of [null,{},{fingerprint:''},{fingerprint:'a b'},
     {fingerprint:'a',name:'x\u0000y'},{fingerprint:'a',path:'../etc'},{fingerprint:'a',path:'/abs'},
-    {fingerprint:'a',path:'a//b'},{fingerprint:'a',ext:'x'},{fingerprint:'a',ext:{is_original:'yes'}},
-    {fingerprint:'a',ext:{sn:'bad serial'}},{fingerprint:'a',ext:{drone_model_key:'a b'}}]){
+    {fingerprint:'a',path:'a//b'},{fingerprint:'a',ext:'x'},{fingerprint:'a',ext:{is_original:'yes'}}]){
     assert.equal(c.parseFastUploadRequest(bad),null,JSON.stringify(bad));
   }
+  // Informational extension fields that do not fit are dropped, not fatal.
+  assert.deepEqual(c.parseFastUploadRequest({fingerprint:'a',ext:{sn:'bad serial',drone_model_key:'a b'}}).ext,{});
+  // Pilot 2 sends empty strings for absent optional values.
+  assert.deepEqual(c.parseFastUploadRequest({fingerprint:'a',name:'x.jpg',path:'',
+    ext:{file_group_id:'',sn:'',tinny_fingerprint:TINY,is_original:true}}),
+    {fingerprint:'a',name:'x.jpg',path:null,ext:{tinny_fingerprint:TINY,is_original:true}});
 });
 
 test('upload callback validates result, object key, metadata and position',()=>{
@@ -51,13 +56,35 @@ test('upload callback validates result, object key, metadata and position',()=>{
     .metadata.shoot_position,undefined);
   for(const bad of [null,{},{...body,result:-1},{...body,result:1.5},{...body,result:'0'},
     {...body,name:undefined},{...body,object_key:undefined},{...body,object_key:'../x'},
-    {...body,object_key:'/x'},{...body,sub_file_type:2},
-    {...body,metadata:{shoot_position:{lat:91,lng:0}}},
-    {...body,metadata:{shoot_position:{lat:0,lng:181}}},
-    {...body,metadata:{absolute_altitude:'high'}},{...body,metadata:{created_time:'not a date'}},
-    {...body,metadata:[]}]){
+    {...body,object_key:'/x'}]){
     assert.equal(c.parseUploadCallback(bad),null,JSON.stringify(bad).slice(0,80));
   }
+  // Pilot metadata is informational: unreadable values are dropped, the upload still counts.
+  for(const [metadata,missing] of [[{shoot_position:{lat:91,lng:0}},'shoot_position'],
+    [{shoot_position:{lat:0,lng:181}},'shoot_position'],[{absolute_altitude:'high'},'absolute_altitude'],
+    [{created_time:'not a date'},'created_time'],[[],'created_time']]){
+    const item=c.parseUploadCallback({...body,metadata});
+    assert.ok(item,JSON.stringify(metadata));
+    assert.equal(item.metadata[missing],undefined);
+  }
+  assert.equal(c.parseUploadCallback({...body,sub_file_type:2}).subFileType,null);
+});
+
+test('upload callback accepts the DJI Pilot 2 shape without result field',()=>{
+  // Shape of DJI MediaUploadCallbackRequest: no "result", path may be empty, Java zone id in created_time.
+  const item=c.parseUploadCallback({
+    name:'DJI_20261031214012_0001_V.JPG',
+    object_key:WS+'/media/0123456789abcdef0123456789abcdef/DJI_20261031214012_0001_V.JPG',
+    fingerprint:'951859b3f8c0ae23a1b2c3d4e5f60718',path:'',sub_file_type:0,
+    ext:{drone_model_key:'0-91-0',payload_model_key:'1-81-0',file_group_id:'',is_original:true,
+      tinny_fingerprint:'951859b3f8c0ae23',sn:'1581F6Q8D24AB'},
+    metadata:{absolute_altitude:312.5,relative_altitude:40.1,gimbal_yaw_degree:12,
+      created_time:'2026-10-31T21:40:12Europe/Berlin',shoot_position:{lat:49.1,lng:8.4}}});
+  assert.equal(item.uploaded,true);
+  assert.equal(item.path,null);
+  assert.equal(item.ext.file_group_id,undefined);
+  assert.equal(item.metadata.created_time,'2026-10-31T21:40:12Europe/Berlin');
+  assert.deepEqual(c.bodyShape({a:'',b:{c:1},d:[1,2]}),{a:'empty-string',b:{c:'number'},d:'array(2)'});
 });
 
 test('group upload callback keeps counts consistent',()=>{
@@ -131,4 +158,13 @@ test('the contract is not wired into the server and has no I/O',()=>{
   const source=fs.readFileSync(path.resolve(__dirname,'../media-upload-contract.js'),'utf8');
   assert.doesNotMatch(source,/require\(['"](?:node:)?(?:fs|net|http|https|child_process)['"]\)/);
   assert.doesNotMatch(source,/@aws-sdk|process\.env/);
+});
+
+test('positions within ~10 m of 0/0 (no GPS fix) are not stored as shoot position',()=>{
+  const body={name:'a.jpg',object_key:WS+'/a.jpg',metadata:{shoot_position:{lat:1.94e-7,lng:4.44e-7}}};
+  assert.equal(c.parseUploadCallback(body).metadata.shoot_position,undefined);
+  assert.equal(c.noPosition(0.00005,-0.00009),true);
+  assert.equal(c.noPosition(49.1,8.4),false);
+  assert.deepEqual(c.parseUploadCallback({...body,metadata:{shoot_position:{lat:49.1,lng:8.4}}})
+    .metadata.shoot_position,{lat:49.1,lng:8.4});
 });

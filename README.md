@@ -3,13 +3,31 @@
 **GitHub-Repository:** https://github.com/mason82-dotcom/SkyHub-Next  
 **Hinweis:** Der frühere Repository-Slug `mason82-dotcom/SkyHub` leitet auf `SkyHub-Next` weiter. Das lokale Legacy-Verzeichnis `~/Projekte/SkyHub` ist weiterhin getrennt vom Entwicklungsverzeichnis `~/Projekte/SkyHub-Next` zu behandeln.
 
-**Statusprüfung 25.10.2026:** Der geprüfte GitHub-`main`-Stand ist `55815f348c2b7941c7f53dffea8d7bc568f89b81`; die Haupt-CI und der TAK-UI-Browsertest auf diesem Commit waren erfolgreich. **Beim anfänglichen Audit waren 52 Pull Requests offen** (16 direkt auf `main`, 36 gestapelt); nach der begründeten Schließung der überholten Konsolidierungs-Drafts [#88](https://github.com/mason82-dotcom/SkyHub-Next/pull/88) und [#94](https://github.com/mason82-dotcom/SkyHub-Next/pull/94) sind **50 PRs offen** (Stand 25.10.2026). Die aktuelle [Repository-Hygiene-/PR-Bestandsaufnahme](docs/repository-hygiene-2026-10-25.md) ist für Wartungs- und Mergeplanung vorrangig. Datierte Abschnitte darunter sind historische Entwicklungsprotokolle; insbesondere früher als offen bezeichnete PRs können bereits gemergt sein. Kein Pi-Update und keine DJI-Hardwarefreigabe durch diese Statusprüfung.
+**Aktuelle GitHub-Bestandsaufnahme (02.11.2026):** [Repository-Audit und sichere Bereinigungsstrategie](docs/repository-audit-2026-11-02.md). Der Bericht dokumentiert den geprüften `main`-SHA, 24 offene PRs, Branch-Inventur und kritische MinIO-/M3M-Merge-Gates; das ist eine Momentaufnahme, keine Pi- oder Flugfreigabe.
+
+**Repository-Stand:** [Offene Pull Requests auf GitHub](https://github.com/mason82-dotcom/SkyHub-Next/pulls) und [aktueller `main`-Branch](https://github.com/mason82-dotcom/SkyHub-Next/tree/main) zeigen den Live-Stand. Die [Bestandsaufnahme vom 25.10.2026](docs/repository-status-2026-10-25.md) und die [Hygieneprüfung](docs/repository-hygiene-2026-10-25.md) sind datierte Momentaufnahmen; ihre PR-Zahlen und Commit-IDs gelten nur für den jeweils genannten Prüfzeitpunkt. GitHub-Checks belegen keinen aktuellen Pi-Betrieb oder eine DJI-Hardwarefreigabe.
 
 **Version 0.1.0 – Entwicklungsstand.** Die Branch-Suffixe v1/v2/v3/v4 sind keine Produktversionen.
 
 SkyHub Next ist die **aktive Entwicklungsbasis im Repository-Root**. Sie verarbeitet DJI-Cloud-API-Telemetrie mit Node.js/Express, Socket.IO, MQTT, Redis und PostGIS und stellt ein kompaktes statisches Live-Dashboard bereit. Der Integrationsstand enthält eine **optional aktivierbare, authentifizierte und nur lesende Medien-API**; sie ist im Standard-Compose nicht mit MinIO-Zugangsdaten verdrahtet. Ein produktionsreifer Missionseditor und echte Analyse-Worker sind nicht freigegeben. Der Root-Code ist **nicht automatisch identisch** mit dem aktuell auf dem Raspberry Pi betriebenen alten Dienst.
 
-## Aktueller Projektstand (23.10.2026)
+## Betrieb auf dem Raspberry Pi (Stand 27.10.2026)
+
+Der aktuelle Betriebsstand des Pi steht im [Betriebsstand 27.10.2026](docs/stand-2026-10-27-betriebsstand.md) (Stack, exakte Proxy-Peers, gemeinsamer MinIO mit Backup/Restore und Autostart, Neustarttests, Log-Rotation, offene Punkte), die Betriebsvorfälle vom 26.10. samt Konsequenzen in [vorfaelle-2026-10-26.md](docs/vorfaelle-2026-10-26.md). **Auf dem Pi nie `docker compose up` ohne die Overlay-Dateien:** immer `bash scripts/pi-compose.sh …` ([Begründung](docs/ops.md#compose-auf-dem-pi-immer-mit-den-overlays-pi-composesh)). Das lokale Begleitprojekt [Pi-Hub](docs/pi-hub.md) zeigt und steuert den Pi-Betrieb im LAN.
+
+## Einstieg: verifizierter GitHub-Main-Stand vom 25.10.2026
+
+Die maßgebliche neue Quelltextaufnahme ist der [Main-Audit bei `662cb94d`](docs/stand-2026-10-25-main-audit.md). Dazu gehören die [thematische Dokumentationsnavigation](docs/index.md) und die [Regeln zur Dokumentationspflege](docs/dokumentationspflege.md). Die unten stehenden Integrationsnotizen dokumentieren den **jeweiligen historischen Zeitpunkt**, keine aktuelle Liste offener PRs.
+
+Zum Prüfzeitpunkt: **36 offene Draft-PRs**, davon **5 direkt auf `main` und 31 gestapelt**. Eine aktuelle Liste steht ausschließlich unter [GitHub Pull Requests](https://github.com/mason82-dotcom/SkyHub-Next/pulls). Der Main-Code hat eine authentifizierte, optional gemountete **read-only S3-Medien-API** (`SKYHUB_MEDIA_ENABLED=false` im Root-Compose), einen geschützten **MinIO-DR-Berichtsrouter** und einen optionalen M3M-Metadatenkatalog. Offline-WPML-Bibliothek, experimentelle M3M-Rasterwerkzeuge und Missionsbeobachtung belegen **keine** aktive DJI-Missionsausführung, reale Reflexionskalibrierung oder Pi-Produktivfreigabe.
+
+Das Root-Compose nutzt standardmäßig `emqx/1884`; die im Code geprüften Alternativen sind `mosquitto/1883` und `mosquitto-dedicated/1884`. Die reale Brokerart auf dem Raspberry Pi muss vor jeder Änderung lokal bestätigt werden. MinIO-Profile und der separate Shared-Storage-Stack dürfen nicht ohne Betriebsprüfung kombiniert werden.
+
+**SQL-Migrationen:** Das [neue statische Register](docs/sql-migration-inventory.md) unterscheidet DJI-Karten-, Pilot-Medien- und gesperrte WPML-Draftdateien. Die doppelte Dateinummer `003` ist keine globale Versionsreihenfolge; im Hauptbranch existiert kein durch dieses Register freigegebener produktiver SQL-Auto-Runner.
+
+**Offene Integrationen:** [PR-Register und Triage (25.10.2026, nach den Schließungen)](docs/pr-dependency-register-2026-10-25.md). Der Bericht unterscheidet vier direkt auf `main` basierende Drafts und gestapelte Medien-, Thermal-, Smart-Farming- und TSA-Ketten. Er ist eine datierte Momentaufnahme, **keine** allgemeine Merge-Freigabe.
+
+## Historischer Integrationsverlauf (ab 23.10.2026)
 
 **CI-Abnahme für M3M:** Der eigenständige [Raster-/Katalog-Prüfworkflow](.github/workflows/m3m-offline-acceptance.yml) ist durch PR #101 im Hauptbranch registriert und muss vor Zusammenführung dieser Komponenten auf genau dem finalen PR-Commit sowohl die echten NumPy-/Rasterio-Testfälle als auch die HTTP-/Berechtigungstests erfolgreich ausführen.
 
@@ -21,7 +39,7 @@ SkyHub Next ist die **aktive Entwicklungsbasis im Repository-Root**. Sie verarbe
 
 **Integrationsnachtrag (23.10.2026, nach den früheren Main-Audits):** [PR #89](https://github.com/mason82-dotcom/SkyHub-Next/pull/89) wurde als eigenständige, rein offline genutzte WPML/KMZ-Bibliothek gemergt (Merge `1a2a01cf6331256697e27c1e8846f0746bf90f01`). Der Editor und die browserlokale Routenbibliothek sind vorhanden, aber weder mit der DJI-Flugsteuerung noch einer produktiven Backend-Missions-API verbunden; der SQL-Routendraft ist nicht installiert. [PR #65](https://github.com/mason82-dotcom/SkyHub-Next/pull/65) ergänzt die isolierte FlightHub-2-On-Premises-Frontend-Referenz (Merge `0a85f92881aa4571ffc4b5b7bc86d35b8e81b0ee`), ausdrücklich ohne FlightHub-Runtime, Projekttoken oder Steuerpfad. Die früheren Statusabschnitte unten dokumentieren ihren damaligen Zeitpunkt und ersetzen diese Ergänzung nicht.
 
-**Raspberry-Pi-Betriebsgrenze:** Der Code erwartet im Standard-Compose weiterhin MQTT auf Hostport **1884** und `scripts/pi-preflight.sh` prüft ausdrücklich den historischen Container `skyhub_emqx`. Nach dem zuletzt gemeldeten Pi-Umbau (EMQX entfernt; Mosquitto auf **1883**) ist das nicht mehr ohne weiteres kompatibel. Aktuelle Listener, Broker-ACL, Zieltopics und Compose-Environment zuerst vor Ort lesen und den MQTT-Vertrag separat migrations- und CI-sicher überarbeiten. Bis dahin nur Git-Synchronisierung, statische Tests und Diagnose; **nicht** `scripts/pi-update-backend.sh --apply`, `docker compose up`, Portumbiegung oder Broker-Neukonfiguration ausführen.
+**Historischer Pi-Befund vom 23.10.2026:** Das damalige Standard-Compose erwartete EMQX auf Port 1884, während vom Pi ein Mosquitto-Broker auf Port 1883 gemeldet war. Inzwischen enthält `main` die opt-in Broker-Konfiguration `mosquitto-dedicated`. Welche Konfiguration aktuell auf dem Pi läuft, ist aus dem Repository nicht ersichtlich. Vor einem Update Listener, ACL, Zieltopics und die drei zusammengehörigen Variablen `MQTT_BROKER_URL`, `SKYHUB_MQTT_BROKER_KIND` und `SKYHUB_MQTT_REQUIRED_PORT` vor Ort prüfen; siehe [Broker-Migration](docs/pi-mosquitto-migration.md).
 
 **Integrationsnachtrag 23.10.2026:** Die drei read-only DJI-Lebenszyklus-PRs [#74](https://github.com/mason82-dotcom/SkyHub-Next/pull/74), [#78](https://github.com/mason82-dotcom/SkyHub-Next/pull/78) und [#83](https://github.com/mason82-dotcom/SkyHub-Next/pull/83) sind in dieser Reihenfolge nach `main` gemergt. Enthalten sind ausschließlich die **nicht am Server verdrahtete** Missionsbeobachtung, die strikte `services_reply`-Korrelation und das isolierte PostgreSQL-CAS-Journal einschließlich Offline-/CI-Tests. **Kein Missionsversand, keine produktive Journalmigration, keine Pi-Installation und keine Hardwarefreigabe.** Siehe [Beobachtungslebenszyklus](docs/dji-rpc-lifecycle-observation.md), [RPC-Vertrag](docs/dji-flighttask-rpc-integration.md) und [Persistenzgrenzen](docs/dji-flighttask-durable-journal.md).
 
@@ -77,6 +95,8 @@ Der zentrale PostgreSQL-Routenentwurf `backend/db/migrations/003_wpml_route_libr
 ## Dokumentation
 
 - [Dokumentationswegweiser](docs/index.md)
+- [Betriebsstand Raspberry Pi 27.10.2026](docs/stand-2026-10-27-betriebsstand.md) und [Betriebsvorfälle 26.10.2026](docs/vorfaelle-2026-10-26.md)
+- [Begleitprojekt Pi-Hub](docs/pi-hub.md)
 - [Konfigurationsreferenz: Env, Compose, Flags und Startgrenzen](docs/config-reference.md)
 - [API-Referenz: HTTP, Socket.IO, MQTT und Zugriffsmatrix](docs/api-reference.md)
 - [Projektstand 23.10.2026: Main, PR-Ketten, Test-/Hardware-Evidenz](docs/projektstand-2026-10-23.md)
@@ -186,3 +206,17 @@ Der konsolidierte Root-Stack enthält die isoliert getesteten PostGIS- und Backu
 - [Entwicklungsplan und Fortschritt](docs/entwicklungsplan-2026-10-20.md)
 
 **Pi-Update:** Ein Git-Merge ist kein Deployment. Vor einem Update auf dem Pi lokale `.env`, Overrides und persistente PostGIS-Daten sichern, nur das bestehende Backend aktualisieren und danach über `/api/health` prüfen. Keine Compose-Volumes löschen, keine Legacy-Dienste starten und keine offenen DJI-Feature-Flags ungeprüft aktivieren.
+
+## Gemeinsamer MinIO-Speicher (opt-in)
+
+Das optionale MinIO-Profil kann mit `docker-compose.storage.yml` über das
+externe Docker-Netz `skyhub-storage-net` von ausgewählten Pi-Containern
+verwendet werden. **Kein automatisches Deployment und keine neuen S3-Uploads.**
+Der Betriebshelfer `scripts/pi-minio-network.sh` bietet einen lesenden
+`plan`, `apply` für ein neues SkyHub-MinIO, `adopt` für ein vorhandenes
+fremdes MinIO, explizites `attach` sowie lesendes `verify`. Der bisherige Root-MinIO-Datenträger bleibt erhalten.
+Die historische 2023er Image-Vorgabe wird für `apply` vorsorglich gesperrt.
+Dazu gehören getrennte, nicht automatisch aktivierte Bucket-IAM-Policies und
+ein authentifizierter S3-Test mit read-only Standard und optionalem
+PUT/GET/DELETE für ein isoliertes Testbucket.
+Siehe [Gemeinsamer MinIO-Objektspeicher](docs/minio-shared-storage.md) (Entwurfsstand 21.10.), den tatsächlichen Betrieb im [Betriebsstand](docs/stand-2026-10-27-betriebsstand.md) und das Backup-/Restore-Paket [`pi-minio-acceptance`](pi-minio-acceptance/README.md).

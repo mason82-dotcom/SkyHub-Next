@@ -97,3 +97,31 @@ test('read-only inspection preserves original KMZ bytes, never exports rewritten
   assert.doesNotMatch(emitted,/Private flight|49\.12345|8\.56789|<kml|ellipsoidHeight>50/);
   assert.equal(report.missionDispatchEnabled,false);
 });
+
+test('WPML 1.0.6 profile reads Matrice 4 smart-oblique actions; 1.0.2 stays strict',()=>{
+  const {templateXml:t,waylinesXml:w}=documentPair();
+  const oblique=xml=>alternate(xml).replace(/<wpml:actionActuatorFunc>takePhoto<\/wpml:actionActuatorFunc>/,
+    '<wpml:actionActuatorFunc>startSmartOblique</wpml:actionActuatorFunc>');
+  const review=validateDocuments(oblique(t),oblique(w),V106);
+  assert.equal(review.valid,true,JSON.stringify(review.errors));
+  assert.equal(review.wpmlVersion,'1.0.6');
+  assert.equal(review.readOnlyAnalysis,true);
+  assert.equal(review.flightReady,false);
+  assert.match(review.warnings[0],/read-only analysis/);
+  const strict=validateDocuments(oblique(t).replaceAll(V106,V102),oblique(w).replaceAll(V106,V102));
+  assert.ok(strict.errors.some(e=>e.message==='unsupported enumeration'));
+  assert.equal(strict.wpmlVersion,'1.0.2');
+});
+
+test('inspectKmz detects 1.0.6 itself and names the aircraft a mismatched camera belongs to',()=>{
+  const {inspectKmz}=require('../wpml-kmz');
+  const {templateXml:t,waylinesXml:w}=documentPair();
+  const m4e=xml=>alternate(xml).replace(/<wpml:droneSubEnumValue>1<\/wpml:droneSubEnumValue>/g,
+    '<wpml:droneSubEnumValue>0</wpml:droneSubEnumValue>');
+  const report=inspectKmz(kmz(m4e(t),m4e(w)));
+  assert.equal(report.wpmlVersion,'1.0.6');
+  assert.equal(report.valid,false);
+  assert.ok(report.errors.some(e=>/Matrice 4E \(99-0\): payload 89 belongs to Matrice 4T \(99-1\)/.test(e.message)),
+    JSON.stringify(report.errors));
+  assert.equal(inspectKmz(kmz(t,w)).wpmlVersion,'1.0.2');
+});

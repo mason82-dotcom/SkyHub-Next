@@ -33,6 +33,13 @@ docker info >/dev/null
 # shell code or printing JSON containing credentials. This detects stale/mismatched
 # broker kind, required port, backend endpoint and enabled Pilot-2 endpoint.
 compose=(docker compose -p skyhub-next --env-file .env)
+# Pi: dieselben Overlays wie scripts/pi-compose.sh. Ohne docker-compose.arm64.yml legte jedes Update das leere x86-Volume
+# skyhub-next_pgdata an (28.10.2026; Postgres blieb dank --no-deps unberuehrt, vgl. Ausfall 26.10.), und ohne explizites
+# Override fehlte beim Neuanlegen das Speichernetz nur deshalb nicht, weil compose es ohne -f automatisch laedt.
+if [[ -f docker-compose.arm64.yml ]]; then
+  compose+=(-f docker-compose.yml -f docker-compose.arm64.yml)
+  [[ -f docker-compose.override.yml ]] && compose+=(-f docker-compose.override.yml)
+fi
 "${compose[@]}" config --quiet
 if ! broker_choice="$("${compose[@]}" config --format json | python3 -c '
 import json,sys
@@ -61,6 +68,15 @@ fi
 read -r broker_kind broker_port <<< "$broker_choice"
 if ! bash scripts/pi-preflight.sh --broker-kind "$broker_kind" --broker-port "$broker_port";then
   echo "REFUSED: Pi preflight failed; existing services were not changed." >&2;exit 2
+fi
+# Exact reverse-proxy peer: refuse an update that would silently disable Caddy's forwarded headers (LAN dashboard,
+# Pilot 2 HTTPS check). The Docker gateway is assigned by Docker and can change when the network is recreated.
+trusted_proxy_ips="$("${compose[@]}" config --format json | python3 -c '
+import json,sys
+print(json.load(sys.stdin)["services"]["backend"]["environment"].get("SKYHUB_TRUSTED_PROXY_IPS") or "")
+')"
+if ! SKYHUB_TRUSTED_PROXY_IPS="$trusted_proxy_ips" bash scripts/pi-proxy-peer-check.sh --enforce;then
+  echo "REFUSED: SKYHUB_TRUSTED_PROXY_IPS does not match the real Caddy peer; existing services were not changed." >&2;exit 2
 fi
 backend_id="$("${compose[@]}" ps -q backend)"
 postgres_id="$("${compose[@]}" ps -q postgres)"

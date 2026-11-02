@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex,nofollow">
+<title>SkyHub Next · Mediengalerie</title>
+<link rel="stylesheet" href="/media-gallery.css">
+<script defer src="/media-library-model.js"></script>
+<script defer src="/media-gallery-app.js"></script>
+</head>
+<body data-skyhub-page="media-gallery">
+<a class="skip" href="#skyhubMain">Zum Inhalt springen</a>
+<header class="topbar">
+  <a class="brand" href="/" aria-label="SkyHub Next – Übersicht"><span class="brand-mark">✦</span> SkyHub <span>Next</span></a>
+  <nav class="skyhub-global-nav global-nav" aria-label="SkyHub-Bereiche">
+    <a href="/">Übersicht</a>
+    <a href="/wpml-editor.html">Missionen</a>
+    <a href="/wpml-route-library.html">Routen</a>
+    <a href="/wpml-survey-preview.html">Survey</a>
+    <a href="/smart-farming.html">Smart Farming</a>
+    <a href="/media-gallery.html" aria-current="page">Medien</a>
+    <a href="/thermal.html">Thermal</a>
+  </nav>
+</header>
+<main id="skyhubMain" tabindex="-1">
+  <div class="hero">
+    <div>
+      <p class="eyebrow">MINIO-MEDIENSPEICHER</p>
+      <h1>Medien<span>galerie</span></h1>
+      <p>Alle Fotos, Videos, Multispektral-TIFFs und Missionsdateien aus dem SkyHub-Speicher – mit Vorschau, Ordnern, Suche und Download.</p>
+    </div>
+    <button type="button" class="secondary" id="refresh" title="Bestand neu einlesen">↻ Aktualisieren</button>
+  </div>
+
+  <ul id="stats" class="stats" aria-label="Gesamtbestand"></ul>
+  <p id="message" class="message" role="status" aria-live="polite">Medienbestand wird geladen …</p>
+
+  <nav id="buckets" class="buckets" aria-label="Speicherbereiche"></nav>
+
+  <section class="browser" aria-label="Medien durchsuchen">
+    <div class="toolbar">
+      <label class="search">
+        <span class="sr-only">Suchen</span>
+        <input id="search" type="search" maxlength="200" autocomplete="off" spellcheck="false" placeholder="Suchen: Dateiname, Ordner, Datum (z. B. 20261002) …">
+      </label>
+      <div id="types" class="chips" role="group" aria-label="Dateityp"></div>
+      <label class="select">Sortierung
+        <select id="sort">
+          <option value="newest">Neueste zuerst</option>
+          <option value="oldest">Älteste zuerst</option>
+          <option value="name">Name A–Z</option>
+          <option value="size-desc">Größte zuerst</option>
+          <option value="size-asc">Kleinste zuerst</option>
+        </select>
+      </label>
+      <div class="segmented" role="group" aria-label="Ansicht">
+        <button type="button" id="view-folders" aria-pressed="true">Ordner</button>
+        <button type="button" id="view-all" aria-pressed="false">Alle Dateien</button>
+      </div>
+    </div>
+    <nav id="crumbs" class="crumbs" aria-label="Ordnerpfad"></nav>
+    <p id="summary" class="summary" aria-live="polite"></p>
+    <ul id="folders" class="folder-grid" aria-label="Ordner"></ul>
+    <ul id="files" class="file-grid" aria-label="Dateien"></ul>
+    <div id="sentinel" class="sentinel"><button type="button" class="secondary" id="more" hidden>Weitere anzeigen</button></div>
+  </section>
+</main>
+
+<dialog id="viewer" class="viewer" aria-labelledby="viewer-title">
+  <div class="viewer-bar">
+    <div class="viewer-heading">
+      <strong id="viewer-title"></strong>
+      <span id="viewer-position"></span>
+    </div>
+    <div class="viewer-actions">
+      <a id="viewer-open" class="button secondary" target="_blank" rel="noopener">Original öffnen</a>
+      <a id="viewer-download" class="button">Herunterladen</a>
+      <button type="button" class="secondary" id="viewer-close" aria-label="Schließen">✕</button>
+    </div>
+  </div>
+  <div class="viewer-body">
+    <button type="button" class="nav prev" id="viewer-prev" aria-label="Vorherige Datei">‹</button>
+    <div id="viewer-stage" class="viewer-stage"></div>
+    <button type="button" class="nav next" id="viewer-next" aria-label="Nächste Datei">›</button>
+  </div>
+  <dl id="viewer-meta" class="viewer-meta"></dl>
+</dialog>
+</body>
+</html>

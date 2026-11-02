@@ -2,7 +2,7 @@
 // Bounded KMZ/ZIP reader & writer for offline DJI WPML. No shelling out or network access.
 const zlib=require('node:zlib');
 const {TextDecoder}=require('node:util');
-const {validateDocuments}=require('./wpml');
+const {validateDocuments,parseXml,WPML,WPML_REFERENCE_ONLY}=require('./wpml');
 const DECODER=new TextDecoder('utf-8',{fatal:true});
 const MAX_ZIP=12*1024*1024;
 const MAX_TOTAL=32*1024*1024;
@@ -107,9 +107,17 @@ function readKmz(buffer){
     throw Error('Ambiguous duplicate WPML document');
   return {template,waylines,resourceCount:[...names].filter(n=>n.startsWith('wpmz/res/')&&!n.endsWith('/')).length};
 }
+// WPML 1.0.6 is detected from the parsed root element (comments cannot spoof it) and is then
+// analysed read-only; packaging below stays limited to 1.0.2.
+function namespaceProfile(xml){
+  try{parseXml(xml);return WPML;}catch(_err){}
+  try{parseXml(xml,WPML_REFERENCE_ONLY);return WPML_REFERENCE_ONLY;}catch(_err){}
+  return WPML;
+}
 function inspectKmz(buffer){
   const result=readKmz(buffer);
-  return {...validateDocuments(result.template,result.waylines),resourceCount:result.resourceCount};
+  const profile=namespaceProfile(result.template);
+  return {...validateDocuments(result.template,result.waylines,profile),resourceCount:result.resourceCount};
 }
 // Package caller-supplied XML without editing it. No route computation is implied.
 function packageKmz(template,waylines){
