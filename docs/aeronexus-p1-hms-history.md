@@ -28,3 +28,5 @@ Nur lesend: keine Quittierung, kein Befehl an Fluggerät oder RC. Code: `fronten
 4. Bei Fehler Feature-Flag zurück auf false. Migration ist additiv, Daten bleiben erhalten.
 
 **Keine automatische Pi-Ausführung oder Produktivabnahme mit diesem PR.**
+
+**Pi-Betriebsstand 02.11.2026:** Migration 006 nach `pg_dump` manuell in einer Transaktion eingespielt, `SKYHUB_HMS_HISTORY_ENABLED=true`, Backend über `scripts/pi-update-backend.sh` aktualisiert (`main` `1fa72d4`). Geprüft: `/api/health` meldet `hmsHistoryEnabled:true`, LAN-Abruf liefert `enabled:true` mit leerer Liste, ungültiges `limit` → `400`, Schreib-/Leserechte des Backend-Benutzers vorhanden, Dashboard-Block lädt ohne Seitenfehler. Eine echte HMS-Meldung von RC/Fluggerät wurde danach noch nicht beobachtet.

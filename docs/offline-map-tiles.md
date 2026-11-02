@@ -21,6 +21,8 @@ Im Feld hat der Pi oft kein Internet. Bisher blieb die Karte dann leer, weil jed
 - `/api/health` enthält `tileCache` (Anzahl, Bytes, Treffer, Abrufe, `stale`, Fehler, verdrängte Kacheln).
 - Die Attribution `© OpenStreetMap` bleibt auf allen Karten sichtbar.
 
+**Pi-Betriebsstand 02.11.2026:** aktiviert (512 MB, Volume `skyhub-next_tile_cache`); Live-Dashboard über Caddy lädt Leaflet und Kacheln ausschließlich vom Pi.
+
 ## Aktivieren auf dem Pi
 
 Das ist eine bewusste Betriebsänderung, kein automatisches Deployment:
