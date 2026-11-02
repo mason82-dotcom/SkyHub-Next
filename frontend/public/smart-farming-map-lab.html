@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy"
+  content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src blob:; connect-src 'none'; form-action 'none'; object-src 'none'; base-uri 'none'">
+<title>SkyHub Next · Privates Vegetationskartenlabor</title>
+<style>
+:root{color-scheme:light;--bg:#f4f7f8;--surface:#fff;--text:#182f32;--muted:#567072;--line:#d8e5e2;--green:#176653;--light:#e7f3ed;--shadow:0 10px 35px #21423910}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.55 system-ui,-apple-system,Segoe UI,sans-serif}
+a{color:var(--green)}
+header{background:#fff;border-bottom:1px solid var(--line);padding:18px clamp(16px,3.6vw,44px);display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap}
+header h1{font-size:clamp(20px,2.5vw,28px);margin:0;letter-spacing:-.025em}
+nav{display:flex;gap:20px;flex-wrap:wrap}
+nav a{font-size:14px;font-weight:600}
+main{width:min(1380px,100%);padding:25px clamp(16px,3.6vw,44px) 80px;margin:auto}
+.topline{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.tag{background:#fff4da;color:#78521d;padding:4px 12px;border-radius:99px;font-size:12px;font-weight:700;border:1px solid #f3d79c}
+.intro{max-width:90ch;color:var(--muted)}
+.notice{background:#fff9ec;border:1px solid #ebd7ad;border-radius:13px;padding:13px 17px}
+.cards{display:grid;grid-template-columns:minmax(300px,350px) minmax(0,1fr);gap:18px;align-items:start}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:var(--shadow)}
+.card h2{margin:0 0 12px;font-size:18px}
+.card h3{font-size:14px;margin:21px 0 9px;color:var(--muted)}
+label{font-weight:650;display:block;margin:12px 0 7px}
+input,select,button,textarea{font:inherit;color:var(--text)}
+input[type=file],input[type=text],select{width:100%;background:#fff;border:1px solid #bfcfcd;border-radius:9px;padding:10px;min-width:0}
+button{background:var(--green);color:#fff;border:0;padding:10px 14px;border-radius:9px;font-weight:650;cursor:pointer}
+button.secondary{background:#e9f0ee;color:var(--text);border:1px solid #c8d6d2}
+button[disabled],select[disabled]{opacity:.52;cursor:not-allowed}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+button[aria-pressed=true]{background:#153d36;color:#fff}
+:focus-visible{outline:3px solid #80bfa9;outline-offset:2px}
+.small{font-size:13px;color:var(--muted);line-height:1.65}
+#mapStatus{background:#edf4f1;border-radius:9px;padding:10px;margin-top:15px;font-size:13px}
+#mapStatus[data-error=true]{color:#9f3e33;background:#fff0eb}
+.stage-wrap{border:1px solid var(--line);background:#edf4ed;border-radius:13px;padding:12px;min-height:210px;display:flex;align-items:center;justify-content:center}
+#mapStage{position:relative;width:min(100%,820px);margin:auto;overflow:hidden;cursor:crosshair;touch-action:manipulation}
+#mapImage{width:100%;height:auto;display:block;image-rendering:auto}
+#mapOverlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#mapImage[hidden],#mapStage[hidden]{display:none}
+.empty{color:var(--muted);font-size:14px}
+.legend{height:14px;border-radius:7px;background:linear-gradient(90deg,#9a3034,#ce6739,#e0cd53,#88b75e,#2e7751);border:1px solid #becac3}
+.legend-ticks{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:4px}
+#mapQuery{width:100%;min-height:135px;max-height:250px;resize:vertical;font:12px/1.5 ui-monospace,Consolas,monospace;white-space:pre;overflow:auto;background:#f7faf9;border:1px solid var(--line);border-radius:10px;padding:12px}
+.foot{color:var(--muted);margin-top:14px;font-size:12px}
+@media(max-width:980px){.cards{grid-template-columns:1fr}.card{padding:16px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="topline">
+    <span class="tag">Privates Offline-Labor</span>
+    <h1>SkyHub Next · Vegetationskarte</h1>
+  </div>
+  <nav aria-label="SkyHub-Modulnavigation">
+    <a href="/">Dashboard</a>
+    <a href="/smart-farming.html">Smart Farming</a>
+  </nav>
+</header>
+<main>
+  <p class="intro">Experimentelle georeferenzierte Vegetationsvorschau für die Mavic 3 Multispectral. Die Karten werden lokal aus fünf privaten Dateien geladen. Es gibt keinen Bild-Upload, keine externen Kacheln und keine automatisch ausgeführte Rasterabfrage.</p>
+  <p class="notice"><strong>Nicht kalibriert / nicht für Agronomie freigegeben:</strong> NDVI-, NDRE-, GNDVI- und OSAVI-Farben dienen nur der visuellen Orientierung. Das abgeleitete GeoJSON ist eine lokale Auswahlgeometrie, kein Messwert. Öffentliche Links, Dünge- und Missionsbefehle sind nicht verfügbar. <strong>Die Dateien einschließlich der Georeferenzierung enthalten vertrauliche Feldinformationen.</strong></p>
+  <div class="cards">
+    <section class="card" aria-labelledby="loadHeading">
+      <h2 id="loadHeading">1 · Privates Kartenpaket</h2>
+      <label for="mapFiles">viewport.json und vier PNG-Dateien</label>
+      <input type="file" id="mapFiles" accept=".json,.png,application/json,image/png" multiple>
+      <p class="small">Alle fünf Dateien aus dem privaten Laborverzeichnis gleichzeitig auswählen. Es werden nur lokale Dateiinhalte und SHA-256-Prüfsummen im Browser verarbeitet.</p>
+      <label for="mapPin">Unabhängiger SHA-256 des Manifests</label>
+      <input type="text" id="mapPin" spellcheck="false" autocomplete="off" maxlength="64" inputmode="text" placeholder="64 Hexzeichen aus sicherer Quelle">
+      <div class="toolbar">
+        <button id="mapLoad" type="button">Lokal prüfen &amp; öffnen</button>
+        <button id="mapClear" type="button" class="secondary">Alles verwerfen</button>
+      </div>
+      <p id="mapStatus" role="status" aria-live="polite"></p>
+
+      <h3>2 · Vegetationsindex</h3>
+      <label for="mapLayer">Ebene</label>
+      <select id="mapLayer" disabled>
+        <option value="ndvi">NDVI – Vegetationsdichte</option>
+        <option value="ndre">NDRE – Red-Edge-Index</option>
+        <option value="gndvi">GNDVI – Green-NIR</option>
+        <option value="osavi">OSAVI – Bodenanpassung</option>
+      </select>
+      <div class="legend" role="img" aria-label="Farbverlauf Rot bis Grün für experimentelle Indexdarstellung"></div>
+      <div class="legend-ticks"><span>≤ −0,25</span><span>0,10</span><span>0,30</span><span>0,50</span><span>≥ 0,80</span></div>
+      <p class="small">Transparente Bereiche entsprechen NoData. Die Farben erlauben keine quantitative Rückrechnung aus dem PNG.</p>
+
+      <h3>3 · Geometrie zeichnen</h3>
+      <div class="toolbar">
+        <button id="mapPoint" type="button" aria-pressed="true" disabled>Messpunkt</button>
+        <button id="mapPolygon" type="button" class="secondary" aria-pressed="false" disabled>Polygon</button>
+        <button id="mapUndo" type="button" class="secondary" disabled>Zurück</button>
+        <button id="mapComplete" type="button" class="secondary" disabled>Polygon prüfen</button>
+      </div>
+      <p class="small">In die georeferenzierte Vorschau klicken oder tippen. Polygon: mindestens drei Eckpunkte setzen. Bei Ebenenwechsel wird die Auswahl zurückgesetzt. Koordinaten werden nur lokal erzeugt.</p>
+    </section>
+    <section class="card" aria-labelledby="mapHeading">
+      <h2 id="mapHeading">Kartenarbeitsfläche</h2>
+      <div class="stage-wrap">
+        <p class="empty" id="mapPlaceholder">Noch kein verifiziertes Kartenpaket geladen.</p>
+        <div id="mapStage" hidden aria-label="Lokale Vegetationskarte; tippen für einen Punkt oder Polygoneckpunkt">
+          <img id="mapImage" alt="Lokale experimentelle multispektrale Vegetationskarte" hidden>
+          <svg id="mapOverlay" viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true"></svg>
+        </div>
+      </div>
+      <h3>Lokaler GeoJSON-Auswahlentwurf</h3>
+      <textarea id="mapQuery" readonly aria-label="Lokale geografische Punktauswahl oder Polygonauswahl">Noch keine vollständige gültige Geometrie.</textarea>
+      <div class="toolbar">
+        <button id="mapCopy" type="button" disabled>GeoJSON kopieren</button>
+      </div>
+      <p class="small">Keine Anfrage wird gesendet. Der Entwurf entspricht dem späteren GIS-API-Body, für dessen Nutzung zusätzlich eine echte Workspace-Autorisierung und ein registrierter Datensatz nötig sind. Die Browser-Zwischenablage kann Standortdaten enthalten.</p>
+      <p class="foot">SkyHub P3.2 · Local-only Web-Mercator-Labor · Geometrien in EPSG:4326 · keine aktive DJI-/MinIO-/GIS-Produktivintegration.</p>
+    </section>
+  </div>
+</main>
+<script src="./smart-farming-map-lab.js"></script>
+</body>
+</html>
