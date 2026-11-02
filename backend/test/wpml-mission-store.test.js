@@ -209,7 +209,9 @@ test('server mounts the store only when explicitly enabled and behind /api auth'
   const mount=source.indexOf("app.use('/api/wpml/missions'");
   assert.ok(auth>0&&mount>auth,'WPML store must be mounted after the /api auth middleware');
   const lan=fs.readFileSync(path.join(__dirname,'../http-auth.js'),'utf8');
-  assert.doesNotMatch(lan,/wpml/,'no token-free LAN exception for mission files');
+  assert.match(lan,/createWpmlLanAuth/,'WPML LAN access is gated by a separate opt-in policy');
+  assert.match(lan,/!hdr && allowWpmlLan\(req\)/,'no-token WPML access is scoped and cannot override explicit bearer tokens');
+  assert.match(source,/SKYHUB_WPML_LAN_NO_TOKEN_ENABLED==='true'/,'no-token mode defaults off');
   const compose=fs.readFileSync(path.join(__dirname,'../../docker-compose.yml'),'utf8');
   assert.match(compose,/SKYHUB_WPML_STORE_ENABLED: \$\{SKYHUB_WPML_STORE_ENABLED:-false\}/);
   assert.match(compose,/SKYHUB_PILOT_WAYLINE_ENABLED: \$\{SKYHUB_PILOT_WAYLINE_ENABLED:-false\}/);
