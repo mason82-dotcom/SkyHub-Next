@@ -125,7 +125,7 @@ function createFhObserver({clock=Date.now,maxDevices=128,maxEvents=256,
  }
  function observeMsdk({aircraftSn,gatewaySn,values,sampledAt},at=clock()){
   const r=records.get(aircraftSn);
-  if(!r||!gatewaySn||r.gatewaySn!==gatewaySn||
+  if(!r||at-r.lastSeen>15000||!gatewaySn||r.gatewaySn!==gatewaySn||
    !Number.isSafeInteger(sampledAt)||sampledAt>at+2000||
    sampledAt<at-10000||sampledAt<r.lastSeen-30000)return false;
   const clean=numericValues(values);

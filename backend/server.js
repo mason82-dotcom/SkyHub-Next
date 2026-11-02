@@ -38,6 +38,10 @@ const {createHmsHistory,createHmsHistoryHandler}=require('./hms-history');
 const {createPilotAuth}=require('./pilot-auth');
 const {createTsaHub,createTopologyListHandler}=require('./tsa-hub');
 const {createTileCache,createTileRedirect,tileCacheSettings}=require('./tile-cache');
+const {createFhObserver}=require('./fh-observer');
+const {createFhMsdkObserve}=require('./fh-msdk-observe');
+const {createFhUgcsReader}=require('./fh-ugcs-reader');
+const {fhMetrics}=require('./fh-metrics');
 
 const secret=process.env.SKYHUB_VIEW_TOKEN;
 if(!secret || secret.length<24 || secret.startsWith('REPLACE_')){
@@ -77,6 +81,10 @@ if(tsaWanted&&!pilot.ready)console.error('[tsa] disabled: Pilot 2 configuration 
 const tsaActive=tsaWanted&&pilot.ready;
 const io=new Server(server,{maxHttpBufferSize:131072,...(tsaActive?{destroyUpgrade:false}:{})});
 const registry=createRegistry();
+const fhObserver=createFhObserver(); // Passive FC0 analysis of accepted DJI OSD/state.
+let fhUgcs;
+try{fhUgcs=createFhUgcsReader({baseUrl:process.env.SKYHUB_FH_UGCS_URL||''});}
+catch(_err){console.error('[fh ugcs] invalid configuration; disabled');fhUgcs=createFhUgcsReader();}
 const tiles=tileSettings.enabled?createTileCache(tileSettings):createTileRedirect();
 if(tileSettings.enabled)console.log('[tiles] offline OSM tile cache active, limit '+Math.round(tileSettings.maxBytes/1048576)+' MB');
 const mqttStats=createMqttMetrics();
@@ -149,7 +157,8 @@ try{
   ingest=createMqttIngest({broker,env:process.env,registry,io,redis,topologyStore,trackRecorder,
     trackRecordingEnabled,pool,mqttStats,mqttShapes,mqttModelShapes,
     onHmsSnapshot:hmsHistory?((sn,alerts,at,verified)=>hmsHistory.observe(sn,alerts,at,verified)):null,
-    onTopologyChanged:()=>tsaHub&&tsaHub.topologyChanged()});
+    onTopologyChanged:()=>tsaHub&&tsaHub.topologyChanged(),
+     onObserved:(parsed,device,at)=>fhObserver.observe(parsed,device,at)});
 }catch(err){
   console.error('[topology ack]',err.message);
   process.exit(1);
@@ -180,6 +189,13 @@ app.get('/api/health',(req,res)=>res.json({
   tileCache:tiles.stats(),
   ...(tsaHub?{tsa:tsaHub.stats()}:{}),
   ...(mediaUpload?{pilotMediaUpload:mediaUpload.stats()}:{})
+}));
+// Separate opt-in MSDK observation credential, NEVER a control channel.
+// Registered before the view-token middleware; its own HTTPS/token guard is mandatory.
+app.post('/api/adapters/msdk/observe',createFhMsdkObserve({
+ observer:fhObserver,registry,
+ enabled:process.env.SKYHUB_FH_MSDK_OBSERVER_ENABLED==='true',
+ token:process.env.SKYHUB_FH_MSDK_OBSERVER_TOKEN||''
 }));
 app.use('/api',auth);
 
@@ -279,6 +295,21 @@ app.get('/api/devices',(req,res)=>res.json(registry.snapshot()));
 app.get('/api/topology',(req,res)=>res.json(registry.snapshot().map(d=>({sn:d.sn,role:d.role,gatewaySn:d.gatewaySn,model:d.model,topologyOnline:d.topologyOnline,online:d.online,
   lastTopologyAt:d.lastTopologyAt,topologyTimeVerified:d.topologyTimeVerified,children:d.children}))));
 app.get('/api/events',(req,res)=>res.json(registry.events()));
+// FH2-derived diagnostics remain behind existing /api authorization (no LAN exception).
+app.get('/api/diagnostics/fh/rtk',(req,res)=>res.json({readOnly:true,devices:fhObserver.rtk()}));
+app.get('/api/diagnostics/fh/flights',(req,res)=>res.json({readOnly:true,active:fhObserver.flights()}));
+app.get('/api/diagnostics/fh/events',(req,res)=>res.json({readOnly:true,events:fhObserver.events()}));
+app.get('/api/diagnostics/fh/sources/:sn',(req,res)=>{
+ const sn=serial(req.params.sn);
+ if(!sn)return res.status(400).json({error:'Invalid serial'});
+ const result=fhObserver.sources(sn);
+ return result?res.json(result):res.status(404).json({error:'No accepted observations'});
+});
+app.get('/api/diagnostics/fh/metrics',(req,res)=>res.type('text/plain').send(fhMetrics(fhObserver)));
+app.get('/api/diagnostics/fh/ugcs/:section',async(req,res)=>{
+ const result=await fhUgcs.read(req.params.section);
+ res.status(result.status).json(result.data);
+});
 app.get('/api/diagnostics/hms-history',createHmsHistoryHandler({history:hmsHistory,registry}));
 registerPilotAdminRoutes(app,{pairing});
 // Field names per channel/method as actually received; no values or serial numbers.
