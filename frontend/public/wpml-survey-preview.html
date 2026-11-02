@@ -77,6 +77,19 @@ p{line-height:1.5}.muted{color:#a8bdd0;font-size:12px}
 <option value="m3m-rgb-ms-tiff">Mavic 3M – RGB + Multispektral simultan (DJI Minimum 2 s)</option>
 </select>
 <p class="muted">Die Auswahl prüft Bildabmessungen und Foto-Mindestintervalle gegen DJI-Referenzangaben. Bei RGB+Multispektral ist für die geometrische Berechnung ausschließlich der Multispektralsensor maßgeblich. Physische Sensorgröße und Brennweite müssen weiterhin selbst bestätigt werden; die Auswahl erzeugt keine Kamerakalibrierung oder DJI-Freigabe.</p>
+<label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="dual-optics-enable" style="width:auto" disabled> Unabhängige RGB- und Multispektral-Optik vergleichen (nur M3M RGB+MS; experimentell)</label>
+<fieldset id="dual-optics-fields" hidden style="border:1px solid var(--edge);padding:12px;border-radius:9px">
+<legend>RGB-Zweitkamera – eigene physische Parameter (nicht aus MS abgeleitet)</legend>
+<p class="muted">Die unten stehenden RGB-Optikwerte sind Pflicht. RGB hat bei der M3M 5280 × 3956 Pixel; die MS-Werte stehen im regulären Kamerafeld darunter. Gemeinsame AGL und Geschwindigkeit sind dieselbe theoretische Flugbahn. Sensorlage, Kalibrierung und Synchronisation sind ungeprüft. Es entstehen keine Fotopunkte oder Missionsaktionen.</p>
+<div class="row">
+<div><label for="dual-rgb-width">RGB Sensorbreite physisch (mm)</label><input id="dual-rgb-width" type="number" min="1" max="70" step="any" placeholder="Realwert bestätigen"></div>
+<div><label for="dual-rgb-height">RGB Sensorhöhe physisch (mm)</label><input id="dual-rgb-height" type="number" min="1" max="70" step="any" placeholder="Realwert bestätigen"></div>
+<div><label for="dual-rgb-focal">RGB Brennweite physisch (mm)</label><input id="dual-rgb-focal" type="number" min="1" max="250" step="any" placeholder="Kein KB-Äquivalent"></div>
+<div><label for="dual-rgb-side">RGB Querüberlappung (%)</label><input id="dual-rgb-side" type="number" min="0" max="95" step="any" placeholder="Explizit eingeben"></div>
+<div><label for="dual-rgb-front">RGB Längsüberlappung (%)</label><input id="dual-rgb-front" type="number" min="0" max="95" step="any" placeholder="Explizit eingeben"></div>
+</div>
+<p class="muted">Die Rechnung verwendet den kleineren nominalen Abstand beider Kameras. Bei aktivierter Doppeloptik entfällt die Darstellung einzelner Fotomittelpunkte. Die tatsächliche gemeinsame Bildabdeckung ist nicht bestätigt.</p>
+</fieldset>
 <div class="row">
 <div><label for="sensor-width">Sensorbreite (mm)</label><input type="number" id="sensor-width" min="1" max="70" step="any" placeholder="Kameraspezifikation"></div>
 <div><label for="sensor-height">Sensorhöhe (mm)</label><input type="number" id="sensor-height" min="1" max="70" step="any" placeholder="Kameraspezifikation"></div>
@@ -103,6 +116,7 @@ p{line-height:1.5}.muted{color:#a8bdd0;font-size:12px}
 <script src="/wpml-survey-preview-core.js"></script>
 <script src="/wpml-photogrammetry-core.js"></script>
 <script src="/wpml-camera-reference-core.js"></script>
+<script src="/wpml-m3m-dual-optics-core.js"></script>
 <script src="/wpml-capture-preview-core.js"></script>
 <script src="/wpml-survey-preview.js"></script>
 </body>
