@@ -28,11 +28,10 @@
     b.addEventListener('click',click);return b;
   };
   function persist(next){
-    // Never replace local data with the remote copy. Write locally before opt-in sync.
+    // Local save only. Never upload to MinIO unless the user presses its save button.
     const raw=lib.serialize(next);
     window.localStorage.setItem(STORAGE,raw);
     library=next;
-    triggerSync();
   }
   try{
     const raw=window.localStorage.getItem(STORAGE);
@@ -40,14 +39,14 @@
   }catch{
     libraryMessage('Lokaler Speicher unlesbar oder gesperrt. Daten nicht überschrieben.');
   }
-  // Per-browser opt-in: existing revisions are migrated only after user confirmation.
+  // Per-browser permission only. Each MinIO upload needs its own explicit click.
   // All requests use the SAME HTTPS origin as the route editor; no DJI control API.
   const syncStatus=$('route-sync-status');
   function syncMessage(status){
     if(!syncStatus)return;
     const phase=status.phase;
-    if(phase==='enabled')syncStatus.textContent='Synchronisierung aktiviert; lokale Originale bleiben erhalten.';
-    else if(phase==='disabled')syncStatus.textContent='Synchronisierung aus. Bereits gespeicherte MinIO-Dateien bleiben erhalten.';
+    if(phase==='enabled')syncStatus.textContent='Manuelle MinIO-Speicherung freigegeben. Kein automatischer Upload. Lokale Originale bleiben erhalten.';
+    else if(phase==='disabled')syncStatus.textContent='Manuelle MinIO-Speicherung gesperrt. Bereits gespeicherte MinIO-Dateien bleiben erhalten.';
     else if(phase==='blocked')syncStatus.textContent='Übertragung gesperrt: '+status.error;
     else if(phase==='running'||phase==='complete'){
       syncStatus.textContent='MinIO: '+status.processed+'/'+status.total+
@@ -62,24 +61,33 @@
       sync=syncModule.create({storage:window.localStorage,library:lib,planner:core,
         store:missionStore,cryptoApi:window.crypto,onStatus:syncMessage});
   }catch{syncMessage({phase:'unavailable'});}
+  let manualSaveInProgress=false;
   function syncControls(){
-    $('route-sync-now').disabled=!sync||!sync.enabled();
-    $('route-sync-enable').disabled=!sync||sync.enabled();
+    $('route-sync-now').disabled=!sync||!sync.enabled()||manualSaveInProgress;
+    $('route-sync-enable').disabled=!sync||sync.enabled()||manualSaveInProgress;
     $('route-sync-disable').disabled=!sync||!sync.enabled();
   }
-  function triggerSync(){
-    if(!sync||!sync.enabled())return;
-    void sync.sync(library).catch(()=>{
-      syncStatus.textContent='MinIO-Synchronisierung fehlgeschlagen; lokale Revisionen bleiben erhalten.';
-    });
+  async function saveToMinioManually(){
+    if(!sync||!sync.enabled()||manualSaveInProgress)return;
+    if(!window.confirm('Alle bisher lokal gespeicherten Routenrevisionen jetzt in MinIO ablegen? Bereits bestätigte Dateien werden übersprungen. Änderungen am noch nicht lokal gespeicherten Entwurf werden NICHT übertragen. Kein DJI-Flugauftrag.'))return;
+    manualSaveInProgress=true;
+    syncControls();
+    try{
+      await sync.sync(library);
+    }catch{
+      syncStatus.textContent='MinIO-Speicherung fehlgeschlagen. Lokale Revisionen bleiben unverändert; später erneut auf „Jetzt speichern“ klicken.';
+    }finally{
+      manualSaveInProgress=false;
+      syncControls();
+    }
   }
   $('route-sync-enable').addEventListener('click',()=>{
     if(!sync)return;
-    if(!window.confirm('Alle vorhandenen lokal gespeicherten Routenrevisionen als KMZ in die zentrale MinIO-Bibliothek übertragen? GPS-Koordinaten werden auf dem Heimserver gespeichert. Künftige lokale Revisionen werden danach automatisch übertragen. Kein Flugauftrag.'))return;
-    try{sync.setEnabled(true);syncControls();triggerSync();}
-    catch{syncStatus.textContent='Aktivierung fehlgeschlagen; Browserspeicher prüfen.';}
+    if(!window.confirm('Manuelle MinIO-Speicherung für diesen Browser freigeben? Dadurch wird noch KEINE Route übertragen. Jede Übertragung erfordert einen Klick auf „Jetzt in MinIO speichern“. GPS-Koordinaten liegen nach dem Speichern auf dem Heimserver.'))return;
+    try{sync.setEnabled(true);syncControls();}
+    catch{syncStatus.textContent='Freigabe fehlgeschlagen; Browserspeicher prüfen.';}
   });
-  $('route-sync-now').addEventListener('click',triggerSync);
+  $('route-sync-now').addEventListener('click',saveToMinioManually);
   $('route-sync-disable').addEventListener('click',()=>{
     if(!sync)return;
     try{sync.setEnabled(false);syncControls();}
@@ -512,6 +520,5 @@
   for(const id of ['route-name','route-folder','model','speed','height','takeoff','finish'])
     $(id).addEventListener('input',()=>{dirty=true;});
   renderEditor();renderRoutes();
-  // Resume pending revisions on future visits, but ONLY after this browser opted in.
-  triggerSync();
+  // No background sync at startup, even for browsers opted in before this update.
 })();
