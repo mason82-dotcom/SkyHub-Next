@@ -257,7 +257,13 @@
       notes.push('Anflugmodus pointToPoint wird zu „safely“.');
     const takeoffHeight=optNumber(config,'takeOffSecurityHeight','takeOffSecurityHeight')??30;
     const transition=optNumber(config,'globalTransitionalSpeed','globalTransitionalSpeed');
-    if(text(config,'globalRTHHeight'))notes.push('Globale RTH-Höhe der Quelle wird nicht übernommen (Gerätewert gilt).');
+    // DJI requires globalRTHHeight; take it over when it fits the editor's 20–120 m range.
+    const sourceRth=text(config,'globalRTHHeight')?optNumber(config,'globalRTHHeight','globalRTHHeight'):null;
+    let rthHeight=100;
+    if(sourceRth===null)notes.push('Quelle ohne RTH-Höhe: der Editor setzt 100 m (bitte prüfen).');
+    else if(sourceRth<20||sourceRth>120)
+      notes.push('RTH-Höhe der Quelle '+sourceRth+' m liegt außerhalb 20–120 m; der Editor setzt 100 m (bitte prüfen).');
+    else rthHeight=sourceRth;
 
     const folders=kids(documentNode,'Folder');
     if(folders.length!==1)fail('genau ein Template-Folder erwartet, gefunden: '+folders.length+'.');
@@ -364,7 +370,7 @@
       skipped.slice(0,8).join('; ')+(skipped.length>8?'; …':''));
 
     const plan={
-      name:sanitizeName(fileName),model:modelKey,speed,takeoffHeight,finishAction:finish,
+      name:sanitizeName(fileName),model:modelKey,speed,takeoffHeight,rthHeight,finishAction:finish,
       waypoints:raw.map((p,i)=>localHeights?
         {lat:p.lat,lon:p.lon,height:p.height,ellipsoidHeight:p.ellipsoidHeight,photo:photo[i]}:
         {lat:p.lat,lon:p.lon,height:p.height,photo:photo[i]}),

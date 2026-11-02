@@ -37,7 +37,7 @@
         const v=route.revisions[i];
         onlyKeys(v,['revision','savedAt','plan','flightReady']);
         onlyKeys(v.plan,['name','model','speed','transitionSpeed',
-          'takeoffHeight','finishAction','timestamp','waypoints',
+          'takeoffHeight','rthHeight','finishAction','timestamp','waypoints',
           'intervalPhotos','actionGroups']);
         if(!Array.isArray(v.plan.waypoints))invalid();
         for(const p of v.plan.waypoints)
@@ -66,6 +66,7 @@
     const plan={
       name:normalized.name,model:normalized.modelKey,speed:normalized.speed,
       transitionSpeed:normalized.transitionSpeed,takeoffHeight:normalized.takeoffHeight,
+      rthHeight:normalized.rthHeight,
       finishAction:normalized.finishAction,timestamp:normalized.timestamp,
       waypoints:normalized.waypoints.map(p=>({
         lat:p.lat,lon:p.lon,height:p.height,photo:p.photo,
@@ -128,7 +129,7 @@
       JSON.stringify(b.actionGroups||[]);
     const intervalChanges=JSON.stringify(a.intervalPhotos||null)!==
       JSON.stringify(b.intervalPhotos||null);
-    const profileChanges=['model','speed','transitionSpeed','takeoffHeight',
+    const profileChanges=['model','speed','transitionSpeed','takeoffHeight','rthHeight',
       'finishAction'].filter(k=>a[k]!==b[k]);
     return Object.freeze({
       schema:'skyhub-offline-revision-compare-v1',

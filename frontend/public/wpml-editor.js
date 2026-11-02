@@ -67,6 +67,7 @@
         speed:numericField('speed'),
         globalHeight:numericField('height'),
         takeoffHeight:numericField('takeoff'),
+        ...($('rth')&&String($('rth').value).trim()!==''?{rthHeight:numericField('rth')}:{}),
         finishAction:$('finish').value,
         localHeights:$('local-heights').checked,
         photoTrigger:$('photo-trigger').value,
@@ -330,6 +331,7 @@
     $('height').value=String(mapped.plan.waypoints[0].height);
     $('speed').value=String(mapped.plan.speed);
     $('takeoff').value=String(mapped.plan.takeoffHeight);
+    $('rth').value=String(mapped.plan.rthHeight??100);
     $('finish').value=mapped.plan.finishAction;
     $('local-heights').checked=false;
     $('photo-trigger').value='reachPoint';
@@ -371,7 +373,9 @@
     };
     return {
       name:$('name').value,model:$('model').value,speed:Number($('speed').value),
-      takeoffHeight:Number($('takeoff').value),finishAction:$('finish').value,
+      takeoffHeight:Number($('takeoff').value),
+      ...($('rth')&&String($('rth').value).trim()!==''?{rthHeight:Number($('rth').value)}:{}),
+      finishAction:$('finish').value,
       ...(intervalPhotos?{intervalPhotos}:{}),
       waypoints:points.map(p=>$('local-heights').checked?
         {lat:p.lat,lon:p.lon,height:p.height,ellipsoidHeight:p.ellipsoidHeight,photo:p.photo}:
@@ -477,6 +481,7 @@
     $('model').value=plan.model;
     $('speed').value=String(plan.speed);
     $('takeoff').value=String(plan.takeoffHeight);
+    $('rth').value=String(plan.rthHeight??100);
     $('finish').value=plan.finishAction;
     $('local-heights').checked=result.localHeights;
     if(!result.localHeights)$('height').value=String(result.globalHeight);

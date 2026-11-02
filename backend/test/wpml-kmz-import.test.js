@@ -124,7 +124,10 @@ test('compressed Pilot 2 style 1.0.6 KMZ imports with every lossy change listed'
   assert.deepEqual(result.plan.waypoints.map(p=>p.photo),[false,true,false]);
   assert.ok(result.plan.waypoints.every(p=>p.ellipsoidHeight===undefined));
   const notes=result.notes.join('\n');
-  for(const pattern of [/1\.0\.6/,/RC-Signalverlust: Quelle „goContinue/,/RTH-Höhe/,
+  // The source's globalRTHHeight (100 m, within 20–120 m) is now taken over instead of dropped.
+  assert.equal(result.plan.rthHeight,100);
+  assert.doesNotMatch(notes,/RTH-Höhe/);
+  for(const pattern of [/1\.0\.6/,/RC-Signalverlust: Quelle „goContinue/,
     /Übergangsgeschwindigkeit 10/,/usePointSetting/,/eigener Geschwindigkeit/,/eigener Ausrichtung/,
     /Ellipsoidhöhen der Quelle werden ignoriert/,/Nicht übernommene Aktionsgruppen \(1\): WP 1: reachPoint → gimbalRotate, takePhoto/,
     /Ressourcendatei/])assert.match(notes,pattern);

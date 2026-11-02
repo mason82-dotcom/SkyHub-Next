@@ -85,7 +85,7 @@ Die vollständige normative Implementierung von Spezialparametern ist offen.
 | Bereich | Referenzfelder/Mechanismen | Code-Abdeckung |
 | --- | --- | --- |
 | Archiv | wpmz-Verzeichnis, XML-WPML-Namespace 1.0.2, ZIP/KMZ | Ein-/Auslesen, Grenzen |
-| MissionConfig | flyToWaylineMode, finishAction, exitOnRCLost, executeRCLostAction, takeOffSecurityHeight, globalTransitionalSpeed | Pflicht-/Enum-/Werteprüfung |
+| MissionConfig | flyToWaylineMode, finishAction, exitOnRCLost, executeRCLostAction, takeOffSecurityHeight, globalTransitionalSpeed, globalRTHHeight | Pflicht-/Enum-/Werteprüfung; fehlendes globalRTHHeight in waylines.wpml = Warnung (ältere Exporte bleiben lesbar) |
 | Produkte | droneInfo, payloadInfo, subtype, gimbalindex, autoRerouteInfo | Typ-/Payloadabgleich |
 | Templates | waypoint, mapping2d, mapping3d, mappingStrip, templateId, waylineCoordinateSysParam | Teilvalidierung |
 | Vermessung | Polygon, LinearRing, LineString, overlap, direction, shootType, smartOblique, mappingHeadingParam, imageFormat | Geometrie; Flugwegberechnung OFFEN |
@@ -437,3 +437,14 @@ müssen an echten Pilot-2-Exporten getestet werden. Erst danach UI/Dispatch.
 Das Go-SDK ist als **Vergleichsreferenz** und über einen **separaten, strikt geprüften lokalen Waylines-JSON-Import** mit dem bestehenden SkyHub-Editor verknüpft. Es ersetzt weder SkyHubs WPML-Kern noch die DJI-WPML-Dokumentation. Besonders die unvollständige Upstream-Subtyp-Zuordnung und die abweichenden RC-Loss-Defaults verbieten eine Gleichsetzung der generierten Flugmissionen.
 
 Details, erlaubte Felder/Profile, Sicherheitsgrenzen und Tests: [dji-waylines-sdk-reference.md](dji-waylines-sdk-reference.md). Der lokale Waylines-JSON-Import ist seit dem Merge von PR #89 als **Offline-Entwicklungsfunktion in `main`** enthalten; er ist nicht mit dem DJI-Missionsversand verbunden. `flightReady:false` bleibt unverändert.
+
+
+## Korrektur 02.11.2026: RTH-Höhe und globale Ausrichtung
+
+Abgleich mit der offiziellen DJI-WPML-Spezifikation (template.kml / waylines.wpml, M3E/M3T/M3M):
+
+- **`wpml:globalRTHHeight`** ist in `waylines.wpml` Pflicht, fehlte aber im Export. Editor und Routenbibliothek haben jetzt das Feld „Rückkehrhöhe RTH“ (20–120 m, Standard 100 m); der Wert steht in beiden Missionskonfigurationen. Ältere gespeicherte Entwürfe ohne Wert erhalten beim Export 100 m. Der KMZ-Import übernimmt eine RTH-Höhe der Quelle im Bereich 20–120 m, sonst 100 m mit Hinweis.
+- **`wpml:globalWaypointHeadingParam`** fehlte im Template, obwohl jeder Wegpunkt mit `useGlobalHeadingParam=1` darauf verweist (DJIs Template-Beispiel enthält ihn). Er wird jetzt mit `followWayline` / `followBadArc` geschrieben, identisch zu den Wegpunkten in `waylines.wpml`.
+- Die Routenumkehr und die Revisionsprüfung der Bibliothek kennen das neue Feld (strikte Schlüssellisten).
+
+Die Korrektur ist eine Formatangleichung, keine Flugfreigabe: `flightReady` bleibt `false`, eine Abnahme mit Pilot 2 und der Mavic 3M steht aus.

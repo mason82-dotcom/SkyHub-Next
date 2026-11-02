@@ -198,6 +198,8 @@ function mission(document,file,errors){
   else fieldEnum(config,'executeRCLostAction',path,errors);
   fieldNumber(config,'takeOffSecurityHeight',1.2,1500,path,errors,true);
   fieldNumber(config,'globalTransitionalSpeed',0.000001,file==='waylines.wpml'?15:100,path,errors,true);
+  // DJI marks globalRTHHeight as required in waylines.wpml; its range is validated when present.
+  fieldNumber(config,'globalRTHHeight',2,1500,path,errors);
   const drone=one(config,'wpml:droneInfo');
   const payload=one(config,'wpml:payloadInfo');
   if(!drone)pathError(errors,path+'/droneInfo','required element missing');
@@ -389,6 +391,9 @@ function validateProfile(templateXml,waylinesXml,expectedWpmlNamespace){
   if(!td||!wd)return {valid:false,flightReady:false,validationScope:'offline-partial',errors,warnings,templates,waylines};
   const meta=mission(td,'template.kml',errors);
   const execMeta=mission(wd,'waylines.wpml',errors);
+  // Warning, not error: earlier SkyHub exports lacked it and must stay listable/readable.
+  if(!value(one(wd,'wpml:missionConfig'),'globalRTHHeight'))
+    warnings.push('waylines.wpml: wpml:globalRTHHeight missing (required by DJI WPML for M3E/M3T/M3M)');
   if(meta){
     const assessment=assessAircraft(meta.droneType,meta.droneSubtype,meta.payloadType,meta.payloadPosition);
     meta.model=assessment.model;

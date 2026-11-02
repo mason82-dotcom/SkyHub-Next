@@ -177,6 +177,7 @@
     const plan={
       name:$('route-name').value,model:$('model').value,
       speed:Number($('speed').value),takeoffHeight:Number($('takeoff').value),
+      ...($('rth')&&String($('rth').value).trim()!==''?{rthHeight:Number($('rth').value)}:{}),
       finishAction:$('finish').value,
       waypoints:points.map(p=>({lat:p.lat,lon:p.lon,height,photo:false})),
       ...(groups.length?{actionGroups:groups.map(g=>({
@@ -211,6 +212,7 @@
     $('speed').value=String(p.speed);
     $('height').value=String(p.waypoints[0].height);
     $('takeoff').value=String(p.takeoffHeight);
+    $('rth').value=String(p.rthHeight??100);
     $('finish').value=p.finishAction;
     points=p.waypoints.map(x=>({lat:x.lat,lon:x.lon}));
     groups=(p.actionGroups||[]).map(g=>({

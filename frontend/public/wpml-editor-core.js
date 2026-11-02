@@ -38,6 +38,9 @@
     const speed=numeric(input.speed??5,'speed',0.2,15);
     const transitionSpeed=numeric(input.transitionSpeed??speed,'transitionSpeed',0.2,15);
     const takeoffHeight=numeric(input.takeoffHeight??30,'takeoffHeight',1.2,120);
+    // DJI WPML: wpml:globalRTHHeight is required in waylines.wpml for M3E/M3T/M3M and M4E/M4T.
+    // Older SkyHub drafts have no value; 100 m keeps them exportable. Capped like waypoint heights.
+    const rthHeight=numeric(input.rthHeight??100,'rthHeight',20,120);
     const finishAction=input.finishAction??'goHome';
     if(!['goHome','noAction'].includes(finishAction))invalid('finishAction');
     if(!Array.isArray(input.waypoints)||input.waypoints.length<2||input.waypoints.length>500)
@@ -82,7 +85,7 @@
     if(!Number.isSafeInteger(timestamp)||timestamp<0||timestamp>9999999999999)
       invalid('timestamp');
     return Object.freeze({name:name.trim(),modelKey:input.model,model,speed,transitionSpeed,
-      takeoffHeight,finishAction,waypoints,useLocalHeights,intervalPhotos,actionGroups,timestamp});
+      takeoffHeight,rthHeight,finishAction,waypoints,useLocalHeights,intervalPhotos,actionGroups,timestamp});
   }
   function field(name,value){return '<wpml:'+name+'>'+esc(value)+'</wpml:'+name+'>';}
   function missionConfig(p){
@@ -93,6 +96,7 @@
       field('executeRCLostAction','goBack')+
       field('takeOffSecurityHeight',p.takeoffHeight)+
       field('globalTransitionalSpeed',p.transitionSpeed)+
+      field('globalRTHHeight',p.rthHeight)+
       '<wpml:droneInfo>'+field('droneEnumValue',p.model.drone)+
       field('droneSubEnumValue',p.model.subtype)+'</wpml:droneInfo>'+
       '<wpml:payloadInfo>'+field('payloadEnumValue',p.model.payload)+
@@ -125,6 +129,10 @@
       field('autoFlightSpeed',p.speed)+
       field('globalHeight',p.waypoints[0].height)+
       field('gimbalPitchMode','manual')+
+      // Referenced by every Placemark with useGlobalHeadingParam=1 (as in DJI's template example);
+      // identical to the per-waypoint heading written into waylines.wpml.
+      '<wpml:globalWaypointHeadingParam>'+field('waypointHeadingMode','followWayline')+
+      field('waypointHeadingPathMode','followBadArc')+'</wpml:globalWaypointHeadingParam>'+
       field('globalWaypointTurnMode','toPointAndStopWithDiscontinuityCurvature')+
       p.waypoints.map((point,index)=>
         '<Placemark>'+coordinate(point)+field('index',index)+
@@ -225,6 +233,7 @@
           hardwareVerified:false
         }:null,
         heightReference:'relativeToStartPoint',
+        rthHeight:output.plan.rthHeight,
         localHeightMode:output.plan.useLocalHeights,
         minRelativeHeight:Math.min(...output.plan.waypoints.map(p=>p.height)),
         maxRelativeHeight:Math.max(...output.plan.waypoints.map(p=>p.height))},
