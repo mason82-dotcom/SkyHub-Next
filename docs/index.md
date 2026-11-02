@@ -8,6 +8,10 @@
 
 **Navigationsstand ergänzt am 02.11.2026; dokumentierter Raspberry-Pi-Betriebsstand weiter vom 27.10.2026.** Primäre Einstiegspunkte sind der [Betriebsstand des Pi vom 27.10.2026](stand-2026-10-27-betriebsstand.md), der [Main-Audit des Quellcodes](stand-2026-10-25-main-audit.md) und die [Dokumentationspflege](dokumentationspflege.md). Die bisherige Repository-Statusdatei und die umfangreichen PR-Triageberichte sind ältere Messungen **desselben Tages** und kein Ersatz für eine aktuelle GitHub-Abfrage. Diese Navigation gilt für den Root-Stack `skyhub-next`. Die wichtigste Unterscheidung ist die zwischen dem **Code auf `main`** und **noch nicht integrierten Entwicklungszweigen**.
 
+## AeroNexus-Integrationsentwicklung (02.11.2026)
+
+- [AeroNexus P1: optionale PostgreSQL-HMS-Chronik](aeronexus-p1-hms-history.md) – manuelle SQL-Migration, standardmäßig deaktiviert.
+
 ## Raspberry-Pi-Betrieb (Stand 27.10.2026)
 
 - [**Betriebsstand 27.10.2026**](stand-2026-10-27-betriebsstand.md) – Stack, Proxy-Peers, gemeinsamer MinIO, Backup/Restore, Neustarttests, Log-Rotation, offene Punkte (Messungen auf dem Gerät, keine Flugfreigabe).
