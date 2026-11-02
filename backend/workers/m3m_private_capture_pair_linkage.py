@@ -56,13 +56,31 @@ def _pinned_json(module, path, expected_hash, *, maximum=None):
     return parsed, raw
 
 
+def _canonical_evidence_root(value):
+    """Refuse a symlink in *any* directory component of private field evidence."""
+    root = Path(value)
+    need(root.is_absolute() and '..' not in root.parts and
+         '.' not in root.parts,
+         'Private evidence location must be canonical and absolute')
+    component = root
+    while True:
+        need(not component.is_symlink(), 'Symlinked private evidence ancestor')
+        if component == component.parent:
+            break
+        component = component.parent
+    need(root.resolve(strict=True) == root and root.is_dir(),
+         'Noncanonical or missing private evidence directory')
+    return root
+
+
 def _asset_pin(case, kind, evidence_worker):
-    path = Path(case['evidenceDir']) / 'field-evidence-manifest.json'
+    root = _canonical_evidence_root(case['evidenceDir'])
+    path = root / 'field-evidence-manifest.json'
     # The parent P3.6d audit has already fully re-verified this private
     # directory, manifest, every supplied asset and the independent pin.
     # Recheck the entire evidence tree again before trusting the local schema.
     evidence_worker._validate_evidence(
-        Path(case['evidenceDir']), case['evidenceManifestSha256'])
+        root, case['evidenceManifestSha256'])
     payload = evidence_worker._read_file(
         path, evidence_worker.MAX_MANIFEST, private=True)
     need(hashlib.sha256(payload).hexdigest() ==
@@ -148,7 +166,8 @@ def inspect(*, cohort_manifest: Path, cohort_manifest_sha256: str,
              'Private manifest changed during the full offline audit')
         for case in cases:
             evidence._validate_evidence(
-                Path(case['evidenceDir']), case['evidenceManifestSha256'])
+                _canonical_evidence_root(case['evidenceDir']),
+                case['evidenceManifestSha256'])
     except Exception as exc:
         # Do not surface filenames, pins, XMP, sensitive timestamps or values.
         raise LinkageError('Private M3M capture/pair evidence linkage refused') from exc
