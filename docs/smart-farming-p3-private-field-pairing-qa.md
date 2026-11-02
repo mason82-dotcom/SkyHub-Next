@@ -10,7 +10,7 @@ Der neue Worker backend/workers/m3m_private_field_pairing_qa.py prüft deshalb a
 
 ## Privater Eingangsvertrag
 
-Der Plan ist eine kanonische JSON-Datei (ein kompaktes JSON-Objekt mit alphabetisch sortierten Schlüsseln und abschließendem Newline), regulär, 0600, maximal 32 KiB. Ein SHA-256-Hash dieser Datei muss **vor** der Prüfung unabhängig archiviert werden. Keine doppelten oder unbekannten JSON-Schlüssel, Symlink-Dateien/-Verzeichnisaliasse, NaN/Infinity oder ungeschützten Dateien.
+Der Plan ist eine kanonische JSON-Datei (ein kompaktes JSON-Objekt mit alphabetisch sortierten Schlüsseln und abschließendem Newline), regulär, 0600, **in einem privaten 0700-Verzeichnis**, maximal 32 KiB. Ein SHA-256-Hash dieser Datei muss **vor** der Prüfung unabhängig archiviert werden. Keine doppelten oder unbekannten JSON-Schlüssel, Symlink-Dateien/-Verzeichnisaliasse, NaN/Infinity oder ungeschützten Dateien.
 
 Schema: skyhub-m3m-private-field-pairing-plan-v1
 
@@ -44,6 +44,8 @@ python3 backend/workers/m3m_private_field_pairing_qa.py \
 ~~~
 
 Ausgabe: Nur aggregierte Anzahlen passender, unpassender oder nicht gemessener Parameter je Faktor; Anzahl Paare mit vollständigen Angaben, Anzahl Paare innerhalb sämtlicher Operator-Toleranzen und Anzahl Paare ohne deklarierte Panel-/DLS-Evidenz. Es werden keine Rohwerte, Timestamps, Originalpfade, UUIDs, Firmwarestrings oder SHA-Werte ausgegeben.
+
+Optionaler Operator-Gate: `--require-complete-operator-plan` gibt nach einem gültigen Plan **Exit 3** aus, wenn auch nur ein Paar außerhalb der operatorseitig gewählten Toleranzen liegt, ein Messwert fehlt oder ein Panel-/DLS-Beleg nicht deklariert wurde. Bei formaler Vollständigkeit gilt **Exit 0**, bei ungültigen Pins, privaten Dateirechten oder Plänen **Exit 2**. Der ausführliche Report bleibt in beiden gültigen Zuständen aggregiert und datensparsam; Exit 0 bedeutet ausdrücklich **keine** validierte Wissenschaft, Firmware oder DJI-Mission. Das Flag ist rein opt-in und ändert das bisherige Standardverhalten nicht.
 
 **Kein Ergebnis ist eine Freigabe.** Selbst wenn alle Operator-Toleranzen eingehalten sind, bleiben sourceProvenanceVerified, firmwareVersionVerified, operatorMeasurementsIndependentlyVerified, operatorTolerancesProspectivelyRegistered, radiometricCalibrationVerified, panelCalibrationVerified, bandCoregistrationVerified, reflectanceReady, ndviReady, ndreReady, scienceReady, operationalUseAllowed, prescriptionExportAllowed und flightMissionAllowed unverändert false.
 
