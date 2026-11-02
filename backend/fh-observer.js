@@ -6,7 +6,9 @@ const FIELDS=Object.freeze({
  horizontalSpeed:[0,300],verticalSpeed:[-200,200],gpsSatellites:[0,255],
  rtkSatellites:[0,255],rtkFixState:[0,3],positionQuality:[0,255]
 });
-const FLYING=new Set([3,4,5,6,7,8,9,10,11,12,15,16,17,18]);
+// DJI DroneModeCodeEnum (Cloud API demo): 18 AERIAL_RTK_FIXED, 20 POI are airborne modes.
+// 19 DOCK_SITE_EVALUATION is not classified as flight without hardware evidence.
+const FLYING=new Set([3,4,5,6,7,8,9,10,11,12,15,16,17,18,20]);
 const STATES=['not_started','fixing','fixed','failed'];
 const SAFE_ID=/^[A-Za-z0-9_-]{1,100}$/;
 const own=(o,k)=>Object.prototype.hasOwnProperty.call(o,k);
@@ -19,6 +21,8 @@ function numericValues(values){
   result[key]=value;
  }
  if(own(result,'latitude')!==own(result,'longitude'))return null;
+ // (0,0) is DJI's "no position" placeholder, never a measurement.
+ if(result.latitude===0&&result.longitude===0){delete result.latitude;delete result.longitude;}
  return result;
 }
 // FC0 observer: no persistence, MQTT publisher, commands or SDK control.
@@ -85,8 +89,9 @@ function createFhObserver({clock=Date.now,maxDevices=128,maxEvents=256,
    const values=Object.fromEntries(Object.entries(msg.telemetry)
      .filter(([k,v])=>own(FIELDS,k)&&Number.isFinite(v)&&
       v>=FIELDS[k][0]&&v<=FIELDS[k][1]));
-   // Position pairs must originate from one valid packet.
-   if(own(values,'latitude')!==own(values,'longitude')){
+   // Position pairs must originate from one valid packet; DJI's (0,0) placeholder is no fix.
+   if(own(values,'latitude')!==own(values,'longitude')||
+     (values.latitude===0&&values.longitude===0)){
     delete values.latitude;delete values.longitude;
    }
    sourceValues(r,'dji-cloud',values,sampleAt,msg.timestamp!==null);

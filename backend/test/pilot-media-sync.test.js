@@ -88,8 +88,15 @@ test('S3 upload proxy forwards only uploads below a session prefix, unchanged',a
     assert.equal(await send('PUT','/dji-cloud/'+WS+'/other/'+SESSION+'/x.jpg','x'),403);
     assert.equal(await send('PUT','/farming/'+WS+'/media/'+SESSION+'/x.jpg','x'),403);
     assert.equal(await send('PUT','/dji-cloud/'+WS+'/media/short/x.jpg','x'),403);
-    assert.equal(received.length,2);
-    assert.equal(proxy.stats().rejected,5);
+    // Dot segments, empty segments and encoded separators never reach MinIO, even below the prefix.
+    const prefix='/dji-cloud/'+WS+'/media/'+SESSION+'/';
+    for(const evil of ['../../farming/x.jpg','..%2F..%2Ffarming%2Fx.jpg','%2e%2e/%2e%2e/farming/x.jpg',
+      'a/../../../farming/x.jpg','./x.jpg','a//x.jpg','a%5c..%5cx.jpg','x%00.jpg','%E0%A4%A.jpg'])
+      assert.equal(await send('PUT',prefix+evil,'x'),403,evil);
+    // Ordinary DJI names with encoded spaces stay allowed.
+    assert.equal(await send('PUT',prefix+'DJI%20Photo%201.JPG','x'),200);
+    assert.equal(received.length,3);
+    assert.equal(proxy.stats().rejected,14);
   }finally{server.close();minio.close();}
   // Requests that do not come from the trusted reverse proxy are refused.
   const strict=createS3UploadProxy({target:'http://127.0.0.1:1',workspace:WS,trustedProxyIps:new Set(['10.9.9.9'])});

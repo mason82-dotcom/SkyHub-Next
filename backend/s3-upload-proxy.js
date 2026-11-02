@@ -26,6 +26,15 @@ function downloadPath(bucket){
   return new RegExp('^/'+bucket+'/missions/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.kmz'+
     '\\?(?=[^#]*X-Amz-Algorithm=AWS4-HMAC-SHA256)(?=[^#]*X-Amz-Signature=[0-9a-f]{64})[^#]*$');
 }
+// Defence in depth before the prefix regex: no dot segments, empty segments, backslashes or
+// encoded separators, also not percent-encoded. (MinIO's session policy is the second line.)
+function plainObjectPath(url){
+  const path=String(url).split('?')[0];
+  if(/[\\]|%2f|%5c|%00/i.test(path))return false;
+  let decoded;
+  try{decoded=decodeURIComponent(path);}catch(_err){return false;}
+  return !decoded.slice(1).split('/').some(segment=>segment===''||segment==='.'||segment==='..');
+}
 function forwardHeaders(headers){
   const out={};
   for(const [name,value] of Object.entries(headers)){
@@ -49,6 +58,7 @@ function createS3UploadProxy({target,workspace,trustedProxyIps,downloadBucket=nu
   function handler(req,res){
     if(!isTrustedProxyIp(req.socket.remoteAddress,trustedProxyIps))return reject(res,403);
     const url=req.url||'';
+    if(!plainObjectPath(url))return reject(res,403);
     const upload=METHODS.has(req.method)&&allowed.test(url);
     const fetchWayline=download!==null&&DOWNLOAD_METHODS.has(req.method)&&download.test(url);
     if(!upload&&!fetchWayline)return reject(res,403);
@@ -81,4 +91,4 @@ function createS3UploadProxy({target,workspace,trustedProxyIps,downloadBucket=nu
   return {handler,listen,stats:()=>({...stats})};
 }
 
-module.exports={createS3UploadProxy,uploadPath,downloadPath};
+module.exports={createS3UploadProxy,uploadPath,downloadPath,plainObjectPath};

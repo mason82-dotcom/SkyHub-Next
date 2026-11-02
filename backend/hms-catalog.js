@@ -5,8 +5,9 @@ const texts=require('./data/hms-texts.json');
 
 // DJI aircraft mode_code values that mean "in the air": manual/automatic flight,
 // wayline, panorama, tracking, ADS-B avoidance, RTH, landing, APAS, virtual stick,
-// live flight controls. 0-2 (standby/prep), 13 (upgrading), 14 (disconnected) are ground.
-const IN_THE_SKY=new Set([3,4,5,6,7,8,9,10,11,12,15,16,17]);
+// live flight controls, aerial RTK fixing (18) and POI (20) per DJI's DroneModeCodeEnum.
+// 0-2 (standby/prep), 13 (upgrading), 14 (disconnected) are ground; 19 (dock site evaluation) stays unclassified.
+const IN_THE_SKY=new Set([3,4,5,6,7,8,9,10,11,12,15,16,17,18,20]);
 
 // Copy rules from DJI's HMS feature pages (aircraft and dock). Indexes are counted
 // from 1 for the operator; left/right/front/back are chosen from sensor_index.

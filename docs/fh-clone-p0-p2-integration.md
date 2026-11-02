@@ -17,6 +17,10 @@ und pro-Adapter Telemetrie-Herkunft. Alle Grenzen ausdrücklich observational:
 kein mission.ready, kein flight.ready, kein Flighttask-Senden. Bounded memory
 (128 Geräte, 256 Events); nach Serverneustart kein historischer Backfill.
 Ein stale/unverified Wert wird nicht zur ausgewählten Quelle.
+Korrektur 02.11.2026: Flugmodi gemäß DJI `DroneModeCodeEnum` (offizielle Cloud-API-Demo) –
+18 `AERIAL_RTK_FIXED` und 20 `POI` zählen als Flug, 19 `DOCK_SITE_EVALUATION` ohne
+Hardwarenachweis nicht. DJIs Platzhalterposition (0,0) wird weder aus DJI-OSD noch aus
+MSDK als Positionswert gespeichert oder ausgewählt (wie in Registry und Track-Store).
 
 Geschützte GET-APIs:
 - /api/diagnostics/fh/rtk

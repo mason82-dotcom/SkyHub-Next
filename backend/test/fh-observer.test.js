@@ -42,3 +42,25 @@ test('MSDK is topology-bound, numeric allowlisted, never authorizes control',()=
  assert.equal(o.sources('AIR01',100000).fields.battery.selected.source,'msdk-v5');
  assert.doesNotMatch(JSON.stringify(o.metrics()),/AIR01|RC01/);
 });
+test('DJI (0,0) placeholder never becomes a selected position from either source',()=>{
+ const o=createFhObserver({clock:()=>100000});
+ o.observe({sn:'AIR01',channel:'osd',timestamp:99990,
+   telemetry:{latitude:0,longitude:0,battery:80},state:{modeCode:0}},device,100000);
+ let f=o.sources('AIR01',100000).fields;
+ assert.equal(f.latitude,undefined);assert.equal(f.longitude,undefined);
+ assert.equal(f.battery.selected.value,80);
+ assert.equal(o.observeMsdk({aircraftSn:'AIR01',gatewaySn:'RC01',sampledAt:99995,
+   values:{latitude:0,longitude:0,battery:79}},100000),true);
+ f=o.sources('AIR01',100000).fields;
+ assert.equal(f.latitude,undefined);
+ o.observe({sn:'AIR01',channel:'osd',timestamp:99996,
+   telemetry:{latitude:49.1,longitude:8.4},state:{modeCode:0}},device,100000);
+ assert.equal(o.sources('AIR01',100000).fields.latitude.selected.value,49.1);
+});
+test('POI (mode 20) and aerial RTK fixing (18) are observed as flight, dock site evaluation (19) is not',()=>{
+ for(const [mode,flying] of [[18,true],[19,false],[20,true]]){
+  const o=createFhObserver({clock:()=>100000});
+  o.observe(sample(99990,null,mode),device,100000);
+  assert.equal(o.flights(100000).length,flying?1:0,'mode '+mode);
+ }
+});
