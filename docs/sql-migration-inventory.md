@@ -17,12 +17,13 @@
 | `map-elements` | `map-contract-002` | `002_dji_map_mutation_contract.sql` | Isolierter Schreibvertragsentwurf, nach `map-elements-001`; **kein aktivierter Schreibpfad** |
 | `pilot-media` | `pilot-media-verified-003` | `003_dji_pilot_media_verified.sql` | Pilot-Medienregistrierung; auf `rpi5` am 25.10.2026 als Voraussetzung der lesenden Bibliothek manuell migriert, Uploadpfad weiterhin nicht gemountet |
 | `wpml-draft` | `wpml-library-draft-003` | `003_wpml_route_library_draft.sql` | **Gesperrt**; Rollen, Workspace-RLS und produktiver Migrationsplan fehlen |
+| `wpml-draft` | `wpml-audit-draft-004` | `004_wpml_route_audit_draft.sql` | **Gesperrt**; unveränderliches WPML-Audit, nur isolierte Tests und abhängig vom WPML-Entwurf `003` |
 | `pilot-media` | `pilot-media-http-004` | `004_dji_pilot_media_http.sql` | Medien-HTTP-Schema/Audit nach `pilot-media-verified-003`; auf `rpi5` manuell migriert, schreibende Callback-Routen weiterhin nicht gemountet |
 | `pilot-media` | `pilot-media-library-005` | `005_dji_pilot_media_library.sql` | Lesende Medienbibliothek und unveränderliches Leseaudit nach `pilot-media-http-004`; auf `rpi5` am 25.10.2026 nach Dump-/Restore-Probe gemeinsam mit 003/004 produktiv angewandt. Keine automatische Migration auf anderen Installationen |
 
-Die doppelte Dateinummer `003` ist **keine globale Migrationsreihenfolge**: `pilot-media` und `wpml-draft` sind verschiedene Fachfamilien. Die bestehenden Dateinamen bleiben absichtlich unverändert, damit Git-Historie, Runbooks und bestehende Integrationstests nicht gebrochen werden. **Wichtig:** Ein zukünftiger generischer SQL-Runner, der nach numerischen Dateipräfixen sortiert, bleibt ausdrücklich **verboten**, auch wenn das Register die beiden Einträge unterscheidet.
+Die doppelt vergebenen Dateinummern `003` und `004` sind **keine globale Migrationsreihenfolge**: `pilot-media` und `wpml-draft` sind verschiedene Fachfamilien. Die bestehenden Dateinamen bleiben absichtlich unverändert, damit Git-Historie, Runbooks und bestehende Integrationstests nicht gebrochen werden. **Wichtig:** Ein zukünftiger generischer SQL-Runner, der nach numerischen Dateipräfixen sortiert, bleibt ausdrücklich **verboten**, auch wenn das Register die beiden Einträge unterscheidet.
 
-`backend/db/schema.sql` ist die bestehende **separate Bootstrap-Datei** des PostGIS-Containers und gehört nicht zu diesen sechs nicht automatisch angewandten Fachmigrationen. Die SQL-Dateien unter `backend/db/offline/` gehören ebenfalls zu eigenständigen Offline-Verträgen und werden nicht vom Register freigegeben.
+`backend/db/schema.sql` ist die bestehende **separate Bootstrap-Datei** des PostGIS-Containers und gehört nicht zu diesen sieben nicht automatisch angewandten Fachmigrationen. Die SQL-Dateien unter `backend/db/offline/` gehören ebenfalls zu eigenständigen Offline-Verträgen und werden nicht vom Register freigegeben.
 
 ## Verbindliche Freigabeprüfung für weitere SQL-Rollouts
 
