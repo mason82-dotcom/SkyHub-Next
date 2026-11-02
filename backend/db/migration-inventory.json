@@ -37,6 +37,16 @@
       "requires": []
     },
     {
+      "id": "wpml-audit-draft-004",
+      "family": "wpml-draft",
+      "order": 4,
+      "path": "backend/db/migrations/004_wpml_route_audit_draft.sql",
+      "status": "blocked_draft",
+      "requires": [
+        "wpml-library-draft-003"
+      ]
+    },
+    {
       "id": "pilot-media-http-004",
       "family": "pilot-media",
       "order": 4,

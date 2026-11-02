@@ -208,7 +208,7 @@ jobs:
       - name: Run real SQL and PostGIS integration in dedicated test database
         env:
           SKYHUB_TEST_DATABASE_URL: postgresql://skyhub_test:local_ci_only@127.0.0.1:${{ job.services.postgis.ports[5432] }}/skyhub_test
-        run: node --test backend/test/postgis.integration.test.js backend/test/map-element-mutation.integration.test.js backend/test/dji-flighttask-journal.integration.test.js backend/test/dji-flighttask-journal-retention.integration.test.js backend/test/wpml-route-schema.integration.test.js backend/test/dji-flighttask-multimission-router.integration.test.js backend/test/dji-flighttask-workspace-rls.integration.test.js backend/test/pilot-media-store.integration.test.js backend/test/pilot-media-http.integration.test.js backend/test/pilot-media-mutation.integration.test.js backend/test/pilot-media-library.integration.test.js
+        run: node --test backend/test/postgis.integration.test.js backend/test/map-element-mutation.integration.test.js backend/test/dji-flighttask-journal.integration.test.js backend/test/dji-flighttask-journal-retention.integration.test.js backend/test/wpml-route-schema.integration.test.js backend/test/dji-flighttask-multimission-router.integration.test.js backend/test/dji-flighttask-workspace-rls.integration.test.js backend/test/pilot-media-store.integration.test.js backend/test/pilot-media-http.integration.test.js backend/test/pilot-media-mutation.integration.test.js backend/test/pilot-media-library.integration.test.js backend/test/wpml-central-routes.integration.test.js backend/test/wpml-central-rls.integration.test.js
 
   isolated-postgis-backup-restore:
     runs-on: ubuntu-latest

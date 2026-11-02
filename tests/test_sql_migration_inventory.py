@@ -48,6 +48,22 @@ class SqlMigrationInventoryTest(unittest.TestCase):
         self.assertEqual({e["status"] for e in duplicates},
                          {"offline_only", "blocked_draft"})
 
+    def test_wpml_audit_requires_blocked_draft_dependency(self) -> None:
+        data = self.data()
+        audit = next(entry for entry in data["entries"]
+                     if entry["id"] == "wpml-audit-draft-004")
+        self.assertEqual(audit["status"], "blocked_draft")
+        self.assertEqual(audit["family"], "wpml-draft")
+        self.assertEqual(audit["requires"], ["wpml-library-draft-003"])
+        self.assertEqual(audit_inventory(self.root), [])
+        audit["status"] = "offline_only"
+        self.write(data)
+        self.assert_fails("Draft is not explicitly blocked")
+        audit["status"] = "blocked_draft"
+        audit["requires"] = ["pilot-media-verified-003"]
+        self.write(data)
+        self.assert_fails("cross-family dependency")
+
     def test_new_unregistered_sql_fails_closed(self) -> None:
         (self.root / DIRECTORY / "005_unreviewed.sql").write_text("-- unsafe draft", encoding="utf-8")
         self.assert_fails("SQL file absent from inventory")
