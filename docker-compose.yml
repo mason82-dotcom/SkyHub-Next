@@ -138,6 +138,7 @@ services:
       SKYHUB_TRUSTED_PROXY_IPS: ${SKYHUB_TRUSTED_PROXY_IPS:-}
       # New position history is OFF by default; live OSD remains ON.
       SKYHUB_TRACK_RECORDING_ENABLED: ${SKYHUB_TRACK_RECORDING_ENABLED:-false}
+      SKYHUB_HMS_HISTORY_ENABLED: ${SKYHUB_HMS_HISTORY_ENABLED:-false}
       # Retention applies only while recording is enabled.
       SKYHUB_TRACK_RETENTION_DAYS: ${SKYHUB_TRACK_RETENTION_DAYS:-30}
       REDIS_URL: redis://redis:6379
