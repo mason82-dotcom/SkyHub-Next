@@ -22,7 +22,7 @@ function createFlightHubReadOnly({origin,approvedOrigins,apiToken,fetchImpl=glob
   requireThat(typeof origin==='string'&&Array.isArray(approvedOrigins)&&approvedOrigins.includes(origin),
     'FlightHub endpoint requires an explicit operator origin allowlist');
   let u;try{u=new URL(origin)}catch(_){throw new TypeError('Invalid origin')}
-  requireThat(u.protocol==='https:'&&u.origin===origin&&u.username===''&&u.password===''&&
+  requireThat(u.protocol==='https:'&&u.origin+'/'===origin&&u.username===''&&u.password===''&&
     u.search===''&&u.hash===''&&u.pathname==='/'&&!u.port,'HTTPS origin only');
   requireThat(typeof apiToken==='string'&&apiToken.length>=16&&apiToken.length<=512&&
     !/[\r\n]/.test(apiToken),'Invalid private bearer token');
