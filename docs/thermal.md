@@ -58,3 +58,23 @@ Deployment nur über den bestehenden, backupgestützten Pi-Backend-Updatepfad in
 ### Nachtrag zur Pi-Parserprüfung
 
 Bei der ersten Prüfung nach PR #220 lieferte `/meta` HTTP 422. Die lokale Strukturdiagnose meldete einen Scananfang, elf APP3-Segmente mit zusammen 655.360 Bytes, einen `iirp`-Block und 490 Bytes hinter dem letzten gefundenen EOI. Die in #220 eingeführte Forderung „EOI direkt am Dateiende“ war dafür zu streng. Der korrigierte Parser sucht den EOI über JPEG-Markergrenzen und toleriert den opaken Anhang. Die Diagnose belegt weder dessen Inhalt noch Bild-/Temperaturgenauigkeit. Die erneute Pi-API-Prüfung nach dem Update bleibt erforderlich.
+
+## DJI-Thermal-SDK-Erprobung auf dem Pi (nicht integriert)
+
+Das DJI Thermal SDK (`dji_irp`) gibt es nur für x86-64. Läufe auf dem Raspberry Pi immer über
+`scripts/dji-tsdk-run.sh` starten und **nicht** per `docker run … timeout 60s ./dji_irp`:
+
+```bash
+bash scripts/dji-tsdk-run.sh --timeout 60 --sdk ~/.local/opt/dji-tsdk --input BILD_T.JPG --output AUSGABE/ \
+  -- ./dji_irp --source /input.JPG --action extract --output /output/extract.raw
+```
+
+Am 02.11.2026 hingen zwei manuell gestartete Prüfcontainer über zwei Stunden: Das `timeout` **innerhalb**
+des qemu-emulierten Containers beendete sich nicht. Der Wrapper setzt die Frist deshalb vom Host aus durch
+(`timeout` um `docker wait`, danach `docker kill`), startet mit `--init`, entfernt den Container in jedem Fall
+(auch bei Abbruch) und gibt 124 bei Zeitüberschreitung zurück. Isolation: kein Netz, schreibgeschütztes
+Dateisystem, keine Capabilities, 1 CPU, 1 GiB, 64 Prozesse.
+
+**Befund:** Unter qemu-user bricht `dji_irp` (DJI TSDK, `--action extract`) sofort mit Segmentation Fault ab
+(Exit 139). Das SDK ist auf dem Pi damit weiterhin nicht nutzbar; die Temperaturwerte dieses Moduls bleiben
+die oben beschriebenen unkalibrierten Schätzungen.
