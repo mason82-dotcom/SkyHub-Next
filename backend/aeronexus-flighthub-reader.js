@@ -5,7 +5,7 @@ const VERSION='v2.0',MAX_BODY=262144,MAX_ITEMS=100;
 const DEVICE_PATH='/openapi/v2.0/project/device';
 const VALID_TYPES=new Set(['aircraft','gateway','unknown']);
 function requireThat(ok,msg){if(!ok)throw new TypeError(msg);}
-function uuid(v){return typeof v==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(v);}
+function uuid(v){return typeof v==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);}
 function cleanDevice(v){
   if(!v||typeof v!=='object'||Array.isArray(v))return null;
   // No serial number, cloud credential, external URL, raw state or precise location.
