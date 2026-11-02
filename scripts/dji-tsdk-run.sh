@@ -2,7 +2,11 @@
 # Run one DJI Thermal SDK (dji_irp, x86-64 only) command in an isolated, emulated container on the Pi.
 #
 #   bash scripts/dji-tsdk-run.sh [--timeout SEC] [--image IMG] [--platform P] \
-#        --sdk DIR --input FILE [--output DIR] -- dji_irp ARGS...
+#        --sdk DIR --input FILE [--output DIR] -- ./dji_irp ARGS...
+#
+# Default runtime: box64 (image docker/dji-tsdk-box64, native arm64). On an arm64 image the command is
+# prefixed with `box64` automatically. qemu-user (--platform linux/amd64) segfaults in dji_irp on the
+# Pi 5 (16 KiB pages) and is kept only for comparison.
 #
 # Why: a `timeout` running INSIDE a qemu-emulated amd64 container is not reliable – on 02.11.2026 two
 # containers stayed up for hours with `timeout 60s` hanging under qemu after dji_irp had already exited.
@@ -15,8 +19,8 @@
 set -Eeuo pipefail
 
 timeout_s=60
-image=skyhub-dji-tsdk-runner:bookworm
-platform=linux/amd64
+image=skyhub-dji-box64:trixie
+platform=linux/arm64
 sdk="" input="" output=""
 usage() { sed -n '2,6p' "$0" >&2; exit 2; }
 while [[ $# -gt 0 ]]; do
@@ -37,6 +41,7 @@ done
 [[ -d "$sdk" ]] || { echo "FEHLER: SDK-Verzeichnis fehlt: $sdk" >&2; exit 2; }
 [[ -f "$input" ]] || { echo "FEHLER: Eingabedatei fehlt: $input" >&2; exit 2; }
 [[ -z "$output" || -d "$output" ]] || { echo "FEHLER: Ausgabeverzeichnis fehlt: $output" >&2; exit 2; }
+[[ "$platform" == linux/arm64 && "$1" != box64 ]] && set -- box64 "$@"
 
 name="skyhub-tsdk-$$-$(od -An -N4 -tx4 /dev/urandom | tr -d ' ')"
 cleanup() { docker rm -f "$name" >/dev/null 2>&1 || true; }
