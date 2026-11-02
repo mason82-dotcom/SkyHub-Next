@@ -43,6 +43,13 @@ const server=http.createServer((request,response)=>{
   if(['/workspace-tabs.js','/telemetry-freshness.js'].includes(url.pathname)){
     response.writeHead(200,{'Content-Type':'application/javascript'});response.end(get(url.pathname.slice(1)));return;
   }
+  // Self-hosted Leaflet exactly as the backend serves it (no CDN mock needed).
+  const vendor=/^\/vendor\/leaflet\/1\.9\.4\/((?:images\/)?[a-z0-9.-]+\.(?:js|css|png))$/.exec(url.pathname);
+  if(vendor){
+    const type=vendor[1].endsWith('.css')?'text/css':vendor[1].endsWith('.png')?'image/png':'application/javascript';
+    response.writeHead(200,{'Content-Type':type});
+    response.end(get('vendor/leaflet/1.9.4/'+vendor[1]));return;
+  }
   if(url.pathname==='/skyhub-light.css'){
     response.writeHead(200,{'Content-Type':'text/css; charset=utf-8'});response.end(get('skyhub-light.css'));return;
   }
@@ -121,20 +128,11 @@ async function run(){
  try{
   const context=await browser.newContext();
   // Prevent network access to DJI, Pi, external tile servers and CDNs.
-  await context.route('https://unpkg.com/leaflet@1.9.4/dist/*',route=>{
-    const file=route.request().url().endsWith('.css')?'leaflet.css':'leaflet.js';
-    return route.fulfill({
-      path:path.join(deps,'leaflet','dist',file),
-      contentType:file.endsWith('.css')?'text/css':'application/javascript',
-      // index.html loads Leaflet with SRI + crossorigin="anonymous": a CORS response is required.
-      headers:{'Access-Control-Allow-Origin':'*'}
-    });
-  });
   await context.route('https://tile.openstreetmap.org/**',route=>
     route.fulfill({status:200,body:image,contentType:'image/png'}));
   await context.route('**/*',route=>{
     const url=new URL(route.request().url());
-    if(url.hostname==='127.0.0.1'||url.hostname==='unpkg.com'||url.hostname==='tile.openstreetmap.org')
+    if(url.hostname==='127.0.0.1'||url.hostname==='tile.openstreetmap.org')
       return route.fallback();
     return route.abort('blockedbyclient');
   });

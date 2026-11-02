@@ -11,7 +11,6 @@ import base64
 import contextlib
 import io
 import json
-import os
 from pathlib import Path
 import tempfile
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -22,7 +21,8 @@ from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
 WEBROOT = ROOT / "frontend" / "public"
-LEAFLET_DIST = Path(os.environ["SKYHUB_TEST_LEAFLET_DIST"]).resolve()
+# Self-hosted Leaflet, exactly the files the backend serves under /vendor/leaflet/1.9.4/.
+LEAFLET_DIST = WEBROOT / "vendor" / "leaflet" / "1.9.4"
 ARTIFACT_DIR = ROOT / "artifacts" / "wpml-browser"
 TILE = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j3t8AAAAASUVORK5CYII="
@@ -52,35 +52,18 @@ def guard(page, base: str, *, real_map: bool, unexpected: list[str]) -> None:
     def route_request(route):
         url = route.request.url
         if url.startswith(base + "/"):
+            # Pages checked without a map must still render when self-hosted Leaflet is missing.
+            if not real_map and url.startswith(base + "/vendor/leaflet/"):
+                route.abort()
+                return
             if route.request.method != "GET":
                 unexpected.append("unexpected non-GET request")
                 route.abort()
             else:
                 route.continue_()
             return
-        if real_map and url == "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js":
-            route.fulfill(path=str(LEAFLET_DIST / "leaflet.js"),
-                          content_type="application/javascript",
-                          headers={"Access-Control-Allow-Origin": "*"})
-            return
-        if real_map and url == "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css":
-            route.fulfill(path=str(LEAFLET_DIST / "leaflet.css"),
-                          content_type="text/css",
-                          headers={"Access-Control-Allow-Origin": "*"})
-            return
-        if real_map and url.endswith("marker-icon.png"):
-            route.fulfill(path=str(LEAFLET_DIST / "images" / "marker-icon.png"),
-                          content_type="image/png")
-            return
-        if real_map and url.endswith("marker-shadow.png"):
-            route.fulfill(path=str(LEAFLET_DIST / "images" / "marker-shadow.png"),
-                          content_type="image/png")
-            return
         if real_map and url.startswith("https://tile.openstreetmap.org/"):
             route.fulfill(status=200, body=TILE, content_type="image/png")
-            return
-        if not real_map and url.startswith("https://unpkg.com/leaflet@1.9.4/"):
-            route.abort()
             return
         unexpected.append("unexpected outbound request blocked")
         route.abort()
