@@ -17,7 +17,7 @@
     map=L.map('map').setView([50.5,10.4],6);
     // Keep document referrer private, but identify the page origin to OSM tiles.
     // OSMF explicitly requires an HTTP Referer; Leaflet 1.9.4 supports this option.
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    L.tileLayer('/tiles/osm/{z}/{x}/{y}.png',{
       maxZoom:19,attribution:'© OpenStreetMap contributors',
       referrerPolicy:'strict-origin-when-cross-origin'
     }).addTo(map);

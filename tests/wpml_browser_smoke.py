@@ -56,6 +56,13 @@ def guard(page, base: str, *, real_map: bool, unexpected: list[str]) -> None:
             if not real_map and url.startswith(base + "/vendor/leaflet/"):
                 route.abort()
                 return
+            # Same-origin backend tile route: synthetic tile instead of real geography.
+            if url.startswith(base + "/tiles/osm/"):
+                if real_map:
+                    route.fulfill(status=200, body=TILE, content_type="image/png")
+                else:
+                    route.abort()
+                return
             if route.request.method != "GET":
                 unexpected.append("unexpected non-GET request")
                 route.abort()

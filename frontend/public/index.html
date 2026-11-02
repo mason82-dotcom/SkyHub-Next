@@ -294,8 +294,8 @@ function refreshFieldAges(){
   }
 }
 const map=window.L?L.map('map').setView([51.1657,10.4515],6):null;
-// OSM's tile policy requires a Referer; the page itself stays on no-referrer.
-if(map)L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+// Tiles via the SkyHub offline cache (or a redirect to OSM, which requires an origin Referer).
+if(map)L.tileLayer('/tiles/osm/{z}/{x}/{y}.png',
   {attribution:'© OpenStreetMap',maxZoom:19,referrerPolicy:'strict-origin-when-cross-origin'}).addTo(map);
 window.SkyHubWorkspaceTabs.init({
   document,

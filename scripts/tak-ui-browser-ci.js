@@ -43,6 +43,10 @@ const server=http.createServer((request,response)=>{
   if(['/workspace-tabs.js','/telemetry-freshness.js'].includes(url.pathname)){
     response.writeHead(200,{'Content-Type':'application/javascript'});response.end(get(url.pathname.slice(1)));return;
   }
+  // Same-origin tile route of the backend; a neutral synthetic tile, never real geography.
+  if(/^\/tiles\/osm\/\d+\/\d+\/\d+\.png$/.test(url.pathname)){
+    response.writeHead(200,{'Content-Type':'image/png'});response.end(image);return;
+  }
   // Self-hosted Leaflet exactly as the backend serves it (no CDN mock needed).
   const vendor=/^\/vendor\/leaflet\/1\.9\.4\/((?:images\/)?[a-z0-9.-]+\.(?:js|css|png))$/.exec(url.pathname);
   if(vendor){

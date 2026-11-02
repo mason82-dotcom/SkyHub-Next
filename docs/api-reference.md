@@ -18,6 +18,8 @@ Die Trennung ist im Code implementiert; produktive Proxy-/ACL- und Gerätefreiga
 | Methode | Route | Zugriff / Codeverhalten |
 | --- | --- | --- |
 | GET | `/` | Statisches Hauptdashboard; Port standardmäßig nur Host-Loopback |
+| GET | `/tiles/osm/{z}/{x}/{y}.png` | Ohne Token; Kachel-Cache (`SKYHUB_TILE_CACHE_ENABLED=true`) oder `302` zu OSM. z 0–19, sonst `404`; offline ohne gespeicherte Kachel `504` ([Offline-Kartenkacheln](offline-map-tiles.md)) |
+| GET | `/vendor/leaflet/1.9.4/*` | Ohne Token; selbst ausgeliefertes Leaflet, `immutable` gecacht |
 | GET | `/pilot-login` | Statische Pilot-2-Webview, mit CSP |
 | GET | `/api/health` | Ohne Token; aggregierte Status-/MQTT-/Topologie-/Track-Zähler, `online`/`degraded` beschreibt zunächst Broker+Subscription, keine Flugsicherheit; `deviceCacheSkipped` zählt bei nicht bereitem Redis ausgelassene Geräte-Cache-Schreibvorgänge. Dient zugleich als Docker-Liveness-Check |
 | GET | `/api/pilot/status` | Ohne Token; begrenzte Pilot-Konfigurationsbereitschaft, fehlende **Schlüsselnamen**, keine Secret-Werte |
