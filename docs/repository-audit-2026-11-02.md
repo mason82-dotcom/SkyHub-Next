@@ -61,3 +61,13 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 ```
 
 Diese Befehle ändern weder Remote-Branches noch die laufenden Geräte/Dienste. Bei den Python-Tests werden ggf. temporäre lokale Testdateien angelegt.
+
+## Nachtrag: P0-PR-Triage und CI-Schutz (02.11.2026)
+
+Die oben genannten PR-Zahlen und P0-Einträge gelten weiterhin für den originalen Audit-Snapshot. Bei der anschließenden Einzelprüfung wurden diese **drei PRs geschlossen, ohne sie zu mergen oder ihre Head-Branches zu löschen**:
+
+- [#222](https://github.com/mason82-dotcom/SkyHub-Next/pull/222): historischer MinIO-Extract stellt ältere Container-/Netzkennungen und Restore-Annahmen wieder her, beseitigt negative Tests auf der isolierten Restore-Kopie und entfernt aktuelle Betriebsbelege. Die vorhandene aktuelle Variante in `main` bleibt maßgeblich.
+- [#223](https://github.com/mason82-dotcom/SkyHub-Next/pull/223): Head-SHA identisch mit [Draft #145](https://github.com/mason82-dotcom/SkyHub-Next/pull/145); die experimentelle gestapelte Arbeit bleibt in #145 erhalten.
+- [#224](https://github.com/mason82-dotcom/SkyHub-Next/pull/224): Head-SHA identisch mit [Draft #144](https://github.com/mason82-dotcom/SkyHub-Next/pull/144); die experimentelle gestapelte Arbeit bleibt in #144 erhalten.
+
+**Zusätzlicher Regressionstest:** `tests/test_minio_acceptance_contract.py` prüft auf Ebene des allgemeinen Python-Testlaufs unabhängig vom MinIO-Verzeichnis die geprüfte gemeinsame Containeridentität, getrennte Backup-/Restore-Kapazität, den freigegebenen isolierten Restore-Pfad und Negativprüfungen der Schreibverweigerung. Zusätzlich führt `.github/workflows/ci.yml` die vorhandenen `pi-minio-acceptance/test_local.py`-Fixture-Tests auf jedem CI-Lauf aus. Der bereits vorhandene zielgerichtete Workflow `.github/workflows/minio-acceptance-checks.yml` bleibt erhalten. Die Prüfungen nutzen nur Fixture-/Textdaten; sie testen **weder die aktuell laufende MinIO-Instanz noch einen Restore auf dem Pi**. Eine absichtliche Änderung der gepinnten Betriebsannahmen muss zusammen mit dem Sicherheitsvertrag und echtem Betriebsnachweis gesondert überprüft werden.
