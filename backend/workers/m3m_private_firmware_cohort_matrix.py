@@ -138,7 +138,11 @@ def compare(*, manifest: Path, manifest_sha256: str):
     require(_canonical(data) == raw, 'Manifest must be canonical JSON')
     worker = _load_cohort_worker()
     results = {'A': [], 'B': []}
-    seen = set()
+    seen_receipts = set()
+    seen_source_pins = set()
+    seen_tiff_paths = set()
+    seen_tiff_file_ids = set()
+    firmware_pins_by_cohort = {c: set() for c in COHORTS}
     for item in data['cases']:
         require(isinstance(item, dict) and set(item) == CASE_KEYS,
                 'Unrecognized or missing case field')
@@ -156,10 +160,30 @@ def compare(*, manifest: Path, manifest_sha256: str):
         source_pin = _pin(item['sourceReceiptSha256'])
         evidence_pin = _pin(item['evidenceManifestSha256'])
         firmware_pin = _pin(item['firmwareEvidenceSha256'])
-        # A cohort cannot recycle the same capture receipt or firmware
-        # attestation across different cases: one set per capture.
-        require(str(receipt) not in seen, 'Capture receipt reused across cases')
-        seen.add(str(receipt))
+        # Distinct filenames alone are NOT distinct captures. Refuse reused
+        # capture receipt bytes, any original TIFF path, or physical file identity.
+        require(str(receipt) not in seen_receipts and
+                source_pin not in seen_source_pins,
+                'Capture receipt file or digest reused across cases')
+        seen_receipts.add(str(receipt))
+        seen_source_pins.add(source_pin)
+        for tiff in paths:
+            require(str(tiff) not in seen_tiff_paths,
+                    'Original TIFF path reused across captures')
+            seen_tiff_paths.add(str(tiff))
+            try:
+                info = tiff.lstat()
+            except OSError as exc:
+                raise MatrixError('Original TIFF inaccessible') from exc
+            require(stat.S_ISREG(info.st_mode) and info.st_nlink == 1,
+                    'Original TIFF must be a single-link regular file')
+            file_id = (info.st_dev, info.st_ino)
+            require(file_id not in seen_tiff_file_ids,
+                    'Original TIFF inode reused across captures')
+            seen_tiff_file_ids.add(file_id)
+        # Byte-distinct operator evidence across A/B is a necessary condition
+        # for distinct claims; it is NOT proof of any firmware version.
+        firmware_pins_by_cohort[cohort].add(firmware_pin)
         require(firmware not in paths and firmware != receipt and
                 firmware != manifest, 'Firmware evidence aliases input')
         firmware_bytes = _read_private(firmware, MAX_FIRMWARE_EVIDENCE)
@@ -184,6 +208,8 @@ def compare(*, manifest: Path, manifest_sha256: str):
                 == firmware_pin, 'Firmware evidence changed during census')
     require(all(results[c] for c in COHORTS),
             'Both anonymous cohorts must have independent captures')
+    require(firmware_pins_by_cohort['A'].isdisjoint(firmware_pins_by_cohort['B']),
+            'Identical operator firmware evidence reused across A and B')
     # Re-read the pinned manifest to catch modification during long scans.
     require(hashlib.sha256(_read_private(manifest, MAX_MANIFEST)).hexdigest()
             == manifest_sha256, 'Cohort manifest changed during census')
