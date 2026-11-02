@@ -130,10 +130,14 @@ def _audit_worker():
 
 
 def _recompute(bundle, seal_file, source_pin, reference_root, reference_pin):
-    result = _audit_worker().audit(
-        bundle=Path(bundle), seal=Path(seal_file),
-        seal_sha256=source_pin, reference_dir=Path(reference_root),
-        reference_manifest_sha256=reference_pin)
+    try:
+        result = _audit_worker().audit(
+            bundle=Path(bundle), seal=Path(seal_file),
+            seal_sha256=source_pin, reference_dir=Path(reference_root),
+            reference_manifest_sha256=reference_pin)
+    except Exception as exc:
+        # No low-level TIFF, path, source-seal or XMP errors cross this boundary.
+        raise ReceiptError('Pinned source/reference replay rejected') from exc
     require(result.get('schema') == 'skyhub-m3m-private-reference-agreement-v1' and
             result.get('classification') ==
             'experimental-quantitative-reference-agreement-not-calibration',
