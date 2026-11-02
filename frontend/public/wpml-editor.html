@@ -148,9 +148,10 @@ hr{border:0;border-top:1px solid var(--edge);margin:16px 0}
        <input id="store-token" type="password" autocomplete="off" spellcheck="false" placeholder="Nur nötig, wenn die Heimnetzfreigabe nicht aktiv ist">
      </details>
      <div class="tools">
-       <button type="button" id="store-save">Entwurf in MinIO speichern</button>
+       <button type="button" id="store-save">Entwurf jetzt in MinIO speichern</button>
        <button type="button" id="store-refresh">Bibliothek laden</button>
      </div>
+     <p id="store-draft-state" role="status" aria-live="polite" class="caption">Aktueller Entwurf noch nicht zentral gespeichert.</p>
      <div id="store-status" role="status" aria-live="polite" class="caption">Bibliothek noch nicht geladen.</div>
      <div id="store-list" role="list" aria-label="Gespeicherte Missionen"></div>
    </section>
