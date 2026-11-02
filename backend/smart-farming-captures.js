@@ -14,7 +14,8 @@ const HEADER_BYTES=65536;
 const MIN_DAYLIGHT_IRRADIANCE=10; // sunlight sensor; night shots read ~1
 const PREVIEW_BUCKET='farming';
 const SOURCE_BUCKET='dji-cloud';
-const SCHEMA='skyhub-m3m-capture-manifest-v1';
+const SCHEMA='skyhub-m3m-capture-manifest-v2';
+const ASSESSMENT_VERSION='skyhub-m3m-capture-assessment-v2';
 
 function xmpField(xmp,name){
   const m=new RegExp('[\\w-]+:'+name+'(?:="([^"]{0,200})"|>([^<]{0,200})<)').exec(xmp);
@@ -31,7 +32,8 @@ function parseBandHeader(buffer){
   const start=text.indexOf('<x:xmpmeta'),end=text.indexOf('</x:xmpmeta>',start);
   if(start<0||end<0)return null;
   const xmp=text.slice(start,end);
-  const band=BANDS[xmpField(xmp,'BandName')];
+  const bandName=xmpField(xmp,'BandName');
+  const band=Object.hasOwn(BANDS,bandName)?BANDS[bandName]:null;
   const uuid=xmpField(xmp,'CaptureUUID');
   if(!band||!/^[0-9a-f]{32}$/i.test(uuid||''))return null;
   return {
@@ -47,20 +49,69 @@ function parseBandHeader(buffer){
   };
 }
 
+function validGps(gps){
+  return Boolean(gps&&Number.isFinite(gps.lat)&&Number.isFinite(gps.lon)&&
+    Math.abs(gps.lat)<=90&&Math.abs(gps.lon)<=180&&
+    !(Math.abs(gps.lat)<1e-4&&Math.abs(gps.lon)<1e-4));
+}
+
+// Metadata screening only. Neither a positive altitude nor irradiance proves a
+// flight image, calibrated reflectance, coregistration or mapping readiness.
 function assess(capture){
-  const issues=[];
-  const missing=ORDER.filter(b=>!capture.bands[b]);
-  if(missing.length)issues.push('Bänder fehlen: '+missing.join(', '));
-  const irr=ORDER.map(b=>capture.bands[b]?.irradiance).filter(v=>v!==null&&v!==undefined);
+  const issues=[],blockers=[];
+  const add=(code,message)=>{blockers.push(code);issues.push(message);};
+  const bandCounts=Object.fromEntries(ORDER.map(b=>[b,capture.bandCounts?.[b]??(capture.bands[b]?1:0)]));
+  const missingBands=ORDER.filter(b=>bandCounts[b]===0);
+  const duplicateBands=ORDER.filter(b=>bandCounts[b]>1);
+  if(missingBands.length)add('missing-bands','Bänder fehlen: '+missingBands.join(', '));
+  if(duplicateBands.length)add('duplicate-bands','Mehrdeutige Bänder: '+duplicateBands.join(', ')+
+    '. Keine automatische Objektauswahl.');
+  const irr=ORDER.map(b=>capture.bands[b]?.irradiance).filter(Number.isFinite);
   const minIrr=irr.length?Math.min(...irr):null;
+  const irradianceComplete=irr.length===ORDER.length;
+  if(!irradianceComplete)add('missing-irradiance','Sonnensensorwerte fehlen für mindestens ein eindeutiges Band.');
   if(minIrr!==null&&minIrr<MIN_DAYLIGHT_IRRADIANCE)
-    issues.push('Kein Tageslicht (Sonnensensor '+minIrr+'): nicht auswertbar');
-  if(capture.gps===null)issues.push('Keine GPS-Position');
-  if(capture.relativeAltitude!==null&&Math.abs(capture.relativeAltitude)<1)
-    issues.push('Aufnahme am Boden (0 m über Start), kein Flugbild');
-  const complete=!missing.length;
-  return {complete,minIrradiance:minIrr,
-    usable:complete&&minIrr!==null&&minIrr>=MIN_DAYLIGHT_IRRADIANCE,issues};
+    add('low-irradiance','Sonnensensor unter dem heuristischen Tageslicht-Schwellwert ('+minIrr+').');
+  if(!validGps(capture.gps))add('invalid-gps','Keine gültige gemeinsame GPS-Position.');
+  if(!Number.isFinite(capture.relativeAltitude))
+    add('unknown-relative-altitude','Höhe über Start unbekannt.');
+  else if(capture.relativeAltitude<1)
+    add('not-above-takeoff','Höhe über Start unter 1 m; kein bestätigtes Flugbild.');
+  if(capture.model!=='M3M')add('unconfirmed-model','Kameramodell M3M nicht durchgängig in den Metadaten angegeben.');
+  if(capture.metadataConflicts?.length)
+    add('metadata-conflict','Widersprüchliche Bandmetadaten: '+capture.metadataConflicts.join(', '));
+  const complete=!missingBands.length&&!duplicateBands.length;
+  const usable=complete&&blockers.length===0;
+  return {assessmentVersion:ASSESSMENT_VERSION,bandCounts,missingBands,duplicateBands,
+    completeness:duplicateBands.length?'conflicted':complete?'complete':'incomplete',
+    complete,minIrradiance:minIrr,irradianceComplete,
+    usability:usable?'metadata-candidate':'blocked',usable,blockers,issues,
+    sourceAuthenticityVerified:false,radiometryVerified:false,mappingReady:false};
+}
+
+function assembleCapture(group){
+  const bands={},bandCounts={},hints=[];
+  for(const b of ORDER){
+    const entries=group.entries.get(b)||[];
+    bandCounts[b]=entries.length;
+    hints.push(...entries.map(e=>e.header));
+    if(entries.length===1)bands[b]=entries[0].band;
+  }
+  const metadataConflicts=[];
+  function agreed(field){
+    const values=hints.map(h=>h[field]);
+    const known=values.filter(v=>v!==null&&v!==undefined);
+    if(new Set(known).size>1)metadataConflicts.push(field);
+    return known.length===values.length&&new Set(known).size===1?known[0]:null;
+  }
+  const model=agreed('model'),createdAt=agreed('createdAt');
+  const relativeAltitude=agreed('relativeAltitude'),absoluteAltitude=agreed('absoluteAltitude');
+  const positions=hints.map(h=>({lat:h.lat,lon:h.lon}));
+  const positionKeys=positions.filter(validGps).map(p=>JSON.stringify(p));
+  if(new Set(positionKeys).size>1)metadataConflicts.push('gps');
+  const gps=positionKeys.length===positions.length&&new Set(positionKeys).size===1?positions[0]:null;
+  return {captureUUID:group.captureUUID,bands,bandCounts,sources:[...group.sources].sort(),
+    model,createdAt,gps,relativeAltitude,absoluteAltitude,metadataConflicts};
 }
 
 function createSmartFarmingCaptures({storage,bucketIndex,clock=()=>Date.now()}={}){
@@ -70,7 +121,7 @@ function createSmartFarmingCaptures({storage,bucketIndex,clock=()=>Date.now()}={
   const previews=createLru(200);
 
   async function header(item){
-    const id=item.key+'\n'+item.size+'\n'+(item.lastModified||'');
+    const id=item.key+'\n'+item.size+'\n'+(item.lastModified||'')+'\n'+(item.etag||'');
     const known=headers.get(id);
     if(known!==undefined)return known;
     let parsed=null;
@@ -120,28 +171,23 @@ function createSmartFarmingCaptures({storage,bucketIndex,clock=()=>Date.now()}={
     for(const item of tiffs){
       const h=await header(item);
       if(!h)continue;
-      if(!groups.has(h.captureUUID))groups.set(h.captureUUID,{captureUUID:h.captureUUID,bands:{},sources:[]});
+      if(!groups.has(h.captureUUID))groups.set(h.captureUUID,{captureUUID:h.captureUUID,entries:new Map(),sources:new Set()});
       const g=groups.get(h.captureUUID);
-      g.bands[h.band]={bucket:SOURCE_BUCKET,key:item.key,name:item.displayName||item.key.split('/').pop(),
+      const band={bucket:SOURCE_BUCKET,key:item.key,name:item.displayName||item.key.split('/').pop(),
         size:item.size,etag:item.etag||null,wavelength:h.wavelength,irradiance:h.irradiance};
-      g.model=g.model||h.model;
-      g.createdAt=g.createdAt||h.createdAt;
-      if(h.lat!==null&&h.lon!==null&&!(Math.abs(h.lat)<1e-4&&Math.abs(h.lon)<1e-4))g.gps={lat:h.lat,lon:h.lon};
-      if(g.relativeAltitude===undefined||g.relativeAltitude===null)g.relativeAltitude=h.relativeAltitude;
-      if(g.absoluteAltitude===undefined||g.absoluteAltitude===null)g.absoluteAltitude=h.absoluteAltitude;
+      if(!g.entries.has(h.band))g.entries.set(h.band,[]);
+      g.entries.get(h.band).push({header:h,band});
       const top=item.key.split('/').slice(0,2).join('/').replace(/\/[^/]*\.tiff?$/i,'/');
-      if(!g.sources.includes(top))g.sources.push(top);
+      g.sources.add(top);
     }
     const out=[];
-    for(const g of groups.values()){
-      g.gps=g.gps||null;
-      g.relativeAltitude=g.relativeAltitude??null;
-      g.absoluteAltitude=g.absoluteAltitude??null;
+    for(const group of groups.values()){
+      const g=assembleCapture(group);
       Object.assign(g,assess(g));
-      g.preview=await previewFor(g.captureUUID,farmingKeys);
+      g.preview=g.complete?await previewFor(g.captureUUID,farmingKeys):null;
       out.push(g);
     }
-    out.sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+    out.sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||''))||a.captureUUID.localeCompare(b.captureUUID));
     return out;
   }
 
@@ -149,8 +195,8 @@ function createSmartFarmingCaptures({storage,bucketIndex,clock=()=>Date.now()}={
   router.get('/',async(_req,res)=>{
     try{
       const list=await captures();
-      res.json({count:list.length,usable:list.filter(c=>c.usable).length,bandOrder:ORDER,captures:list,
-        notice:'Einzelaufnahmen der Mavic 3M. Für Karten und Katalog-Kandidaten ist ein orthorektifiziertes Mosaik (DEDAL/ODM) nötig.'});
+      res.json({assessmentVersion:ASSESSMENT_VERSION,count:list.length,usable:list.filter(c=>c.usable).length,bandOrder:ORDER,captures:list,
+        notice:'Metadaten-Prüfung einzelner Aufnahmen. Ein Metadaten-Kandidat ist keine Radiometrie- oder Mapping-Freigabe. Für Karten ist zusätzlich ein geprüftes orthorektifiziertes Mosaik nötig.'});
     }catch(_err){res.status(503).json({error:'Storage unavailable'});}
   });
   // Manifest for the offline orthomosaic / candidate pipeline: object references only, no pixels.
@@ -158,9 +204,15 @@ function createSmartFarmingCaptures({storage,bucketIndex,clock=()=>Date.now()}={
     try{
       const list=await captures();
       res.set('Content-Disposition','attachment; filename="m3m-captures-manifest.json"');
-      res.json({schema:SCHEMA,generatedAt:new Date(clock()).toISOString(),bandOrder:ORDER,
+      res.json({schema:SCHEMA,assessmentVersion:ASSESSMENT_VERSION,generatedAt:new Date(clock()).toISOString(),bandOrder:ORDER,
         captures:list.map(c=>({captureUUID:c.captureUUID,createdAt:c.createdAt,model:c.model,usable:c.usable,
-          complete:c.complete,issues:c.issues,gps:c.gps,relativeAltitude:c.relativeAltitude,
+          completeness:c.completeness,complete:c.complete,bandCounts:c.bandCounts,
+          missingBands:c.missingBands,duplicateBands:c.duplicateBands,metadataConflicts:c.metadataConflicts,
+          usability:c.usability,blockers:c.blockers,issues:c.issues,
+          irradianceComplete:c.irradianceComplete,minIrradiance:c.minIrradiance,
+          sourceAuthenticityVerified:c.sourceAuthenticityVerified,
+          radiometryVerified:c.radiometryVerified,mappingReady:c.mappingReady,
+          gps:c.gps,relativeAltitude:c.relativeAltitude,
           absoluteAltitude:c.absoluteAltitude,
           bands:Object.fromEntries(ORDER.filter(b=>c.bands[b]).map(b=>[b,{bucket:c.bands[b].bucket,
             key:c.bands[b].key,size:c.bands[b].size,etag:c.bands[b].etag,
@@ -170,4 +222,4 @@ function createSmartFarmingCaptures({storage,bucketIndex,clock=()=>Date.now()}={
   return {router,captures};
 }
 
-module.exports={createSmartFarmingCaptures,parseBandHeader,assess,ORDER,SCHEMA};
+module.exports={createSmartFarmingCaptures,parseBandHeader,assess,ORDER,SCHEMA,ASSESSMENT_VERSION};
