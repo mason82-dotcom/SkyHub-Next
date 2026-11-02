@@ -61,20 +61,30 @@ Bei der ersten Prüfung nach PR #220 lieferte `/meta` HTTP 422. Die lokale Struk
 
 ## DJI-Thermal-SDK-Erprobung auf dem Pi (nicht integriert)
 
-Das DJI Thermal SDK (`dji_irp`) gibt es nur für x86-64. Läufe auf dem Raspberry Pi immer über
-`scripts/dji-tsdk-run.sh` starten und **nicht** per `docker run … timeout 60s ./dji_irp`:
+Das DJI Thermal SDK (`dji_irp`) gibt es nur für x86-64. Auf dem Raspberry Pi 5 läuft es über **box64**
+(Image `docker/dji-tsdk-box64`, Debian trixie, box64 0.3.4). Das SDK selbst ist nicht im Image und nicht im
+Repository (DJI-Lizenz); es wird schreibgeschützt eingebunden. Läufe immer über den Wrapper starten:
 
 ```bash
+docker build -t skyhub-dji-box64:trixie docker/dji-tsdk-box64
 bash scripts/dji-tsdk-run.sh --timeout 60 --sdk ~/.local/opt/dji-tsdk --input BILD_T.JPG --output AUSGABE/ \
-  -- ./dji_irp --source /input.JPG --action extract --output /output/extract.raw
+  -- ./dji_irp --source /input.JPG --action measure --output /output/t.raw --measurefmt float32
 ```
 
-Am 02.11.2026 hingen zwei manuell gestartete Prüfcontainer über zwei Stunden: Das `timeout` **innerhalb**
-des qemu-emulierten Containers beendete sich nicht. Der Wrapper setzt die Frist deshalb vom Host aus durch
-(`timeout` um `docker wait`, danach `docker kill`), startet mit `--init`, entfernt den Container in jedem Fall
-(auch bei Abbruch) und gibt 124 bei Zeitüberschreitung zurück. Isolation: kein Netz, schreibgeschütztes
-Dateisystem, keine Capabilities, 1 CPU, 1 GiB, 64 Prozesse.
+Der Wrapper setzt die Frist vom Host aus durch (`timeout` um `docker wait`, danach `docker kill`, Exit 124),
+startet mit `--init`, entfernt den Container in jedem Fall (auch bei Abbruch) und stellt auf arm64 `box64`
+automatisch voran. Isolation: kein Netz, schreibgeschütztes Dateisystem, keine Capabilities, 1 CPU, 1 GiB,
+64 Prozesse. Anlass: Am 02.11.2026 hingen zwei manuell gestartete Prüfcontainer über zwei Stunden, weil
+`timeout` **innerhalb** des qemu-emulierten Containers nicht zurückkehrte.
 
-**Befund:** Unter qemu-user bricht `dji_irp` (DJI TSDK, `--action extract`) sofort mit Segmentation Fault ab
-(Exit 139). Das SDK ist auf dem Pi damit weiterhin nicht nutzbar; die Temperaturwerte dieses Moduls bleiben
-die oben beschriebenen unkalibrierten Schätzungen.
+**Befunde vom 02.11.2026** (ein M4T-R-JPEG 640 × 512, keine Kalibrier- oder Hardwareabnahme):
+
+| Laufzeit | Ergebnis |
+| --- | --- |
+| qemu-user (`--platform linux/amd64`) | `dji_irp` bricht sofort mit Segmentation Fault ab (Exit 139); vermutlich wegen der 16-KiB-Speicherseiten des Pi-5-Kernels |
+| box64 0.3.4 (arm64) | `extract` und `measure` erfolgreich, je etwa 1 s |
+
+Mit Emissionsgrad 0,95, Abstand 5 m, Luftfeuchte 70 % und Reflexion 23 °C lieferte das SDK 20,1–27,6 °C
+(Median 22,9 °C). Die bisherige Schätzung `raw / 64 − 273,15` dieses Moduls wich davon im Median um 0,11 K ab
+(95 % der Pixel ≤ 0,35 K, maximal 1,10 K an den Extremwerten, wo das SDK Emissionsgrad und Reflexion einrechnet).
+Das ist ein Einzelvergleich, keine allgemeine Genauigkeitsaussage; die Weboberfläche nutzt das SDK weiterhin nicht.

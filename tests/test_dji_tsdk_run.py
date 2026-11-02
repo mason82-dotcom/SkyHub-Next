@@ -60,6 +60,9 @@ class DjiTsdkRunTest(unittest.TestCase):
                      "dst=/sdk,readonly", "dst=/input.JPG,readonly"):
             self.assertIn(flag, run)
         self.assertNotIn("--rm", run)  # removal happens explicitly after logs are read
+        # Default runtime is box64 on arm64; the command is prefixed automatically.
+        self.assertIn("--platform linux/arm64", run)
+        self.assertIn("skyhub-dji-box64:trixie box64 ./dji_irp", run)
 
     def test_rejects_invalid_timeout(self):
         result = subprocess.run(["bash", str(SCRIPT), "--timeout", "0", "--sdk", "/", "--input", "/etc/hostname",
