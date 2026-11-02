@@ -104,7 +104,7 @@ Diese Dokumente waren bisher nur über Suche oder PR-Beschreibungen erreichbar. 
 
 **Smart Farming M3M (experimentell, offline)**
 
-- [M3M-Captures: eindeutige Bänder, Metadatenbewertung und Manifest v2](smart-farming-m3m-capture-assessment.md)
+- [M3M-Captures: eindeutige Bänder, GPS-Bewertung v3 und Manifest v2](smart-farming-m3m-capture-assessment.md)
 - [SkyHub-Next Smart Farming – verifizierte experimentelle Kartenkandidaten](smart-farming-m3m-candidate-import.md)
 - [SkyHub Next – DEDAL-Archivinspektion und private Manifest-Nachprüfung](smart-farming-m3m-dedal-archive-inspection.md)
 - [SkyHub Next – M3M DEDAL/ODM → Indexraster: Offline-End-to-End-PoC](smart-farming-m3m-dedal-offline-pipeline.md)
