@@ -10,6 +10,8 @@
   const $=id=>document.getElementById(id);
   if(!core){$('message').textContent='WPML-Modul nicht geladen – kein Export möglich.';return;}
   const points=[];
+  // Fingerprint exists in memory only; never auto-submit or store routes remotely.
+  let lastPublishedDraft=null;
   let map=null,markers=[],line=null,hasFit=false;
   // Undo history of waypoint edits (bounded, in memory only).
   const history=[];
@@ -40,6 +42,25 @@
   }else{
     $('map').textContent='Kartendienst nicht verfügbar. Wegpunkte können weiterhin manuell hinzugefügt und als KMZ exportiert werden.';
     $('map').style.padding='32px 18px';
+  }
+  function editorDraftFingerprint(){
+    // Preserve raw field values, not just Number(...) conversions, so even invalid edits
+    // make the visible draft 'unsaved' until an explicit validated publication.
+    const ids=['name','model','height','speed','takeoff','rth','finish',
+      'photo-trigger','photo-interval','photo-camera-min'];
+    return JSON.stringify({fields:ids.map(id=>$(id)?.value||''),
+      individualHeights:$('local-heights').checked,
+      waypoints:points.map(point=>({...point}))});
+  }
+  function updateDraftSaveState(){
+    const target=$('store-draft-state');
+    if(!target)return;
+    const current=editorDraftFingerprint();
+    target.textContent=lastPublishedDraft===null?
+      'Aktueller Entwurf noch nicht zentral gespeichert.':
+      lastPublishedDraft===current?
+      'Aktueller Entwurf in MinIO gespeichert. Keine ungespeicherten Änderungen.':
+      'Ungespeicherte Änderungen: Zum Veröffentlichen erneut „In MinIO speichern“ wählen.';
   }
   function updateReview(){
     const target=$('mission-review');
@@ -96,6 +117,7 @@
       // Deliberately do not expose untrusted parser or coordinate values.
       target.textContent='Lokale Prüfung fehlgeschlagen oder Eingaben unvollständig. Keine Flugfreigabe.';
     }
+    updateDraftSaveState();
   }
   function normalizeCoordinate(raw,min,max){
     if(typeof raw!=='number'||!Number.isFinite(raw)||raw<min||raw>max)return null;
@@ -511,7 +533,7 @@
       throw new TypeError('Für die Bibliothek verlangt DJI einen eindeutigen Namen (max. 64 Zeichen) ohne < > : " / | ? * . _ \\');
     return name;
   }
-  async function saveToStore(bytes,name){
+  async function saveToStore(bytes,name,{publishedDraft=null}={}){
     // Explicit confirmation contract (UX-CONTRACT.md): name, target, no flight task.
     if(!window.confirm('„'+name+'“ in die SkyHub-Missionsbibliothek (MinIO-Bucket skyhub-wpml) hochladen?\n'+
       'Die Datei wird serverseitig geprüft und unveränderlich abgelegt. Kein Flugauftrag, keine Flugfreigabe.')){
@@ -519,6 +541,10 @@
       return;
     }
     const stored=await store.upload(token(),bytes,name);
+    if(publishedDraft!==null){
+      lastPublishedDraft=publishedDraft;
+      updateDraftSaveState();
+    }
     storeStatus((stored.created?'Gespeichert':'Bereits vorhanden')+': „'+stored.name+'“ · '+
       (stored.validation?.aircraft||'Fluggerät ?')+' · '+(stored.validation?.waypointCount??'?')+
       ' Wegpunkte · ID '+stored.id.slice(0,8)+'… Kein Flugauftrag.');
@@ -529,8 +555,9 @@
     try{
       const name=missionName();
       const output=core.build({...currentPlan(),name});
+      const publishedDraft=editorDraftFingerprint();
       storeStatus('Speichere in MinIO …');
-      await saveToStore(output.kmz,name);
+      await saveToStore(output.kmz,name,{publishedDraft});
     }catch(error){storeStatus(error instanceof Error?error.message:'Speichern fehlgeschlagen.',true);}
   });
   kmzStore.addEventListener('click',async()=>{
