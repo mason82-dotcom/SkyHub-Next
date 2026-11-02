@@ -83,6 +83,8 @@ services:
         source: ./dr-status
         target: /app/dr-status
         read_only: true
+      # Offline OpenStreetMap tile cache (only written with SKYHUB_TILE_CACHE_ENABLED=true).
+      - tile_cache:/app/tile-cache
     environment:
       PORT: "4000"
       # MinIO DR status API enabled by default; composite requires opt-in.
@@ -154,6 +156,11 @@ services:
       SKYHUB_HMS_HISTORY_ENABLED: ${SKYHUB_HMS_HISTORY_ENABLED:-false}
       # Retention applies only while recording is enabled.
       SKYHUB_TRACK_RETENTION_DAYS: ${SKYHUB_TRACK_RETENTION_DAYS:-30}
+      # Map tiles: OFF = redirect to tile.openstreetmap.org (as before); ON = on-demand disk cache that
+      # keeps viewed areas available without internet. No prefetch/bulk download (OSMF tile policy).
+      SKYHUB_TILE_CACHE_ENABLED: ${SKYHUB_TILE_CACHE_ENABLED:-false}
+      SKYHUB_TILE_CACHE_DIR: /app/tile-cache
+      SKYHUB_TILE_CACHE_MAX_MB: ${SKYHUB_TILE_CACHE_MAX_MB:-512}
       REDIS_URL: redis://redis:6379
       DATABASE_URL: postgres://skyhub_next:${SKYHUB_DB_PASSWORD:?Set SKYHUB_DB_PASSWORD}@postgres:5432/skyhub_next
     depends_on:
@@ -196,6 +203,7 @@ volumes:
   pgdata:
   redis_data:
   minio_data:
+  tile_cache:
 networks:
   # Backend <-> thermal-sdk only; internal: no route to the outside.
   thermal_sdk:

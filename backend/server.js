@@ -37,6 +37,7 @@ const {createMqttIngest}=require('./mqtt-ingest');
 const {createHmsHistory}=require('./hms-history');
 const {createPilotAuth}=require('./pilot-auth');
 const {createTsaHub,createTopologyListHandler}=require('./tsa-hub');
+const {createTileCache,createTileRedirect,tileCacheSettings}=require('./tile-cache');
 
 const secret=process.env.SKYHUB_VIEW_TOKEN;
 if(!secret || secret.length<24 || secret.startsWith('REPLACE_')){
@@ -51,11 +52,12 @@ try {
   process.exit(1);
 }
 const pilot=pilotConfiguration(process.env);
-let lanAccess,trackRetentionDays,trustedProxyIps;
+let lanAccess,trackRetentionDays,trustedProxyIps,tileSettings;
 try {
   trustedProxyIps=parseTrustedProxyIps(process.env.SKYHUB_TRUSTED_PROXY_IPS||'');
   lanAccess=createLanAccess(process.env.SKYHUB_LAN_VIEW_CIDR,trustedProxyIps);
   trackRetentionDays=retentionDays(process.env.SKYHUB_TRACK_RETENTION_DAYS);
+  tileSettings=tileCacheSettings(process.env);
 } catch(err) {
   console.error('[config]',err.message);
   process.exit(1);
@@ -75,6 +77,8 @@ if(tsaWanted&&!pilot.ready)console.error('[tsa] disabled: Pilot 2 configuration 
 const tsaActive=tsaWanted&&pilot.ready;
 const io=new Server(server,{maxHttpBufferSize:131072,...(tsaActive?{destroyUpgrade:false}:{})});
 const registry=createRegistry();
+const tiles=tileSettings.enabled?createTileCache(tileSettings):createTileRedirect();
+if(tileSettings.enabled)console.log('[tiles] offline OSM tile cache active, limit '+Math.round(tileSettings.maxBytes/1048576)+' MB');
 const mqttStats=createMqttMetrics();
 const mqttShapes=createShapeCatalog();
 const mqttModelShapes=createModelShapeCatalog();
@@ -173,6 +177,7 @@ app.get('/api/health',(req,res)=>res.json({
   topologyReplyLastAt:ack.lastAt,topologyRestoredDevices:topologyRestored,
   lanViewEnabled:lanAccess.enabled,...trackRecorder.snapshot(),
   trackRetentionDays,...mqttStats.snapshot(),...ingest.cacheStats(),
+  tileCache:tiles.stats(),
   ...(tsaHub?{tsa:tsaHub.stats()}:{}),
   ...(mediaUpload?{pilotMediaUpload:mediaUpload.stats()}:{})
 }));
@@ -311,6 +316,8 @@ app.get('/api/drone/:sn/telemetry',(req,res)=>{
   if(!d)return res.status(404).json({error:'Device not observed'});
   res.json(d);
 });
+// Map tiles: on-demand offline cache (opt-in) or redirect to OpenStreetMap; no token, no API data.
+app.use(tiles.router);
 // Self-hosted third-party libraries (no CDN at runtime, works offline in the field).
 // Paths carry the exact version, so the files can be cached as immutable.
 app.use('/vendor',express.static(path.resolve(__dirname,'../frontend/public/vendor'),
