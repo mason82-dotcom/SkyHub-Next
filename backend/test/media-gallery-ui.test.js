@@ -102,8 +102,13 @@ test('gallery page asks for no token or password and renders without innerHTML',
 test('no page of the web UI contains a token or password prompt',()=>{
   for(const name of ['index.html','media-gallery.html','thermal.html','smart-farming.html','pilot-login.html',
     'wpml-editor.html','wpml-route-library.html','wpml-survey-preview.html']){
-    assert.doesNotMatch(file(name),/type="password"/,name);
+    // Sole documented exception (UX-CONTRACT.md, WPML-Missionsbibliothek): the explicit
+    // write section of the mission editor. Every other password prompt stays forbidden.
+    const html=name==='wpml-editor.html'?
+      file(name).replace(/<input id="store-token" type="password" autocomplete="off"[^>]*>/,''):file(name);
+    assert.doesNotMatch(html,/type="password"/,name);
   }
+  assert.equal((file('wpml-editor.html').match(/type="password"/g)||[]).length,1);
 });
 
 test('media navigation exists on all five existing workspace pages',()=>{

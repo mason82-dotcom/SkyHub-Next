@@ -60,11 +60,13 @@ def guard(page, base: str, *, real_map: bool, unexpected: list[str]) -> None:
             return
         if real_map and url == "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js":
             route.fulfill(path=str(LEAFLET_DIST / "leaflet.js"),
-                          content_type="application/javascript")
+                          content_type="application/javascript",
+                          headers={"Access-Control-Allow-Origin": "*"})
             return
         if real_map and url == "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css":
             route.fulfill(path=str(LEAFLET_DIST / "leaflet.css"),
-                          content_type="text/css")
+                          content_type="text/css",
+                          headers={"Access-Control-Allow-Origin": "*"})
             return
         if real_map and url.endswith("marker-icon.png"):
             route.fulfill(path=str(LEAFLET_DIST / "images" / "marker-icon.png"),

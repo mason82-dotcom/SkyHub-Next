@@ -95,6 +95,7 @@ Diese Dokumente waren bisher nur über Suche oder PR-Beschreibungen erreichbar. 
 
 - [Motecshine DJI Waylines SDK als SkyHub-Next-Referenz](dji-waylines-sdk-reference.md)
 - [FlightHub-inspirierte Missionsprüfung – reiner Offline-Entwurf](dji-wpml-draft-review.md)
+- [WPML-Missionsbibliothek auf MinIO S3 und DJI-Pilot-2-Waylinebibliothek (02.11.2026, opt-in)](wpml-mission-library.md)
 - [DJI WPML / KMZ – SkyHub Next (21.10.2026)](dji-wpml-integration.md)
 - [DJI Mavic 3M – Offline-Kamera-/Kadenzreferenzen (nicht flugfähig)](wpml-m3m-camera-reference.md)
 - [Mavic 3M: unabhängiger RGB-/Multispektral-Footprint (Offline-Vergleich)](wpml-m3m-dual-optics.md)

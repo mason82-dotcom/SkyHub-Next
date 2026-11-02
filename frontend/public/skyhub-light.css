@@ -365,6 +365,14 @@ body[data-skyhub-page="survey"] #status {
   border: 1px solid var(--sky-border); border-radius: 10px;
 }
 body[data-skyhub-page="wpml-editor"] .warning { color: var(--sky-warning); }
+body[data-skyhub-page="wpml-editor"] .store-item {
+  background: var(--sky-soft); color: var(--sky-ink); border: 1px solid var(--sky-border); border-radius: 12px;
+}
+body[data-skyhub-page="wpml-editor"] .store-item small { color: var(--sky-muted); }
+body[data-skyhub-page="wpml-editor"] .notes {
+  color: var(--sky-warning); background: var(--sky-warning-soft);
+  border: 1px solid #efdcb7; border-radius: 10px; padding: 8px 10px 8px 26px;
+}
 body[data-skyhub-page="survey"] .warning {
   color: var(--sky-warning); background: var(--sky-warning-soft);
   border: 1px solid #efdcb7; border-radius: 12px;

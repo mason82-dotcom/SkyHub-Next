@@ -6,7 +6,7 @@
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="robots" content="noindex,nofollow">
 <title>SkyHub Next · WPML Missionsentwurf</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous">
 <style>
 :root{color-scheme:light;--bg:#081321;--panel:#102338;--edge:#2f4a63;--accent:#44c6e5;--ink:#f0f7ff;--muted:#a8bdd0;--danger:#ffcb7d}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px system-ui,"Segoe UI",sans-serif}
@@ -34,6 +34,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 fieldset{border:0;padding:0;margin:0}
 hr{border:0;border-top:1px solid var(--edge);margin:16px 0}
 .caption{font-size:12px;line-height:1.45;color:var(--muted)}
+.notes{margin:8px 0 0;padding-left:18px;font-size:12px;line-height:1.45;color:var(--danger)}
+.store-item{border:1px solid var(--edge);padding:8px 10px;border-radius:8px;margin:6px 0;background:#132c42}
+.store-item small{display:block;margin:3px 0 6px}
 @media(max-width:880px){main{grid-template-columns:1fr}.map-wrap{height:43vh;min-height:280px}#map{min-height:280px}aside{max-height:none;border-left:0;border-top:1px solid var(--edge)}}
 </style>
 <link rel="stylesheet" href="/skyhub-light.css">
@@ -41,7 +44,7 @@ hr{border:0;border-top:1px solid var(--edge);margin:16px 0}
 <body data-skyhub-page="wpml-editor">
 <a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
 <header>
-  <div><h1>SkyHub <span>WPML Missionsentwurf</span></h1><small>DJI Cloud API 1.18 · ausschließlich Offline-Dateierstellung</small></div>
+  <div><h1>SkyHub <span>WPML Missionsentwurf</span></h1><small>DJI Cloud API 1.18 · lokaler Entwurf, optional validierte MinIO-Bibliothek · kein Flugauftrag</small></div>
   <nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
   <a href="/">Übersicht</a>
   <a href="/wpml-editor.html" aria-current="page">Missionen</a>
@@ -59,8 +62,20 @@ hr{border:0;border-top:1px solid var(--edge);margin:16px 0}
  </section>
  <aside>
   <h2>Mission konfigurieren</h2>
-  <p class="caption">Die Verarbeitung erfolgt lokal im Browser. WPML/XML oder GPS-Koordinaten werden nicht an den SkyHub-Server gesendet. Kartenausschnitte werden gegebenenfalls von OpenStreetMap geladen.</p>
+  <p class="caption">Die Verarbeitung erfolgt lokal im Browser. WPML/XML oder GPS-Koordinaten werden nur dann an den SkyHub-Server (MinIO-Missionsbibliothek) gesendet, wenn Sie dort ausdrücklich „Speichern“ wählen. Kartenausschnitte werden gegebenenfalls von OpenStreetMap geladen.</p>
   <form id="mission-form" autocomplete="off">
+   <h2>Mission hochladen (WPML-KMZ)</h2>
+   <label for="kmz-import-file">KMZ-Datei aus DJI Pilot 2, FlightHub 2 oder SkyHub</label>
+   <input id="kmz-import-file" type="file" accept=".kmz,application/vnd.google-earth.kmz,application/zip">
+   <div class="tools">
+     <button type="button" id="kmz-import-apply" disabled>In Editor übernehmen</button>
+     <button type="button" id="kmz-import-store" disabled>Original in MinIO ablegen</button>
+     <button type="button" id="kmz-import-discard" disabled>Verwerfen</button>
+   </div>
+   <div id="kmz-import-preview" role="status" aria-live="polite" class="caption">Keine KMZ-Datei ausgewählt. Der aktuelle Missionsentwurf bleibt unverändert.</div>
+   <ul id="kmz-import-notes" class="notes" hidden></ul>
+   <p class="caption">Die Datei wird lokal entpackt (CRC-geprüft, max. 12 MiB) und nur als Wegpunktvorlage mit Höhe relativ zum Startpunkt übernommen. Was der Editor nicht abbilden kann (z. B. Gimbal-, Zoom- oder POI-Aktionen, eigene Geschwindigkeiten, abweichendes RC-Verlustverhalten), wird vor der Übernahme aufgelistet und beim Export NICHT mitgeschrieben. „Original in MinIO ablegen“ speichert die Datei unverändert nach Server-Validierung. Kein Flugauftrag.</p>
+   <hr>
    <h2>Waylines-JSON importieren (Referenz-SDK)</h2>
    <label for="waylines-reference-file">Lokale JSON-Datei</label>
    <input id="waylines-reference-file" type="file" accept=".json,application/json">
@@ -92,7 +107,7 @@ hr{border:0;border-top:1px solid var(--edge);margin:16px 0}
     <div><label for="latitude">Breitengrad (°)</label><input id="latitude" type="number" step="any" min="-90" max="90" placeholder="48.12345"></div>
     <div><label for="longitude">Längengrad (°)</label><input id="longitude" type="number" step="any" min="-180" max="180" placeholder="8.12345"></div>
    </div>
-   <div class="tools"><button type="button" id="add">Koordinate hinzufügen</button><button type="button" id="clear">Route leeren</button><button type="button" id="fit">Route einpassen</button></div>
+   <div class="tools"><button type="button" id="add">Koordinate hinzufügen</button><button type="button" id="undo" disabled title="Letzte Wegpunktänderung rückgängig machen">Rückgängig</button><button type="button" id="reverse">Richtung umkehren</button><button type="button" id="clear">Route leeren</button><button type="button" id="fit">Route einpassen</button></div>
    <div id="waypoints" role="list" aria-label="Wegpunktliste"></div>
    <hr>
    <h2>Intervall-Fotoaktion (experimenteller WPML-Entwurf)</h2>
@@ -122,12 +137,27 @@ hr{border:0;border-top:1px solid var(--edge);margin:16px 0}
    <p class="caption">Ausgegeben werden template.kml und waylines.wpml im KMZ-Archiv. Wegpunkte, relative und WGS84-Ellipsoidhöhen sowie experimentelle, noch nicht in DJI Pilot 2 geprüfte Intervall-Fotoaktionen. Mapping2D/3D, Korridore, Terrain-Referenzen und Multispektralaktionen werden hier noch nicht zu Missionswegen berechnet.</p>
    <div id="message" role="status" aria-live="polite">Mindestens zwei unterschiedliche Wegpunkte setzen.</div>
    <p class="warning">Keine Flugfreigabe. DJI Pilot 2 muss die Mission prüfen. Keine Geofencing-, Terrain-, Kollisions- oder Kamerakompatibilitätsgarantie.</p>
+   <hr>
+   <section aria-label="MinIO-Missionsbibliothek">
+     <h2>Missionsbibliothek (MinIO S3)</h2>
+     <p class="caption">Validierte KMZ-Dateien werden im SkyHub-Bucket <code>skyhub-wpml</code> unveränderlich abgelegt (Inhalts-Hash als ID, kein Überschreiben, kein Löschen über SkyHub). Nur mit SkyHub-Zugangstoken; der Token bleibt ausschließlich im Arbeitsspeicher dieser Seite. Ablage ist KEINE Übertragung an DJI Pilot 2 und KEIN Flugauftrag.</p>
+     <label for="store-token">SkyHub-Zugangstoken</label>
+     <input id="store-token" type="password" autocomplete="off" spellcheck="false" placeholder="Bearer-Token (wird nicht gespeichert)">
+     <div class="tools">
+       <button type="button" id="store-save">Entwurf in MinIO speichern</button>
+       <button type="button" id="store-refresh">Bibliothek laden</button>
+     </div>
+     <div id="store-status" role="status" aria-live="polite" class="caption">Bibliothek noch nicht geladen.</div>
+     <div id="store-list" role="list" aria-label="Gespeicherte Missionen"></div>
+   </section>
   </form>
  </aside>
 </main>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
 <script src="/wpml-interval-actions.js"></script>
 <script src="/wpml-editor-core.js"></script>
+<script src="/wpml-kmz-import-core.js"></script>
+<script src="/wpml-mission-store-client.js"></script>
 <script src="/wpml-waylines-reference.js"></script>
 <script src="/wpml-mission-review.js"></script>
 <script src="/wpml-editor.js"></script>

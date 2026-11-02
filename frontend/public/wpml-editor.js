@@ -4,10 +4,26 @@
   const core=window.SkyHubWpmlPlanner;
   const reference=window.SkyHubWpmlWaylinesReference;
   const reviewCore=window.SkyHubWpmlMissionReview;
+  // KMZ import is local; the store client is the editor's only (explicit) network path.
+  const kmzImport=window.SkyHubWpmlKmzImport;
+  const store=window.SkyHubWpmlMissionStore;
   const $=id=>document.getElementById(id);
   if(!core){$('message').textContent='WPML-Modul nicht geladen – kein Export möglich.';return;}
   const points=[];
   let map=null,markers=[],line=null,hasFit=false;
+  // Undo history of waypoint edits (bounded, in memory only).
+  const history=[];
+  function remember(){
+    history.push(points.map(p=>({...p})));
+    if(history.length>50)history.shift();
+  }
+  function undo(){
+    const previous=history.pop();
+    if(!previous)return;
+    points.splice(0,points.length,...previous);
+    render();
+    renderMessage('Letzte Wegpunktänderung rückgängig gemacht.');
+  }
   const renderMessage=(message,error=false)=>{
     $('message').textContent=message;
     $('message').style.color=error?'var(--sky-warning)':'var(--sky-ink)';
@@ -93,6 +109,7 @@
       renderMessage('Aufeinanderfolgende identische Wegpunkte sind nicht erlaubt.',true);return;
     }
     const defaultHeight=Number($('height').value);
+    remember();
     points.push({lat:latitude,lon:longitude,height:defaultHeight,photo:false});
     $('latitude').value=String(latitude);
     $('longitude').value=String(longitude);
@@ -100,6 +117,7 @@
   }
   function swap(i,j){
     if(j<0||j>=points.length)return;
+    remember();
     [points[i],points[j]]=[points[j],points[i]];
     render();
   }
@@ -161,8 +179,26 @@
       const controls=document.createElement('div');controls.className='actions';
       const up=action('↑',()=>swap(index,index-1));up.disabled=index===0;up.title='Wegpunkt nach oben';
       const down=action('↓',()=>swap(index,index+1));down.disabled=index===points.length-1;down.title='Wegpunkt nach unten';
-      const deleteButton=action('Entfernen',()=>{points.splice(index,1);render();});
+      const deleteButton=action('Entfernen',()=>{remember();points.splice(index,1);render();});
       controls.append(up,down,deleteButton);
+      if(index<points.length-1&&points.length<500){
+        // Geometric midpoint between two neighbours (short-arc safe for small legs).
+        const insert=action('+ Mitte',()=>{
+          const next=points[index+1];
+          let dLon=next.lon-point.lon;
+          if(dLon>180)dLon-=360;else if(dLon<-180)dLon+=360;
+          let lon=point.lon+dLon/2;
+          if(lon>180)lon-=360;else if(lon<-180)lon+=360;
+          remember();
+          points.splice(index+1,0,{lat:normalizeCoordinate((point.lat+next.lat)/2,-90,90),
+            lon:normalizeCoordinate(lon,-180,180),height:point.height,photo:false});
+          render();
+          renderMessage('Wegpunkt zwischen '+(index+1)+' und '+(index+2)+' eingefügt.'+
+            ($('local-heights').checked?' Bitte Ellipsoidhöhe des neuen Wegpunkts messen und eintragen.':''));
+        });
+        insert.title='Wegpunkt in der Mitte zum nächsten einfügen';
+        controls.append(insert);
+      }
       item.appendChild(controls);
       list.appendChild(item);
     });
@@ -180,6 +216,7 @@
         .addTo(map);
       marker.on('dragend',()=>{
         const pos=marker.getLatLng();
+        remember();
         p.lat=normalizeCoordinate(pos.lat,-90,90);
         p.lon=normalizeCoordinate(pos.lng,-180,180);
         render();
@@ -199,6 +236,9 @@
   function render(){
     renderList();renderMap();updateReview();
     $('export').disabled=points.length<2;
+    $('undo').disabled=history.length===0;
+    $('reverse').disabled=points.length<2;
+    if($('store-save'))$('store-save').disabled=points.length<2||!store;
     if(points.length<2)renderMessage('Mindestens zwei unterschiedliche Wegpunkte setzen.');
     else renderMessage(points.length+' Wegpunkte vorgemerkt. Der KMZ-Export erfolgt lokal.');
   }
@@ -210,7 +250,13 @@
   $('clear').addEventListener('click',()=>{
     if(!points.length)return;
     if(!window.confirm('Alle Wegpunkte aus dem Entwurf entfernen?'))return;
-    points.length=0;hasFit=false;render();
+    remember();points.length=0;hasFit=false;render();
+  });
+  $('undo').addEventListener('click',undo);
+  $('reverse').addEventListener('click',()=>{
+    if(points.length<2)return;
+    remember();points.reverse();render();
+    renderMessage('Flugrichtung umgekehrt; Fotomarkierungen bleiben an ihren Wegpunkten.');
   });
   $('fit').addEventListener('click',fitRoute);
   let pendingReference=null;
@@ -288,6 +334,7 @@
     $('local-heights').checked=false;
     $('photo-trigger').value='reachPoint';
     $('photo-interval-fields').hidden=true;
+    remember();
     points.splice(0,points.length,...mapped.plan.waypoints.map(p=>({...p})));
     hasFit=false;
     render();
@@ -314,34 +361,45 @@
     if(interval)renderMessage('Experimentelle Intervall-Fotoaktion: kein gerätegeprüfter DJI-Flugauftrag.');
   }
   $('photo-trigger').addEventListener('change',photoModeUpdate);
+  function currentPlan(){
+    const height=Number($('height').value);
+    const triggerMode=$('photo-trigger').value;
+    const intervalPhotos=triggerMode==='reachPoint'?undefined:{
+      type:triggerMode,interval:$('photo-interval').value,
+      ...($('photo-camera-min').value.trim()===''?{}:{
+        cameraMinIntervalSeconds:$('photo-camera-min').value})
+    };
+    return {
+      name:$('name').value,model:$('model').value,speed:Number($('speed').value),
+      takeoffHeight:Number($('takeoff').value),finishAction:$('finish').value,
+      ...(intervalPhotos?{intervalPhotos}:{}),
+      waypoints:points.map(p=>$('local-heights').checked?
+        {lat:p.lat,lon:p.lon,height:p.height,ellipsoidHeight:p.ellipsoidHeight,photo:p.photo}:
+        {lat:p.lat,lon:p.lon,height,photo:p.photo})
+    };
+  }
+  // ASCII-only, filesystem-safe download name derived from the mission name.
+  function fileStem(name){
+    const stem=String(name||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/ß/g,'ss').replace(/[^A-Za-z0-9._-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60);
+    return stem||'skyhub-waypoint';
+  }
+  function downloadKmz(bytes,stem){
+    const blob=new Blob([bytes],{type:'application/vnd.google-earth.kmz'});
+    const url=URL.createObjectURL(blob);
+    const anchor=document.createElement('a');
+    anchor.href=url;anchor.download=stem+'.kmz';
+    document.body.appendChild(anchor);anchor.click();anchor.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),30000);
+  }
   $('mission-form').addEventListener('submit',event=>{
     event.preventDefault();
     if(!event.currentTarget.reportValidity())return;
     try{
-      const height=Number($('height').value);
-      const triggerMode=$('photo-trigger').value;
-      const intervalPhotos=triggerMode==='reachPoint'?undefined:{
-        type:triggerMode,interval:$('photo-interval').value,
-        ...($('photo-camera-min').value.trim()===''?{}:{
-          cameraMinIntervalSeconds:$('photo-camera-min').value})
-      };
-      const plan={
-        name:$('name').value,model:$('model').value,speed:Number($('speed').value),
-        takeoffHeight:Number($('takeoff').value),finishAction:$('finish').value,
-        ...(intervalPhotos?{intervalPhotos}:{}),
-        waypoints:points.map(p=>$('local-heights').checked?
-          {lat:p.lat,lon:p.lon,height:p.height,ellipsoidHeight:p.ellipsoidHeight,photo:p.photo}:
-          {lat:p.lat,lon:p.lon,height,photo:p.photo})
-      };
+      const plan=currentPlan();
       const output=core.build(plan);
       // ZIP construction and XML generation run only on this device.
-      const bytes=output.kmz;
-      const blob=new Blob([bytes],{type:'application/vnd.google-earth.kmz'});
-      const url=URL.createObjectURL(blob);
-      const anchor=document.createElement('a');
-      anchor.href=url;anchor.download='skyhub-waypoint-'+Date.now()+'.kmz';
-      document.body.appendChild(anchor);anchor.click();anchor.remove();
-      setTimeout(()=>URL.revokeObjectURL(url),30000);
+      downloadKmz(output.kmz,fileStem(output.summary.name)+'-'+Date.now());
       renderMessage('Lokaler KMZ-Entwurf erzeugt: '+output.summary.waypointCount+
         ' Wegpunkte, '+output.summary.photoCount+' einzelne Fotoaktionen'+
         (output.summary.intervalPhotos?
@@ -351,6 +409,174 @@
     }catch(error){
       renderMessage(error instanceof Error?error.message:'KMZ konnte nicht erzeugt werden.',true);
     }
+  });
+  // ---- KMZ upload: local parse -> staged preview -> explicit apply -------------
+  const DJI_NAME=/^[^<>:"/|?*._\\]+$/;
+  let staged=null,stagedBytes=null,kmzGeneration=0;
+  const kmzApply=$('kmz-import-apply'),kmzStore=$('kmz-import-store'),kmzDiscard=$('kmz-import-discard');
+  const kmzPreview=$('kmz-import-preview'),kmzNotes=$('kmz-import-notes');
+  function resetKmz(message,error=false){
+    staged=null;stagedBytes=null;
+    kmzApply.disabled=true;kmzStore.disabled=true;kmzDiscard.disabled=true;
+    kmzPreview.textContent=message;
+    kmzPreview.style.color=error?'var(--sky-warning)':'var(--sky-muted)';
+    kmzNotes.replaceChildren();kmzNotes.hidden=true;
+  }
+  function showNotes(notes){
+    kmzNotes.replaceChildren();
+    for(const note of notes){
+      const li=document.createElement('li');li.textContent=note;kmzNotes.appendChild(li);
+    }
+    kmzNotes.hidden=notes.length===0;
+  }
+  async function stageKmz(bytes,fileName,{storable}){
+    const generation=++kmzGeneration;
+    resetKmz('KMZ wird lokal geprüft …');
+    try{
+      if(!kmzImport)throw new TypeError('KMZ-Importmodul nicht geladen.');
+      const result=await kmzImport.importKmz(bytes,{fileName,models:core.MODELS});
+      if(generation!==kmzGeneration)return;
+      // Dry-run the exporter's validator before anything in the editor changes.
+      core.normalize(result.plan);
+      staged=result;
+      stagedBytes=storable?bytes:null;
+      kmzApply.disabled=false;kmzDiscard.disabled=false;kmzStore.disabled=!storable||!store;
+      const r=result.review;
+      kmzPreview.textContent='Geprüfte KMZ (WPML '+r.wpmlVersion+'): '+r.aircraft+', '+
+        r.waypointCount+' Wegpunkte, '+(r.intervalPhotos?'Intervallfotos ('+r.intervalPhotos.type+')':
+        r.photoCount+' Wegpunktfotos')+(result.localHeights?', individuelle Höhen':'')+'. '+
+        (result.notes.length?result.notes.length+' Abweichung(en) unten beachten – sie gehen beim Übernehmen verloren.':
+          'Keine Abweichungen gegenüber dem Editor-Modell erkannt.')+' Kein DJI-Hardwaretest.';
+      kmzPreview.style.color=result.notes.length?'var(--sky-warning)':'var(--sky-muted)';
+      showNotes(result.notes);
+      renderMessage('KMZ lokal geprüft. Bestehende Mission unverändert; zum Übernehmen den Button benutzen.');
+    }catch(error){
+      if(generation!==kmzGeneration)return;
+      const message=error&&typeof error.message==='string'?error.message.slice(0,220):'KMZ-Import fehlgeschlagen.';
+      resetKmz(message,true);
+      renderMessage(message,true);
+    }
+  }
+  $('kmz-import-file').addEventListener('change',async event=>{
+    const input=event.currentTarget;
+    const file=input.files&&input.files[0];
+    if(!file){resetKmz('Keine KMZ-Datei ausgewählt.');return;}
+    try{
+      if(file.size>12*1024*1024){resetKmz('KMZ-Datei überschreitet 12 MiB.',true);return;}
+      await stageKmz(new Uint8Array(await file.arrayBuffer()),file.name,{storable:true});
+    }finally{input.value='';}
+  });
+  kmzDiscard.addEventListener('click',()=>{++kmzGeneration;resetKmz('Import verworfen. Bestehender Entwurf unverändert.');});
+  kmzApply.addEventListener('click',()=>{
+    if(!staged)return;
+    if(staged.notes.length&&!window.confirm(staged.notes.length+
+      ' Abweichung(en) gehen beim Übernehmen verloren (siehe Liste). Trotzdem übernehmen?'))return;
+    if(points.length>0&&!window.confirm('Vorhandene Wegpunkte durch die importierte Mission ersetzen?'))return;
+    const result=staged,plan=result.plan;
+    $('name').value=plan.name;
+    $('model').value=plan.model;
+    $('speed').value=String(plan.speed);
+    $('takeoff').value=String(plan.takeoffHeight);
+    $('finish').value=plan.finishAction;
+    $('local-heights').checked=result.localHeights;
+    if(!result.localHeights)$('height').value=String(result.globalHeight);
+    $('photo-trigger').value=plan.intervalPhotos?plan.intervalPhotos.type:'reachPoint';
+    photoModeUpdate();
+    if(plan.intervalPhotos)$('photo-interval').value=String(plan.intervalPhotos.interval);
+    remember();
+    points.splice(0,points.length,...plan.waypoints.map(p=>({...p})));
+    hasFit=false;
+    render();
+    ++kmzGeneration;
+    resetKmz('Mission übernommen'+(result.notes.length?' ('+result.notes.length+' Abweichungen verworfen)':'')+'.');
+    renderMessage('KMZ-Mission lokal übernommen ('+points.length+' Wegpunkte). Kein Flugauftrag, keine Flugfreigabe.');
+  });
+
+  // ---- MinIO mission library (authenticated SkyHub API, explicit actions only) ---
+  // The token lives only in this input field and this closure; it is never persisted.
+  const token=()=>$('store-token').value.trim();
+  const storeStatus=(message,error=false)=>{
+    $('store-status').textContent=message;
+    $('store-status').style.color=error?'var(--sky-warning)':'var(--sky-muted)';
+  };
+  $('store-token').addEventListener('keydown',event=>{if(event.key==='Enter')event.preventDefault();});
+  function missionName(){
+    const name=$('name').value.trim();
+    if(!name||name.length>64||!DJI_NAME.test(name))
+      throw new TypeError('Für die Bibliothek verlangt DJI einen eindeutigen Namen (max. 64 Zeichen) ohne < > : " / | ? * . _ \\');
+    return name;
+  }
+  async function saveToStore(bytes,name){
+    // Explicit confirmation contract (UX-CONTRACT.md): name, target, no flight task.
+    if(!window.confirm('„'+name+'“ in die SkyHub-Missionsbibliothek (MinIO-Bucket skyhub-wpml) hochladen?\n'+
+      'Die Datei wird serverseitig geprüft und unveränderlich abgelegt. Kein Flugauftrag, keine Flugfreigabe.')){
+      storeStatus('Upload abgebrochen. Nichts gesendet.');
+      return;
+    }
+    const stored=await store.upload(token(),bytes,name);
+    storeStatus((stored.created?'Gespeichert':'Bereits vorhanden')+': „'+stored.name+'“ · '+
+      (stored.validation?.aircraft||'Fluggerät ?')+' · '+(stored.validation?.waypointCount??'?')+
+      ' Wegpunkte · ID '+stored.id.slice(0,8)+'… Kein Flugauftrag.');
+    await refreshStore();
+  }
+  $('store-save').addEventListener('click',async()=>{
+    if(!store){storeStatus('Bibliotheksmodul nicht geladen.',true);return;}
+    try{
+      const name=missionName();
+      const output=core.build({...currentPlan(),name});
+      storeStatus('Speichere in MinIO …');
+      await saveToStore(output.kmz,name);
+    }catch(error){storeStatus(error instanceof Error?error.message:'Speichern fehlgeschlagen.',true);}
+  });
+  kmzStore.addEventListener('click',async()=>{
+    if(!store||!stagedBytes||!staged)return;
+    try{
+      const name=staged.plan.name.trim();
+      if(!DJI_NAME.test(name)||name.length>64)
+        throw new TypeError('Dateiname ist kein gültiger DJI-Wayline-Name (keine . _ : usw.). Datei umbenennen.');
+      storeStatus('Lege Original-KMZ in MinIO ab …');
+      await saveToStore(stagedBytes,name);
+    }catch(error){storeStatus(error instanceof Error?error.message:'Ablage fehlgeschlagen.',true);}
+  });
+  function storeItem(mission){
+    const item=document.createElement('div');
+    item.className='store-item';item.setAttribute('role','listitem');
+    const title=document.createElement('strong');title.textContent=mission.name||'(ohne Namen)';
+    const detail=document.createElement('small');
+    const when=mission.createTime?new Date(mission.createTime).toLocaleString('de-DE'):'Zeit unbekannt';
+    detail.textContent=(mission.aircraft||mission.droneModelKey||'Fluggerät ?')+' · '+
+      (mission.waypointCount??'?')+' Wegpunkte · WPML '+(mission.wpmlVersion||'?')+' · '+when;
+    const controls=document.createElement('div');controls.className='tools';
+    const load=action('In Editor laden',async()=>{
+      try{
+        storeStatus('Lade „'+(mission.name||mission.id)+'“ …');
+        const bytes=await store.download(token(),mission.id);
+        // Re-imported missions are already stored; offer no second upload.
+        await stageKmz(bytes,(mission.name||'Mission')+'.kmz',{storable:false});
+        storeStatus('Mission geladen und lokal geprüft – oben unter „Mission hochladen“ übernehmen.');
+      }catch(error){storeStatus(error instanceof Error?error.message:'Laden fehlgeschlagen.',true);}
+    });
+    const save=action('KMZ herunterladen',async()=>{
+      try{downloadKmz(await store.download(token(),mission.id),fileStem(mission.name));}
+      catch(error){storeStatus(error instanceof Error?error.message:'Download fehlgeschlagen.',true);}
+    });
+    controls.append(load,save);
+    item.append(title,detail,controls);
+    return item;
+  }
+  async function refreshStore(){
+    const list=await store.list(token(),{pageSize:50});
+    $('store-list').replaceChildren(...list.list.map(storeItem));
+    if(!list.list.length)storeStatus('Bibliothek ist leer.');
+    return list;
+  }
+  $('store-refresh').addEventListener('click',async()=>{
+    if(!store){storeStatus('Bibliotheksmodul nicht geladen.',true);return;}
+    try{
+      storeStatus('Lade Bibliothek …');
+      const list=await refreshStore();
+      if(list.list.length)storeStatus(list.pagination.total+' Mission(en) in MinIO. Ablage ist keine Übertragung an DJI Pilot 2.');
+    }catch(error){storeStatus(error instanceof Error?error.message:'Bibliothek nicht erreichbar.',true);}
   });
   render();
 })();
