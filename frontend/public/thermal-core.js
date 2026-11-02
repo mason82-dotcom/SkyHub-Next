@@ -5,6 +5,10 @@
 const KELVIN=273.15;
 const ESTIMATE='Schätzung aus Rohdaten (raw/64-273,15), keine DJI-Kalibrierung';
 const CALCULATION='skyhub-thermal-estimate-v2';
+const SDK_LABEL='DJI Thermal SDK (dji_irp V1.7 über box64): Kalibrierung durch DJI mit den angegebenen Parametern';
+const SDK_CALCULATION='skyhub-thermal-dji-tsdk-v1';
+// dji_irp V1.7 --action measure ranges (same as backend/thermal-sdk.js and the SDK service).
+const SDK_RANGES=Object.freeze({emissivity:[0.1,1],distance:[1,25],humidity:[20,100],ambient:[-40,80],reflection:[-40,500]});
 
 function rawToCelsius(raw){return raw/64-KELVIN;}
 
@@ -117,7 +121,7 @@ function format(t,digits=1){
   return Number.isFinite(t)?t.toLocaleString('de-DE',{minimumFractionDigits:digits,maximumFractionDigits:digits})+' °C':'—';
 }
 
-const api=Object.freeze({KELVIN,ESTIMATE,CALCULATION,rawToCelsius,correct,temperatures,regionStats,histogram,lut,render,
+const api=Object.freeze({KELVIN,ESTIMATE,CALCULATION,SDK_LABEL,SDK_CALCULATION,SDK_RANGES,rawToCelsius,correct,temperatures,regionStats,histogram,lut,render,
   PALETTE_LABELS,PALETTES:Object.keys(STOPS),csv,matrixCsv,format});
 if(typeof module==='object'&&module.exports)module.exports=api;
 if(root)root.SkyhubThermal=api;

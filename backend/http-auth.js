@@ -11,7 +11,7 @@ const lanReadPatterns=[
   /^\/drone\/[^/]+\/(track|telemetry)$/,
   /^\/media\/(status|buckets|objects|summary|index|file|thumb|mission|m3m\/inventory)$/,
   /^\/smart-farming\/candidates(\/[^/]+)*\/?$/,
-  /^\/thermal\/(list|meta|raw)$/,
+  /^\/thermal\/(list|meta|raw|measure)$/,
   /^\/smart-farming\/captures(\/manifest)?\/?$/
 ];
 

@@ -87,4 +87,36 @@ automatisch voran. Isolation: kein Netz, schreibgeschütztes Dateisystem, keine 
 Mit Emissionsgrad 0,95, Abstand 5 m, Luftfeuchte 70 % und Reflexion 23 °C lieferte das SDK 20,1–27,6 °C
 (Median 22,9 °C). Die bisherige Schätzung `raw / 64 − 273,15` dieses Moduls wich davon im Median um 0,11 K ab
 (95 % der Pixel ≤ 0,35 K, maximal 1,10 K an den Extremwerten, wo das SDK Emissionsgrad und Reflexion einrechnet).
-Das ist ein Einzelvergleich, keine allgemeine Genauigkeitsaussage; die Weboberfläche nutzt das SDK weiterhin nicht.
+Das ist ein Einzelvergleich, keine allgemeine Genauigkeitsaussage.
+
+## DJI Thermal SDK in der Weboberfläche (opt-in)
+
+Ist der Dienst `thermal-sdk` aktiv, bietet `/thermal.html` den Umschalter **„DJI Thermal SDK (kalibriert)“ / „Schätzung“**
+sowie Abstand (Vorschlag aus dem Laserentfernungsmesser), Luftfeuchte und Umgebungstemperatur. Ohne Dienst bleibt die
+Seite unverändert bei der Schätzung.
+
+```
+Browser ─► Backend GET /api/thermal/measure ─(internes Netz thermal_sdk, Token)─► thermal-sdk (box64 + dji_irp)
+             └─ liest das R-JPEG erneut aus MinIO und prüft SHA-256 = angezeigte Bildversion (sonst 409)
+```
+
+- **Dienst** `docker/dji-tsdk-box64/sdk_server.py` (Compose-Profil `thermal-sdk`): nur internes Netz, kein Host-Port,
+  schreibgeschütztes Dateisystem, keine Capabilities, 1 CPU / 1 GiB / 64 Prozesse, eigener Benutzer; ein SDK-Lauf
+  gleichzeitig, höchstens zwei wartend, 30 s Frist je Lauf (Prozessgruppe wird nativ beendet). SDK-Ausgaben werden nie
+  an Clients weitergegeben. Das Backend bekommt **keinen** Docker-Socket.
+- **Backend** `backend/thermal-sdk.js`: prüft Parameter mit denselben Grenzen (ablehnen statt anpassen), Ausgabeformat und
+  Plausibilität (endliche Werte); `/api/thermal/meta` meldet `sdk.available`. Ergebnisse werden je Version und
+  Parametersatz kurz zwischengespeichert. `/thermal/measure` ist wie die übrigen lesenden Thermal-Routen im Heimnetz ohne
+  Token erreichbar.
+- **Exporte** (PNG/CSV/Matrix) tragen im SDK-Modus Berechnungsstand `skyhub-thermal-dji-tsdk-v1` und alle Parameter.
+  Die Serienauswertung bleibt ausdrücklich bei der unkorrigierten Schätzung.
+
+Aktivieren auf dem Pi:
+
+1. SDK lokal entpacken (nicht im Repository) und in `.env` setzen: `SKYHUB_DJI_TSDK_DIR=…`,
+   `SKYHUB_THERMAL_SDK_URL=http://thermal-sdk:8790`, `SKYHUB_THERMAL_SDK_TOKEN=$(openssl rand -hex 32)`.
+2. Dienst bauen und starten: `bash scripts/pi-compose.sh up -d --build thermal-sdk` (ausdrücklich genannte Profil-Dienste startet Compose auch ohne aktives Profil).
+3. Backend neu erzeugen: `bash scripts/pi-update-backend.sh --apply`.
+
+Rückweg: `SKYHUB_THERMAL_SDK_URL` leeren, Backend neu erzeugen, `bash scripts/pi-compose.sh stop thermal-sdk`.
+Gemessen auf dem Pi 5: etwa 1 s je Bild (640 × 512).
