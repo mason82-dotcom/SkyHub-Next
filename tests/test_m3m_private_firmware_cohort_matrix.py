@@ -137,6 +137,46 @@ class M3mPrivateFirmwareCohortMatrixTests(unittest.TestCase):
         self.save()
         with self.assertRaises(worker.MatrixError):self.check()
 
+    def test_copied_receipt_with_same_sha_is_not_an_independent_capture(self):
+        original=Path(self.items[0]['sourceReceipt'])
+        clone=self.root/'copied-capture-receipt.json'
+        clone.write_bytes(original.read_bytes())
+        clone.chmod(0o600)
+        self.items[1]['sourceReceipt']=str(clone)
+        self.items[1]['sourceReceiptSha256']=self.items[0]['sourceReceiptSha256']
+        self.save()
+        with self.assertRaises(worker.MatrixError):
+            self.check()
+
+    def test_tiff_path_reused_between_cohorts_is_refused(self):
+        # Even separate receipt paths must not reuse an original source image.
+        self.items[1]['tiffs'][0]=self.items[0]['tiffs'][0]
+        self.save()
+        with self.assertRaises(worker.MatrixError):
+            self.check()
+
+    def test_same_firmware_evidence_bytes_in_distinct_cohorts_refused(self):
+        # Two different filenames and matching hashes do not establish
+        # different firmware versions when both content hashes are identical.
+        first=Path(self.items[0]['firmwareEvidence']).read_bytes()
+        second=Path(self.items[1]['firmwareEvidence'])
+        second.write_bytes(first)
+        second.chmod(0o600)
+        self.items[1]['firmwareEvidenceSha256']=hashlib.sha256(first).hexdigest()
+        self.save()
+        with self.assertRaises(worker.MatrixError):
+            self.check()
+
+    def test_firmware_evidence_reuse_within_a_single_cohort_is_not_validation(self):
+        # A and B must have distinct operator proof, but repeat observations
+        # within the same operator-labeled cohort are a valid experimental input.
+        # Keep this as a structural (not scientific) assertion of the SHA gate.
+        self.assertNotEqual(
+            self.items[0]['firmwareEvidenceSha256'],
+            self.items[1]['firmwareEvidenceSha256'])
+        report=self.check()
+        self.assertFalse(report['firmwareVersionVerified'])
+
     def test_invalid_firmware_evidence_pin_refused(self):
         self.items[1]['firmwareEvidenceSha256']='0'*64
         self.save()
