@@ -311,6 +311,11 @@ app.get('/api/drone/:sn/telemetry',(req,res)=>{
   if(!d)return res.status(404).json({error:'Device not observed'});
   res.json(d);
 });
+// Self-hosted third-party libraries (no CDN at runtime, works offline in the field).
+// Paths carry the exact version, so the files can be cached as immutable.
+app.use('/vendor',express.static(path.resolve(__dirname,'../frontend/public/vendor'),
+  {index:false,fallthrough:false,cacheControl:false,
+    setHeaders:res=>res.set('Cache-Control','public, max-age=31536000, immutable')}));
 app.use(express.static(path.resolve(__dirname,'../frontend/public'),{index:'index.html'}));
 app.use((req,res)=>res.status(404).json({error:'Not found'}));
 // Body-parser and router errors answer in JSON; never an HTML page, stack trace or parser detail.
@@ -318,7 +323,7 @@ app.use((err,req,res,next)=>{
   if(res.headersSent)return next(err);
   const status=Number.isInteger(err?.status)&&err.status>=400&&err.status<500?err.status:500;
   if(status===500)console.error('[http] unhandled route error');
-  res.status(status).json({error:{400:'Invalid request body',413:'Request body too large',
+  res.status(status).json({error:{400:'Invalid request body',404:'Not found',413:'Request body too large',
     415:'Unsupported content encoding'}[status]||(status===500?'Internal error':'Invalid request')});
 });
 const port=Number(process.env.PORT||4000);

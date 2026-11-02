@@ -40,7 +40,7 @@ jobs:
           test_dir="$RUNNER_TEMP/skyhub-browser-acceptance"
           mkdir -p "$test_dir"
           npm install --prefix "$test_dir" --ignore-scripts --no-save --no-package-lock --no-audit --no-fund \
-            playwright@1.56.1 leaflet@1.9.4 socket.io@4.8.1
+            playwright@1.56.1 socket.io@4.8.1
           "$test_dir/node_modules/.bin/playwright" install --with-deps chromium
           echo "SKYHUB_BROWSER_DEPS=$test_dir/node_modules" >> "$GITHUB_ENV"
       - name: Browser acceptance against actual dashboard, real Leaflet and Socket.IO

@@ -230,3 +230,17 @@ test('public health reports skipped device-cache writes while Redis is unavailab
   const body=await (await request('/api/health')).json();
   assert.equal(Number.isInteger(body.deviceCacheSkipped),true);
 });
+
+test('self-hosted Leaflet is served publicly with an immutable cache policy',async()=>{
+  const js=await request('/vendor/leaflet/1.9.4/leaflet.js');
+  assert.equal(js.status,200);
+  assert.match(js.headers.get('content-type'),/javascript/);
+  assert.match(js.headers.get('cache-control'),/immutable/);
+  assert.match(await js.text(),/window\.L=/);
+  const icon=await request('/vendor/leaflet/1.9.4/images/marker-icon.png');
+  assert.equal(icon.status,200);
+  const missing=await request('/vendor/leaflet/1.9.4/missing.js');
+  assert.equal(missing.status,404);
+  assert.deepEqual(await missing.json(),{error:'Not found'});
+  assert.equal((await request('/vendor/')).status,404);
+});
