@@ -189,3 +189,17 @@ test('editor wires KMZ upload and MinIO library without DJI dispatch paths',()=>
   for(const code of [editor,client])
     assert.doesNotMatch(code,/localStorage|sessionStorage|document\.cookie/,'the access token is never persisted');
 });
+
+test('editor manual MinIO save exposes saved/dirty state without background upload',()=>{
+  const root=path.resolve(__dirname,'../../frontend/public');
+  const html=fs.readFileSync(path.join(root,'wpml-editor.html'),'utf8');
+  const editor=fs.readFileSync(path.join(root,'wpml-editor.js'),'utf8');
+  assert.match(html,/id="store-draft-state"/);
+  assert.match(html,/Entwurf jetzt in MinIO speichern/);
+  assert.match(editor,/function editorDraftFingerprint\(/);
+  assert.match(editor,/function updateDraftSaveState\(/);
+  assert.match(editor,/lastPublishedDraft=publishedDraft/);
+  assert.match(editor,/await saveToStore\(output\.kmz,name,\{publishedDraft\}\)/);
+  assert.match(editor,/if\(!window\.confirm\(/);
+  assert.doesNotMatch(editor,/setInterval\([^)]*saveToStore|addEventListener\('input',saveToStore/);
+});
