@@ -48,7 +48,7 @@ Authentifizierung der Pilot-Routen wie bei den Medienrouten: HTTPS über den ver
 | `GET` | `/api/wpml/missions/{id}` | Metadaten |
 | `GET` | `/api/wpml/missions/{id}/kmz` | Datei |
 
-Es gibt **keine** tokenfreie Heimnetz-Ausnahme (KMZ enthalten GPS-Routen). Rollen-, Fehler- und Bestätigungsvertrag: [UX-Vertrag](../UX-CONTRACT.md#wpml-missionsbibliothek-erste-schreibaktion-der-web-ui).
+**Optionale tokenfreie Heimnetzfreigabe (Default AUS):** Einrichten mit `SKYHUB_WPML_LAN_NO_TOKEN_ENABLED=true`, `SKYHUB_WPML_LAN_ORIGINS=https://rpi5.fritz.box:4443` und `SKYHUB_LAN_VIEW_CIDR=192.168.178.0/24` in `.env`; danach Backend über `bash scripts/pi-update-backend.sh --apply` aktualisieren. Ausschließlich für `/api/wpml/missions` über den HTTPS-Dashboard-Proxy, dessen tatsächliche Client-IP im erlaubten CIDR liegt. Tokenfreie POSTs erfordern einen zur freigegebenen Origin passenden `Origin`-Header und `Sec-Fetch-Site: same-origin`, sofern vom Browser gesendet. Andere Schreib-APIs und DJI-Pilot-2 bleiben geschützt. **Warnung:** Damit können alle Clients im zugelassenen Heimnetz gültige KMZ-Routen ablegen; nur in einem vertrauenswürdigen LAN aktivieren. Rollen-, Fehler- und Bestätigungsvertrag: [UX-Vertrag](../UX-CONTRACT.md#wpml-missionsbibliothek-erste-schreibaktion-der-web-ui).
 
 ## KMZ-Upload im Editor (`frontend/public/wpml-kmz-import-core.js`)
 

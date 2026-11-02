@@ -111,7 +111,10 @@ app.use((req,res,next)=>{
 // Scope the OSM Referer exception to the two browser map documents only.
 // API, Pilot 2 and other routes retain the global no-referrer policy.
 app.use(mapPageReferrerPolicy);
-const {auth,socketAuth}=createHttpAuth({secret,lanAccess});
+const {auth,socketAuth}=createHttpAuth({secret,lanAccess,wpmlLanAuth:{
+  enabled:process.env.SKYHUB_WPML_LAN_NO_TOKEN_ENABLED==='true',
+  origins:process.env.SKYHUB_WPML_LAN_ORIGINS||''
+}});
 io.use(socketAuth);
 io.on('connection',socket=>socket.emit('snapshot',registry.snapshot()));
 
@@ -261,7 +264,7 @@ if(mediaStorage){
   app.use('/api/smart-farming/captures',createSmartFarmingCaptures({storage:mediaStorage,
     bucketIndex:mediaRouter.bucketIndex}).router);
 }
-// WPML mission library on MinIO (opt-in, token-only, write-once KMZ files).
+// WPML mission library (opt-in; token or explicitly scoped HTTPS home-LAN access).
 // Validated file storage only: no DJI flight task, no Pilot 2 or MQTT dispatch.
 let wpmlStore=null;
 if(process.env.SKYHUB_WPML_STORE_ENABLED==='true'){

@@ -1,5 +1,6 @@
 'use strict';
 const crypto=require('crypto');
+const {createWpmlLanAuth}=require('./wpml-lan-auth');
 
 // View-token and home-LAN access for /api and Socket.IO.
 // Token-free viewing from the configured home LAN is read-only, never pairing administration.
@@ -17,7 +18,8 @@ const lanReadPatterns=[
   /^\/live\/hls\/pilot\/[A-Za-z0-9_-]{1,96}\.(m3u8|mp4)$/
 ];
 
-function createHttpAuth({secret,lanAccess}){
+function createHttpAuth({secret,lanAccess,wpmlLanAuth}){
+  const allowWpmlLan=createWpmlLanAuth({...wpmlLanAuth,lanAccess});
   function authorized(value){
     if(typeof value!=='string')return false;
     const a=Buffer.from(value),b=Buffer.from(secret);
@@ -31,6 +33,7 @@ function createHttpAuth({secret,lanAccess}){
   function auth(req,res,next){
     const hdr=req.headers.authorization||'';
     if(lanView(req))return next();
+    if(!hdr && allowWpmlLan(req))return next();
     if(!authorized(hdr.startsWith('Bearer ')?hdr.slice(7):'')){
       return res.status(401).json({error:'Unauthorized'});
     }

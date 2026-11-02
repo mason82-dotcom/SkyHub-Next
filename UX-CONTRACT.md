@@ -63,14 +63,20 @@ Weitere Standardkomponenten entstehen erst mit einem tatsächlichen zweiten Work
 Fachquelle: `backend/wpml-mission-store.js`, `backend/dji-wayline-http.js`,
 `frontend/public/wpml-mission-store-client.js` und [WPML-Missionsbibliothek](docs/wpml-mission-library.md).
 
-- **Rolle:** Nur Inhaber des SkyHub-View-Tokens (`Authorization: Bearer`). Es gibt
-  keine tokenfreie Heimnetz-Ausnahme für `/api/wpml/missions`, auch nicht lesend,
-  weil KMZ-Dateien GPS-Routen enthalten. DJI Pilot 2 liest getrennt über
-  `x-auth-token` des gekoppelten RC (`wayline/api/v1`, nur Liste/Download).
-- **Tokenfeld:** Einzige Passwort-Eingabe der Web-UI, ausschließlich `#store-token`
-  im Abschnitt „Missionsbibliothek“ von `wpml-editor.html`. Der Wert bleibt im
-  Eingabefeld/Seitenspeicher: kein Local-/Session-Storage, Cookie, URL oder Log.
-  Ohne Token bleibt der Editor vollständig offline nutzbar.
+- **Rolle:** Inhaber des SkyHub-View-Tokens (`Authorization: Bearer`). Eine
+  **standardmäßig deaktivierte** Ausnahme erlaubt GET und den ausdrücklich
+  bestätigten KMZ-POST ausschließlich auf `/api/wpml/missions` für Clients aus
+  dem festgelegten Heimnetz über eine exakt konfigurierte HTTPS-Dashboard-Origin.
+  HTTPS, verifizierte Caddy-Client-IP, und bei POST `Origin`/Same-Origin-Fetch
+  sind Pflicht. Kein tokenfreier Zugang für fremde Netze, DJI-Flugaktionen,
+  andere Schreib-APIs oder Pilot 2. KMZ enthalten GPS-Routen; das LAN muss
+  daher als vertrauenswürdig gelten. DJI Pilot 2 authentifiziert sich weiterhin
+  getrennt mit `x-auth-token` (`wayline/api/v1`, nur Liste/Download).
+- **Tokenfeld:** Optionales `#store-token` unter „Erweiterter Zugriff“ im
+  Abschnitt „Missionsbibliothek“ von `wpml-editor.html`. Im ausdrücklich
+  freigegebenen Heimnetz ist kein Token einzugeben; andernfalls ist er Pflicht.
+  Ein eingegebener Token bleibt im Seitenspeicher: kein Local-/Session-Storage,
+  Cookie, URL oder Log. Der lokale KMZ-Editor ist auch ohne Server vollständig nutzbar.
 - **Bestätigung:** Jeder Upload ist eine ausdrückliche Schaltflächenaktion mit
   Bestätigungsdialog (Name, Ziel-Bucket, „kein Flugauftrag“). Es gibt keinen
   automatischen oder impliziten Upload, kein Überschreiben (write-once) und kein

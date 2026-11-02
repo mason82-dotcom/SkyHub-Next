@@ -1,8 +1,9 @@
 'use strict';
-/* Browser client for the authenticated SkyHub WPML mission library (MinIO/S3).
+/* Browser client for the SkyHub WPML mission library (MinIO/S3).
  * The ONLY network module of the mission editor. It talks exclusively to
  * /api/wpml/missions on the same origin: no DJI, Pilot 2, MQTT or flight-task API.
- * The access token is held in memory by the caller and never persisted.
+ * A token is optional on explicitly enabled HTTPS home-LAN origins only.
+ * Supplied tokens are kept in memory, never persisted.
  */
 (function(root,factory){
   if(typeof module==='object'&&module.exports)module.exports=factory(root);
@@ -11,14 +12,16 @@
   const STORE='/api/wpml/missions';
   const ID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
   function headers(token,extra){
+    if(token===''||token===null||token===undefined)return {...(extra||{})};
     if(typeof token!=='string'||token.length<24||/[\s\u0000-\u001f]/.test(token))
-      throw new TypeError('Bitte gültigen SkyHub-Zugangstoken (min. 24 Zeichen) eingeben.');
+      throw new TypeError('Ungültiger SkyHub-Zugangstoken (min. 24 Zeichen).');
     return {Authorization:'Bearer '+token,...(extra||{})};
   }
   async function problem(response){
     let body=null;
     try{body=await response.json();}catch(_e){}
-    if(response.status===401)return new Error('Zugangstoken abgelehnt (401).');
+    if(response.status===401)return new Error('Zugriff verweigert (401): Heimnetzfreigabe aktivieren oder unter „Erweiterter Zugriff“ einen gültigen Zugangstoken eingeben.');
+    if(response.status===403)return new Error('Zugriff durch HTTPS-Proxy verweigert (403): Heimnetz und Port 4443 prüfen.');
     if(response.status===404&&!body?.error)return new Error('Missionsbibliothek ist auf diesem Server nicht aktiviert.');
     if(response.status===413)return new Error('KMZ ist größer als 12 MiB.');
     if(response.status===409)return new Error('Name bereits vergeben: DJI verlangt eindeutige Wayline-Namen.');
