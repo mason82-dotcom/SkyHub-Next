@@ -84,6 +84,9 @@ class FieldReviewTests(unittest.TestCase):
     def test_full_xmp_and_operator_evidence_still_never_mean_science_ready(self):
         self.f.render(self.f.complete())
         self.f.f.add_evidence(*worker.KINDS)
+        # The synthetic operator added evidence and explicitly re-pinned its
+        # manifest. The test must pass that NEW independent fixture pin.
+        self.f.params['evidence_manifest_sha256'] = self.f.f.evidence_pin
         report = self.audit()
         self.assertEqual(report['reviewState'], 'STRUCTURAL_FIELDS_PRESENT_UNVALIDATED')
         self.assertEqual(report['evidenceMissing'], [])
