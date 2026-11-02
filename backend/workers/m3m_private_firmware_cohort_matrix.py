@@ -206,12 +206,20 @@ def _case_result(item):
     cohort = _import('m3m_private_xmp_cohort.py', '_skyhub_p36d_structure')
     report = field_review.review(**cfg)
     census = cohort.census(**cfg)
+    review_false = ('captureFirmwareVerified',
+                    'independentScienceAssessmentPerformed',
+                    'radiometricCalibrationVerified', 'panelCalibrationVerified',
+                    'sunlightSensorValuesValidated', 'bandCoregistrationVerified',
+                    'reflectanceReady', 'vegetationIndexReady',
+                    'operationalUseAllowed', 'prescriptionExportAllowed',
+                    'flightMissionAllowed')
     require(report.get('schema') == 'skyhub-m3m-private-field-review-v1' and
             report.get('classification') ==
             'private-structural-evidence-review-not-radiometric-validation' and
-            report.get('captureFirmwareVerified') is False and
-            report.get('independentScienceAssessmentPerformed') is False and
-            report.get('operationalUseAllowed') is False and
+            report.get('reviewState') in (
+                'STRUCTURAL_FIELDS_PRESENT_UNVALIDATED',
+                'INCOMPLETE_EVIDENCE_OR_XMP_UNVALIDATED') and
+            all(report.get(key) is False for key in review_false) and
             report.get('sourceAndEvidencePinsRecheckedAfterXmp') is True,
             'Unexpected field-review readiness or schema')
     require(census.get('schema') ==
@@ -219,9 +227,17 @@ def _case_result(item):
             census.get('classification') ==
             'documented-marker-presence-only-no-firmware-or-radiometry' and
             census.get('originalAndEvidencePinsRecheckedBeforeAndAfter') is True and
-            census.get('firmwareVersionVerified') is False and
-            census.get('radiometricCalibrationVerified') is False and
-            census.get('operationalUseAllowed') is False and
+            census.get('manualOnlyNoAutomaticAliases') is True and
+            all(census.get(key) is False for key in (
+                'firmwareVersionVerified',
+                'manufacturerSourceAuthenticityVerified',
+                'xmpMetadataClaimsScientificallyValidated',
+                'sunlightSensorValuesValidated',
+                'radiometricCalibrationVerified',
+                'bandCoregistrationVerified', 'reflectanceReady',
+                'ndviReady', 'ndreReady', 'scienceReady',
+                'operationalUseAllowed', 'prescriptionExportAllowed',
+                'flightMissionAllowed')) and
             census.get('rawNumbersOrMetadataReleased') is False and
             census.get('canonicalRequiredFieldMissingCounts') ==
             report.get('requiredXmpFieldMissingCounts'),
