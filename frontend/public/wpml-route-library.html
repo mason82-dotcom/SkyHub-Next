@@ -70,12 +70,12 @@ code{font-size:12px}a{color:#9de5fb}hr{border:0;border-top:1px solid #375b72;mar
 <button id="clear-storage" type="button">Alle lokalen Daten löschen</button>
 </div>
 <p id="library-status" role="status" class="caption"></p>
-<h3>MinIO · Routen und Revisionen synchronisieren</h3>
-<p class="caption">Einmalige Freigabe je Browser: Bereits lokal gespeicherte Revisionen werden als einzelne, serverseitig validierte KMZ-Dateien nach MinIO übertragen. Danach werden neu gespeicherte Revisionen automatisch nachgereicht. Benötigt die tokenfreie HTTPS-Heimnetzfreigabe auf Port 4443; alle ursprünglichen Browserdaten bleiben erhalten. Ordnerstruktur und editierbare Revisionshistorie werden auf dem Server nicht rekonstruiert. Kein DJI-Flugauftrag.</p>
+<h3>MinIO · Routen und Revisionen manuell speichern</h3>
+<p class="caption">Variante 2: Erst „Revision lokal speichern“, dann „Jetzt in MinIO speichern“ anklicken und die Übertragung bestätigen. Weder Änderungen noch das Öffnen dieser Seite lösen einen Upload aus – auch bei bereits freigegebenem Browser. Alle lokal gespeicherten Revisionen werden als einzeln validierte KMZ-Dateien übertragen; schon bestätigte Revisionen werden übersprungen. Benötigt die HTTPS-Heimnetzfreigabe auf Port 4443. Die lokalen Originale bleiben erhalten; die editierbare Revisions-/Ordnerstruktur wird nicht auf MinIO kopiert. Kein DJI-Flugauftrag.</p>
 <div class="row">
-<button id="route-sync-enable" type="button">MinIO-Synchronisierung einschalten und bestehende Routen übernehmen</button>
-<button id="route-sync-now" type="button" disabled>Jetzt synchronisieren</button>
-<button id="route-sync-disable" type="button" disabled>Synchronisierung ausschalten</button>
+<button id="route-sync-enable" type="button">Manuelle MinIO-Speicherung freigeben</button>
+<button id="route-sync-now" type="button" disabled>Gespeicherte Revisionen jetzt in MinIO speichern</button>
+<button id="route-sync-disable" type="button" disabled>Freigabe ausschalten</button>
 </div>
 <p id="route-sync-status" class="caption" role="status" aria-live="polite">Keine Synchronisierung aktiv.</p>
 <p id="revision-diff" role="status" class="caption">Noch kein Revisionsvergleich. Keine Koordinaten werden in dieser Zusammenfassung ausgegeben.</p>
