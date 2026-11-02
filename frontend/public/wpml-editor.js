@@ -236,10 +236,11 @@
   }
   function render(){
     renderList();renderMap();updateReview();
+    updateSaveState();
     $('export').disabled=points.length<2;
     $('undo').disabled=history.length===0;
     $('reverse').disabled=points.length<2;
-    if($('store-save'))$('store-save').disabled=points.length<2||!store;
+    if($('store-save'))$('store-save').disabled=points.length<2||!store||storeBusy;
     if(points.length<2)renderMessage('Mindestens zwei unterschiedliche Wegpunkte setzen.');
     else renderMessage(points.length+' Wegpunkte vorgemerkt. Der KMZ-Export erfolgt lokal.');
   }
@@ -382,6 +383,22 @@
         {lat:p.lat,lon:p.lon,height,photo:p.photo})
     };
   }
+  // No background network writes. The baseline is set only after an explicit successful save.
+  let savedPlanSignature=null;
+  let storeBusy=false;
+  const planSignature=()=>JSON.stringify(currentPlan());
+  function updateSaveState(){
+    const status=$('store-draft-state');
+    if(!status)return;
+    status.textContent=storeBusy?'Speichervorgang läuft …':
+      savedPlanSignature===null?'Entwurf noch nicht zentral gespeichert.':
+      planSignature()===savedPlanSignature?'Aktueller Entwurf ist zentral gespeichert.':
+      'Ungespeicherte Änderungen – erst mit „In Bibliothek speichern“ veröffentlichen.';
+  }
+  // Headless editor tests provide getElementById but no querySelector.
+  // In browsers the form listener tracks all editable mission fields.
+  document.querySelector?.('form')?.addEventListener('input',updateSaveState);
+  document.querySelector?.('form')?.addEventListener('change',updateSaveState);
   // ASCII-only, filesystem-safe download name derived from the mission name.
   function fileStem(name){
     const stem=String(name||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
@@ -511,14 +528,17 @@
       throw new TypeError('Für die Bibliothek verlangt DJI einen eindeutigen Namen (max. 64 Zeichen) ohne < > : " / | ? * . _ \\');
     return name;
   }
-  async function saveToStore(bytes,name){
+  async function saveToStore(bytes,name,{markCurrentDraft=false}={}){
     // Explicit confirmation contract (UX-CONTRACT.md): name, target, no flight task.
     if(!window.confirm('„'+name+'“ in die SkyHub-Missionsbibliothek (MinIO-Bucket skyhub-wpml) hochladen?\n'+
       'Die Datei wird serverseitig geprüft und unveränderlich abgelegt. Kein Flugauftrag, keine Flugfreigabe.')){
       storeStatus('Upload abgebrochen. Nichts gesendet.');
       return;
     }
+    const signatureAtUpload=markCurrentDraft?planSignature():null;
     const stored=await store.upload(token(),bytes,name);
+    if(markCurrentDraft)savedPlanSignature=signatureAtUpload;
+    updateSaveState();
     storeStatus((stored.created?'Gespeichert':'Bereits vorhanden')+': „'+stored.name+'“ · '+
       (stored.validation?.aircraft||'Fluggerät ?')+' · '+(stored.validation?.waypointCount??'?')+
       ' Wegpunkte · ID '+stored.id.slice(0,8)+'… Kein Flugauftrag.');
@@ -526,12 +546,21 @@
   }
   $('store-save').addEventListener('click',async()=>{
     if(!store){storeStatus('Bibliotheksmodul nicht geladen.',true);return;}
+    if(storeBusy)return;
+    storeBusy=true;
+    $('store-save').disabled=true;
+    updateSaveState();
     try{
       const name=missionName();
       const output=core.build({...currentPlan(),name});
       storeStatus('Speichere in MinIO …');
-      await saveToStore(output.kmz,name);
+      await saveToStore(output.kmz,name,{markCurrentDraft:true});
     }catch(error){storeStatus(error instanceof Error?error.message:'Speichern fehlgeschlagen.',true);}
+    finally{
+      storeBusy=false;
+      $('store-save').disabled=points.length<2||!store;
+      updateSaveState();
+    }
   });
   kmzStore.addEventListener('click',async()=>{
     if(!store||!stagedBytes||!staged)return;
