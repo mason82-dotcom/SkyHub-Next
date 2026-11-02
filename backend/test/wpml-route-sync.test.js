@@ -82,7 +82,7 @@ test('failed uploads are never acknowledged; later sync resumes without erasing 
   assert.equal(second.skipped,1);
   assert.equal(JSON.parse(app.memory.getItem(syncModule.RECEIPTS_KEY)).length,2);
 });
-test('new revisions sync after opt-in; disabling stops future network writes',async()=>{
+test('new revisions require another explicit sync call; disabling stops writes',async()=>{
   const app=harness();let db=savedDb();
   app.engine.setEnabled(true);
   await app.engine.sync(db);
@@ -113,8 +113,10 @@ test('migration controls are present, and existing local JSON export remains unt
   for(const id of ['route-sync-enable','route-sync-now','route-sync-disable','route-sync-status'])
     assert.ok(html.includes('id="'+id+'"'),id);
   assert.ok(html.indexOf('/wpml-route-sync.js')<html.indexOf('/wpml-route-library.js'));
-  assert.match(js,/window\.confirm\('Alle vorhandenen/);
-  assert.match(js,/triggerSync\(\)/);
+  assert.match(js,/window\.confirm\('Alle bisher lokal gespeicherten/);
+  assert.match(js,/addEventListener\('click',saveToMinioManually\)/);
+  assert.doesNotMatch(js,/triggerSync\(\)/);
+  assert.doesNotMatch(js,/sync\.sync\(library\).*?persist\(/s);
   assert.match(source,/ENABLED_KEY/);
   assert.doesNotMatch(source,/\/api\/mission\/create|flighttask_execute|mqtt\.connect/);
   assert.match(js,/backup\.exportBackup\(library\)/);
