@@ -154,6 +154,10 @@ services:
       # New position history is OFF by default; live OSD remains ON.
       SKYHUB_TRACK_RECORDING_ENABLED: ${SKYHUB_TRACK_RECORDING_ENABLED:-false}
       SKYHUB_HMS_HISTORY_ENABLED: ${SKYHUB_HMS_HISTORY_ENABLED:-false}
+      # All FH-Clone additions stay read-only and require no new service or port.
+      SKYHUB_FH_MSDK_OBSERVER_ENABLED: ${SKYHUB_FH_MSDK_OBSERVER_ENABLED:-false}
+      SKYHUB_FH_MSDK_OBSERVER_TOKEN: ${SKYHUB_FH_MSDK_OBSERVER_TOKEN:-}
+      SKYHUB_FH_UGCS_URL: ${SKYHUB_FH_UGCS_URL:-}
       # Retention applies only while recording is enabled.
       SKYHUB_TRACK_RETENTION_DAYS: ${SKYHUB_TRACK_RETENTION_DAYS:-30}
       # Map tiles: OFF = redirect to tile.openstreetmap.org (as before); ON = on-demand disk cache that

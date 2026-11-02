@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>RTK & Flugsitzungen | SkyHub Next</title>
+<link rel="stylesheet" href="/skyhub-light.css">
+<style>
+body{margin:0;padding:1.25rem;max-width:1000px;font:16px system-ui,sans-serif}
+header,form{display:flex;gap:1rem;align-items:center;flex-wrap:wrap}
+a{color:inherit}main{display:grid;gap:1rem;padding:1rem 0}
+section{border:1px solid #8894a6;border-radius:12px;padding:1rem}
+table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:.5rem;border-bottom:1px solid #b9c2cd}
+input,button{padding:.6rem;border-radius:8px}small{color:#5c6270}
+@media(max-width:600px){table{font-size:.78rem}td,th{padding:.25rem}}
+</style>
+</head><body>
+<header><a href="/">← SkyHub Next</a><h1>RTK &amp; Flugsitzungen</h1><strong>FC0 · Nur Lesen</strong></header>
+<p>Diagnose aus akzeptierten DJI-Meldungen. Ein RTK-Fix ist keine Freigabe für einen Flug. Die Sitzungen sind nur flüchtige Beobachtungen.</p>
+<form id="authForm">
+<label for="token">View-Token (nur Arbeitsspeicher)</label>
+<input id="token" type="password" autocomplete="off" required>
+<button type="submit">Diagnose laden</button>
+<button id="clear" type="button">Zugang löschen</button>
+</form>
+<p id="status" role="status" aria-live="polite">Noch keine Daten geladen.</p>
+<main>
+<section><h2>RTK-Status</h2><div id="rtk">Keine Daten.</div></section>
+<section><h2>Aktive Flugsitzungen</h2><div id="flights">Keine Daten.</div></section>
+<section><h2>Letzte Übergänge</h2><div id="events">Keine Daten.</div></section>
+</main>
+<small>Alle Daten sind Momentaufnahmen aus dem aktuellen Backendprozess. Kein Missionsstart und keine Steuerbefehle.</small>
+<script src="/fh-diagnostics.js" defer></script>
+</body></html>

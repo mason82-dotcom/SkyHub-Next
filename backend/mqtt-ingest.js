@@ -14,7 +14,7 @@ const SUBSCRIPTIONS=[
 // Read-only DJI MQTT ingest plus the optional, ACL-restricted status_reply publisher.
 function createMqttIngest({broker,env,registry,io,redis,topologyStore,trackRecorder,
   trackRecordingEnabled,pool,mqttStats,mqttShapes,mqttModelShapes,onTopologyChanged=null,
-  onHmsSnapshot=null,
+  onHmsSnapshot=null,onObserved=null,
   mqttConnect=mqtt.connect}){
   const ackEnabled=env.SKYHUB_TOPOLOGY_ACK_ENABLED==='true';
   const ackUser=env.SKYHUB_TOPOLOGY_ACK_MQTT_USER||'';
@@ -84,6 +84,11 @@ function createMqttIngest({broker,env,registry,io,redis,topologyStore,trackRecor
       const result=registry.ingest(parsed,observedAt);
       if(result.dropReason){mqttStats.rejected(result.dropReason);return;}
       mqttStats.accepted(parsed,result,observedAt);
+       // Only an accepted, normalized packet can reach the passive observer.
+       if(onObserved&&['osd','state'].includes(parsed.channel)){
+         try{onObserved(parsed,registry.get(parsed.sn,observedAt),observedAt);}
+         catch(_err){console.error('[fh observer] observation ignored');}
+       }
       if(onHmsSnapshot&&Array.isArray(parsed.hms)){
         Promise.resolve().then(()=>onHmsSnapshot(parsed.sn,parsed.hms,
           parsed.timestamp===null?observedAt:parsed.timestamp,parsed.timestamp!==null))
