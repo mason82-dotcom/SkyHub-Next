@@ -134,6 +134,7 @@ Diese Dokumente waren bisher nur über Suche oder PR-Beschreibungen erreichbar. 
 - [M3M P3.8: unabhängig gepinnter privater Vergleich mehrerer DJI-XMP-Strukturberichte (offline)](smart-farming-p3-xmp-cohort-comparison.md)
 - [M3M P3.6d: A/B-Vergleich privat gepinnter originaler M3M-Aufnahmen, ohne Firmwareattestierung (offline)](smart-farming-p3-private-firmware-cohort-matrix.md)
 - [M3M P3.6e: privater Vergleich operatorseitiger Belichtungs-, Gain-, DLS-, Höhen- und Aufnahmezeit-Störfaktoren (keine Wissenschaftsfreigabe)](smart-farming-p3-private-field-pairing-qa.md)
+- [M3M P3.6f: Abgleich echter originaler Vier-TIFF-Belege mit Paarplan- und DLS-/Panel-Hashdeklarationen (offline, keine Freigabe)](smart-farming-p36f-source-evidence-binding.md)
 - [M3M P3.5d: privater versionsgebundener Referenz-Ergebnisbeleg mit vollständiger Reproduktion (offline)](smart-farming-p3-reference-receipt.md)
 - [M3M P3.7: gemeinsamer privater Original-TIFF-, Feldbeleg- und XMP-Prüfbericht (offline)](smart-farming-p3-field-review.md)
 - [SkyHub-Next: M3M-Konsolidierung und Offline-Abnahme](smart-farming-m3m-release-status-2026-10-24.md)
