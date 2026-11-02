@@ -11,6 +11,7 @@
   let lastConfig=null,sessionToken=null,pairingTimer=null;
   let tsaState=null; // null: not requested, otherwise a short German status for the diagnostics
   let mediaState=null; // same for the media synchronisation
+  let waylineState=null; // same for the DJI wayline library (mission module)
   const memory=Object.create(null);
   const isTls=location.protocol==='https:';
   function status(text){el('result').textContent=text;}
@@ -102,6 +103,8 @@
         ' · Medien-Modul geladen: '+readBridgeStatus('platformIsComponentLoaded','media')+
         ' · Fotos automatisch: '+readBridgeStatus('mediaGetAutoUploadPhoto')+
         ' · Videos automatisch: '+readBridgeStatus('mediaGetAutoUploadVideo')]),
+      ...(waylineState===null?[]:['Wayline-Bibliothek: '+waylineState+
+        ' · Mission-Modul geladen: '+readBridgeStatus('platformIsComponentLoaded','mission')]),
       'Gerät gekoppelt: '+(storageGet(TOKEN_KEY)?'ja':'nein')
     ].join('\n');
   }
@@ -203,6 +206,21 @@
         'geladen, ACHTUNG automatischer Upload noch an'+(off.length?' ('+off.join(', ')+' abgelehnt)':''):
         'bereit, nur manueller Upload (automatischer Upload aus)';
     }catch(e){mediaState='nicht geladen ('+e.message+')';}
+    refreshDiagnostics();
+  }
+  // Wayline library: DJI loads the 'mission' module after 'api'. Pilot 2 then lists SkyHub's
+  // validated KMZ files in its wayline library and downloads them via short-lived links.
+  // Uploads from Pilot 2 are refused by SkyHub. No flight task is created by this module.
+  function loadWayline(config){
+    const wayline=config&&config.wayline;
+    if(!wayline||typeof wayline.apiHost!=='string'||!sessionToken)return;
+    try{
+      if(bridgeBoolean('platformIsComponentLoaded','api')!==true)
+        invoke('platformLoadComponent','api',JSON.stringify({host:wayline.apiHost,token:sessionToken}));
+      if(bridgeBoolean('platformIsComponentLoaded','mission')!==true)
+        invoke('platformLoadComponent','mission','{}');
+      waylineState='Modul geladen (nur Liste/Download)';
+    }catch(e){waylineState='nicht geladen ('+e.message+')';}
     refreshDiagnostics();
   }
   window.skyhubPilotWsState=function(_callbackResult){
@@ -308,6 +326,7 @@
       loadThing(config);
       loadTsa(config);
       loadMedia(config);
+      loadWayline(config);
       refreshDiagnostics();
       status('DJI Cloud-Modul geladen. MQTT-Verbindungsstatus wird geprüft ...');
       setTimeout(()=>window.skyhubPilotMqttState(),4000);
@@ -315,6 +334,7 @@
     }
     loadTsa(config);
     loadMedia(config);
+    loadWayline(config);
     refreshDiagnostics();
     const state=bridgeBoolean('thingGetConnectState');
     if(state===true){

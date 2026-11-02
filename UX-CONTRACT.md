@@ -58,6 +58,30 @@
 
 Weitere Standardkomponenten entstehen erst mit einem tatsächlichen zweiten Workflow. Neue Schreibaktionen benötigen vor der UI-Umsetzung einen expliziten Rollen-, Fehler- und Bestätigungsvertrag; die lesende Karte definiert dafür keine Freigabe.
 
+## WPML-Missionsbibliothek (erste Schreibaktion der Web-UI)
+
+Fachquelle: `backend/wpml-mission-store.js`, `backend/dji-wayline-http.js`,
+`frontend/public/wpml-mission-store-client.js` und [WPML-Missionsbibliothek](docs/wpml-mission-library.md).
+
+- **Rolle:** Nur Inhaber des SkyHub-View-Tokens (`Authorization: Bearer`). Es gibt
+  keine tokenfreie Heimnetz-Ausnahme für `/api/wpml/missions`, auch nicht lesend,
+  weil KMZ-Dateien GPS-Routen enthalten. DJI Pilot 2 liest getrennt über
+  `x-auth-token` des gekoppelten RC (`wayline/api/v1`, nur Liste/Download).
+- **Tokenfeld:** Einzige Passwort-Eingabe der Web-UI, ausschließlich `#store-token`
+  im Abschnitt „Missionsbibliothek“ von `wpml-editor.html`. Der Wert bleibt im
+  Eingabefeld/Seitenspeicher: kein Local-/Session-Storage, Cookie, URL oder Log.
+  Ohne Token bleibt der Editor vollständig offline nutzbar.
+- **Bestätigung:** Jeder Upload ist eine ausdrückliche Schaltflächenaktion mit
+  Bestätigungsdialog (Name, Ziel-Bucket, „kein Flugauftrag“). Es gibt keinen
+  automatischen oder impliziten Upload, kein Überschreiben (write-once) und kein
+  Löschen über SkyHub. Gleicher Inhalt = gleiche ID (idempotent).
+- **Fehler:** 400 ungültiger DJI-Name, 401 Token abgelehnt, 404 Bibliothek nicht
+  aktiviert, 409 Name bereits vergeben (DJI verlangt eindeutige Namen), 413 > 12 MiB,
+  422 Server-Validierung mit höchstens drei Pfaden, 503 Speicher nicht erreichbar –
+  ohne Endpunkt-, Schlüssel- oder Stackdetails. Fehler ändern den lokalen Entwurf nie.
+- **Grenze:** Speichern ist keine Übertragung an DJI Pilot 2 und kein Flugauftrag;
+  `flightReady` bleibt `false`.
+
 ## M3M-Capture-Bewertung
 
 Fachquelle: [Capture-Vertrag v3](docs/smart-farming-m3m-capture-assessment.md) und

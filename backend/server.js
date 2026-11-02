@@ -26,6 +26,8 @@ const {createSmartFarmingCaptures}=require('./smart-farming-captures');
 const {createPilotMediaLibraryRuntime}=require('./pilot-media-library-runtime');
 const {createPilotMediaUploadRuntime}=require('./pilot-media-upload-runtime');
 const {createMinioDrRouter}=require('./minio-dr-api');
+const {createWpmlMissionStore,createWpmlMissionRouter}=require('./wpml-mission-store');
+const {createDjiWaylineRouter,createRedisFavorites}=require('./dji-wayline-http');
 const {createSmartFarmingCatalogRouter}=require('./smart-farming-catalog');
 const {createHttpAuth}=require('./http-auth');
 const {mapPageReferrerPolicy}=require('./map-page-referrer');
@@ -214,6 +216,28 @@ if(mediaStorage){
   // Smart Farming: Mavic 3M multispectral captures grouped by CaptureUUID (read-only).
   app.use('/api/smart-farming/captures',createSmartFarmingCaptures({storage:mediaStorage,
     bucketIndex:mediaRouter.bucketIndex}).router);
+}
+// WPML mission library on MinIO (opt-in, token-only, write-once KMZ files).
+// Validated file storage only: no DJI flight task, no Pilot 2 or MQTT dispatch.
+let wpmlStore=null;
+if(process.env.SKYHUB_WPML_STORE_ENABLED==='true'){
+  try{
+    wpmlStore=createWpmlMissionStore({env:process.env});
+    app.use('/api/wpml/missions',createWpmlMissionRouter({express,store:wpmlStore}));
+    console.log('[wpml store] active, bucket '+wpmlStore.bucket);
+  }catch(err){console.error('[wpml store] disabled:',err.message);}
+}
+// DJI Pilot 2 wayline library (DJI Cloud API wayline/api/v1): list + presigned download only.
+// Separate opt-in; never creates a flight task (no flighttask_prepare / MQTT services).
+if(pilot.wayline.issue)console.error('[pilot wayline] disabled:',pilot.wayline.issue);
+if(pilot.wayline.enabled&&!wpmlStore)console.error('[pilot wayline] disabled: WPML store is not active');
+if(wpmlStore&&pilot.wayline.enabled){
+  if(!pilot.ready)console.error('[pilot wayline] disabled: Pilot 2 configuration is incomplete');
+  else{
+    app.use(createDjiWaylineRouter({workspace:pilot.workspaceId,authorize:pilotAuth.principal,
+      store:wpmlStore,favorites:createRedisFavorites(redis)}));
+    console.log('[pilot wayline] library active for Pilot 2');
+  }
 }
 const mediaLibraryRouter=createPilotMediaLibraryRuntime({
   env:process.env,db:pool,redis,authorize:pilotAuth.principal,

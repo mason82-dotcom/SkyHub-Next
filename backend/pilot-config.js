@@ -81,9 +81,20 @@ function pilotConfiguration(env) {
       media.enabled=true;
     }catch(_err){media.issue='Media upload requires SKYHUB_PILOT_PUBLIC_URL as a plain HTTPS origin';}
   }
+  // Wayline library (DJI api + mission modules): list/download of SkyHub-validated KMZ files.
+  const wayline={enabled:false,issue:null,apiHost:null};
+  if(env.SKYHUB_PILOT_WAYLINE_ENABLED==='true'){
+    try{
+      const url=new URL(env.SKYHUB_PILOT_PUBLIC_URL||'');
+      if(url.protocol!=='https:'||url.username||url.password||url.search||url.hash||url.pathname!=='/')
+        throw new Error('invalid');
+      wayline.apiHost=url.origin;
+      wayline.enabled=true;
+    }catch(_err){wayline.issue='Wayline library requires SKYHUB_PILOT_PUBLIC_URL as a plain HTTPS origin';}
+  }
   const ready=missing.length===0;
   return {
-    ready,missing,tsa,media,mqttPort,
+    ready,missing,tsa,media,wayline,mqttPort,
     // Called only after successful HTTPS + bearer token verification.
     bootstrap(){
       if(!ready)throw new Error('Pilot 2 onboarding is not configured');
@@ -95,7 +106,8 @@ function pilotConfiguration(env) {
         workspaceName:'SkyHub',
         description:'DJI Enterprise Command Center',
         ...(tsa.enabled?{tsa:{apiHost:tsa.apiHost,wsHost:tsa.wsHost}}:{}),
-        ...(media.enabled?{media:{apiHost:media.apiHost}}:{})
+        ...(media.enabled?{media:{apiHost:media.apiHost}}:{}),
+        ...(wayline.enabled?{wayline:{apiHost:wayline.apiHost}}:{})
       };
     },
     accessToken,workspaceId

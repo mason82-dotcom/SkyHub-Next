@@ -31,10 +31,10 @@ werden.
   Export bereits vollständiger WPML-Dokumentpaare unter wpmz/.
   Ressourcen werden nicht ausgeführt, entschlüsselt oder zurückgeliefert.
 - scripts/wpml-inspect.js: Offline-Kommando zum Inspizieren und Verpacken.
-- POST /api/wpml/inspect: Optionaler, authentifizierter Binärupload, liefert
-  nur ein JSON-Prüfergebnis. Nur aktiv bei SKYHUB_WPML_INSPECT_ENABLED=true;
-  standardmäßig inaktiv. HTTP 200 bei validierter Datei, 422 bei
-  Fehlern, keine Rohdaten in generischen Archivfehlern.
+- ~~POST /api/wpml/inspect~~: stammte aus einem Feature-Branch und ist auf
+  `main` **nicht** verdrahtet (Korrektur 02.11.2026). Die serverseitige Prüfung
+  hochgeladener KMZ erfolgt jetzt in der opt-in
+  [Missionsbibliothek](wpml-mission-library.md) (`POST /api/wpml/missions`).
 - backend/test/wpml.test.js: Roundtrip-, Negativ- und Sicherheitsfälle.
 
 ### Lokale Nutzung
