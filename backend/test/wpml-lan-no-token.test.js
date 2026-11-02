@@ -52,10 +52,12 @@ test('tokenfree POST requires allowed HTTPS origin and verified LAN client',()=>
 });
 test('tokenfree GET only accesses exact mission-store paths',()=>{
   const handler=auth();
+  // Existing read-only LAN exemptions (e.g. drone telemetry) remain intact.
+  assert.deepEqual(request(handler,{method:'GET',path:'/drone/a/telemetry'}),{granted:true,status:0});
   for(const path of ['/wpml/missions','/wpml/missions/','/wpml/missions/status',
     '/wpml/missions/'+UUID,'/wpml/missions/'+UUID+'/kmz'])
     assert.deepEqual(request(handler,{method:'GET',path}),{granted:true,status:0},path);
-  for(const path of ['/drone/a/telemetry','/wpml/missions/a/../b',
+  for(const path of ['/drone/a/not-allowed','/wpml/missions/a/../b',
     '/wpml/missions/x/extra','/wpml/missions/status/more','/pilot-admin/pairings'])
     assert.deepEqual(request(handler,{method:'GET',path}),{granted:false,status:401},path);
 });
