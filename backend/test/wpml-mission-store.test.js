@@ -47,15 +47,18 @@ function fakeS3(){
 }
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-8[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
-test('configuration requires a dedicated writer account and valid endpoints',()=>{
+test('configuration reuses the existing backend MinIO account and validates endpoints',()=>{
   const base={SKYHUB_S3_ENDPOINT:'http://skyhub-minio:9000',
-    SKYHUB_WPML_S3_ACCESS_KEY:'skyhub-wpml-writer',SKYHUB_WPML_S3_SECRET_KEY:'x'.repeat(48)};
-  assert.equal(storeConfiguration(base).bucket,'skyhub-wpml');
+    SKYHUB_S3_ACCESS_KEY:'backend-reader',SKYHUB_S3_SECRET_KEY:'x'.repeat(40)};
+  const cfg=storeConfiguration(base);
+  assert.equal(cfg.bucket,'skyhub-wpml');
+  assert.equal(cfg.accessKeyId,'backend-reader');
+  assert.equal(storeConfiguration({...base,SKYHUB_WPML_S3_ACCESS_KEY:'own',SKYHUB_WPML_S3_SECRET_KEY:'y'.repeat(40)})
+    .accessKeyId,'own');
   assert.equal(storeConfiguration({...base,SKYHUB_PILOT_MEDIA_S3_PUBLIC_ENDPOINT:'https://pi.lan:9446'}).publicEndpoint,
     'https://pi.lan:9446');
-  assert.throws(()=>storeConfiguration({...base,SKYHUB_WPML_S3_SECRET_KEY:''}),/credentials/);
-  assert.throws(()=>storeConfiguration({...base,SKYHUB_S3_ACCESS_KEY:'skyhub-wpml-writer'}),/dedicated/);
-  assert.throws(()=>storeConfiguration({...base,SKYHUB_PILOT_UPLOAD_S3_ACCESS_KEY:'skyhub-wpml-writer'}),/dedicated/);
+  assert.throws(()=>storeConfiguration({...base,SKYHUB_S3_SECRET_KEY:''}),/credentials/);
+  assert.throws(()=>storeConfiguration({...base,SKYHUB_PILOT_UPLOAD_S3_ACCESS_KEY:'backend-reader'}),/Pilot 2 upload/);
   assert.throws(()=>storeConfiguration({...base,SKYHUB_S3_ENDPOINT:'ftp://x'}),/endpoint/);
   assert.throws(()=>storeConfiguration({...base,SKYHUB_WPML_S3_PUBLIC_ENDPOINT:'https://x/path'}),/public/);
   assert.throws(()=>storeConfiguration({...base,SKYHUB_WPML_S3_BUCKET:'Bad_Bucket'}),/bucket/);

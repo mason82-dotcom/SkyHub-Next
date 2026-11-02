@@ -36,18 +36,22 @@ function httpError(status,message,extra){
 function endpointOk(value){return typeof value==='string'&&/^https?:\/\/[^\s/?#]+\/?$/.test(value);}
 function storeConfiguration(env=process.env){
   const endpoint=env.SKYHUB_WPML_S3_ENDPOINT||env.SKYHUB_S3_ENDPOINT;
-  const accessKeyId=env.SKYHUB_WPML_S3_ACCESS_KEY;
-  const secretAccessKey=env.SKYHUB_WPML_S3_SECRET_KEY;
+  // Default: the existing backend MinIO account (SKYHUB_S3_*), extended by
+  // scripts/pi-minio-wpml-store.sh with rights on skyhub-wpml/missions/ only.
+  // A separate account can still be configured with SKYHUB_WPML_S3_ACCESS_KEY/SECRET_KEY.
+  const own=Boolean(env.SKYHUB_WPML_S3_ACCESS_KEY);
+  const accessKeyId=own?env.SKYHUB_WPML_S3_ACCESS_KEY:env.SKYHUB_S3_ACCESS_KEY;
+  const secretAccessKey=own?env.SKYHUB_WPML_S3_SECRET_KEY:env.SKYHUB_S3_SECRET_KEY;
   const bucket=env.SKYHUB_WPML_S3_BUCKET||'skyhub-wpml';
   // Endpoint the DJI RC can reach for presigned downloads (same Caddy front as Pilot media).
   const publicEndpoint=env.SKYHUB_WPML_S3_PUBLIC_ENDPOINT||env.SKYHUB_PILOT_MEDIA_S3_PUBLIC_ENDPOINT||null;
   if(!endpointOk(endpoint))throw new Error('WPML store: S3 endpoint missing or invalid');
   if(publicEndpoint!==null&&!endpointOk(publicEndpoint))throw new Error('WPML store: invalid public S3 endpoint');
   if(!accessKeyId||!secretAccessKey||secretAccessKey.startsWith('REPLACE_'))
-    throw new Error('WPML store: dedicated S3 credentials missing');
-  // Never reuse the read-only media key or the Pilot 2 upload key for writes.
-  if(accessKeyId===env.SKYHUB_S3_ACCESS_KEY||accessKeyId===env.SKYHUB_PILOT_UPLOAD_S3_ACCESS_KEY)
-    throw new Error('WPML store: credentials must belong to a dedicated account');
+    throw new Error('WPML store: S3 credentials missing');
+  // The Pilot 2 upload key is handed to RCs via STS; it must never write mission files.
+  if(accessKeyId===env.SKYHUB_PILOT_UPLOAD_S3_ACCESS_KEY)
+    throw new Error('WPML store: the Pilot 2 upload account must not be used');
   if(!BUCKET.test(bucket))throw new Error('WPML store: invalid bucket name');
   return {endpoint,accessKeyId,secretAccessKey,bucket,publicEndpoint};
 }

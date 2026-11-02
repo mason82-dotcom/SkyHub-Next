@@ -35,7 +35,7 @@ Authentifizierung der Pilot-Routen wie bei den Medienrouten: HTTPS über den ver
 - **Write-once:** bedingter Schreibvorgang `If-None-Match: *` (MinIO ≥ 2024); vorhandene Objekte werden nie überschrieben. Gleicher Inhalt → gleiche ID → idempotent. `Content-MD5` sichert die Übertragung.
 - Vor jedem Schreiben läuft der vorhandene Offline-Validator (`inspectKmz`): ZIP-/CRC-/Pfadprüfung, WPML-Semantik, Fluggerät/Nutzlast. Ungültig → 422 mit höchstens 25 Pfaden, nichts wird geschrieben.
 - Beim Lesen wird der Inhalt erneut gehasht und mit der ID verglichen (Integritätsprüfung, sonst 502).
-- Eigenes Konto `skyhub-wpml-writer` mit Richtlinie `storage/policies/skyhub-wpml-writer.json`: `ListBucket` nur Präfix `missions/`, `GetObject`/`PutObject` nur `skyhub-wpml/missions/*`, **kein Löschen, kein anderer Bucket**. Der Code verweigert den Start, wenn Medien-Lese- oder Pilot-Upload-Schlüssel wiederverwendet würden.
+- **Bestehendes Backend-Konto** (`SKYHUB_S3_ACCESS_KEY`, auf dem Pi der Service-Account „SkyHub Media Reader“) – kein neues Konto, kein neues Secret. Seine Inline-Policy wird um `storage/policies/skyhub-wpml-writer.json` ergänzt: `ListBucket` nur Präfix `missions/`, `GetObject`/`PutObject` nur `skyhub-wpml/missions/*`, **kein Löschen**; alle bisherigen Leserechte bleiben unverändert. Konsequenz: Dieses Konto ist danach nicht mehr rein lesend, sondern darf in genau diesem Präfix schreiben. Ein eigenes Konto bleibt über `SKYHUB_WPML_S3_ACCESS_KEY/SECRET_KEY` möglich; der Pilot-Upload-Schlüssel wird abgelehnt.
 - Die Bibliothek ist auf 500 Missionen begrenzt (Pi-Maßstab); die Liste wird 30 s zwischengespeichert und bei jedem Schreiben verworfen.
 
 ## Web-API für den Editor (`/api/wpml/missions`, nur mit View-Token)
@@ -60,15 +60,15 @@ Weitere Editorfunktionen: Rückgängig (50 Schritte), Richtung umkehren, Wegpunk
 
 ## Aktivierung auf dem Pi (Reihenfolge)
 
-1. `bash scripts/pi-minio-wpml-store.sh plan` – zeigt Bucket/Konto/`.env`-Zustand, ändert nichts.
-2. `bash scripts/pi-minio-wpml-store.sh apply` – legt Bucket (versioniert), Richtlinie und Konto an, prüft „missions/ lesbar, fremder Bucket verweigert“, speichert den Schlüssel privat unter `~/.config/skyhub/minio-wpml-writer.env` und trägt ihn mit Sicherung in `.env` ein (bei Fehler wird `.env` zurückgespielt).
+1. `bash scripts/pi-minio-wpml-store.sh plan` – zeigt Bucket, WPML-Rechte des bestehenden Backend-Kontos und `.env`-Schalter, ändert nichts.
+2. `bash scripts/pi-minio-wpml-store.sh apply` – legt den Bucket an (versioniert), sichert die bisherige Policy des Backend-Kontos nach `~/.config/skyhub/minio-backend-policy.before-wpml*.json`, ergänzt die WPML-Rechte und prüft mit dem Backend-Schlüssel selbst: `missions/` lesbar und beschreibbar, Löschen verweigert, `dji-cloud` weiter lesbar. Bei jedem Fehler wird die alte Policy automatisch zurückgesetzt. Danach setzt es `SKYHUB_WPML_STORE_ENABLED=true` (mit `.env`-Sicherung). Mehrfaches Ausführen ist unschädlich.
 3. Backend über den geprüften Weg neu erzeugen: `bash scripts/pi-update-backend.sh --apply`; danach `GET /api/wpml/missions/status` mit einem authentifizierten Client → `online`.
 4. **Erst nach erfolgreichem Editor-Test** und separat: `SKYHUB_PILOT_WAYLINE_ENABLED=true` (benötigt `SKYHUB_PILOT_PUBLIC_URL` über HTTPS und einen von der RC erreichbaren S3-Endpunkt, standardmäßig `SKYHUB_PILOT_MEDIA_S3_PUBLIC_ENDPOINT`). Auf der RC Pro Enterprise Pilot 2 neu verbinden; die Diagnose zeigt „Wayline-Bibliothek“ und „Mission-Modul geladen“.
 
-**Rückweg:** `SKYHUB_PILOT_WAYLINE_ENABLED=false` bzw. `SKYHUB_WPML_STORE_ENABLED=false` und Backend über denselben Weg neu erzeugen. Bucket und Objekte bleiben unverändert erhalten.
+**Rückweg:** `bash scripts/pi-minio-wpml-store.sh rollback` (stellt die gesicherte Policy wieder her und setzt `SKYHUB_WPML_STORE_ENABLED=false`) bzw. `SKYHUB_PILOT_WAYLINE_ENABLED=false`; danach Backend über denselben Weg neu erzeugen. Bucket und Objekte bleiben erhalten.
 
 ## Prüfungen
 
 - `node --test backend/test/wpml-mission-store.test.js backend/test/dji-wayline-http.test.js backend/test/wpml-kmz-import.test.js`
-- Gegen eine **isolierte Wegwerf-MinIO** (gleiches Image, tmpfs, nur `127.0.0.1`) am 02.11.2026 geprüft: Richtlinie, Write-once, 409 bei Namenskonflikt, Löschen und fremdes Präfix → 403, vorsignierter Download 200 / manipulierte Signatur 403, Rückimport ohne Abweichung; Chromium-Ende-zu-Ende-Test des Editors (Upload, Übernehmen, Speichern, Liste, Zurückladen, falscher Token → 401, 412 px ohne horizontales Scrollen).
+- Gegen eine **isolierte Wegwerf-MinIO** (gleiches Image, tmpfs, nur `127.0.0.1`) am 02.11.2026 geprüft: Skript `plan`/`apply` (zweimal)/`rollback` an einem nachgebildeten Service-Account unter root mit Inline-Leserichtlinie, Richtlinie, Write-once, 409 bei Namenskonflikt, Löschen und fremdes Präfix → 403, vorsignierter Download 200 / manipulierte Signatur 403, Rückimport ohne Abweichung; Chromium-Ende-zu-Ende-Test des Editors (Upload, Übernehmen, Speichern, Liste, Zurückladen, falscher Token → 401, 412 px ohne horizontales Scrollen).
 - **Offen:** Test mit echter RC Pro Enterprise + Mavic 3M in Pilot 2 (Liste, Download, Öffnen der Route); dieser Nachweis fehlt und ist Voraussetzung für jeden produktiven Einsatz.
