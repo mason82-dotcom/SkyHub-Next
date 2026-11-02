@@ -4,6 +4,8 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
+const {webcrypto}=require('node:crypto');
+const syncModule=require('../../frontend/public/wpml-route-sync');
 const planner=require('../../frontend/public/wpml-editor-core');
 const library=require('../../frontend/public/wpml-route-library-core');
 const actions=require('../../frontend/public/wpml-action-draft');
@@ -18,10 +20,12 @@ function plan(){
       {lat:49.13,lon:8.62,height:50,photo:false},
       {lat:49.14,lon:8.63,height:50,photo:false}]};
 }
-function harness(input=plan()){
+function harness(input=plan(),options={}){
   const saved=library.save(library.blank(),{name:input.name,plan:input,
     savedAt:1792573200000});
   const store=new Map([[STORAGE,library.serialize(saved.library)]]);
+  if(options.preEnabled)store.set(syncModule.ENABLED_KEY,'enabled');
+  const remoteCalls=[];
   const nodes=new Map();
   let writes=0,confirms=0,allow=true;
   function make(tag='div'){
@@ -30,7 +34,7 @@ function harness(input=plan()){
       append(...items){this.children.push(...items);},
       replaceChildren(...items){this.children=items;},
       addEventListener(type,callback){this.listeners[type]=callback;},
-      click(){this.listeners.click?.();}
+      click(){return this.listeners.click?.();}
     };
   }
   function get(id){
@@ -50,6 +54,13 @@ function harness(input=plan()){
   const window={
     SkyHubWpmlPlanner:planner,SkyHubWpmlRouteLibrary:library,
     SkyHubWpmlActionDraft:actions,SkyHubWpmlRouteBackup:backup,
+    ...(options.sync?{
+      SkyHubWpmlRouteSync:syncModule,
+      SkyHubWpmlMissionStore:{async upload(token,bytes,name){
+        remoteCalls.push({token,bytes,name});
+        return {id:'aaaaaaaa-aaaa-8aaa-8aaa-aaaaaaaaaaaa',created:true};
+      }},crypto:webcrypto
+    }:{}),
     localStorage:{
       getItem:key=>store.get(key)??null,
       setItem(key,value){writes++;store.set(key,value);},
@@ -59,7 +70,7 @@ function harness(input=plan()){
   };
   const document={getElementById:get,createElement:make,body:make('body')};
   vm.runInNewContext(script,{window,document,console,Blob,URL,setTimeout},{timeout:2500});
-  return {get,store,seed:saved,writes:()=>writes,confirms:()=>confirms,
+  return {get,store,seed:saved,remoteCalls,writes:()=>writes,confirms:()=>confirms,
     setConfirm(value){allow=value;},
     selectedRoute(){get('routes').children[0].children[0].click();},
     current(){return library.load(store.get(STORAGE));}
@@ -202,4 +213,39 @@ test('discarding a slow or corrupt backup never overwrites the current library',
   assert.equal(app.get('backup-apply').disabled,true);
   assert.match(app.get('backup-preview').textContent,/abgelehnt/);
   assert.equal(app.current().routes[0].revisions.length,1);
+});
+
+test('previously enabled sync never uploads on startup, local save or page refresh',async()=>{
+  const app=harness(plan(),{sync:true,preEnabled:true});
+  assert.equal(app.remoteCalls.length,0,'startup must not upload even with previous permission');
+  app.selectedRoute();app.get('load').click();app.get('save').click();
+  assert.equal(app.current().routes[0].revisions.length,2);
+  assert.equal(app.remoteCalls.length,0,'local save must remain local');
+  assert.equal(app.get('route-sync-now').disabled,false);
+  app.setConfirm(false);
+  await app.get('route-sync-now').click();
+  assert.equal(app.remoteCalls.length,0,'cancel must not upload');
+  app.setConfirm(true);
+  await app.get('route-sync-now').click();
+  assert.equal(app.remoteCalls.length,2,'explicit confirmation uploads saved revisions');
+  assert.equal(app.remoteCalls[0].token,'');
+  app.get('save').click();
+  assert.equal(app.current().routes[0].revisions.length,3);
+  assert.equal(app.remoteCalls.length,2,'later local save must not upload');
+  await app.get('route-sync-now').click();
+  assert.equal(app.remoteCalls.length,3,'second explicit click uploads only new revision');
+  await app.get('route-sync-now').click();
+  assert.equal(app.remoteCalls.length,3,'receipts prevent repeat uploads');
+});
+
+test('granting manual permission performs zero writes until the separate save click',async()=>{
+  const app=harness(plan(),{sync:true});
+  assert.equal(app.get('route-sync-now').disabled,true);
+  assert.equal(app.remoteCalls.length,0);
+  app.get('route-sync-enable').click();
+  assert.equal(app.get('route-sync-now').disabled,false);
+  assert.equal(app.remoteCalls.length,0,'permission is not upload');
+  app.get('route-sync-disable').click();
+  assert.equal(app.get('route-sync-now').disabled,true);
+  assert.equal(app.remoteCalls.length,0);
 });
