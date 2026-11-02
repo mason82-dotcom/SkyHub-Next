@@ -116,7 +116,11 @@ test('migration controls are present, and existing local JSON export remains unt
   assert.match(js,/window\.confirm\('Alle bisher lokal gespeicherten/);
   assert.match(js,/addEventListener\('click',saveToMinioManually\)/);
   assert.doesNotMatch(js,/triggerSync\(\)/);
-  assert.doesNotMatch(js,/sync\.sync\(library\).*?persist\(/s);
+  // Inspect only the local persist() body: scanning across unrelated functions
+  // produces a false positive because the manual upload handler appears later.
+  const localSave=js.match(/function persist\(next\)\{([\s\S]*?)\n  \}/)?.[1];
+  assert.ok(localSave,'local persist handler must be present');
+  assert.doesNotMatch(localSave,/sync\.sync\(|triggerSync\(|store\.upload\(/);
   assert.match(source,/ENABLED_KEY/);
   assert.doesNotMatch(source,/\/api\/mission\/create|flighttask_execute|mqtt\.connect/);
   assert.match(js,/backup\.exportBackup\(library\)/);
