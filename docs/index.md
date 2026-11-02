@@ -150,6 +150,8 @@ Diese Dokumente waren bisher nur über Suche oder PR-Beschreibungen erreichbar. 
 
 **Oberfläche**
 
+- [FH-Clone P0–P2: read-only RTK-/Flugsitzungsbeobachtung, Quellenvergleich und optionale Adapter](fh-clone-p0-p2-integration.md)
+
 - [SkyHub Next – zwei Haupttabs (isolierter UI-Branch)](tak-ui-two-tabs.md)
 - [SkyHub Next · Light UI (2026-10-24)](webui-light-redesign.md)
 
