@@ -69,7 +69,7 @@ def _canonical(obj):
 
 
 def _safe_path(raw, *, private_parent=False):
-    require(isinstance(raw, str) and 0 < len(raw) <= 1024,
+    require(isinstance(raw, (str, Path)) and 0 < len(str(raw)) <= 1024,
             'Invalid private path')
     p = Path(raw).expanduser().absolute()
     require(p.resolve(strict=True) == p and not p.is_symlink(),
@@ -282,6 +282,11 @@ def matrix(*, manifest_file, manifest_sha256):
                     len(left['evidencePresentButUnvalidated']),
                 'numericalRadiometricDeviationComputed': False,
             })
+    # A later case must not be able to mutate an earlier capture unnoticed.
+    # Re-run ALL independent original/evidence/P1/XMP/firmware gates and compare
+    # exact structural summaries before publishing any cross-capture matrix.
+    require([_case_result(case) for case in cases] == results,
+            'One of the capture/firmware evidence inputs changed during comparison')
     # Recheck the signed-by-none but externally pinned manifest at the end.
     require(_parse_manifest(manifest_file, manifest_sha256) == cases,
             'Cohort manifest was changed during multi-capture comparison')
