@@ -117,6 +117,7 @@ Diese Dokumente waren bisher nur über Suche oder PR-Beschreibungen erreichbar. 
 - [SkyHub Next – unabhängige Rasterpaket-Abnahme (offline)](smart-farming-m3m-raster-bundle-qa.md)
 - [SkyHub Next – Integritätsbeleg für M3M-Analyseraster (offline)](smart-farming-m3m-raster-integrity-seal.md)
 - [SkyHub Next – M3M Raw-TIFF-Payload-Audit (offline)](smart-farming-m3m-raw-tiff-payload-audit.md)
+- [M3M P1/P3: lokale TIFF-Eingangsprüfung und numerische versiegelte ROI-Analyse (offline)](smart-farming-p1-p3-offline-lab.md)
 - [SkyHub-Next: M3M-Konsolidierung und Offline-Abnahme](smart-farming-m3m-release-status-2026-10-24.md)
 - [Mavic 3M über bestehenden MinIO: sichere Pi-End-to-End-Leseprüfung](smart-farming-m3m-s3-hardware-smoke.md)
 
