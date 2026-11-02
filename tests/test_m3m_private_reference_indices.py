@@ -118,11 +118,16 @@ class ReferenceIndexAgreementTests(unittest.TestCase):
         self.fixture.save_manifest()
         self.ref_pin=self.fixture.reference_pin
         result=self.compare()
-        for item in result['indices'].values():
-            self.assertEqual(item['sharedValidPixels'],4)
-            self.assertEqual(item['sourceOnlyValidPixels'],1)
+        for name, item in result['indices'].items():
+            # OSAVI has an explicit +0.16 denominator adjustment. At zero
+            # reflectance its denominator is valid but its index differs.
+            shared = 5 if name == 'osavi' else 4
+            self.assertEqual(item['sharedValidPixels'],shared)
+            self.assertEqual(item['sourceOnlyValidPixels'],5-shared)
             self.assertEqual(item['referenceOnlyValidPixels'],0)
-            self.assertEqual(item['maskIntersectionOverUnion'],.8)
+            self.assertEqual(item['maskIntersectionOverUnion'],shared/5)
+            if name == 'osavi':
+                self.assertFalse(item['withinExploratoryLimits'])
         self.assertFalse(result['allIndicesWithinExploratoryLimits'])
         self.assertFalse(result['radiometricCalibrationVerified'])
 
