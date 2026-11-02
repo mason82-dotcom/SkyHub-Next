@@ -17,6 +17,8 @@ Beide Dateien müssen vor dem Prüflauf bereits privat archiviert und unabhängi
 1. Ein P3.6d-Cohortmanifest (Schema skyhub-m3m-private-firmware-cohort-manifest-v1) mit 2–8 vierbandigen Originalcaptures und einem A/B-Label je Aufnahme. Die Einzelcaptures benötigen originale TIFFs, P1-Quellbelege, P3.6a-Feldbelege, eine separate opaque Betreiber-Firmwaredatei und deren SHA-256-Prüfsummen.
 2. Ein P3.6e-Paarplan (Schema skyhub-m3m-private-field-pairing-plan-v1) mit exakt 1–4 A/B-Paaren. Die Anzahl der Paare muss der Hälfte der Originalcapturen entsprechen, und jede angegebene Capture-Quellbelegsumme darf nur einmal verwendet werden.
 
+**Nachgehärtete Evidenzpfade:** Der P3.9-Verknüpfungsworker weist jetzt auch symbolische Links in einem *beliebigen übergeordneten Verzeichnis* des privaten P3.6a-Evidenzordners zurück. Ein direkt gesymlinkter Feldbelegordner oder ein harmlos erscheinender Verzeichnisalias zu denselben bereits gepinnten Dateien gilt ebenfalls als unsicher. Es werden nur absolute, tatsächlich auf sich selbst auflösbare lokale Evidenzpfade akzeptiert. Vor der abschließenden Belegprüfung wird diese Pfadkontrolle erneut durchgeführt. Regressionstests prüfen direkte und verschachtelte Alias-Pfade, nichtkanonische Pfade und die Unterdrückung privater Pfade im CLI-Fehlerfall.
+
 Alle bestehenden Anforderungen an Dateirechte, absolute kanonische Pfade, Bytesiegel, manuell gesetzte Toleranzen und doppelte Source-IDs bleiben verpflichtend. Die Planungsdatei muss 0600 und ihr privates Elternverzeichnis 0700 sein; der originale Cohort-Matrix-Worker kontrolliert seine eigenen File-Bounds. Diese statischen Schutzprüfungen ersetzen keine betriebssystemseitige race-proof Dateisystemisolation.
 
 ## Lokaler Aufruf
