@@ -108,6 +108,7 @@ Diese Dokumente waren bisher nur über Suche oder PR-Beschreibungen erreichbar. 
 - [WPML-Integration auf aktueller SkyHub-Next-Main-Basis](wpml-main-integration.md)
 - [SkyHub Next – WPML-Karten: OSM-403-Diagnose (25.10.2026)](wpml-map-tiles-403.md)
 - [Offline-Kartenkacheln: OpenStreetMap-Cache für den Feldeinsatz (02.11.2026)](offline-map-tiles.md)
+- [DJI Pilot 2 Livestream im Dashboard: RTMP → MediaMTX → HLS (02.11.2026)](pilot-livestream.md)
 - [WPML Survey: begrenzte Geometrie mit Aussparungen (Offline)](wpml-survey-topology.md)
 
 **Smart Farming M3M (experimentell, offline)**

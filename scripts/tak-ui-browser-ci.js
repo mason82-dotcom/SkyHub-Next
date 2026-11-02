@@ -47,7 +47,7 @@ const server=http.createServer((request,response)=>{
   const url=new URL(request.url,'http://127.0.0.1');
   requests.push({method:request.method,path:url.pathname});
   if(url.pathname==='/'){response.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});response.end(get('index.html'));return;}
-  if(['/workspace-tabs.js','/telemetry-freshness.js','/hms-history-panel.js'].includes(url.pathname)){
+  if(['/workspace-tabs.js','/telemetry-freshness.js','/hms-history-panel.js','/live-panel.js'].includes(url.pathname)){
     response.writeHead(200,{'Content-Type':'application/javascript'});response.end(get(url.pathname.slice(1)));return;
   }
   // Same-origin tile route of the backend; a neutral synthetic tile, never real geography.

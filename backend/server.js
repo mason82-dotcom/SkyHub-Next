@@ -42,6 +42,7 @@ const {createFhObserver}=require('./fh-observer');
 const {createFhMsdkObserve}=require('./fh-msdk-observe');
 const {createFhUgcsReader}=require('./fh-ugcs-reader');
 const {fhMetrics}=require('./fh-metrics');
+const {liveStreamSettings,pilotLiveConfig,createLiveStreamRouter}=require('./live-stream');
 
 const secret=process.env.SKYHUB_VIEW_TOKEN;
 if(!secret || secret.length<24 || secret.startsWith('REPLACE_')){
@@ -56,6 +57,15 @@ try {
   process.exit(1);
 }
 const pilot=pilotConfiguration(process.env);
+// Pilot 2 livestream relay (opt-in): RTMP from the RC to MediaMTX, HLS to the dashboard.
+const liveSettings=liveStreamSettings(process.env);
+if(liveSettings.issue)console.error('[live] disabled:',liveSettings.issue);
+const liveStream=createLiveStreamRouter({settings:liveSettings});
+// The authenticated Pilot bootstrap additionally carries the RTMP target when the relay is enabled.
+const pilotWithLive=Object.assign(Object.create(null),pilot,{bootstrap(){
+  const live=pilotLiveConfig(liveSettings);
+  return {...pilot.bootstrap(),...(live?{live}:{})};
+}});
 let lanAccess,trackRetentionDays,trustedProxyIps,tileSettings;
 try {
   trustedProxyIps=parseTrustedProxyIps(process.env.SKYHUB_TRUSTED_PROXY_IPS||'');
@@ -164,7 +174,7 @@ try{
   process.exit(1);
 }
 const {state:mqttState,ack}=ingest;
-registerPilotRoutes(app,{pilot,pairing,redis,registry,pool,ack,pilotAuth});
+registerPilotRoutes(app,{pilot:pilotWithLive,pairing,redis,registry,pool,ack,pilotAuth});
 if(tsaHub){
   app.get('/manage/api/v1/workspaces/:workspaceId/devices/topologies',createTopologyListHandler({
     registry,workspaceId:pilot.workspaceId,authorize:pilotAuth.principal,
@@ -186,7 +196,7 @@ app.get('/api/health',(req,res)=>res.json({
   topologyReplyLastAt:ack.lastAt,topologyRestoredDevices:topologyRestored,
   lanViewEnabled:lanAccess.enabled,hmsHistoryEnabled:Boolean(hmsHistory),...trackRecorder.snapshot(),
   trackRetentionDays,...mqttStats.snapshot(),...ingest.cacheStats(),
-  tileCache:tiles.stats(),
+  tileCache:tiles.stats(),liveStream:liveStream.stats(),
   ...(tsaHub?{tsa:tsaHub.stats()}:{}),
   ...(mediaUpload?{pilotMediaUpload:mediaUpload.stats()}:{})
 }));
@@ -310,6 +320,7 @@ app.get('/api/diagnostics/fh/ugcs/:section',async(req,res)=>{
  const result=await fhUgcs.read(req.params.section);
  res.status(result.status).json(result.data);
 });
+app.use(liveStream.router);
 app.get('/api/diagnostics/hms-history',createHmsHistoryHandler({history:hmsHistory,registry}));
 registerPilotAdminRoutes(app,{pairing});
 // Field names per channel/method as actually received; no values or serial numbers.

@@ -12,6 +12,7 @@
   let tsaState=null; // null: not requested, otherwise a short German status for the diagnostics
   let mediaState=null; // same for the media synchronisation
   let waylineState=null; // same for the DJI wayline library (mission module)
+  let liveState=null; // same for the livestream (liveshare module)
   const memory=Object.create(null);
   const isTls=location.protocol==='https:';
   function status(text){el('result').textContent=text;}
@@ -103,6 +104,8 @@
         ' · Medien-Modul geladen: '+readBridgeStatus('platformIsComponentLoaded','media')+
         ' · Fotos automatisch: '+readBridgeStatus('mediaGetAutoUploadPhoto')+
         ' · Videos automatisch: '+readBridgeStatus('mediaGetAutoUploadVideo')]),
+      ...(liveState===null?[]:['Livestream: '+liveState+
+        ' · Liveshare-Modul geladen: '+readBridgeStatus('platformIsComponentLoaded','liveshare')]),
       ...(waylineState===null?[]:['Wayline-Bibliothek: '+waylineState+
         ' · Mission-Modul geladen: '+readBridgeStatus('platformIsComponentLoaded','mission')]),
       'Gerät gekoppelt: '+(storageGet(TOKEN_KEY)?'ja':'nein')
@@ -223,6 +226,54 @@
     }catch(e){waylineState='nicht geladen ('+e.message+')';}
     refreshDiagnostics();
   }
+  // Livestream: DJI's liveshare module streams RTMP to the SkyHub relay. Publish type
+  // "video-by-manual": only the pilot starts/stops (here or in Pilot 2); the cloud cannot demand it.
+  // The RTMP URL carries the publish password and is never displayed or stored.
+  const LIVE_STATUS=['getrennt','verbunden','LIVE'];
+  function liveStatusText(raw){
+    let s=raw;
+    if(typeof s==='string'){try{s=JSON.parse(s);}catch(_){return null;}}
+    if(s&&typeof s==='object'&&typeof s.data==='string'){try{s=JSON.parse(s.data);}catch(_){return null;}}
+    if(!s||typeof s!=='object'||!Number.isInteger(s.status))return null;
+    const label=LIVE_STATUS[s.status]||'unbekannt';
+    const extra=[];
+    if(Number.isFinite(s.fps)&&s.fps>=0)extra.push(Math.round(s.fps)+' fps');
+    if(Number.isFinite(s.videoBitRate)&&s.videoBitRate>=0)extra.push(Math.round(s.videoBitRate)+' kbit/s');
+    if(Number.isFinite(s.dropRate)&&s.dropRate>=0)extra.push('Verlust '+s.dropRate+' %');
+    return {living:s.status===2,text:'Status: '+label+(extra.length?' · '+extra.join(' · '):'')};
+  }
+  function renderLive(raw){
+    const parsed=liveStatusText(raw);
+    if(!parsed)return;
+    el('liveState').textContent=parsed.text;
+    show('liveStart',!parsed.living);
+    show('liveStop',parsed.living);
+  }
+  window.skyhubLiveStatus=function(arg){renderLive(arg);};
+  function loadLive(config){
+    const live=config&&config.live;
+    if(!live||typeof live.rtmpUrl!=='string'||!/^rtmp:\/\/[^/?#]+\/pilot\?/.test(live.rtmpUrl))return;
+    try{
+      if(bridgeBoolean('platformIsComponentLoaded','liveshare')!==true)
+        invoke('platformLoadComponent','liveshare',JSON.stringify({
+          videoPublishType:'video-by-manual',statusCallback:'skyhubLiveStatus'}));
+      // Type 2 = RTMP (DJI liveshare types: 1 Agora, 2 RTMP, 3 RTSP, 4 GB28181).
+      invoke('liveshareSetConfig',2,JSON.stringify({url:live.rtmpUrl}));
+      liveState='bereit (Start durch den Piloten)';
+      el('livePanel').hidden=false;
+      show('liveStart',true);
+      try{renderLive(window.djiBridge.liveshareGetStatus());}catch(_){/* status follows via callback */}
+    }catch(e){liveState='nicht geladen ('+e.message+')';}
+    refreshDiagnostics();
+  }
+  function startLive(){
+    try{invoke('liveshareStartLive');el('liveState').textContent='Livestream wird gestartet ...';}
+    catch(e){el('liveState').textContent='Start fehlgeschlagen: '+e.message;}
+  }
+  function stopLive(){
+    try{invoke('liveshareStopLive');el('liveState').textContent='Livestream wird beendet ...';}
+    catch(e){el('liveState').textContent='Stopp fehlgeschlagen: '+e.message;}
+  }
   window.skyhubPilotWsState=function(_callbackResult){
     // The callback payload is intentionally ignored; the state is queried instead.
     refreshDiagnostics();
@@ -327,6 +378,7 @@
       loadTsa(config);
       loadMedia(config);
       loadWayline(config);
+      loadLive(config);
       refreshDiagnostics();
       status('DJI Cloud-Modul geladen. MQTT-Verbindungsstatus wird geprüft ...');
       setTimeout(()=>window.skyhubPilotMqttState(),4000);
@@ -335,6 +387,7 @@
     loadTsa(config);
     loadMedia(config);
     loadWayline(config);
+    loadLive(config);
     refreshDiagnostics();
     const state=bridgeBoolean('thingGetConnectState');
     if(state===true){
@@ -433,6 +486,8 @@
     }catch(e){el('headline').textContent='Backend nicht bereit';status(e.message);}
   }
   el('retry').addEventListener('click',retryMqtt);
+  if(el('liveStart'))el('liveStart').addEventListener('click',startLive);
+  if(el('liveStop'))el('liveStop').addEventListener('click',stopLive);
   el('diagnose').addEventListener('click',refreshDiagnostics);
   el('diagnose').disabled=false;
   if(el('rebuild'))el('rebuild').addEventListener('click',rebuildSession);

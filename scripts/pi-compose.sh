@@ -17,6 +17,8 @@ command -v docker >/dev/null || { echo "docker fehlt" >&2; exit 2; }
 [[ -f docker-compose.arm64.yml ]] || { echo "ERROR: docker-compose.arm64.yml fehlt" >&2; exit 2; }
 files=(-f docker-compose.yml -f docker-compose.arm64.yml)
 [[ -f docker-compose.override.yml ]] && files+=(-f docker-compose.override.yml)
+# Livestream relay (MediaMTX) only when explicitly enabled; the overlay requires both live passwords.
+if grep -qx 'SKYHUB_LIVE_ENABLED=true' .env && [[ -f docker-compose.live.yml ]];then files+=(-f docker-compose.live.yml);fi
 compose=(docker compose -p skyhub-next --env-file .env "${files[@]}")
 
 [[ $# -ge 1 ]] || { echo "Verwendung: bash scripts/pi-compose.sh <docker compose Befehl> [Argumente]" >&2; exit 2; }
