@@ -368,7 +368,7 @@
       ' Wegpunkte). SkyHub verwendet eigene RC-Verlustregeln. '+
       'Keine semantische Gleichsetzung mit dem Go-SDK. Kein Flugauftrag.');
   });
-  for(const fieldId of ['name','model','height','speed','takeoff','finish','photo-interval','photo-camera-min']){
+  for(const fieldId of ['name','model','height','speed','takeoff','rth','finish','photo-interval','photo-camera-min']){
     $(fieldId).addEventListener('input',updateReview);
     $(fieldId).addEventListener('change',updateReview);
   }
