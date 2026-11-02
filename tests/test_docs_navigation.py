@@ -35,7 +35,7 @@ class DocsNavigationTests(unittest.TestCase):
         self.assertEqual([], orphans, "Dateien in docs/, die docs/index.md nicht verlinkt")
 
     def test_current_status_documents_are_linked_from_readme_and_index(self):
-        for name in ("stand-2026-10-27-betriebsstand.md", "vorfaelle-2026-10-26.md", "pi-hub.md"):
+        for name in ("stand-2026-10-27-betriebsstand.md", "vorfaelle-2026-10-26.md", "pi-hub.md", "repository-audit-2026-11-02.md"):
             for entry in (ROOT / "README.md", ROOT / "docs" / "index.md"):
                 self.assertIn(name, entry.read_text(encoding="utf-8"), f"{name} fehlt in {entry.name}")
 
