@@ -16,7 +16,8 @@ test('P3 only performs the whitelisted GET and redacts DJI identities',async()=>
   const result=await x.listDevices(project);
   assert.equal(called,1);assert.equal(result.devices.length,1);
   assert.equal(result.devices[0].model,'M4T');
-  assert.doesNotMatch(JSON.stringify(result),/PRIVATE|SECRET|49.5|8.3/);
+  assert.doesNotMatch(JSON.stringify(result.devices),/PRIVATE|SECRET|latitude|longitude|\\"lat\\"/);
+  assert.deepEqual(Object.keys(result.devices[0]).sort(),['displayName','model','online','source','type']);
   assert.equal(result.flightReady,false);
 });
 test('P3 enforces origin pin, project UUID and content type without request retry',async()=>{
