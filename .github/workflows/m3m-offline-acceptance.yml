@@ -66,6 +66,12 @@ jobs:
         run: |
           python -m py_compile backend/workers/m3m_*.py
           python -m unittest discover -s tests -p 'test_m3m_*.py' -v
+      - name: Install locked Node dependencies for actual Python Rasterio integration
+        run: npm ci --prefix backend --ignore-scripts --no-audit --no-fund
+      - name: Verify scoped HTTP to actual Python GeoTIFF worker (synthetic offline)
+        env:
+          SKYHUB_M3M_REAL_RASTER_PROVIDER_TEST: "1"
+        run: node --test backend/test/smart-farming-python-provider.integration.test.js
       - name: Operator CLI help is safe and offline
         run: |
           python backend/workers/m3m_dedal_offline_pipeline.py --help
