@@ -5,11 +5,12 @@
 // accepts operator claims directly from a client.
 const crypto=require('node:crypto');
 const {parseJson}=require('../frontend/public/wpml-waylines-reference');
-const SESSION_SCHEMA='skyhub-wpml-operator-session-v1';
-const KEY_PREFIX='skyhub:wpml:operator-session:v1:';
+const SESSION_SCHEMA='skyhub-wpml-operator-session-v2';
+const KEY_PREFIX='skyhub:wpml:operator-session:v2:';
+const RECORD_CONTEXT='skyhub:wpml:operator-session:record:v2\u0000';
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const KEYS=['schema','issuer','subject','workspaceId','role',
-  'sessionId','expiresAt','status'];
+  'sessionId','expiresAt','status','mac'];
 function strictObject(x){
   return !!x&&typeof x==='object'&&!Array.isArray(x)&&
     Object.getPrototypeOf(x)===Object.prototype&&
@@ -26,7 +27,7 @@ function validClaim(x){
     Number.isSafeInteger(x.expiresAt)&&x.expiresAt>0;
 }
 function createWpmlRedisSessionCheck({
-  redis,keySecret,clock=()=>Date.now(),lookupTimeoutMs=300,
+  redis,keySecret,recordMacSecret,clock=()=>Date.now(),lookupTimeoutMs=300,
   maxConcurrentLookups=32
 }={}){
   if(!redis||typeof redis.get!=='function')
@@ -34,6 +35,11 @@ function createWpmlRedisSessionCheck({
   if(!(Buffer.isBuffer(keySecret)||typeof keySecret==='string')||
      Buffer.byteLength(keySecret)<32)
     throw new TypeError('Dedicated 32+ byte operator session key secret required');
+  if(!(Buffer.isBuffer(recordMacSecret)||typeof recordMacSecret==='string')||
+     Buffer.byteLength(recordMacSecret)<32)
+    throw new TypeError('Dedicated 32+ byte session integrity secret required');
+  if(Buffer.from(keySecret).equals(Buffer.from(recordMacSecret)))
+    throw new TypeError('Session lookup and integrity secrets must differ');
   if(typeof clock!=='function')throw new TypeError('Clock required');
   if(!Number.isSafeInteger(lookupTimeoutMs)||lookupTimeoutMs<25||
      lookupTimeoutMs>2000)
@@ -47,6 +53,20 @@ function createWpmlRedisSessionCheck({
   // background GET operations during an outage.
   let inFlight=0;
   const key=Buffer.from(keySecret); // Never reuse a mutable caller buffer.
+  const macKey=Buffer.from(recordMacSecret);
+  function verifiedMac(record){
+    // Exact field order and domain separation avoid JSON ordering ambiguity.
+    // The reader never exports a signing or session-creation function.
+    if(typeof record.mac!=='string'||!/^[0-9a-f]{64}$/.test(record.mac))
+      return false;
+    const fields=[record.schema,record.issuer,record.subject,
+      record.workspaceId,record.role,record.sessionId,
+      record.expiresAt,record.status];
+    const signed=Buffer.from(RECORD_CONTEXT+JSON.stringify(fields),'utf8');
+    const expected=crypto.createHmac('sha256',macKey).update(signed).digest();
+    const actual=Buffer.from(record.mac,'hex');
+    return crypto.timingSafeEqual(expected,actual);
+  }
   function lookupKey(sessionId){
     return KEY_PREFIX+crypto.createHmac('sha256',key)
       .update(sessionId,'ascii').digest('hex');
@@ -99,7 +119,7 @@ function createWpmlRedisSessionCheck({
        record.sessionId!==assertion.sessionId||
        !Number.isSafeInteger(record.expiresAt)||
        record.expiresAt<assertion.expiresAt||
-       record.expiresAt<=afterLookup)return false;
+       record.expiresAt<=afterLookup||!verifiedMac(record))return false;
     return true;
   };
 }
