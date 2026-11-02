@@ -67,6 +67,11 @@ jobs:
           python3 -m py_compile scripts/pi-prepare-staging-env.py
           python3 -m unittest discover -s tests -p 'test_*.py'
 
+      # Independent tests/test_minio_acceptance_contract.py runs through unittest discovery above.
+      # Run the original MinIO fixture suite here as well, without Docker/systemd/mount/S3.
+      - name: Verify isolated MinIO acceptance fixtures (no live storage)
+        run: python3 pi-minio-acceptance/test_local.py -v
+
       - name: Syntax-check Pi shell tools (never execute them)
         run: |
           for file in scripts/*.sh; do
