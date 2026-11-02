@@ -35,7 +35,7 @@ class GeoHandoffTests(unittest.TestCase):
     def test_tile_is_png_and_does_not_claim_measurements(self):
         values = [0.5] * (256*256)
         result = p5.grayscale_tile(values,256,256,0,1)
-        self.assertTrue(result.startswith(b'\\x89PNG\\r\\n\\x1a\\n'))
+        self.assertTrue(result.startswith(bytes([137,80,78,71,13,10,26,10])))
         with self.assertRaises(p5.HandoffError):
             p5.grayscale_tile(values,256,256,1,1)
 if __name__ == '__main__':
