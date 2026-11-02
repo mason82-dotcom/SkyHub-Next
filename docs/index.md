@@ -124,6 +124,11 @@ Diese Dokumente waren bisher nur über Suche oder PR-Beschreibungen erreichbar. 
 - [M3M P3.1: echter isolierter HTTP→Python→Rasterio-Testpfad (synthetische Daten)](smart-farming-http-python-rasterio-lab.md)
 - [M3M P3.2: private EPSG:3857-Vegetationskarten mit lokalem SHA-verifiziertem GeoJSON-Zeichentool](smart-farming-private-map-lab.md)
 - [M3M P3.3: privater numerischer GeoTIFF-/CSV-Polygonexport für GIS (offline)](smart-farming-private-numeric-gis-export.md)
+- [M3M P3.4: privater GDAL-COG-Export mit unabhängiger Pixel-/TIFF-Validierung (offline)](smart-farming-private-cog-validation-2026-10-24.md)
+- [M3M P3.5a: numerischer Vierband-Referenzvergleich mit unabhängig gepinnten GeoTIFFs (experimentell)](smart-farming-p3-reference-agreement-2026-10-24.md)
+- [M3M P3.5b: versionsgebundene und wiederholbar überprüfbare Referenzergebnisbelege (offline)](smart-farming-p3-reference-receipt-2026-11-02.md)
+- [M3M P3.6a: privater TIFF-Aufnahme- und Feldkalibrierungsbeleg-Preflight (ungeprüfte Nachweise)](smart-farming-p3-field-evidence-preflight-2026-11-02.md)
+- [M3M P3.6b: begrenzte DJI-Radiometrie-XMP-Markerprüfung ohne Rohwerte/Freigabe](smart-farming-p3-radiometric-xmp-audit-2026-11-02.md)
 - [SkyHub-Next: M3M-Konsolidierung und Offline-Abnahme](smart-farming-m3m-release-status-2026-10-24.md)
 - [Mavic 3M über bestehenden MinIO: sichere Pi-End-to-End-Leseprüfung](smart-farming-m3m-s3-hardware-smoke.md)
 
