@@ -10,6 +10,7 @@
   const ENABLED_KEY='skyhub.wpml.route-sync.enabled.v1';
   const RECEIPTS_KEY='skyhub.wpml.route-sync.receipts.v1';
   const HEX=/^[0-9a-f]{64}$/;
+  const MAX_RECEIPTS=2000;
   function missionName(name,routeId,revision,sha){
     if(!HEX.test(sha)||!Number.isSafeInteger(routeId)||routeId<1||
        !Number.isSafeInteger(revision)||revision<1)throw new TypeError('Invalid sync identity');
@@ -32,14 +33,16 @@
     function receipts(){
       let data;
       try{data=JSON.parse(storage.getItem(RECEIPTS_KEY)||'[]');}catch{return new Set();}
-      if(!Array.isArray(data)||data.length>library.MAX_ROUTES*library.MAX_REVISIONS||
+      if(!Array.isArray(data)||data.length>MAX_RECEIPTS||
          data.some(v=>typeof v!=='string'||!HEX.test(v)))return new Set();
       return new Set(data);
     }
     function saveReceipt(sha,previous){
       // Acknowledgement is written ONLY after a successful, validated server response.
       previous.add(sha);
-      storage.setItem(RECEIPTS_KEY,JSON.stringify([...previous]));
+      const tail=[...previous].slice(-MAX_RECEIPTS);
+      storage.setItem(RECEIPTS_KEY,JSON.stringify(tail));
+      if(previous.size>MAX_RECEIPTS){previous.clear();tail.forEach(x=>previous.add(x));}
     }
     async function checksum(bytes){
       const digest=await cryptoApi.subtle.digest('SHA-256',bytes);
