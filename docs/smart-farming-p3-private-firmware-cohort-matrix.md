@@ -44,6 +44,8 @@ Das Beispiel ist ein Schema-Muster: die Platzhalter sind keine SHA-256-Werte. Di
 
 Maximal acht Fälle; mindestens ein Fall je Kohorte. Jeder Fall hat vier unterschiedliche TIFF-Pfade, einen eindeutigen Original-Capture-Receipt-Pfad, getrennte P3.6-Feldevidenz und eine gepinnte operatorseitige Firmwarebelegdatei. Manifest und Firmwarebelege müssen reguläre Dateien (keine Symlinks/Hardlinks), nicht öffentlich lesbar und begrenzt sein (32 KiB Manifest, 8 MiB Firmwarebeleg). Manipulation während der Verarbeitung wird durch erneutes Hashen erkannt.
 
+**Wichtig für die Kohortenunabhängigkeit:** Unterschiedliche Dateipfade allein genügen nicht. Pro Fall müssen sowohl der Original-Receipt-Pfad als auch dessen unabhängig hinterlegter SHA-256-Wert verschieden sein; TIFF-Dateipfade und physische TIFF-Dateiidentitäten dürfen innerhalb der gesamten Vergleichsmatrix nicht mehrfach vorkommen. Gleiche Firmware-Evidenzbytes dürfen nicht gleichzeitig Kohorte A und B zugeordnet werden. Das belegt weiterhin keine tatsächliche Firmwareversion und verhindert nicht, dass identische Aufnahmebytes in neue Dateien kopiert und mit neuen Belegen versehen werden. Wissenschaftliche Aufnahmeunabhängigkeit muss separat geprüft werden.
+
 Die bestehende P3.6c-Prüfung wird pro Fall vollständig ausgeführt: P1-/P3.6-Original- und Evidenz-SHA-Pins vor/nach dem XMP-Strukturinventar, kein Zugriff auf Live-DJI-API und keine Veröffentlichung von Rohmetadaten.
 
 ## Ausführung
