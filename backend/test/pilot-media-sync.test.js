@@ -139,3 +139,39 @@ test('upload runtime stays off by default and refuses incomplete or shared crede
   assert.equal(runtime.endpoint,'https://rpi5.fritz.box:9446');
   assert.equal(typeof runtime.router,'function');
 });
+
+test('S3 proxy passes presigned wayline downloads only when enabled, Host unchanged',async()=>{
+  const received=[];
+  const minio=http.createServer((req,res)=>{
+    received.push({method:req.method,url:req.url,host:req.headers.host});
+    res.writeHead(200,{'Content-Type':'application/vnd.google-earth.kmz'});res.end('PK');
+  });
+  const minioPort=await listen(minio);
+  const id='2023ac26-1111-8222-9333-444455556666';
+  const signed='/skyhub-wpml/missions/'+id+'.kmz?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=k%2F20261102'+
+    '&X-Amz-Date=20261102T060000Z&X-Amz-Expires=600&X-Amz-SignedHeaders=host&X-Amz-Signature='+'f'.repeat(64);
+  const send=(port,method,path)=>new Promise((resolve,reject)=>{
+    const req=http.request({host:'127.0.0.1',port,method,path,headers:{Host:'rpi5.fritz.box:9446'}},
+      res=>{res.resume();res.on('end',()=>resolve(res.statusCode));});
+    req.on('error',reject);req.end();
+  });
+  const off=http.createServer(createS3UploadProxy({target:'http://127.0.0.1:'+minioPort,workspace:WS,
+    trustedProxyIps:new Set(['127.0.0.1'])}).handler);
+  const on=http.createServer(createS3UploadProxy({target:'http://127.0.0.1:'+minioPort,workspace:WS,
+    trustedProxyIps:new Set(['127.0.0.1']),downloadBucket:'skyhub-wpml'}).handler);
+  const offPort=await listen(off),onPort=await listen(on);
+  try{
+    assert.equal(await send(offPort,'GET',signed),403,'disabled by default');
+    assert.equal(await send(onPort,'GET',signed),200);
+    assert.equal(await send(onPort,'HEAD',signed),200);
+    assert.deepEqual(received[0],{method:'GET',url:signed,host:'rpi5.fritz.box:9446'});
+    for(const bad of ['/skyhub-wpml/missions/'+id+'.kmz',                      // unsigned
+      signed.replace('missions/','other/'),signed.replace('skyhub-wpml','dji-cloud'),
+      '/skyhub-wpml/missions/x.kmz'+signed.slice(signed.indexOf('?')),
+      '/skyhub-wpml/missions/?list-type=2&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Signature='+'f'.repeat(64)])
+      assert.equal(await send(onPort,'GET',bad),403,bad);
+    assert.equal(await send(onPort,'PUT',signed),403);
+    assert.equal(await send(onPort,'DELETE',signed),403);
+    assert.equal(received.length,2);
+  }finally{off.close();on.close();minio.close();}
+});

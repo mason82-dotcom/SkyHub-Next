@@ -54,7 +54,10 @@ function createPilotMediaUploadRuntime({env,pool,redis,authorize,storage,pilot,t
     headObject:storage.headObject,
     transaction:createPilotMediaMutationTransaction(pool)
   }));
-  const proxy=createS3UploadProxy({target:env.SKYHUB_S3_ENDPOINT,workspace,trustedProxyIps,log});
+  // DJI wayline library: Pilot 2 follows a presigned link to the same endpoint (see dji-wayline-http.js).
+  const downloadBucket=env.SKYHUB_PILOT_WAYLINE_ENABLED==='true'&&env.SKYHUB_WPML_STORE_ENABLED==='true'?
+    (env.SKYHUB_WPML_S3_BUCKET||'skyhub-wpml'):null;
+  const proxy=createS3UploadProxy({target:env.SKYHUB_S3_ENDPOINT,workspace,trustedProxyIps,downloadBucket,log});
   const proxyPort=Number(env.SKYHUB_S3_UPLOAD_PROXY_PORT||4002);
   if(!Number.isInteger(proxyPort)||proxyPort<1024||proxyPort>65535)
     throw new Error('SKYHUB_S3_UPLOAD_PROXY_PORT must be 1024-65535');
