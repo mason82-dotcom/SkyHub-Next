@@ -3,6 +3,9 @@
 'use strict';
 const el=id=>document.getElementById(id);
 const BAND_LABELS={G:'Grün',R:'Rot',RE:'RedEdge',NIR:'NIR'};
+const ASSESSMENT_VERSION='skyhub-m3m-capture-assessment-v2';
+const currentAssessment=c=>c.assessmentVersion===ASSESSMENT_VERSION;
+const metadataCandidate=c=>currentAssessment(c)&&c.usability==='metadata-candidate'&&c.usable===true;
 function node(tag,className,text){
   const e=document.createElement(tag);
   if(className)e.className=className;
@@ -18,9 +21,14 @@ const fileUrl=(bucket,key)=>'/api/media/file?'+new URLSearchParams({bucket,key})
 function card(c){
   const article=node('article','capture-card');
   const head=node('div','capture-head');
+  const candidate=metadataCandidate(c);
+  const label=!currentAssessment(c)?'Bewertung nicht aktuell':candidate?'Metadaten-Kandidat':'Metadaten-Prüfung blockiert';
   head.append(node('h3',null,when(c.createdAt)),
-    node('span','capture-status '+(c.usable?'ok':'bad'),c.usable?'Auswertbar':'Nicht auswertbar'));
+    node('span','capture-status '+(candidate?'ok':'bad'),label));
   article.append(head);
+  const completeness={complete:'eindeutig vollständig',incomplete:'unvollständig',conflicted:'mehrdeutig'};
+  article.append(node('p','fine','Bandstatus: '+(currentAssessment(c)&&Object.hasOwn(completeness,c.completeness)?
+    completeness[c.completeness]:'ungeprüft')+'. Radiometrie und Mapping nicht freigegeben.'));
   if(c.preview&&c.preview.image){
     const fig=node('figure');
     const img=document.createElement('img');
@@ -32,6 +40,10 @@ function card(c){
   const bands=node('div','band-row');
   for(const b of ['G','R','RE','NIR']){
     const band=c.bands[b];
+    if(currentAssessment(c)&&c.duplicateBands?.includes(b)){
+      bands.append(node('span','band-chip missing',BAND_LABELS[b]+' mehrdeutig'));
+      continue;
+    }
     if(!band){bands.append(node('span','band-chip missing',BAND_LABELS[b]+' fehlt'));continue;}
     const a=node('a','band-chip',BAND_LABELS[b]+' '+(band.wavelength||'?')+' nm');
     a.href=fileUrl(band.bucket,band.key);a.download=band.name;
@@ -73,21 +85,26 @@ function card(c){
 }
 async function load(){
   const status=el('captureStatus'),list=el('captureList');
-  if(!status||!list)return;
+  if(!status||!list||el('loadCaptures').disabled)return;
   el('loadCaptures').disabled=true;
+  list.setAttribute('aria-busy','true');
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),30000);
   status.textContent='Aufnahmen werden eingelesen …';
   try{
-    const r=await fetch('/api/smart-farming/captures',{cache:'no-store',headers:{Accept:'application/json'}});
+    const r=await fetch('/api/smart-farming/captures',{cache:'no-store',headers:{Accept:'application/json'},signal:controller.signal});
     if(r.status===401)throw new Error('Kein Zugriff: Seite bitte aus dem Heimnetz öffnen.');
     if(r.status===404)throw new Error('Die Medien-API ist auf diesem Backend nicht aktiviert.');
     if(!r.ok)throw new Error('Speicher nicht erreichbar (HTTP '+r.status+').');
     const data=await r.json();
     list.replaceChildren(...data.captures.map(card));
-    status.textContent=data.count+' Aufnahmen, davon '+data.usable+' auswertbar. '+data.notice;
+    status.textContent=data.count+' Aufnahmen. Metadaten-Kandidaten: '+data.captures.filter(metadataCandidate).length+
+      '. '+(data.assessmentVersion===ASSESSMENT_VERSION?'':
+        'Bewertung nicht aktuell; Backend und Seite gemeinsam aktualisieren. ')+data.notice;
   }catch(error){
     list.replaceChildren();
-    status.textContent=error.message;
-  }finally{el('loadCaptures').disabled=false;}
+    status.textContent=error.name==='AbortError'?'Zeitüberschreitung beim Einlesen. Bitte erneut laden.':error.message;
+  }finally{clearTimeout(timeout);list.setAttribute('aria-busy','false');el('loadCaptures').disabled=false;}
 }
 window.addEventListener('DOMContentLoaded',()=>{
   if(!el('loadCaptures'))return;

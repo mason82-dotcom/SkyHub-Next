@@ -58,6 +58,24 @@
 
 Weitere Standardkomponenten entstehen erst mit einem tatsächlichen zweiten Workflow. Neue Schreibaktionen benötigen vor der UI-Umsetzung einen expliziten Rollen-, Fehler- und Bestätigungsvertrag; die lesende Karte definiert dafür keine Freigabe.
 
+## M3M-Capture-Bewertung
+
+Fachquelle: [Capture-Vertrag v2](docs/smart-farming-m3m-capture-assessment.md) und
+`backend/smart-farming-captures.js`. Die bestehende Smart-Farming-Kartenansicht
+und die gemeinsamen Light-Tokens bleiben erhalten.
+
+- Bandvollständigkeit und Metadaten-Kandidaten werden getrennt benannt. Ein
+  Kandidat ist keine Radiometrie-, Mapping- oder Flugfreigabe.
+- Mehrdeutige Bänder zeigen einen Konflikt; es gibt keinen automatisch gewählten
+  Banddownload. Fehlende GPS-/Höhen-/Irradiance-Daten blockieren den Kandidatenstatus.
+- Nur die aktuelle Bewertungskennung darf als Kandidat dargestellt werden.
+  Alte Backendantworten erhalten „Bewertung nicht aktuell“.
+- Während des lesenden Abrufs ist Neuladen gesperrt und die Ergebnisregion
+  `aria-busy`. Fehler/Timeout leeren die Ergebnisliste, erklären den Zustand und
+  geben Neuladen frei. Keine neue Token- oder Browserpersistenz.
+- Nachweise: Capture-Backendtests und
+  `scripts/smart-farming-captures-browser-ci.js` (synthetisch, kein Pi-Nachweis).
+
 ## Thermal-Bildanalyse und Exportintegrität
 
 Fachquelle: [Thermalvertrag](docs/thermal.md), `backend/thermal.js` und `frontend/public/thermal-core.js`. Die native Eingabe- und Select-Bedienung der Medienansichten bleibt erhalten.

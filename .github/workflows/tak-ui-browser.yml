@@ -10,6 +10,8 @@ on:
       - "frontend/public/**"
       - "scripts/tak-ui-browser-ci.js"
       - "scripts/thermal-browser-ci.js"
+      - "scripts/smart-farming-captures-browser-ci.js"
+      - "backend/smart-farming-captures.js"
       - "backend/thermal.js"
       - "backend/media-preview.js"
       - ".github/workflows/tak-ui-browser.yml"
@@ -51,6 +53,10 @@ jobs:
         env:
           SKYHUB_BROWSER_ARTIFACTS: browser-evidence
         run: node scripts/thermal-browser-ci.js
+      - name: Smart Farming capture assessment and conflict browser regression
+        env:
+          SKYHUB_BROWSER_ARTIFACTS: browser-evidence
+        run: node scripts/smart-farming-captures-browser-ci.js
       - name: Upload screenshots and acceptance report
         if: always()
         uses: actions/upload-artifact@v4

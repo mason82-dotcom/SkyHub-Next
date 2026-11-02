@@ -43,8 +43,8 @@ button.secondary{background:#243b51}
 .metric-note{margin:14px 0 0}
 small{color:var(--muted)}
 .capture-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
-.capture-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-top:14px}
-.capture-card{border:1px solid var(--sky-border,#334c63);border-radius:12px;padding:14px;background:var(--sky-white,#182b41);display:grid;gap:10px;align-content:start}
+.capture-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr));gap:16px;margin-top:14px}
+.capture-card{min-width:0;overflow-wrap:anywhere;border:1px solid var(--sky-border,#334c63);border-radius:12px;padding:14px;background:var(--sky-white,#182b41);display:grid;gap:10px;align-content:start}
 .capture-card h3{margin:0;font-size:16px}
 .capture-card figure{margin:0}
 .capture-card img{width:100%;height:auto;border-radius:8px;display:block;background:#0b1928}
@@ -94,7 +94,7 @@ small{color:var(--muted)}
         <a id="captureManifest" class="fine" href="/api/smart-farming/captures/manifest" download>Aufnahme-Manifest (JSON) für die Orthomosaik-Pipeline</a>
       </div>
     </div>
-    <p class="fine">Alle Band-TIFFs (Grün, Rot, RedEdge, NIR) aus dem Speicher, über die CaptureUUID zu Aufnahmen zusammengeführt, auch wenn Bänder aus SD-Import und Pilot-2-Upload stammen. Einzelbilder, kein Orthomosaik und keine kalibrierte Reflexion.</p>
+    <p class="fine">Band-TIFFs (Grün, Rot, RedEdge, NIR) werden über die CaptureUUID zusammengeführt, auch aus SD-Import und Pilot-2-Upload. Mehrdeutige Bänder bleiben gesperrt. Vollständigkeit und Metadaten-Kandidaten werden getrennt bewertet. Einzelbilder, kein Orthomosaik und keine kalibrierte Reflexion.</p>
     <p id="captureStatus" class="fine" role="status" aria-live="polite">Aufnahmen werden eingelesen …</p>
     <div id="captureList" class="capture-grid" aria-label="Multispektral-Aufnahmen"></div>
   </section>

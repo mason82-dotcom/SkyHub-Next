@@ -135,6 +135,12 @@ opt-in-Katalog bleibt standardmäßig deaktiviert; ein Test-Erfolg ist
 
 ## Multispektral-Aufnahmen (seit 01.11.2026)
 
+**Bewertungsvertrag v2:** Die nachfolgende Beschreibung dokumentiert den
+ursprünglichen v1-Stand und damalige Bestandsbeobachtungen. Für die aktuelle
+Implementierung gelten die strengere [Capture-Bewertung und Manifest-v2-Semantik](smart-farming-m3m-capture-assessment.md).
+Die UI unterscheidet eindeutige Bandvollständigkeit von Metadaten-Kandidaten;
+„auswertbar“ ist keine aktuelle Freigabebezeichnung. Ein Update ist kein Pi-Nachweis.
+
 Die Smart-Farming-Seite zeigt oberhalb des Katalogs alle **Mavic-3M-Aufnahmen** aus MinIO (`GET /api/smart-farming/captures`, Heimnetz ohne Anmeldung, nur lesend). Jede Band-TIFF wird über ihren XMP-Kopf (erste 64 KB) erkannt, nicht über den Dateinamen. So werden Bänder einer Aufnahme über die **CaptureUUID** zusammengeführt, auch wenn sie aus verschiedenen Quellen stammen (SD-Import `DJI_…_MS_G/RE.TIF` und Pilot-2-Upload `org_<fingerprint>_<ms>.tiff` für R/NIR).
 
 Je Aufnahme: Vollständigkeit der Bänder G/R/RE/NIR, Sonnensensor (Irradiance), GPS, Höhe über Start, Bewertung **auswertbar** (alle vier Bänder, Tageslicht) mit Hinweisen (kein GPS, am Boden aufgenommen), Download der Bänder und – falls vorhanden – die NDVI-Vorschau und Indexwerte (NDVI/GNDVI/NDRE) aus `farming/ms-preview/` der früheren Pipeline (15.10.2026).
