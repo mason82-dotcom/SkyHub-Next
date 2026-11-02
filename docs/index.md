@@ -10,6 +10,8 @@
 
 ## AeroNexus-Integrationsentwicklung (02.11.2026)
 
+- [AeroNexusAdvanced P0: Funktionsmatrix, Quell-SHAs und Sicherheitsgrenzen](aeronexus-integration-matrix-2026-11-02.md) – unabhängige P1–P5-PRs ohne automatische Hardwarefreigabe.
+
 - [AeroNexus P1: optionale PostgreSQL-HMS-Chronik](aeronexus-p1-hms-history.md) – manuelle SQL-Migration, standardmäßig deaktiviert.
 
 ## Raspberry-Pi-Betrieb (Stand 27.10.2026)
