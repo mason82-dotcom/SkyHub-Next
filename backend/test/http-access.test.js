@@ -211,3 +211,22 @@ test('DJI field definitions are served for catalogued models and reject everythi
     assert.equal((await get(bad)).status,400,bad);
   assert.equal((await request('/api/diagnostics/dji-fields?model=0:77:2')).status,401);
 });
+
+test('malformed or oversized JSON bodies answer in JSON without parser details',async()=>{
+  const post=(body,headers={})=>fetch(base+'/api/pilot-admin/approve',{method:'POST',
+    headers:{authorization:'Bearer '+VIEW_TOKEN,'content-type':'application/json',...headers},body});
+  const malformed=await post('{"code":');
+  assert.equal(malformed.status,400);
+  assert.match(malformed.headers.get('content-type'),/application\/json/);
+  const text=await malformed.text();
+  assert.deepEqual(JSON.parse(text),{error:'Invalid request body'});
+  assert.doesNotMatch(text,/SyntaxError|at |node_modules/);
+  const large=await post(JSON.stringify({code:'x'.repeat(140*1024)}));
+  assert.equal(large.status,413);
+  assert.deepEqual(await large.json(),{error:'Request body too large'});
+});
+
+test('public health reports skipped device-cache writes while Redis is unavailable',async()=>{
+  const body=await (await request('/api/health')).json();
+  assert.equal(Number.isInteger(body.deviceCacheSkipped),true);
+});

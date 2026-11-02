@@ -28,6 +28,14 @@ function createMqttIngest({broker,env,registry,io,redis,topologyStore,trackRecor
     // Last successful status_reply per gateway, so Pilot 2 can detect an unacknowledged session.
     acks:new Map(),client:null};
   const state={connected:false,subscribed:false};
+  // Device-cache writes are best effort; at most one log line per minute.
+  let cacheSkipped=0,lastRedisErrorLogAt=0;
+  function logRedisWriteError(err){
+    const now=Date.now();
+    if(now-lastRedisErrorLogAt<60000)return;
+    lastRedisErrorLogAt=now;
+    console.error('[redis write]',err.message);
+  }
 
   function publishAck(parsed,payload,observedAt){
     const reply=createStatusReply(parsed,payload,observedAt);
@@ -94,10 +102,13 @@ function createMqttIngest({broker,env,registry,io,redis,topologyStore,trackRecor
       // Only send for a validated, accepted, non-retained update_topo message.
       if(ack.enabled && parsed.channel==='status' && parsed.topology)
         publishAck(parsed,payload,observedAt);
+      // While Redis is down, skip the best-effort cache instead of queueing and logging per packet.
+      const cacheReady=typeof redis.status!=='string'||redis.status==='ready';
       for(const item of result.updates){
         io.emit('device_update',item);
+        if(!cacheReady){cacheSkipped++;continue;}
         redis.set('skyhub:device:'+item.sn,JSON.stringify(deviceCachePayload(item)),'EX',3600)
-          .catch(err=>console.error('[redis write]',err.message));
+          .catch(err=>logRedisWriteError(err));
       }
       if(result.event)io.emit('device_event',result.event);
       if(result.topologyChanged){
@@ -162,6 +173,7 @@ function createMqttIngest({broker,env,registry,io,redis,topologyStore,trackRecor
 
   return {
     state,ack,
+    cacheStats:()=>({deviceCacheSkipped:cacheSkipped}),
     stop(){client.end(true);if(ack.client)ack.client.end(true);}
   };
 }
