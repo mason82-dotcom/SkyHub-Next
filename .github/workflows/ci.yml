@@ -51,6 +51,13 @@ jobs:
           SKYHUB_REQUIRE_MOSQUITTO: "1"
         run: node --test backend/test/*.test.js
 
+      - name: Check lab-only DJI Dock mock contract without MQTT
+        run: |
+          node --check simulators/hivemind/dock-mock.js
+          node --test simulators/hivemind/dock-mock.test.js simulators/hivemind/mission-probe.test.js simulators/hivemind/media-probe.test.js
+          node --check simulators/hivemind/mission-probe.js
+          node --check simulators/hivemind/media-probe.js
+          python3 -m py_compile simulators/hivemind/dock-smoke.py
       - name: Experimental M3M catalog UI contract
         run: node --test frontend/test/smart-farming-ui.test.js
 
@@ -76,6 +83,30 @@ jobs:
 
       - name: Validate isolated Docker Compose configuration
         run: docker compose --env-file .env.example config --quiet
+      - name: Syntax-check optional HiveMind lab entrypoints
+        run: |
+          for script in simulators/hivemind/lab.sh simulators/hivemind/prepare.sh; do
+            bash -n "$script"
+          done
+      - name: Validate HiveMind lab isolation without starting containers
+        env:
+          SKYHUB_HTTP_PORT: "14001"
+          SKYHUB_BIND_ADDRESS: "127.0.0.1"
+        run: |
+          docker compose -p skyhub-hivemind-lab --env-file .env.example -f docker-compose.yml -f simulators/hivemind/compose.lab.yml config --format json > /tmp/skyhub-hivemind-lab.json
+          node -e '
+            const c=require("/tmp/skyhub-hivemind-lab.json");
+            const b=c.services.backend, m=c.services["hivemind-broker"], s=c.services["hivemind-simulator"];
+            if(c.name!=="skyhub-hivemind-lab") throw Error("wrong project");
+            if(b.environment.MQTT_BROKER_URL!=="mqtt://hivemind-broker:1884") throw Error("lab MQTT boundary");
+            if(b.environment.SKYHUB_PILOT_ENABLED!=="false" || b.environment.SKYHUB_TRACK_RECORDING_ENABLED!=="false") throw Error("unsafe flags");
+            if(b.ports.length!==1 || Number(b.ports[0].published)!==14001 || b.ports[0].host_ip!=="127.0.0.1") throw Error("backend host port");
+            if((m.ports||[]).length || s.ports.length!==1 || Number(s.ports[0].published)!==19090 || s.ports[0].host_ip!=="127.0.0.1") throw Error("simulator exposure");
+            if(!Object.values(c.networks).some(n=>n.driver==="bridge" && n.name==="skyhub-hivemind-lab_default")) throw Error("dedicated lab bridge required");
+            const dock=c.services["dock-mock"];
+            if(dock && (!dock.profiles?.includes("dock-rpc") || (dock.ports||[]).length)) throw Error("Dock RPC mock must be opt-in and portless");
+          '
+
       - name: Validate explicit ARM64 PostGIS overlay
         run: docker compose -f docker-compose.yml -f docker-compose.arm64.yml --env-file .env.example config --quiet
       - name: Validate opt-in shared MinIO overlay (configuration only)

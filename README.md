@@ -1,6 +1,6 @@
 # SkyHub Next
 
-**GitHub-Repository:** https://github.com/mason82-dotcom/SkyHub-Next  
+**GitHub-Repository:** https://github.com/mason82-dotcom/SkyHub-Next
 **Hinweis:** Der frühere Repository-Slug `mason82-dotcom/SkyHub` leitet auf `SkyHub-Next` weiter. Das lokale Legacy-Verzeichnis `~/Projekte/SkyHub` ist weiterhin getrennt vom Entwicklungsverzeichnis `~/Projekte/SkyHub-Next` zu behandeln.
 
 **Repository-Stand:** [Offene Pull Requests auf GitHub](https://github.com/mason82-dotcom/SkyHub-Next/pulls) und [aktueller `main`-Branch](https://github.com/mason82-dotcom/SkyHub-Next/tree/main) zeigen den Live-Stand. Die [Bestandsaufnahme vom 25.10.2026](docs/repository-status-2026-10-25.md) und die [Hygieneprüfung](docs/repository-hygiene-2026-10-25.md) sind datierte Momentaufnahmen; ihre PR-Zahlen und Commit-IDs gelten nur für den jeweils genannten Prüfzeitpunkt. GitHub-Checks belegen keinen aktuellen Pi-Betrieb oder eine DJI-Hardwarefreigabe.
@@ -205,6 +205,9 @@ Der konsolidierte Root-Stack enthält die isoliert getesteten PostGIS- und Backu
 
 **Pi-Update:** Ein Git-Merge ist kein Deployment. Vor einem Update auf dem Pi lokale `.env`, Overrides und persistente PostGIS-Daten sichern, nur das bestehende Backend aktualisieren und danach über `/api/health` prüfen. Keine Compose-Volumes löschen, keine Legacy-Dienste starten und keine offenen DJI-Feature-Flags ungeprüft aktivieren.
 
+## Opt-in HiveMind DJI-Referenzsimulator
+
+Für reproduzierbare Cloud-API-Tests gibt es ein **vollständig separates Labor** mit dem AGPLv3-Referenzsimulator von cdmiltd (fest gepinnter Commit, kein übernommener Quellcode). Der Labor-Compose-Stack startet nur auf ausdrücklichen Aufruf über [`simulators/hivemind/lab.sh`](simulators/hivemind/README.md). Er verwendet einen eigenen, nicht an Hostports veröffentlichten MQTT-Broker, eine eigene Datenbank sowie ein separates Docker-Bridge-Netz mit Loopback-Ports `14001` / `19090`; weder das aktive Root-Compose noch Pi-EMQX, Port 1884 und produktive Daten werden geändert. **Pilot-Modus** ist der bereits in GitHub Actions erfolgreich getestete Integrationspfad. Die vollständige DJI-Dock-Registrierung sowie eine synthetische Wayline-Missionsfolge einschließlich MQTT-Fortschritt, Pause/Fortsetzung und HMS-Warnung lassen sich optional mit einem eigenständigen Labormock (`lab.sh dock-up` / `lab.sh dock-smoke`) nachweislich testen. Zusätzlich prüft die Laborabnahme den Boden-Missionsabbruch, die Ablehnung eines Flugstopps nach dem Start (`326109`) sowie synthetische DJI-Medienmetadaten mit korrekt korreliertem `events_reply` und verweigertem STS-Zugriff. Die produktiven SkyHub-Backend-RPCs bleiben inaktiv; echte Flüge, DRC und tatsächliche Datei-Uploads sind nicht freigegeben. Siehe [Betriebsanleitung und Sicherheitsgrenzen](simulators/hivemind/README.md).
 ## Gemeinsamer MinIO-Speicher (opt-in)
 
 Das optionale MinIO-Profil kann mit `docker-compose.storage.yml` über das

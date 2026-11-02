@@ -1,0 +1,17 @@
+# SkyHub-maintained, protocol-only test image for the separately checked-out
+# AGPLv3 HiveMind simulator. Does NOT contain upstream source or FFmpeg.
+# Build context: simulators/hivemind/.upstream (pinned Git checkout).
+FROM eclipse-temurin:21-jre
+
+WORKDIR /app
+RUN mkdir -p /app/config /app/media /app/media-empty /app/videos \
+    && chown -R 1000:1000 /app
+
+# The exact JAR name is checked by prepare.sh before docker compose build.
+COPY --chown=1000:1000 target/dji-dock-simulator-1.4.10.jar /app/app.jar
+
+USER 1000:1000
+ENV SIMULATOR_CONFIG_DIR=/app/config \
+    TZ=Europe/Berlin
+EXPOSE 9090
+ENTRYPOINT ["java","-Xms128m","-Xmx512m","-Djava.net.preferIPv4Stack=true","-jar","/app/app.jar"]
