@@ -151,6 +151,49 @@ class P39OriginalPairLinkageTests(unittest.TestCase):
         with self.assertRaises(worker.LinkageError):
             self.audit()
 
+    def test_one_sided_real_field_evidence_remains_incomplete(self):
+        sample = self.matrix.samples[0]
+        sample.f.add_evidence('sunlightSensor', 'panelImage')
+        self.matrix.items[0]['evidenceManifestSha256'] = sample.f.evidence_pin
+        items = json.loads(
+            (sample.f.evidence / 'field-evidence-manifest.json').read_bytes())
+        assets = {item['kind']: item for item in items['assets']}
+        side = self.plan.plan['pairs'][0]['A']
+        side['dlsEvidenceSha256'] = assets['sunlightSensor']['sha256']
+        side['panelEvidenceSha256'] = assets['panelImage']['sha256']
+        self.matrix.save()
+        self.plan.save()
+        result = self.audit()
+        self.assertEqual(result['pairsWithoutDlsDeclaration'], 1)
+        self.assertEqual(result['pairsWithoutPanelImageDeclaration'], 1)
+        self.assertFalse(result['operatorPlanCompletenessOnly'])
+        self.assertFalse(result['dlsMeasurementsVerified'])
+
+    def test_mutated_real_dls_asset_is_not_a_valid_hash_declaration(self):
+        self.fill_evidence()
+        path = self.matrix.samples[0].f.evidence / 'sunlight-sensor-evidence.bin'
+        with path.open('ab') as stream:
+            stream.write(b'after-pin')
+        with self.assertRaises(worker.LinkageError):
+            self.audit()
+
+    def test_repeated_pair_cannot_reuse_original_capture(self):
+        self.plan.plan['pairs'].append({
+            cohort: dict(self.plan.plan['pairs'][0][cohort])
+            for cohort in ('A', 'B')
+        })
+        self.plan.save()
+        with self.assertRaises(worker.LinkageError):
+            self.audit()
+
+    def test_aliased_evidence_directory_cannot_rebind_capture(self):
+        alias = self.plan.root / 'aliased-evidence'
+        alias.symlink_to(self.matrix.samples[0].f.evidence, target_is_directory=True)
+        self.matrix.items[0]['evidenceDir'] = str(alias)
+        self.matrix.save()
+        with self.assertRaises(worker.LinkageError):
+            self.audit()
+
     def test_swapped_capture_pair_membership_refused(self):
         pair=self.plan.plan['pairs'][0]
         pair['A']['sourceReceiptSha256'],pair['B']['sourceReceiptSha256']=(
