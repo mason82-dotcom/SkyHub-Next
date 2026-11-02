@@ -1,7 +1,8 @@
 'use strict';
-/* Explicitly enabled, one-way browser localStorage -> existing MinIO WPML KMZ store.
+/* Manually triggered, one-way browser localStorage -> existing MinIO WPML KMZ store.
  * Never dispatches DJI tasks, overwrites browser routes, or deletes remote files.
- * An enabled browser retries unsynced revisions on the next visit/local save.
+ * Browser permission does NOT authorize background uploads: only an explicit user click
+ * from wpml-route-library.js may call sync() to retry pending saved revisions.
  */
 (function(root,factory){
   if(typeof module==='object'&&module.exports)module.exports=factory();
