@@ -562,6 +562,10 @@
   $('store-save').addEventListener('click',async()=>{
     if(!store){storeStatus('Bibliotheksmodul nicht geladen.',true);return;}
     if(storeBusy)return;
+    if(savedPlanSignature!==null&&savedPlanSignature===planSignature()){
+      storeStatus('Keine Änderungen seit der letzten zentralen Speicherung. Kein erneuter Upload.');
+      return;
+    }
     storeBusy=true;
     $('store-save').disabled=true;
     updateSaveState();
@@ -650,10 +654,22 @@
     return item;
   }
   async function refreshStore(){
-    const list=await store.list(token(),{pageSize:50});
-    $('store-list').replaceChildren(...list.list.map(storeItem));
-    if(!list.list.length)storeStatus('Bibliothek ist leer.');
-    return list;
+    // The store limits listings to 100 entries per page. Show every supported
+    // mission so a predecessor does not vanish from the version overview.
+    const first=await store.list(token(),{pageSize:100});
+    const total=first.pagination.total;
+    if(!Number.isSafeInteger(total)||total<0||total>500)
+      throw new Error('Bibliotheksumfang ungültig oder zu groß.');
+    const all=[...first.list];
+    for(let page=2;all.length<total&&page<=5;page++){
+      const next=await store.list(token(),{page,pageSize:100});
+      if(!next.list.length)throw new Error('Unvollständige Missionsbibliothek.');
+      all.push(...next.list);
+    }
+    if(all.length!==total)throw new Error('Bibliotheksseiten sind unvollständig.');
+    $('store-list').replaceChildren(...all.map(storeItem));
+    if(!all.length)storeStatus('Bibliothek ist leer.');
+    return {list:all,pagination:{...first.pagination,total}};
   }
   $('store-refresh').addEventListener('click',async()=>{
     if(!store){storeStatus('Bibliotheksmodul nicht geladen.',true);return;}
