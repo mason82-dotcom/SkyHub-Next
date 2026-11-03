@@ -591,6 +591,38 @@
       await saveToStore(stagedBytes,name);
     }catch(error){storeStatus(error instanceof Error?error.message:'Ablage fehlgeschlagen.',true);}
   });
+  async function compareMissionFiles(beforeId,afterId,{documentedParent=false}={}){
+    const generation=++compareGeneration;
+    $('store-compare-status').textContent='Versionsvergleich läuft (nur lokal, lesend) …';
+    try{
+      if(beforeId===afterId)throw new Error('Zwei unterschiedliche Missionen auswählen.');
+      if(!kmzImport||!window.SkyHubWpmlVersionCompare)
+        throw new Error('Versionsvergleich nicht geladen.');
+      const [oldBytes,newBytes]=await Promise.all([
+        store.download(token(),beforeId),store.download(token(),afterId)]);
+      const [oldVersion,newVersion]=await Promise.all([
+        kmzImport.importKmz(oldBytes,{fileName:'previous.kmz',models:core.MODELS}),
+        kmzImport.importKmz(newBytes,{fileName:'current.kmz',models:core.MODELS})]);
+      if(generation!==compareGeneration)return;
+      const diff=window.SkyHubWpmlVersionCompare.compare(oldVersion,newVersion);
+      $('store-compare-status').textContent=
+        (documentedParent?'Dokumentierte Nachfolge: ':'Manueller Vergleich (Abstammung nicht belegt): ')+
+        beforeId.slice(0,8)+'… → '+afterId.slice(0,8)+'… · '+
+        diff.previousWaypoints+' → '+diff.currentWaypoints+' Wegpunkte; '+
+        diff.addedWaypoints+' hinzugefügt, '+diff.removedWaypoints+' entfernt; '+
+        diff.positionChanges+' Positionen, '+diff.heightChanges+' Höhen, '+
+        diff.photoChanges+' Wegpunkt-Fotoaktionen verändert; '+
+        diff.profileChanges.length+' Profilfelder und Intervallmodus '+
+        (diff.intervalChanged?'geändert':'unverändert')+'. '+
+        (diff.partial?'Eingeschränkter Vergleich: Nicht alle WPML-Felder werden abgebildet. ':'')+
+        'Keine Hardwareprüfung oder Flugfreigabe.';
+    }catch(_error){
+      if(generation!==compareGeneration)return;
+      $('store-compare-status').textContent=
+        'Vergleich nicht möglich. Ausgewählte KMZ-Dateien und unterstütztes Editor-Teilformat prüfen. '+
+        'Keine Daten geändert oder übertragen.';
+    }
+  }
   function storeItem(mission){
     const item=document.createElement('div');
     item.className='store-item';item.setAttribute('role','listitem');
@@ -618,37 +650,8 @@
     });
     controls.append(load,save);
     if(mission.parentId){
-      const compare=action('Mit Vorgänger vergleichen',async()=>{
-        const generation=++compareGeneration;
-        $('store-compare-status').textContent='Versionsvergleich läuft (nur lokal, lesend) …';
-        try{
-          if(!kmzImport||!window.SkyHubWpmlVersionCompare)
-            throw new Error('Versionsvergleich nicht geladen.');
-          const [oldBytes,newBytes]=await Promise.all([
-            store.download(token(),mission.parentId),store.download(token(),mission.id)]);
-          const [oldVersion,newVersion]=await Promise.all([
-            kmzImport.importKmz(oldBytes,{fileName:'previous.kmz',models:core.MODELS}),
-            kmzImport.importKmz(newBytes,{fileName:'current.kmz',models:core.MODELS})]);
-          if(generation!==compareGeneration)return;
-          const diff=window.SkyHubWpmlVersionCompare.compare(oldVersion,newVersion);
-          $('store-compare-status').textContent=
-            'Vergleich '+mission.parentId.slice(0,8)+'… → '+mission.id.slice(0,8)+'…: '+
-            diff.previousWaypoints+' → '+diff.currentWaypoints+' Wegpunkte; '+
-            diff.addedWaypoints+' hinzugefügt, '+diff.removedWaypoints+' entfernt; '+
-            diff.positionChanges+' Positionen, '+diff.heightChanges+' Höhen, '+
-            diff.photoChanges+' Wegpunkt-Fotoaktionen verändert; '+
-            diff.profileChanges.length+' Profilfelder und Intervallmodus '+
-            (diff.intervalChanged?'geändert':'unverändert')+'. '+
-            (diff.partial?'Eingeschränkter Vergleich: Nicht alle WPML-Felder werden abgebildet. ':'')+
-            'Keine Hardwareprüfung oder Flugfreigabe.';
-        }catch(error){
-          if(generation!==compareGeneration)return;
-          $('store-compare-status').textContent='Vergleich nicht möglich: '+
-            String(error?.message||'Prüfungsfehler').slice(0,150)+
-            '. Original-KMZ bleibt unverändert.';
-        }
-      });
-      controls.append(compare);
+      controls.append(action('Mit Vorgänger vergleichen',()=>compareMissionFiles(
+        mission.parentId,mission.id,{documentedParent:true})));
     }
     item.append(title,detail,controls);
     return item;
@@ -668,9 +671,33 @@
     }
     if(all.length!==total)throw new Error('Bibliotheksseiten sind unvollständig.');
     $('store-list').replaceChildren(...all.map(storeItem));
+    for(const id of ['store-compare-left','store-compare-right']){
+      const select=$(id),previous=select.value;
+      select.replaceChildren();
+      const blank=document.createElement('option');
+      blank.value='';blank.textContent='Mission auswählen';
+      select.appendChild(blank);
+      for(const mission of all){
+        const option=document.createElement('option');
+        option.value=mission.id;
+        option.textContent=(mission.name||'Mission')+' · '+
+          (mission.waypointCount??'?')+' WP · '+mission.id.slice(0,8);
+        select.appendChild(option);
+      }
+      // Preserve a selection when refreshing a complete catalogue.
+      select.value=all.some(m=>m.id===previous)?previous:'';
+    }
     if(!all.length)storeStatus('Bibliothek ist leer.');
     return {list:all,pagination:{...first.pagination,total}};
   }
+  $('store-compare-selected').addEventListener('click',()=>{
+    const beforeId=$('store-compare-left').value,afterId=$('store-compare-right').value;
+    if(!beforeId||!afterId){
+      $('store-compare-status').textContent='Bitte beide Missionen auswählen.';
+      return;
+    }
+    void compareMissionFiles(beforeId,afterId);
+  });
   $('store-refresh').addEventListener('click',async()=>{
     if(!store){storeStatus('Bibliotheksmodul nicht geladen.',true);return;}
     try{
