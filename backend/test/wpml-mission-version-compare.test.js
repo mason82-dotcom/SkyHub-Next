@@ -71,6 +71,10 @@ test('HTML and editor wire read-only predecessor comparison without flight comma
   const js=fs.readFileSync(path.join(root,'wpml-editor.js'),'utf8');
   assert.match(html,/wpml-mission-version-compare\.js/);
   assert.match(html,/id="store-compare-status"/);
+  assert.match(html,/id="store-compare-left"/);
+  assert.match(html,/id="store-compare-right"/);
+  assert.match(html,/id="store-compare-selected"/);
+  assert.match(js,/Manueller Vergleich \(Abstammung nicht belegt\)/);
   assert.match(js,/Mit Vorgänger vergleichen/);
   assert.match(js,/store\.download\(token\(\),mission\.parentId\)/);
   assert.match(js,/currentParentId=linkedParent/);
