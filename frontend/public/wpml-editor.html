@@ -154,6 +154,15 @@ hr{border:0;border-top:1px solid var(--edge);margin:16px 0}
      <div id="store-draft-state" role="status" aria-live="polite" class="caption">Entwurf noch nicht zentral gespeichert.</div>
       <div id="store-status" role="status" aria-live="polite" class="caption">Bibliothek noch nicht geladen.</div>
      <div id="store-list" role="list" aria-label="Gespeicherte Missionen"></div>
+      <section aria-label="Zwei KMZ-Missionen manuell vergleichen">
+        <h3>Bestehende Missionen vergleichen (nur lesen)</h3>
+        <p class="caption">Auch unverbundene Altmissionen können manuell verglichen werden. Das begründet keine Versionsverknüpfung; die Analyse erfasst nur unterstützte WPML-Wegpunktfelder.</p>
+        <label for="store-compare-left">Ausgangsmission</label>
+        <select id="store-compare-left"><option value="">Mission auswählen</option></select>
+        <label for="store-compare-right">Vergleichsmission</label>
+        <select id="store-compare-right"><option value="">Mission auswählen</option></select>
+        <div class="tools"><button type="button" id="store-compare-selected">Missionen vergleichen</button></div>
+      </section>
       <div id="store-compare-status" role="status" aria-live="polite" class="caption">Eine dokumentierte Nachfolgeversion auswählen, um den Vorgänger lokal und ausschließlich lesend zu vergleichen.</div>
    </section>
   </form>
