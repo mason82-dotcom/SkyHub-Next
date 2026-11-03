@@ -1,6 +1,6 @@
 'use strict';
-// All route-library operations are local and explicitly initiated by a user.
-// No DJI service calls, flight dispatch, or implicit cloud persistence.
+// Only explicit Save, first opt-in, or "Jetzt synchronisieren" may publish to MinIO.
+ // No DJI service calls, flight dispatch, or passive-on-load cloud persistence.
 (function(){
   const core=window.SkyHubWpmlPlanner,lib=window.SkyHubWpmlRouteLibrary;
   const actionDraft=window.SkyHubWpmlActionDraft;
@@ -32,7 +32,7 @@
     const raw=lib.serialize(next);
     window.localStorage.setItem(STORAGE,raw);
     library=next;
-    triggerSync();
+    // Persist locally only. Remote publication requires an explicit save or sync click.
   }
   try{
     const raw=window.localStorage.getItem(STORAGE);
@@ -345,7 +345,10 @@
         name:$('route-name').value,folder:$('route-folder').value,plan:makePlan()});
       persist(next.library);
       selected=next.routeId;activeRouteId=next.routeId;dirty=false;renderRoutes();
-      libraryMessage('Revision '+next.revision+' ausschließlich in diesem Browser gespeichert.');
+      // User explicitly clicked Save. Once opted in, publish stored revisions.
+      triggerSync();
+      libraryMessage('Revision '+next.revision+' lokal gespeichert.'+
+        (sync?.enabled()?' MinIO-Abgleich gestartet.':' MinIO-Abgleich ist deaktiviert.'));
     }catch{libraryMessage('Speichern abgelehnt. Ausgewählte Route zuerst ausdrücklich laden oder neuen Entwurf anlegen; Speicherplatz und Eingaben prüfen.');}
   });
   $('new').addEventListener('click',()=>{
@@ -512,6 +515,6 @@
   for(const id of ['route-name','route-folder','model','speed','height','takeoff','finish'])
     $(id).addEventListener('input',()=>{dirty=true;});
   renderEditor();renderRoutes();
-  // Resume pending revisions on future visits, but ONLY after this browser opted in.
-  triggerSync();
+  // Never start a network upload just because a user opened the page.
+  // Failed/pending uploads retry after the next explicit Save or "Jetzt synchronisieren".
 })();
