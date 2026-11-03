@@ -252,7 +252,8 @@
   $('clear').addEventListener('click',()=>{
     if(!points.length)return;
     if(!window.confirm('Alle Wegpunkte aus dem Entwurf entfernen?'))return;
-    remember();points.length=0;hasFit=false;render();
+    remember();points.length=0;hasFit=false;
+    currentParentId=null;savedPlanSignature=null;render();
   });
   $('undo').addEventListener('click',undo);
   $('reverse').addEventListener('click',()=>{
@@ -339,6 +340,7 @@
     $('photo-interval-fields').hidden=true;
     remember();
     points.splice(0,points.length,...mapped.plan.waypoints.map(p=>({...p})));
+    currentParentId=null;savedPlanSignature=null;
     hasFit=false;
     render();
     ++importGeneration;
@@ -385,6 +387,7 @@
   }
   // No background network writes. The baseline is set only after an explicit successful save.
   let savedPlanSignature=null;
+  let currentParentId=null;
   let storeBusy=false;
   const planSignature=()=>JSON.stringify(currentPlan());
   function updateSaveState(){
@@ -433,11 +436,12 @@
   });
   // ---- KMZ upload: local parse -> staged preview -> explicit apply -------------
   const DJI_NAME=/^[^<>:"/|?*._\\]+$/;
-  let staged=null,stagedBytes=null,kmzGeneration=0;
+  let staged=null,stagedBytes=null,stagedParentId=null,kmzGeneration=0;
+  let compareGeneration=0;
   const kmzApply=$('kmz-import-apply'),kmzStore=$('kmz-import-store'),kmzDiscard=$('kmz-import-discard');
   const kmzPreview=$('kmz-import-preview'),kmzNotes=$('kmz-import-notes');
   function resetKmz(message,error=false){
-    staged=null;stagedBytes=null;
+    staged=null;stagedBytes=null;stagedParentId=null;
     kmzApply.disabled=true;kmzStore.disabled=true;kmzDiscard.disabled=true;
     kmzPreview.textContent=message;
     kmzPreview.style.color=error?'var(--sky-warning)':'var(--sky-muted)';
@@ -450,7 +454,7 @@
     }
     kmzNotes.hidden=notes.length===0;
   }
-  async function stageKmz(bytes,fileName,{storable}){
+  async function stageKmz(bytes,fileName,{storable,sourceId=null}={}){
     const generation=++kmzGeneration;
     resetKmz('KMZ wird lokal geprüft …');
     try{
@@ -461,6 +465,7 @@
       core.normalize(result.plan);
       staged=result;
       stagedBytes=storable?bytes:null;
+      stagedParentId=sourceId;
       kmzApply.disabled=false;kmzDiscard.disabled=false;kmzStore.disabled=!storable||!store;
       const r=result.review;
       kmzPreview.textContent='Geprüfte KMZ (WPML '+r.wpmlVersion+'): '+r.aircraft+', '+
@@ -494,6 +499,7 @@
       ' Abweichung(en) gehen beim Übernehmen verloren (siehe Liste). Trotzdem übernehmen?'))return;
     if(points.length>0&&!window.confirm('Vorhandene Wegpunkte durch die importierte Mission ersetzen?'))return;
     const result=staged,plan=result.plan;
+    const linkedParent=stagedParentId;
     $('name').value=plan.name;
     $('model').value=plan.model;
     $('speed').value=String(plan.speed);
@@ -507,11 +513,14 @@
     if(plan.intervalPhotos)$('photo-interval').value=String(plan.intervalPhotos.interval);
     remember();
     points.splice(0,points.length,...plan.waypoints.map(p=>({...p})));
+    currentParentId=linkedParent;savedPlanSignature=null;
     hasFit=false;
     render();
     ++kmzGeneration;
     resetKmz('Mission übernommen'+(result.notes.length?' ('+result.notes.length+' Abweichungen verworfen)':'')+'.');
-    renderMessage('KMZ-Mission lokal übernommen ('+points.length+' Wegpunkte). Kein Flugauftrag, keine Flugfreigabe.');
+    renderMessage('KMZ-Mission lokal übernommen ('+points.length+' Wegpunkte). '+
+      (linkedParent?'Vorgänger für neue Version dokumentiert. Vor dem Speichern einen neuen, eindeutigen Missionsnamen vergeben. ':'')+
+      'Kein Flugauftrag, keine Flugfreigabe.');
   });
 
   // ---- MinIO mission library (authenticated SkyHub API, explicit actions only) ---
@@ -536,8 +545,14 @@
       return;
     }
     const signatureAtUpload=markCurrentDraft?planSignature():null;
-    const stored=await store.upload(token(),bytes,name);
-    if(markCurrentDraft)savedPlanSignature=signatureAtUpload;
+    const parentAtUpload=markCurrentDraft?currentParentId:null;
+    const stored=await store.upload(token(),bytes,name,
+      parentAtUpload?{parentId:parentAtUpload}:{});
+    if(markCurrentDraft){
+      savedPlanSignature=signatureAtUpload;
+      // Subsequent explicit saves derive from the most recently stored object.
+      currentParentId=stored.id;
+    }
     updateSaveState();
     storeStatus((stored.created?'Gespeichert':'Bereits vorhanden')+': „'+stored.name+'“ · '+
       (stored.validation?.aircraft||'Fluggerät ?')+' · '+(stored.validation?.waypointCount??'?')+
@@ -547,6 +562,10 @@
   $('store-save').addEventListener('click',async()=>{
     if(!store){storeStatus('Bibliotheksmodul nicht geladen.',true);return;}
     if(storeBusy)return;
+    if(savedPlanSignature!==null&&savedPlanSignature===planSignature()){
+      storeStatus('Keine Änderungen seit der letzten zentralen Speicherung. Kein erneuter Upload.');
+      return;
+    }
     storeBusy=true;
     $('store-save').disabled=true;
     updateSaveState();
@@ -572,6 +591,38 @@
       await saveToStore(stagedBytes,name);
     }catch(error){storeStatus(error instanceof Error?error.message:'Ablage fehlgeschlagen.',true);}
   });
+  async function compareMissionFiles(beforeId,afterId,{documentedParent=false}={}){
+    const generation=++compareGeneration;
+    $('store-compare-status').textContent='Versionsvergleich läuft (nur lokal, lesend) …';
+    try{
+      if(beforeId===afterId)throw new Error('Zwei unterschiedliche Missionen auswählen.');
+      if(!kmzImport||!window.SkyHubWpmlVersionCompare)
+        throw new Error('Versionsvergleich nicht geladen.');
+      const [oldBytes,newBytes]=await Promise.all([
+        store.download(token(),beforeId),store.download(token(),afterId)]);
+      const [oldVersion,newVersion]=await Promise.all([
+        kmzImport.importKmz(oldBytes,{fileName:'previous.kmz',models:core.MODELS}),
+        kmzImport.importKmz(newBytes,{fileName:'current.kmz',models:core.MODELS})]);
+      if(generation!==compareGeneration)return;
+      const diff=window.SkyHubWpmlVersionCompare.compare(oldVersion,newVersion);
+      $('store-compare-status').textContent=
+        (documentedParent?'Dokumentierte Nachfolge: ':'Manueller Vergleich (Abstammung nicht belegt): ')+
+        beforeId.slice(0,8)+'… → '+afterId.slice(0,8)+'… · '+
+        diff.previousWaypoints+' → '+diff.currentWaypoints+' Wegpunkte; '+
+        diff.addedWaypoints+' hinzugefügt, '+diff.removedWaypoints+' entfernt; '+
+        diff.positionChanges+' Positionen, '+diff.heightChanges+' Höhen, '+
+        diff.photoChanges+' Wegpunkt-Fotoaktionen verändert; '+
+        diff.profileChanges.length+' Profilfelder und Intervallmodus '+
+        (diff.intervalChanged?'geändert':'unverändert')+'. '+
+        (diff.partial?'Eingeschränkter Vergleich: Nicht alle WPML-Felder werden abgebildet. ':'')+
+        'Keine Hardwareprüfung oder Flugfreigabe.';
+    }catch(_error){
+      if(generation!==compareGeneration)return;
+      $('store-compare-status').textContent=
+        'Vergleich nicht möglich. Ausgewählte KMZ-Dateien und unterstütztes Editor-Teilformat prüfen. '+
+        'Keine Daten geändert oder übertragen.';
+    }
+  }
   function storeItem(mission){
     const item=document.createElement('div');
     item.className='store-item';item.setAttribute('role','listitem');
@@ -579,14 +630,17 @@
     const detail=document.createElement('small');
     const when=mission.createTime?new Date(mission.createTime).toLocaleString('de-DE'):'Zeit unbekannt';
     detail.textContent=(mission.aircraft||mission.droneModelKey||'Fluggerät ?')+' · '+
-      (mission.waypointCount??'?')+' Wegpunkte · WPML '+(mission.wpmlVersion||'?')+' · '+when;
+      (mission.waypointCount??'?')+' Wegpunkte · WPML '+(mission.wpmlVersion||'?')+' · '+when+
+      (mission.parentId?' · Generation '+(mission.generation||'?')+
+        ' · Vorgänger '+mission.parentId.slice(0,8)+'…':
+        ' · Keine dokumentierte Vorgängerversion');
     const controls=document.createElement('div');controls.className='tools';
     const load=action('In Editor laden',async()=>{
       try{
         storeStatus('Lade „'+(mission.name||mission.id)+'“ …');
         const bytes=await store.download(token(),mission.id);
         // Re-imported missions are already stored; offer no second upload.
-        await stageKmz(bytes,(mission.name||'Mission')+'.kmz',{storable:false});
+        await stageKmz(bytes,(mission.name||'Mission')+'.kmz',{storable:false,sourceId:mission.id});
         storeStatus('Mission geladen und lokal geprüft – oben unter „Mission hochladen“ übernehmen.');
       }catch(error){storeStatus(error instanceof Error?error.message:'Laden fehlgeschlagen.',true);}
     });
@@ -595,15 +649,55 @@
       catch(error){storeStatus(error instanceof Error?error.message:'Download fehlgeschlagen.',true);}
     });
     controls.append(load,save);
+    if(mission.parentId){
+      controls.append(action('Mit Vorgänger vergleichen',()=>compareMissionFiles(
+        mission.parentId,mission.id,{documentedParent:true})));
+    }
     item.append(title,detail,controls);
     return item;
   }
   async function refreshStore(){
-    const list=await store.list(token(),{pageSize:50});
-    $('store-list').replaceChildren(...list.list.map(storeItem));
-    if(!list.list.length)storeStatus('Bibliothek ist leer.');
-    return list;
+    // The store limits listings to 100 entries per page. Show every supported
+    // mission so a predecessor does not vanish from the version overview.
+    const first=await store.list(token(),{pageSize:100});
+    const total=first.pagination.total;
+    if(!Number.isSafeInteger(total)||total<0||total>500)
+      throw new Error('Bibliotheksumfang ungültig oder zu groß.');
+    const all=[...first.list];
+    for(let page=2;all.length<total&&page<=5;page++){
+      const next=await store.list(token(),{page,pageSize:100});
+      if(!next.list.length)throw new Error('Unvollständige Missionsbibliothek.');
+      all.push(...next.list);
+    }
+    if(all.length!==total)throw new Error('Bibliotheksseiten sind unvollständig.');
+    $('store-list').replaceChildren(...all.map(storeItem));
+    for(const id of ['store-compare-left','store-compare-right']){
+      const select=$(id),previous=select.value;
+      select.replaceChildren();
+      const blank=document.createElement('option');
+      blank.value='';blank.textContent='Mission auswählen';
+      select.appendChild(blank);
+      for(const mission of all){
+        const option=document.createElement('option');
+        option.value=mission.id;
+        option.textContent=(mission.name||'Mission')+' · '+
+          (mission.waypointCount??'?')+' WP · '+mission.id.slice(0,8);
+        select.appendChild(option);
+      }
+      // Preserve a selection when refreshing a complete catalogue.
+      select.value=all.some(m=>m.id===previous)?previous:'';
+    }
+    if(!all.length)storeStatus('Bibliothek ist leer.');
+    return {list:all,pagination:{...first.pagination,total}};
   }
+  $('store-compare-selected').addEventListener('click',()=>{
+    const beforeId=$('store-compare-left').value,afterId=$('store-compare-right').value;
+    if(!beforeId||!afterId){
+      $('store-compare-status').textContent='Bitte beide Missionen auswählen.';
+      return;
+    }
+    void compareMissionFiles(beforeId,afterId);
+  });
   $('store-refresh').addEventListener('click',async()=>{
     if(!store){storeStatus('Bibliotheksmodul nicht geladen.',true);return;}
     try{

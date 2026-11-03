@@ -126,6 +126,10 @@ function fromMetadata(id,head){
     waypointCount:n(m['waypoint-count']),
     createTime:n(m['create-time'])??(head.LastModified?.getTime?.()||null),
     size:Number.isSafeInteger(head.ContentLength)?head.ContentLength:null,
+    // Added only by an explicitly linked derivative upload; legacy missions are roots.
+    parentId:UUID.test(m['parent-id']||'')?m['parent-id']:null,
+    rootId:UUID.test(m['root-id']||'')?m['root-id']:id,
+    generation:/^[1-9]\d{0,2}$/.test(m.generation||'')?Number(m.generation):1,
     flightReady:false
   };
 }
@@ -236,11 +240,14 @@ function createWpmlMissionStore({env=process.env,client,now=()=>new Date(),cache
     const wanted=new Set(names.map(n=>String(n)));
     return [...new Set((await catalog({fresh:true})).map(w=>w.name).filter(n=>wanted.has(n)))];
   }
-  function put(buffer,{name,username}={}){
+  function put(buffer,{name,username,parentId}={}){
     if(!Buffer.isBuffer(buffer)||buffer.length<22)return Promise.reject(httpError(400,'KMZ body required'));
     if(buffer.length>MAX_KMZ)return Promise.reject(httpError(413,'KMZ exceeds 12 MiB'));
     let missionName;
     try{missionName=validName(name);}catch(err){return Promise.reject(err);}
+    // Never infer ancestry from a similar filename or client-provided metadata.
+    if(parentId!==undefined&&(typeof parentId!=='string'||!UUID.test(parentId)))
+      return Promise.reject(httpError(400,'Invalid parent wayline id'));
     return serialized(async()=>{
       let validation;
       try{validation=inspectKmz(buffer);}
@@ -259,8 +266,16 @@ function createWpmlMissionStore({env=process.env,client,now=()=>new Date(),cache
       const id=waylineId(sha256);
       const sign=crypto.createHash('md5').update(buffer).digest('hex');
       const existing=(await catalog({fresh:true}));
+      const parent=parentId===undefined?null:existing.find(w=>w.id===parentId);
+      if(parentId!==undefined&&!parent)throw httpError(404,'Parent wayline not found');
+      if(parent&&parent.droneModelKey!==summary.droneModelKey)
+        throw httpError(422,'Derived wayline must retain its parent aircraft model');
+      if(parent&&parent.id===id)throw httpError(409,'A wayline cannot be its own parent');
       const same=existing.find(w=>w.id===id);
       if(same){
+        // Do not falsely acknowledge a requested lineage that the immutable object lacks.
+        if(parentId!==undefined&&same.parentId!==parentId)
+          throw httpError(409,'Existing wayline has different lineage');
         return {...same,created:false,validation:summary,dispatched:false};
       }
       // DJI requires unique wayline names in a workspace.
@@ -277,6 +292,9 @@ function createWpmlMissionStore({env=process.env,client,now=()=>new Date(),cache
         'wpml-version':summary.wpmlVersion||'',
         'waypoint-count':String(summary.waypointCount),
         'create-time':String(createTime),
+        // Immutable, S3-native ancestry. Root is inherited only from a validated parent.
+        ...(parent?{'parent-id':parent.id,'root-id':parent.rootId,
+          generation:String(parent.generation+1)}:{}),
         'flight-ready':'false'
       };
       let created=true;
@@ -359,7 +377,9 @@ function createWpmlMissionRouter({express,store}){
       let name;
       try{name=header===undefined?undefined:decodeURIComponent(header);}
       catch{return res.status(400).json({error:'Invalid mission name'});}
-      const stored=await store.put(req.body,{name,username:'SkyHub'});
+      const parentId=req.get('X-SkyHub-Parent-Mission-Id');
+      const stored=await store.put(req.body,{name,username:'SkyHub',
+        ...(parentId===undefined?{}:{parentId})});
       res.status(stored.created?201:200).json(stored);
     }catch(err){fail(res,err);}
   });

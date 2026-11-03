@@ -50,10 +50,14 @@
     if(!body||!Array.isArray(body.list)||!body.pagination)throw new Error('Ungültige Antwort der Missionsbibliothek.');
     return body;
   }
-  async function upload(token,bytes,name){
+  async function upload(token,bytes,name,{parentId}={}){
     if(!(bytes instanceof Uint8Array)||!bytes.length)throw new TypeError('KMZ-Daten fehlen.');
     const extra={'Content-Type':'application/vnd.google-earth.kmz',Accept:'application/json'};
     if(typeof name==='string'&&name.trim())extra['X-SkyHub-Mission-Name']=encodeURIComponent(name.trim().slice(0,70));
+    if(parentId!==undefined){
+      if(typeof parentId!=='string'||!ID.test(parentId))throw new TypeError('Ungültige Vorgänger-Missions-ID.');
+      extra['X-SkyHub-Parent-Mission-Id']=parentId;
+    }
     const response=await request(STORE,{method:'POST',headers:headers(token,extra),body:bytes});
     if(!response.ok)throw await problem(response);
     return response.json();

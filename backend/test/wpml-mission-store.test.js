@@ -104,6 +104,57 @@ test('valid KMZ is stored write-once with DJI wayline metadata and read back int
   assert.deepEqual(await store.duplicateNames(['Feld Nord Ü','Neu']),['Feld Nord Ü']);
 });
 
+test('explicit ancestry persists as immutable metadata; unrelated legacy files remain roots',async()=>{
+  const s3=fakeS3();
+  const store=createWpmlMissionStore({client:s3,env:{}});
+  const root=await store.put(kmz('Root',49.1),{name:'Farm original'});
+  assert.equal(root.parentId,null);
+  assert.equal(root.rootId,root.id);
+  assert.equal(root.generation,1);
+  const childBytes=kmz('Child',49.2);
+  const child=await store.put(childBytes,{name:'Farm Revision Two',parentId:root.id});
+  assert.equal(child.parentId,root.id);
+  assert.equal(child.rootId,root.id);
+  assert.equal(child.generation,2);
+  const third=await store.put(kmz('Third',49.3),
+    {name:'Farm Revision Three',parentId:child.id});
+  assert.equal(third.parentId,child.id);
+  assert.equal(third.rootId,root.id);
+  assert.equal(third.generation,3);
+  assert.equal((await store.describe(child.id)).parentId,root.id);
+  assert.equal((await store.list()).list.find(x=>x.id===third.id).generation,3);
+  const unchanged=await store.get(root.id);
+  assert.deepEqual(unchanged.bytes,kmz('Root',49.1));
+  const repeated=await store.put(childBytes,{name:'Farm Revision Two',parentId:root.id});
+  assert.equal(repeated.created,false);
+  assert.equal(s3.objects.size,3,'lineage must not rewrite existing KMZ');
+});
+
+test('ancestry rejects fabricated, missing, cross-aircraft and conflicting parents',async()=>{
+  const s3=fakeS3(),store=createWpmlMissionStore({client:s3,env:{}});
+  const root=await store.put(kmz('Root'),{name:'Root'});
+  const missing='aaaaaaaa-aaaa-8aaa-8aaa-aaaaaaaaaaaa';
+  await assert.rejects(store.put(kmz('X',49.2),{name:'Missing',parentId:'bad'}),
+    e=>e.status===400);
+  await assert.rejects(store.put(kmz('X',49.2),{name:'Missing',parentId:missing}),
+    e=>e.status===404);
+  await assert.rejects(store.put(kmz('Root'),{name:'Root',parentId:root.id}),
+    e=>e.status===409,'self-reference rejected');
+  const other=Buffer.from(planner.build({name:'Other aircraft',model:'mavic3e',speed:5,
+    takeoffHeight:30,finishAction:'goHome',timestamp:1792573200000,
+    waypoints:[{lat:49.2,lon:8.6,height:50,photo:false},
+      {lat:49.201,lon:8.601,height:50,photo:false}]}).kmz);
+  await assert.rejects(store.put(other,{name:'Other aircraft',parentId:root.id}),
+    e=>e.status===422,'aircraft cannot be changed within one lineage');
+  const childBytes=kmz('Child',49.2);
+  const child=await store.put(childBytes,{name:'Second',parentId:root.id});
+  const unrelated=await store.put(kmz('Unrelated',49.3),{name:'Separate'});
+  await assert.rejects(store.put(childBytes,{name:'Second',parentId:unrelated.id}),
+    e=>e.status===409,'cannot claim false parent on idempotent reupload');
+  assert.equal((await store.describe(child.id)).parentId,root.id);
+  assert.equal(s3.objects.size,3);
+});
+
 test('DJI naming rules: required, no reserved characters, unique per library',async()=>{
   const s3=fakeS3();
   const store=createWpmlMissionStore({client:s3,env:{}});
@@ -191,6 +242,20 @@ test('HTTP router: upload, list, download; errors never leak storage details',as
     assert.deepEqual(Buffer.from(await res.arrayBuffer()),bytes);
     res=await fetch(base+'/'+stored.id);
     assert.equal((await res.json()).waypointCount,2);
+    res=await post(kmz('Revision',49.35),{
+      'X-SkyHub-Mission-Name':encodeURIComponent('Hof Revision'),
+      'X-SkyHub-Parent-Mission-Id':stored.id
+    });
+    assert.equal(res.status,201);
+    const derivative=await res.json();
+    assert.equal(derivative.parentId,stored.id);
+    assert.equal(derivative.generation,2);
+    assert.equal((await (await fetch(base+'/'+derivative.id)).json()).rootId,stored.id);
+    res=await post(kmz('Revision',49.35),{
+      'X-SkyHub-Mission-Name':'Hof Revision',
+      'X-SkyHub-Parent-Mission-Id':'invalid'
+    });
+    assert.equal(res.status,400);
     res=await fetch(base+'/nothex/kmz');
     assert.equal(res.status,400);
     s3.send=async()=>{throw Object.assign(new Error('connect ECONNREFUSED 10.0.0.5:9000 secret'),{name:'Error'});};

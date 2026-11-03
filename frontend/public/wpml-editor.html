@@ -141,7 +141,7 @@ hr{border:0;border-top:1px solid var(--edge);margin:16px 0}
    <hr>
    <section aria-label="MinIO-Missionsbibliothek">
      <h2>Missionsbibliothek (MinIO S3)</h2>
-     <p class="caption">Validierte KMZ-Dateien werden im Bucket <code>skyhub-wpml</code> unveränderlich abgelegt. Im ausdrücklich freigegebenen HTTPS-Heimnetz (Dashboard-Port 4443) ist kein Token nötig. Außerhalb dieses Zugangs bleibt ein Token erforderlich. Kein DJI-Flugauftrag.</p>
+     <p class="caption">Validierte KMZ-Dateien werden im Bucket <code>skyhub-wpml</code> unveränderlich abgelegt. Nach ausdrücklicher Übernahme einer gespeicherten Mission kann eine neue KMZ mit eigenständigem Namen als Nachfolgeversion gespeichert werden. Bestehende Missionen ohne belegte Vorgänger-ID bleiben eigenständige Einträge. Im ausdrücklich freigegebenen HTTPS-Heimnetz (Dashboard-Port 4443) ist kein Token nötig. Außerhalb dieses Zugangs bleibt ein Token erforderlich. Kein DJI-Flugauftrag.</p>
      <details>
        <summary>Erweiterter Zugriff: Zugangstoken optional</summary>
        <label for="store-token">SkyHub-Zugangstoken</label>
@@ -154,6 +154,16 @@ hr{border:0;border-top:1px solid var(--edge);margin:16px 0}
      <div id="store-draft-state" role="status" aria-live="polite" class="caption">Entwurf noch nicht zentral gespeichert.</div>
       <div id="store-status" role="status" aria-live="polite" class="caption">Bibliothek noch nicht geladen.</div>
      <div id="store-list" role="list" aria-label="Gespeicherte Missionen"></div>
+      <section aria-label="Zwei KMZ-Missionen manuell vergleichen">
+        <h3>Bestehende Missionen vergleichen (nur lesen)</h3>
+        <p class="caption">Auch unverbundene Altmissionen können manuell verglichen werden. Das begründet keine Versionsverknüpfung; die Analyse erfasst nur unterstützte WPML-Wegpunktfelder.</p>
+        <label for="store-compare-left">Ausgangsmission</label>
+        <select id="store-compare-left"><option value="">Mission auswählen</option></select>
+        <label for="store-compare-right">Vergleichsmission</label>
+        <select id="store-compare-right"><option value="">Mission auswählen</option></select>
+        <div class="tools"><button type="button" id="store-compare-selected">Missionen vergleichen</button></div>
+      </section>
+      <div id="store-compare-status" role="status" aria-live="polite" class="caption">Eine dokumentierte Nachfolgeversion auswählen, um den Vorgänger lokal und ausschließlich lesend zu vergleichen.</div>
    </section>
   </form>
  </aside>
@@ -163,6 +173,7 @@ hr{border:0;border-top:1px solid var(--edge);margin:16px 0}
 <script src="/wpml-editor-core.js"></script>
 <script src="/wpml-kmz-import-core.js"></script>
 <script src="/wpml-mission-store-client.js"></script>
+<script src="/wpml-mission-version-compare.js"></script>
 <script src="/wpml-waylines-reference.js"></script>
 <script src="/wpml-mission-review.js"></script>
 <script src="/wpml-editor.js"></script>
