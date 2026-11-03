@@ -76,7 +76,8 @@ test('HTML and editor wire read-only predecessor comparison without flight comma
   assert.match(html,/id="store-compare-selected"/);
   assert.match(js,/Manueller Vergleich \(Abstammung nicht belegt\)/);
   assert.match(js,/Mit Vorgänger vergleichen/);
-  assert.match(js,/store\.download\(token\(\),mission\.parentId\)/);
+  assert.match(js,/store\.download\(token\(\),beforeId\)/);
+  assert.match(js,/mission\.parentId,mission\.id/);
   assert.match(js,/currentParentId=linkedParent/);
   assert.doesNotMatch(js,/flighttask_execute|mqtt\.connect\(/);
 });
