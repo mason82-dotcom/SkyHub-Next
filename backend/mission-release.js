@@ -191,8 +191,11 @@ function createMissionReleaseRouter({express,store,releases,config,terrain=null,
       check.ok=check.errors.length===0;
       check.envelope={...check.envelope,terrain:t};
     }
+    // Flight line for the map on the release page (what Pilot 2 will fly): [lat, lon, height above take-off].
+    const track=check.route?check.route.points.slice(0,2000).map(p=>[p.lat,p.lon,p.heightAboveTakeoffM]):[];
+    const takeoff=check.route&&check.route.ref?[check.route.ref.lat,check.route.ref.lon]:null;
     delete check.route;
-    return {meta,bytes,sha256,check};
+    return {meta,bytes,sha256,check,track,takeoff};
   }
   const wrap=fn=>async(req,res)=>{
     try{await fn(req,res);}
@@ -214,10 +217,10 @@ function createMissionReleaseRouter({express,store,releases,config,terrain=null,
   }));
   // Read-only: check result and release history. Needs normal SkyHub access only.
   router.get('/:id',wrap(async(req,res)=>{
-    const {meta,sha256,check}=await load(req.params.id);
+    const {meta,sha256,check,track,takeoff}=await load(req.params.id);
     const hist=await releases.history([meta.id]);
     const t=now().getTime();
-    send(res,200,{id:meta.id,name:meta.name,sha256,rootId:meta.rootId,generation:meta.generation,check,
+    send(res,200,{id:meta.id,name:meta.name,sha256,rootId:meta.rootId,generation:meta.generation,check,track,takeoff,
       active:hist.find(r=>!r.revokedAt&&r.expiresAt>t)||null,history:hist.slice(0,20)});
   }));
 

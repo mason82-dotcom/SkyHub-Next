@@ -103,6 +103,8 @@ test('release flow: token, check, warnings, checklist, hash; one active release 
     assert.equal(info.status,200);
     assert.equal(info.body.check.ok,true);
     assert.equal(info.body.active,null);
+    assert.ok(Array.isArray(info.body.track)&&info.body.track.length>=2,'flight line for the map');
+    assert.deepEqual(info.body.track[0].slice(0,2).map(v=>Math.round(v*1000)/1000),[49.123,8.568]);
     const body={sha256:info.body.sha256,acknowledgedWarnings:info.body.check.warnings,checklist:allChecked};
     let r=await srv.call('POST','/'+a.id+'/release',body);
     assert.equal(r.status,403,'no release token');

@@ -134,9 +134,37 @@
     box.addEventListener('change',updateReleaseButton);
     return el('label',{class:'check'},box,typeof text==='string'?el('span',{},text):text);
   }
+  // Map of the flight line (Leaflet, offline OSM tile cache; dipul geozones switchable).
+  let rmap=null,rlayer=null;
+  function renderMap(d){
+    if(!window.L)return;
+    if(!rmap){
+      rmap=L.map('rmap',{zoomControl:true,scrollWheelZoom:false}).setView([51.1657,10.4515],6);
+      L.tileLayer('/tiles/osm/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap-Mitwirkende',
+        referrerPolicy:'strict-origin-when-cross-origin'}).addTo(rmap);
+      if(window.SkyHubGeozones)window.SkyHubGeozones.attach(rmap);
+    }
+    if(rlayer)rmap.removeLayer(rlayer);
+    rlayer=L.layerGroup().addTo(rmap);
+    const pts=(d.track||[]).filter(p=>Number.isFinite(p[0])&&Number.isFinite(p[1])).map(p=>[p[0],p[1]]);
+    if(pts.length>1)L.polyline(pts,{color:'#2458d3',weight:3,opacity:.9}).addTo(rlayer);
+    if(pts.length){
+      L.circleMarker(pts[0],{radius:7,color:'#1e7b34',fillOpacity:.9}).bindTooltip('Erster Wegpunkt').addTo(rlayer);
+      L.circleMarker(pts.at(-1),{radius:6,color:'#b3261e',fillOpacity:.9}).bindTooltip('Letzter Wegpunkt').addTo(rlayer);
+    }
+    if(d.takeoff)L.circleMarker(d.takeoff,{radius:6,color:'#5b6b84',fillOpacity:.6}).bindTooltip('Startbezugspunkt').addTo(rlayer);
+    const t=d.check.envelope&&d.check.envelope.terrain;
+    if(t&&t.status==='ok'){
+      L.circleMarker([t.maxAgl.lat,t.maxAgl.lon],{radius:5,color:'#c26a00'}).bindTooltip('Höchster Punkt über Grund: '+t.maxAgl.aglM+' m').addTo(rlayer);
+      L.circleMarker([t.minAgl.lat,t.minAgl.lon],{radius:5,color:'#c26a00'}).bindTooltip('Niedrigster Punkt über Grund: '+t.minAgl.aglM+' m').addTo(rlayer);
+    }
+    setTimeout(()=>{rmap.invalidateSize();if(pts.length)rmap.fitBounds(L.latLngBounds(pts).pad(.15),{maxZoom:18});},0);
+    $('rmapNote').hidden=!pts.length;
+  }
   function renderDetail(){
     const d=current,c=d.check;
     $('detail').hidden=false;
+    renderMap(d);
     $('dName').textContent=d.name||d.id;
     $('dState').textContent=c.ok?'Prüfung bestanden. Revision '+(d.generation||1)+', SHA-256 '+d.sha256.slice(0,12)+'…'
       :'Prüfung nicht bestanden: '+c.errors.length+' Fehler.';

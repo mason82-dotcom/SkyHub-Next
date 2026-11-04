@@ -38,6 +38,7 @@
       maxZoom:19,attribution:'© OpenStreetMap contributors',
       referrerPolicy:'strict-origin-when-cross-origin'
     }).addTo(map);
+    if(window.SkyHubGeozones)window.SkyHubGeozones.attach(map);
     map.on('click',event=>{
       if(orbitPicking){setOrbitCenter(event.latlng.lat,event.latlng.lng);return;}
       addPoint(event.latlng.lat,event.latlng.lng);

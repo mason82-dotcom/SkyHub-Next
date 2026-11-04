@@ -66,6 +66,7 @@
   const map=window.L?L.map('map').setView([51.1657,10.4515],6):null;
   if(map){
     L.tileLayer('/tiles/osm/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap-Mitwirkende'}).addTo(map);
+    if(window.SkyHubGeozones)window.SkyHubGeozones.attach(map);
     map.on('click',e=>{
       target={latitude:+e.latlng.lat.toFixed(6),longitude:+e.latlng.lng.toFixed(6)};
       if(targetMarker)targetMarker.setLatLng(e.latlng);else targetMarker=L.marker(e.latlng,{title:'Ziel'}).addTo(map);
