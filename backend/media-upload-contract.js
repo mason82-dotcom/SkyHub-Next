@@ -1,10 +1,10 @@
 'use strict';
 
-// DJI Pilot 2 media-upload contract (pilot-to-cloud, media management).
-// Pure request validators and response builders. NOT imported by server.js:
-// there is no HTTP route, no storage write and no credential issuance here.
-// A future route needs an authenticated workspace principal, an audited store
-// and a reviewed STS provider; see docs/dji-media-upload-contract.md.
+// DJI Pilot 2 media-upload contract (pilot-to-cloud, media management, DJI Cloud API 1.18, checked 04.11.2026:
+// fast-upload, files/tiny-fingerprints, storage …/sts, upload-callback, group-upload-callback).
+// Pure request validators and response builders, no I/O. The HTTP routes are in pilot-media-http.js and
+// pilot-media-upload-runtime.js (workspace principal, audited store, MinIO STS); see docs/dji-media-upload-contract.md.
+// 1.18 lists upload-callback `result` as required; Pilot 2 omits it and calls back only after success, so absent = 0.
 const {serial}=require('./dji');
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
