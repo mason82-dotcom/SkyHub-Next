@@ -52,6 +52,13 @@ kommt auf `drc/up` und wird über `seq` **und** Methode zugeordnet (5 s Zeitlimi
   dafür braucht `skyhub_commander` Leserecht auf `thing/product/+/osd` (siehe unten).
 
 ## Einrichten
+**brix-node (Stand 04.11.2026):** Schritt 1–3 erledigt ein Aufruf als mason im Stack-Ordner (Sicherungen, keine Anzeige von
+Geheimnissen, Token danach in `~/.config/skyhub/drc-token`):
+```bash
+ssh -t brix-node 'cd /srv/stacks/skyhub-next && bash scripts/brix-drc-setup.sh 9N9CN0000000RC 192.168.178.63:1884'
+```
+`scripts/pi-mosquitto-dedicated.js` erzeugt die beiden Benutzer ebenfalls, sobald `SKYHUB_DRC_MQTT_*`/`SKYHUB_DRC_BROKER_*` in `.env` stehen.
+
 1. **Broker-Benutzer** (Mosquitto auf brix-node, `ops/brix/mosquitto/acl` und `passwd`; Passwörter mit `mosquitto_passwd`):
    ```
    user skyhub_commander            # Backend (SKYHUB_DRC_MQTT_*)

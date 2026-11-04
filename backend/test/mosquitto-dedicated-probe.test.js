@@ -41,3 +41,16 @@ test('mosquitto-dedicated ACL lets only reader read and only pilot write the pro
   assert.doesNotMatch(block('p'),new RegExp('topic read '+PROBE_TOPIC));
   assert.doesNotMatch(block('a'),new RegExp(PROBE_TOPIC));
 });
+
+test('optional DRC accounts: commander reads the RC OSD (drc_state) and never reads services; the DRC link only drc/up+down',()=>{
+  const m=require('../../scripts/pi-mosquitto-dedicated.js');
+  const base={reader:{username:'r'},ack:{username:'t'},pilot:{username:'p'}};
+  assert.doesNotMatch(m.aclText(base),/skyhub_commander|drc_link/);
+  const acl=m.aclText({...base,commander:{username:'skyhub_commander'},drcLink:{username:'skyhub_drc_link'}});
+  const block=name=>acl.split('\n\n').find(b=>b.startsWith('user '+name+'\n'));
+  const cmd=block('skyhub_commander');
+  assert.match(cmd,/topic read thing\/product\/\+\/osd/);
+  assert.match(cmd,/topic write thing\/product\/\+\/drc\/down/);
+  assert.doesNotMatch(cmd,/topic read thing\/product\/\+\/services\n/,'must not read services (drc_mode_enter carries the DRC password)');
+  assert.equal(block('skyhub_drc_link').trim(),'user skyhub_drc_link\ntopic write thing/product/+/drc/up\ntopic read thing/product/+/drc/down');
+});
