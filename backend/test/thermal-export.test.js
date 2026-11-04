@@ -35,6 +35,7 @@ test('TIFF: Float32 °C pixels, one strip, EXIF GPS in degrees/minutes/seconds',
   assert.ok(Math.abs(gps[6][0]-245.2)<1e-3);
   // without a position: no GPS IFD (0/0 is DJI's "no fix")
   assert.equal(readTiff(writeTemperatureTiff({width:4,height:2,temps,meta:{latitude:0,longitude:0}})).ifd0[34853],undefined);
+  assert.equal(readTiff(writeTemperatureTiff({width:4,height:2,temps,meta:{latitude:2.09e-7,longitude:5.31e-7}})).ifd0[34853],undefined,'no fix');
   assert.throws(()=>writeTemperatureTiff({width:3,height:2,temps}),/matrix/);
 });
 

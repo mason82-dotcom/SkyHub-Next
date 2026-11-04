@@ -52,6 +52,8 @@ function ifdBlock(entries,start,nextIfd=0){
   head.writeUInt32LE(nextIfd,headLen-4);
   return Buffer.concat([head,...extra]);
 }
+const hasPosition=(lat,lon)=>Number.isFinite(lat)&&Number.isFinite(lon)&&Math.abs(lat)<=90&&Math.abs(lon)<=180&&
+  !(Math.abs(lat)<1e-4&&Math.abs(lon)<1e-4);
 // temps: Float32Array (row-major, °C). meta: {make, model, datetime, latitude, longitude, altitude, description}
 function writeTemperatureTiff({width,height,temps,meta={}}){
   if(!Number.isInteger(width)||!Number.isInteger(height)||width<1||height<1||!(temps instanceof Float32Array)||temps.length!==width*height)
@@ -59,8 +61,8 @@ function writeTemperatureTiff({width,height,temps,meta={}}){
   const pixels=Buffer.from(temps.buffer,temps.byteOffset,temps.byteLength);
   // Layout: header(8) | pixels | IFD0 + values | GPS IFD + values
   const pixelOff=8,ifd0Off=pixelOff+pixels.length+(pixels.length%2);
-  const hasGps=Number.isFinite(meta.latitude)&&Number.isFinite(meta.longitude)&&
-    Math.abs(meta.latitude)<=90&&Math.abs(meta.longitude)<=180&&!(meta.latitude===0&&meta.longitude===0);
+  // DJI writes tiny values such as 2e-7/5e-7 instead of 0/0 without a GPS fix (see media-upload-contract noPosition).
+  const hasGps=hasPosition(meta.latitude,meta.longitude);
   const date=exifDate(meta.datetime);
   const base=[
     [256,TYPE.LONG,[width]],[257,TYPE.LONG,[height]],[258,TYPE.SHORT,[32]],[259,TYPE.SHORT,[1]],[262,TYPE.SHORT,[1]],
@@ -149,7 +151,8 @@ function createThermalExport({fetchSource,parse,sdk,dir=path.join(os.tmpdir(),'s
           zip.add(name,tif);
           let min=Infinity,max=-Infinity,sum=0;
           for(const v of out.temps){if(v<min)min=v;if(v>max)max=v;sum+=v;}
-          rows.push([name,it.key,m.latitude,m.longitude,m.absoluteAltitude,m.relativeAltitude,m.gimbalPitch,m.gimbalYaw,
+          const fix=hasPosition(m.latitude,m.longitude);
+          rows.push([name,it.key,fix?m.latitude:null,fix?m.longitude:null,m.absoluteAltitude,m.relativeAltitude,m.gimbalPitch,m.gimbalYaw,
             m.lrfDistance,m.utcAtExposure,min.toFixed(2),max.toFixed(2),(sum/out.temps.length).toFixed(2)].map(csvCell).join(','));
         }catch(err){j.errors.push({key:it.key,error:String(err&&err.message||err).slice(0,120)});}
         j.done++;
