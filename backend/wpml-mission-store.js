@@ -102,6 +102,8 @@ function summarize(validation){
     // Integrated cameras: payloadSubEnumValue defaults to 0 as in the DJI sample.
     payloadModelKeys:payloadType===null?[]:['1-'+payloadType+'-0'],
     templateTypes,
+    // Template names as written (e.g. Pilot 2's mappingCylinder, which has no number in DJI's wayline list enum 0–3).
+    templateNames:[...new Set((validation.templates||[]).map(t=>String(t.templateType||'')).filter(n=>/^[A-Za-z0-9]{1,32}$/.test(n)))],
     waylineCount:(validation.waylines||[]).length,
     waypointCount:(validation.waylines||[]).reduce((n,w)=>n+(Number(w.waypointCount)||0),0),
     warningCount:(validation.warnings||[]).length,
@@ -261,7 +263,8 @@ function createWpmlMissionStore({env=process.env,client,now=()=>new Date(),cache
         });
       }
       const summary=summarize(validation);
-      if(!summary.droneModelKey||!summary.payloadModelKeys.length||!summary.templateTypes.length)
+      // A template is required; its number only where DJI defines one (template_types then stays empty for e.g. mappingCylinder).
+      if(!summary.droneModelKey||!summary.payloadModelKeys.length||!summary.templateNames.length)
         throw httpError(422,'KMZ lacks DJI drone, payload or template type information');
       const sha256=crypto.createHash('sha256').update(buffer).digest('hex');
       const id=waylineId(sha256);
@@ -288,6 +291,7 @@ function createWpmlMissionStore({env=process.env,client,now=()=>new Date(),cache
         'drone-model-key':summary.droneModelKey,
         'payload-model-keys':summary.payloadModelKeys.join(','),
         'template-types':summary.templateTypes.join(','),
+        'template-names':summary.templateNames.join(','),
         aircraft:summary.aircraft?enc(summary.aircraft):'',
         'user-name':typeof username==='string'&&username?enc(username.slice(0,64)):'',
         'wpml-version':summary.wpmlVersion||'',
