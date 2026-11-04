@@ -342,6 +342,15 @@ window.SkyHubWorkspaceTabs.init({
   }
 });
 const records=new Map(),markers=new Map(),tracks=new Map();
+// Keine Dock-Hardware vor Ort (04.11.2026): Docks (DJI-Domäne 3) und die nur am Dock fliegenden Matrice 3D/3TD/4D/4TD
+// (Fluggerät-Typ 91/100) erscheinen nicht in der Oberfläche. Das Backend unterstützt sie unverändert.
+const DOCK_AIRCRAFT_TYPES=new Set([91,100]);
+function shownDevice(d){
+  const m=d&&d.model;
+  if(!m)return Boolean(d);
+  return String(m.domain)!=='3'&&!(String(m.domain)==='0'&&DOCK_AIRCRAFT_TYPES.has(Number(m.type)));
+}
+function putDevice(d){if(d&&shownDevice(d))records.set(d.sn,d);else if(d&&d.sn)records.delete(d.sn);}
 let socket=null,centered=false,authToken=null,selectedSn=null,connectAttempt=0;
 let trackLoadId=0,trackController=null;
 let healthController=null;
@@ -678,7 +687,7 @@ async function connect(token=null,quiet=false){
       res.status===403?'Zugriff verweigert':'Geräte konnten nicht geladen werden (HTTP '+res.status+')');
     const devices=await res.json();
     if(attempt!==connectAttempt)return false;
-    records.clear();for(const d of devices)records.set(d.sn,d);
+    records.clear();for(const d of devices)putDevice(d);
     listState='ready';
     update();
     authToken=token;
@@ -692,8 +701,8 @@ async function connect(token=null,quiet=false){
     current.on('connect',()=>{if(socket===current)el('message').textContent=label;});
     current.on('connect_error',()=>{if(socket===current)el('message').textContent='WebSocket nicht verbunden';});
     current.on('disconnect',()=>{if(socket===current)el('message').textContent='Verbindung getrennt';});
-    current.on('snapshot',list=>{if(socket!==current)return;records.clear();for(const d of list)records.set(d.sn,d);update();});
-    current.on('device_update',d=>{if(socket!==current)return;records.set(d.sn,d);update();});
+    current.on('snapshot',list=>{if(socket!==current)return;records.clear();for(const d of list)putDevice(d);update();});
+    current.on('device_update',d=>{if(socket!==current)return;putDevice(d);update();});
     current.on('device_event',event=>{if(socket!==current)return;addRecentEvent(event);
       if(hmsHistoryPanel&&event&&event.method==='hms')hmsHistoryPanel.changed();});
     return true;
