@@ -5,7 +5,7 @@
 FROM python:3.11.10-slim-bookworm AS rtklib
 ARG RTKLIB_COMMIT=180043ee24b6d2b168f98b64be15f69d50046b1a
 ARG RTKLIB_SHA256=e8231a6931b0c5d12fb26368572cd3fc515fbd09d4a1c7597ed4955f15a10113
-RUN set -e; apt-get update; apt-get install -y --no-install-recommends gcc make curl ca-certificates; rm -rf /var/lib/apt/lists/*
+RUN set -e; apt-get update; apt-get install -y --no-install-recommends gcc libc6-dev make curl ca-certificates; rm -rf /var/lib/apt/lists/*
 RUN set -e; cd /tmp; \
     curl -fsSL -o rtklib.tar.gz "https://github.com/tomojitakasu/RTKLIB/archive/${RTKLIB_COMMIT}.tar.gz"; \
     echo "${RTKLIB_SHA256}  rtklib.tar.gz" | sha256sum -c -; \
