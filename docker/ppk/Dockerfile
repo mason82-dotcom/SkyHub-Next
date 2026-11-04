@@ -10,6 +10,8 @@ RUN set -e; cd /tmp; \
     curl -fsSL -o rtklib.tar.gz "https://github.com/tomojitakasu/RTKLIB/archive/${RTKLIB_COMMIT}.tar.gz"; \
     echo "${RTKLIB_SHA256}  rtklib.tar.gz" | sha256sum -c -; \
     tar -xzf rtklib.tar.gz; cd "RTKLIB-${RTKLIB_COMMIT}/app/consapp"; \
+    # Without the optional IERS tide model (Fortran library); dji-geotagger runs with pos1-tidecorr=off.
+    sed -i -e 's/-DIERS_MODEL//' -e 's#[.][.]/[.][.]/[.][.]/[.][.]/lib/iers/gcc/iers[.]a##' -e 's/-lgfortran//' rnx2rtkp/gcc/makefile; \
     make -C convbin/gcc; make -C rnx2rtkp/gcc; \
     install -D -m 0755 convbin/gcc/convbin /out/convbin; install -D -m 0755 rnx2rtkp/gcc/rnx2rtkp /out/rnx2rtkp
 
