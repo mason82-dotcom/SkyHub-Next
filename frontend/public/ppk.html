@@ -6,6 +6,13 @@
 <title>SkyHub · PPK-Geotagging</title>
 <link rel="stylesheet" href="/skyhub-light.css">
 <link rel="stylesheet" href="/missionsfreigabe.css">
+<style>
+.ppk-source{border:0;padding:0;margin:0 0 8px}.ppk-source legend{font-weight:600;margin-bottom:4px}
+.ppk-flights label{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line,#d0d7de)}
+.ppk-flights input{margin-top:3px;min-width:20px;min-height:20px}
+.ppk-flights small{display:block;color:var(--muted,#57606a)}
+.ppk-flights .bad small{color:#b3261e}
+</style>
 </head>
 <body class="mrel">
 <header class="mrel-top">
@@ -19,11 +26,22 @@
 </p>
 <main class="mrel-grid">
   <section class="card" aria-labelledby="h-flight">
-    <h2 id="h-flight">1 · Flugordner von der SD-Karte</h2>
-    <label>Ordner wählen (z. B. <code>DCIM/DJI_202611041030_001_…</code>), mehrere nacheinander möglich
-      <input id="flight" type="file" webkitdirectory multiple></label>
-    <ul id="flights" class="history"></ul>
-    <button id="flightsClear" type="button" class="secondary">Auswahl leeren</button>
+    <h2 id="h-flight">1 · Flug wählen</h2>
+    <fieldset class="ppk-source">
+      <legend>Quelle</legend>
+      <label class="check"><input type="radio" name="source" value="storage" checked> Aus dem Speicher (bereits importierte Flüge)</label>
+      <label class="check"><input type="radio" name="source" value="sd"> Ordner von der SD-Karte</label>
+    </fieldset>
+    <div id="srcStorage">
+      <p id="storageState" class="muted" role="status">Flüge werden geladen …</p>
+      <div id="storageFlights" class="ppk-flights"></div>
+    </div>
+    <div id="srcSd" hidden>
+      <label>Ordner wählen (z. B. <code>DCIM/DJI_202611041030_001_…</code>), mehrere nacheinander möglich
+        <input id="flight" type="file" webkitdirectory multiple></label>
+      <ul id="flights" class="history"></ul>
+      <button id="flightsClear" type="button" class="secondary">Auswahl leeren</button>
+    </div>
   </section>
   <section class="card" aria-labelledby="h-base">
     <h2 id="h-base">2 · SAPOS-Referenzstation</h2>
@@ -44,7 +62,7 @@
     <h2 id="h-run">3 · Auswerten</h2>
     <button id="run" type="button" disabled>Hochladen und auswerten</button>
     <button id="cancel" type="button" class="secondary" disabled>Abbrechen</button>
-    <p id="status" class="muted" role="status" aria-live="polite">Flugordner und SAPOS-Dateien wählen.</p>
+    <p id="status" class="muted" role="status" aria-live="polite">Flug und SAPOS-Dateien wählen.</p>
     <progress id="progress" max="1" value="0" hidden style="width:100%"></progress>
     <p><a id="download" href="#" hidden>Ergebnis (CSV) herunterladen</a></p>
     <ul id="failed" class="history"></ul>

@@ -7,6 +7,8 @@ SAPOS reference station (RINEX observation + navigation) -> centimetre camera ce
 POST /jobs?id=<24 hex>   body: ZIP (max 3 GiB) with flights/<folder>/... and base/<obs>, base/<nav>[, base/*.sp3|*.clk]
                          header X-PPK-Params: JSON {base: {mode: "header"|"manual", lat, lon, height, sigma_e, sigma_n,
                          sigma_u, frame, epoch}}; header Authorization: Bearer <SKYHUB_PPK_TOKEN>
+POST /jobs?id=<id>&part=base     two-part job: base/ ZIP from the browser, job waits ("staged") …
+POST /jobs?id=<id>&part=flights  … for flights/ ZIP the backend assembles from MinIO; then the job starts.
 GET  /jobs/<id>          status JSON (no file paths, no coordinates of the base)
 GET  /jobs/<id>/result.csv
 DELETE /jobs/<id>        cancel / remove
@@ -35,6 +37,7 @@ ROOT = Path(os.environ.get("SKYHUB_PPK_JOBS", "/jobs"))
 MAX_UPLOAD = 3 * 1024 ** 3
 MAX_FILES = 30000
 KEEP_S = 24 * 3600
+STAGED_S = 3600
 JOB_ID = re.compile(r"^[0-9a-f]{24}$")
 JOBS: dict[str, dict] = {}
 LOCK = threading.Lock()
@@ -147,8 +150,10 @@ def run_job(job: dict) -> None:
         with RUNNING:
             job.update(state="running", message="entpacke")
             work = jdir / "work"
-            safe_extract(jdir / "upload.zip", work)
-            (jdir / "upload.zip").unlink(missing_ok=True)
+            for part in ("upload.zip", "part-base.zip", "part-flights.zip"):
+                if (jdir / part).exists():
+                    safe_extract(jdir / part, work)
+                    (jdir / part).unlink(missing_ok=True)
             base_dir = work / "base"
             files = [p for p in base_dir.iterdir() if p.is_file()] if base_dir.is_dir() else []
             obs = [p for p in files if is_obs(p.name)]
@@ -201,6 +206,10 @@ def cleanup():
     now = time.time()
     with LOCK:
         for jid, j in list(JOBS.items()):
+            if j.get("state") == "staged" and now - j["created"] > STAGED_S:
+                j.update(state="failed", message="Flugdaten aus dem Speicher kamen nicht an", finished=now)
+                for part in ("part-base.zip", "part-flights.zip"):
+                    (j["dir"] / part).unlink(missing_ok=True)
             if j.get("finished") and now - j["finished"] > KEEP_S:
                 shutil.rmtree(j["dir"], ignore_errors=True)
                 del JOBS[jid]
@@ -262,6 +271,10 @@ class Handler(BaseHTTPRequestHandler):
                 raise Problem(401, "unauthorized")
             j, _ = self.job(urlsplit(self.path).path)
             j["cancel"] = True
+            if j.get("state") == "staged":
+                j.update(state="cancelled", message="abgebrochen", finished=time.time())
+                for part in ("part-base.zip", "part-flights.zip"):
+                    (j["dir"] / part).unlink(missing_ok=True)
             self.reply(200, {"ok": True})
         except Problem as e:
             self.reply(e.status, {"error": str(e)})
@@ -271,30 +284,50 @@ class Handler(BaseHTTPRequestHandler):
             if not self.authorized():
                 raise Problem(401, "unauthorized")
             url = urlsplit(self.path)
-            jid = (parse_qs(url.query).get("id") or [""])[0]
-            if url.path != "/jobs" or not JOB_ID.match(jid) or jid in JOBS:
+            q = parse_qs(url.query)
+            jid = (q.get("id") or [""])[0]
+            part = (q.get("part") or [""])[0]
+            if url.path != "/jobs" or not JOB_ID.match(jid) or part not in ("", "base", "flights"):
                 raise Problem(400, "Auftrags-ID ungültig")
             length = int(self.headers.get("Content-Length") or 0)
             if length < 22 or length > MAX_UPLOAD:
                 raise Problem(413, "Upload fehlt oder größer als 3 GiB")
-            params = parse_params(self.headers.get("X-PPK-Params", ""))
             cleanup()
-            with LOCK:
-                if sum(1 for j in JOBS.values() if j.get("state") in ("queued", "running")) >= 2:
-                    raise Problem(429, "Es laufen bereits Aufträge")
-                jdir = ROOT / jid
-                jdir.mkdir(parents=True, exist_ok=False)
-                job = {"id": jid, "dir": jdir, "params": params, "state": "receiving", "message": "Upload",
-                       "created": time.time()}
-                JOBS[jid] = job
+            if part == "flights":
+                with LOCK:
+                    job = JOBS.get(jid)
+                    if not job or job.get("state") != "staged":
+                        raise Problem(409, "Auftrag wartet nicht auf Flugdaten")
+                    job.update(state="receiving", message="Flugdaten aus dem Speicher")
+                    jdir = job["dir"]
+                target = jdir / "part-flights.zip"
+            else:
+                if jid in JOBS:
+                    raise Problem(400, "Auftrags-ID ungültig")
+                params = parse_params(self.headers.get("X-PPK-Params", ""))
+                with LOCK:
+                    if sum(1 for j in JOBS.values() if j.get("state") in ("queued", "running", "staged")) >= 2:
+                        raise Problem(429, "Es laufen bereits Aufträge")
+                    jdir = ROOT / jid
+                    jdir.mkdir(parents=True, exist_ok=False)
+                    job = {"id": jid, "dir": jdir, "params": params, "state": "receiving", "message": "Upload",
+                           "created": time.time()}
+                    JOBS[jid] = job
+                target = jdir / ("part-base.zip" if part == "base" else "upload.zip")
             left = length
-            with open(jdir / "upload.zip", "wb") as out:
+            with open(target, "wb") as out:
                 while left:
                     chunk = self.rfile.read(min(left, 1024 * 1024))
                     if not chunk:
                         raise Problem(400, "Upload abgebrochen")
                     out.write(chunk)
                     left -= len(chunk)
+            if part == "base":
+                job.update(state="staged", message="Flugdaten werden aus dem Speicher geholt")
+                return self.reply(202, view(job))
+            if job.get("cancel"):
+                job.update(state="cancelled", message="abgebrochen", finished=time.time())
+                return self.reply(409, {"error": "abgebrochen"})
             job.update(state="queued", message="wartet")
             threading.Thread(target=run_job, args=(job,), daemon=True).start()
             self.reply(202, view(job))
@@ -303,7 +336,8 @@ class Handler(BaseHTTPRequestHandler):
             if j and j.get("state") == "receiving":
                 j.update(state="failed", message=str(e), finished=time.time())
                 shutil.rmtree(j["dir"] / "work", ignore_errors=True)
-                (j["dir"] / "upload.zip").unlink(missing_ok=True)
+                for name in ("upload.zip", "part-base.zip", "part-flights.zip"):
+                    (j["dir"] / name).unlink(missing_ok=True)
             self.reply(e.status, {"error": str(e)})
 
 

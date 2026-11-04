@@ -14,7 +14,7 @@ const lanReadPatterns=[
   /^\/smart-farming\/candidates(\/[^/]+)*\/?$/,
   /^\/thermal\/(list|meta|raw|measure)$/,
   /^\/thermal\/export\/[0-9a-f]{24}(\/zip)?$/,
-  /^\/ppk\/(health|jobs\/[0-9a-f]{24}(\/result\.csv)?)$/,
+  /^\/ppk\/(health|flights|jobs\/[0-9a-f]{24}(\/result\.csv)?)$/,
   /^\/smart-farming\/captures(\/manifest)?\/?$/,
   /^\/live\/status$/,
   /^\/live\/hls\/pilot\/[A-Za-z0-9_-]{1,96}\.(m3u8|mp4)$/

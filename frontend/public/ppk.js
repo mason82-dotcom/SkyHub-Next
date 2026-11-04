@@ -5,7 +5,9 @@
 (function(){
   const $=id=>document.getElementById(id);
   const flights=new Map();   // folder -> [{name, file}]
-  let baseFiles=[],job=null,timer=null;
+  let baseFiles=[],job=null,timer=null,stored=[];
+  const source=()=>document.querySelector('input[name=source]:checked').value;
+  const chosen=()=>[...document.querySelectorAll('#storageFlights input:checked')].map(x=>x.value);
   const KEEP=/\.(mrk|rtk|jpe?g|tif)$|_ppkraw\.bin$/i;
   const fmt=n=>n>1048576?(n/1048576).toFixed(1)+' MB':Math.round(n/1024)+' KB';
 
@@ -19,10 +21,42 @@
       return li;
     }));
     $('baseList').replaceChildren(...baseFiles.map(f=>{const li=document.createElement('li');li.textContent=f.name+' ('+fmt(f.size)+')';return li;}));
-    const ok=flights.size>0&&[...flights.values()].every(fs=>fs.some(f=>/\.mrk$/i.test(f.name))&&fs.some(f=>/_ppkraw\.bin$|\.rtk$/i.test(f.name)))&&
+    const flightsOk=source()==='storage'?chosen().length>0:
+      flights.size>0&&[...flights.values()].every(fs=>fs.some(f=>/\.mrk$/i.test(f.name))&&fs.some(f=>/_ppkraw\.bin$|\.rtk$/i.test(f.name)));
+    const ok=flightsOk&&
       baseFiles.some(f=>/(_[A-Z]O\.rnx|\.obs|\.\d\do)$/i.test(f.name))&&baseFiles.some(f=>/(_[A-Z]N\.rnx|\.nav|\.\d\d[nglpfhq])$/i.test(f.name));
     $('run').disabled=!ok||Boolean(job);
   }
+  // --- flights already imported into MinIO --------------------------------------------------------------------------
+  const when=iso=>iso?new Date(iso).toLocaleString('de-DE',{dateStyle:'medium',timeStyle:'short'}):'?';
+  const utcRange=f=>f.startUtc?f.startUtc.slice(11,16)+'–'+(f.endUtc||f.startUtc).slice(11,16)+' UTC':'';
+  async function loadStored(){
+    try{
+      const r=await fetch('/api/ppk/flights',{cache:'no-store',credentials:'same-origin'});
+      const b=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(b.error||('HTTP '+r.status));
+      stored=b.flights||[];
+      $('storageState').textContent=stored.length?'Mehrere Flüge möglich, wenn derselbe SAPOS-Zeitraum sie abdeckt.':
+        'Keine Flüge mit GNSS-Rohdaten im Speicher. Ordner von der SD-Karte wählen.';
+      $('storageFlights').replaceChildren(...stored.map(f=>{
+        const l=document.createElement('label');if(!f.usable)l.className='bad';
+        const c=document.createElement('input');c.type='checkbox';c.value=f.id;c.disabled=!f.usable;c.addEventListener('change',renderLists);
+        const t=document.createElement('span');
+        const b=document.createElement('strong');b.textContent=f.name;
+        const d=document.createElement('small');
+        d.textContent=when(f.startUtc)+' · '+utcRange(f)+' · '+f.photos+' von '+f.exposures+' Fotos · im Flug: '+(f.quality||'?')+
+          (f.position?' · '+f.position.lat.toFixed(4)+' N, '+f.position.lon.toFixed(4)+' E':'')+
+          (f.droppedMrkLines?' · '+f.droppedMrkLines+' defekte MRK-Zeile(n) übersprungen':'');
+        t.append(b,d);
+        if(f.issues&&f.issues.length){const w=document.createElement('small');w.textContent=f.issues.join('; ');t.append(w);}
+        l.append(c,t);return l;
+      }));
+    }catch(err){$('storageState').textContent='Speicher nicht lesbar: '+err.message;$('storageState').className='bad';}
+    renderLists();
+  }
+  for(const r of document.querySelectorAll('input[name=source]'))r.addEventListener('change',()=>{
+    $('srcStorage').hidden=source()!=='storage';$('srcSd').hidden=source()!=='sd';renderLists();
+  });
   $('flight').addEventListener('change',e=>{
     for(const file of e.target.files){
       const parts=(file.webkitRelativePath||file.name).split('/');
@@ -100,8 +134,8 @@
     $('run').disabled=true;$('download').hidden=true;$('failed').replaceChildren();
     const prog=$('progress');prog.hidden=false;prog.value=0;
     try{
-      const entries=[];let skipped=0;
-      for(const [folder,files] of flights)for(const f of files){
+      const entries=[];let skipped=0;const fromStorage=source()==='storage';
+      if(!fromStorage)for(const [folder,files] of flights)for(const f of files){
         if(/\.(jpe?g)$/i.test(f.name)){
           const head=await jpegHeader(f.file);
           if(!head){skipped++;continue;}
@@ -114,8 +148,9 @@
       status('Upload '+fmt(zip.size)+(skipped?' ('+skipped+' Fotos ohne lesbaren Kopf übersprungen)':'')+' …');
       const res=await new Promise((resolve,reject)=>{
         const x=new XMLHttpRequest();
-        x.open('POST','/api/ppk/jobs');
+        x.open('POST',fromStorage?'/api/ppk/jobs/storage':'/api/ppk/jobs');
         x.setRequestHeader('Content-Type','application/zip');x.setRequestHeader('X-PPK-Params',params());
+        if(fromStorage)x.setRequestHeader('X-PPK-Flights',JSON.stringify(chosen()));
         x.upload.onprogress=e=>{if(e.lengthComputable)prog.value=0.3+e.loaded/e.total*0.2;};
         x.onload=()=>{let b={};try{b=JSON.parse(x.responseText);}catch{}resolve({status:x.status,body:b});};
         x.onerror=()=>reject(new Error('Netzwerkfehler beim Upload'));
@@ -132,7 +167,7 @@
       const r=await fetch('/api/ppk/jobs/'+job,{cache:'no-store',credentials:'same-origin'});
       const s=await r.json();
       if(!r.ok)throw new Error(s.error||('HTTP '+r.status));
-      const label={receiving:'Upload',queued:'wartet',running:'rechnet',done:'fertig',failed:'fehlgeschlagen',cancelled:'abgebrochen'}[s.state]||s.state;
+      const label={preparing:'bereitet vor',staged:'bereitet vor',receiving:'Upload',queued:'wartet',running:'rechnet',done:'fertig',failed:'fehlgeschlagen',cancelled:'abgebrochen'}[s.state]||s.state;
       status(label+': '+(s.message||'')+(s.ephemeris?' · Bahndaten: '+s.ephemeris:''),s.state==='failed'?'bad':s.state==='done'?'ok':'muted');
       if(typeof s.fraction==='number')$('progress').value=0.5+0.5*Math.max(0,Math.min(1,s.fraction));
       $('failed').replaceChildren(...(s.failed||[]).map(f=>{const li=document.createElement('li');li.className='bad';li.textContent='Flug '+f.flight+': '+f.reason;return li;}));
@@ -149,5 +184,5 @@
     await fetch('/api/ppk/jobs/'+job,{method:'DELETE',credentials:'same-origin'}).catch(()=>{});
     poll();
   });
-  renderLists();
+  loadStored();
 })();
