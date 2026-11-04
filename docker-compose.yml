@@ -169,6 +169,7 @@ services:
       SKYHUB_PILOT_WORKSPACE_ID: ${SKYHUB_PILOT_WORKSPACE_ID:-}
       # DJI map-group GET route (Pilot 2 api module); OFF by default.
       SKYHUB_DJI_MAP_ELEMENTS_ENABLED: ${SKYHUB_DJI_MAP_ELEMENTS_ENABLED:-false}
+      SKYHUB_DJI_MAP_WRITES_ENABLED: ${SKYHUB_DJI_MAP_WRITES_ENABLED:-false}
       # DJI Pilot 2 situation awareness (WebSocket /ws/tsa + topology list); OFF by default.
       # Needs the public https origin the RC uses for /pilot-login, e.g. https://rpi5.fritz.box
       SKYHUB_DJI_TSA_ENABLED: ${SKYHUB_DJI_TSA_ENABLED:-false}

@@ -3,11 +3,12 @@ const path=require('path');
 const {serial}=require('./dji');
 const {createMapElementStore}=require('./map-element-store');
 const {createMapElementHandler}=require('./map-element-api');
+const {registerPilotMapWrites}=require('./map-element-write');
 const {createPilotAuth}=require('./pilot-auth');
 const {createPilotDiagnostics}=require('./pilot-diagnostics');
 
 // Pilot 2 onboarding endpoints. Public part: mounted before the view-token guard.
-function registerPilotRoutes(app,{pilot,pairing,redis,registry,pool,ack,pilotAuth=createPilotAuth({pilot,pairing,redis}),
+function registerPilotRoutes(app,{pilot,pairing,redis,registry,pool,ack,pilotAuth=createPilotAuth({pilot,pairing,redis}),mapWriter=null,
   diagnostics=createPilotDiagnostics({enabled:process.env.SKYHUB_PILOT_DIAGNOSTICS_ENABLED==='true'})}){
   // Existing DJI Pilot 2 URL /pilot-login now resolves when v3 takes over port 4000.
   // Login/bootstrap remains opt-in; secret provisioning is forbidden over plaintext HTTP.
@@ -35,6 +36,8 @@ function registerPilotRoutes(app,{pilot,pairing,redis,registry,pool,ack,pilotAut
       workspaceId:pilot.workspaceId,
       authorize:pilotAuth.principal
     }));
+    // Pilot 2 writes (create/update/delete) only with SKYHUB_DJI_MAP_WRITES_ENABLED; server.js builds the writer.
+    if(mapWriter)registerPilotMapWrites(app,{writer:mapWriter,workspaceId:pilot.workspaceId,authorize:pilotAuth.principal});
   }else if(process.env.SKYHUB_DJI_MAP_ELEMENTS_ENABLED==='true'){
     console.error('[map elements] disabled: Pilot 2 configuration is incomplete');
   }

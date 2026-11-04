@@ -229,7 +229,12 @@
           host:tsa.wsHost,token:sessionToken,connectCallback:'skyhubPilotWsState'}));
       if(bridgeBoolean('platformIsComponentLoaded','tsa')!==true)
         invoke('platformLoadComponent','tsa','{}');
-      tsaState='Module geladen';
+      // Map elements (jsbridge map module, after cloud + ws): Pilot 2 then reads the element groups over the api module and
+      // receives map_element_* pushes on the ws connection.
+      const map=config.map;
+      if(map&&typeof map.userName==='string'&&bridgeBoolean('platformIsComponentLoaded','map')!==true)
+        invoke('platformLoadComponent','map',JSON.stringify({userName:map.userName.slice(0,32),elementPreName:String(map.elementPreName||'PILOT').slice(0,16)}));
+      tsaState='Module geladen'+(map?' (mit Kartenelementen)':'');
     }catch(e){tsaState='nicht geladen ('+e.message+')';}
     refreshDiagnostics();
   }

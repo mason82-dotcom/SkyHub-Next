@@ -31,6 +31,7 @@ const {createWpmlMissionStore,createWpmlMissionRouter}=require('./wpml-mission-s
 const {releaseConfig,createReleaseStore,pilotLibrary,createMissionReleaseRouter}=require('./mission-release');
 const {drcConfig,createDrcRuntime}=require('./drc-runtime');
 const {liveControlConfig,createLiveControl}=require('./live-control');
+const {createMapElementWriter,createMapElementRouter}=require('./map-element-write');
 const {createDjiWaylineRouter,createRedisFavorites,UPLOAD_DISABLED_CODE}=require('./dji-wayline-http');
 let pilotWaylineImport=null;
 const {createPilotWaylineImport,ImportError}=require('./pilot-wayline-import');
@@ -75,7 +76,9 @@ if(liveControlSettings.issue)console.error('[live control] disabled:',liveContro
 // The authenticated Pilot bootstrap additionally carries the RTMP target when the relay is enabled.
 const pilotWithLive=Object.assign(Object.create(null),pilot,{bootstrap(){
   const live=pilotLiveConfig(liveSettings,{onDemand:liveControlSettings.enabled});
-  return {...pilot.bootstrap(),...(live?{live}:{})};
+  // Map module (jsbridge "map", needs api + ws): only when the map element endpoints are active.
+  const map=process.env.SKYHUB_DJI_MAP_ELEMENTS_ENABLED==='true'?{userName:'Pilot 2',elementPreName:'PILOT'}:null;
+  return {...pilot.bootstrap(),...(live?{live}:{}),...(map?{map}:{})};
 }});
 let lanAccess,trackRetentionDays,trustedProxyIps,tileSettings;
 try {
@@ -188,7 +191,15 @@ try{
   process.exit(1);
 }
 const {state:mqttState,ack}=ingest;
-registerPilotRoutes(app,{pilot:pilotWithLive,pairing,redis,registry,pool,ack,pilotAuth});
+// Map elements write path (DJI 1.18 map-elements): opt-in on top of SKYHUB_DJI_MAP_ELEMENTS_ENABLED; needs migrations 001+002.
+let mapWriter=null;
+if(process.env.SKYHUB_DJI_MAP_ELEMENTS_ENABLED==='true'&&process.env.SKYHUB_DJI_MAP_WRITES_ENABLED==='true'&&pool&&pilot.ready){
+  mapWriter=createMapElementWriter({pool,workspaceId:pilot.workspaceId,publish:msg=>{if(tsaHub)tsaHub.publish(msg);}});
+  mapWriter.ensureGroup().catch(err=>console.error('[map elements] shared group:',err.message));
+  app.use('/api/map-elements',createMapElementRouter({express,writer:mapWriter}));
+  console.log('[map elements] write path active (SkyHub page + Pilot 2)');
+}
+registerPilotRoutes(app,{pilot:pilotWithLive,pairing,redis,registry,pool,ack,pilotAuth,mapWriter});
 if(tsaHub){
   app.get('/manage/api/v1/workspaces/:workspaceId/devices/topologies',createTopologyListHandler({
     registry,workspaceId:pilot.workspaceId,authorize:pilotAuth.principal,

@@ -155,6 +155,8 @@ function createTsaHub({registry,authorize,workspaceId,path='/ws/tsa',intervalMs=
   return {
     matches,handleUpgrade,tick,close,
     topologyChanged(){topologyPending=true;},
+    // Other Pilot 2 WebSocket pushes on the same connection (map elements: map_element_create/update/delete).
+    publish:broadcast,
     stats(){return {clients:clients.size,...stats};}
   };
 }
