@@ -15,7 +15,7 @@ const SHARED_GROUP='skyhub-shared';
 const ELEMENT_ID=/^[A-Za-z0-9_.:-]{1,128}$/;
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 // DJI colour palette (create.html; labels as published, the hex values are what Pilot 2 shows).
-const COLORS=Object.freeze({'#2D8CF0':'Blau','#19BE6B':'Grün','#FFBB00':'Gelb','#B620E0':'Orange (DJI: violett)','#E23C39':'Rot','#212121':'Schwarz'});
+const COLORS=Object.freeze({'#2D8CF0':'Blau','#19BE6B':'Grün','#FFBB00':'Gelb','#B620E0':'Violett (DJI-Name „Orange“)','#E23C39':'Rot','#212121':'Schwarz (DJI-Name „Purple“)'});
 
 class MapWriteError extends Error{constructor(message,status=400){super(message);this.status=status;}}
 
