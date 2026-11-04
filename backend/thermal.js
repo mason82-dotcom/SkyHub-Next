@@ -8,6 +8,7 @@ const express=require('express');
 const {createHash}=require('node:crypto');
 const {createLru}=require('./media-preview');
 const {sdkParameters}=require('./thermal-sdk');
+const {createThermalExport,MAX_ITEMS}=require('./thermal-export');
 
 const FRAMES=Object.freeze([[640,512],[320,256],[1280,1024]]);
 const MAX_OBJECT_BYTES=20*1024*1024;
@@ -86,7 +87,9 @@ function parseRJpeg(buffer){
       utcAtExposure:x.UTCAtExposure||null,
       lrfDistance:num(x.LRFTargetDistance),lrfStatus:x.LRFStatus||null,
       gimbalPitch:num(x.GimbalPitchDegree),gimbalYaw:num(x.GimbalYawDegree),
-      relativeAltitude:num(x.RelativeAltitude),absoluteAltitude:num(x.AbsoluteAltitude)
+      relativeAltitude:num(x.RelativeAltitude),absoluteAltitude:num(x.AbsoluteAltitude),
+      // DJI XMP position (older firmware writes "GpsLongtitude"); used for the GPS tags of the TIFF export.
+      latitude:num(x.GpsLatitude),longitude:num(x.GpsLongitude??x.GpsLongtitude)
     }
   };
 }
@@ -308,6 +311,37 @@ function createThermalRouter({storage,bucketIndex,buckets,sdk=null}={}){
       res.end(body);
     }catch(err){fail(res,err);}
   });
+  // Batch export as calibrated temperature TIFFs for photogrammetry (thermal-export.js). Needs the Thermal SDK.
+  const exporter=sdk?createThermalExport({fetchSource,parse:parseRJpeg,sdk,log:m=>console.log(m)}):null;
+  router.post('/export',express.json({limit:'256kb'}),async(req,res)=>{
+    try{
+      if(!exporter)return res.status(404).json({error:'DJI Thermal SDK nicht eingerichtet'});
+      const b=req.body&&typeof req.body==='object'?req.body:{};
+      if(!Array.isArray(b.items)||!b.items.length||b.items.length>MAX_ITEMS)return res.status(400).json({error:'1 bis '+MAX_ITEMS+' Bilder auswählen'});
+      const allowed=new Set(await buckets());
+      const items=[];
+      for(const it of b.items){
+        if(!it||typeof it.bucket!=='string'||!allowed.has(it.bucket)||typeof it.key!=='string'||!it.key||it.key.length>1024||
+           /[\x00-\x1f\x7f]/.test(it.key)||!isThermalName(it.key.split('/').pop()))return res.status(400).json({error:'Ungültige Bildauswahl'});
+        items.push({bucket:it.bucket,key:it.key});
+      }
+      let params;
+      try{params=sdkParameters(b.parameters||{});}catch(err){return res.status(400).json({error:err.message});}
+      res.status(202).json(exporter.start(items,params));
+    }catch(err){res.status(err.status&&err.status<500?err.status:503).json({error:err.status?err.message:'Export nicht möglich'});}
+  });
+  const jobId=id=>typeof id==='string'&&/^[0-9a-f]{24}$/.test(id);
+  router.get('/export/:id',(req,res)=>{
+    const s=exporter&&jobId(req.params.id)?exporter.status(req.params.id):null;
+    res.set('Cache-Control','no-store');
+    return s?res.json(s):res.status(404).json({error:'Export nicht gefunden'});
+  });
+  router.get('/export/:id/zip',(req,res)=>{
+    const file=exporter&&jobId(req.params.id)?exporter.file(req.params.id):null;
+    if(!file)return res.status(404).json({error:'Export nicht fertig oder abgelaufen'});
+    res.download(file,'skyhub-waermebilder-'+req.params.id.slice(0,8)+'.zip');
+  });
+  router.delete('/export/:id',(req,res)=>res.json({ok:Boolean(exporter&&jobId(req.params.id)&&exporter.cancel(req.params.id))}));
   return router;
 }
 

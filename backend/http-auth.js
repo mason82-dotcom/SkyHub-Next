@@ -13,6 +13,7 @@ const lanReadPatterns=[
   /^\/media\/(status|buckets|objects|summary|index|file|thumb|mission|m3m\/inventory)$/,
   /^\/smart-farming\/candidates(\/[^/]+)*\/?$/,
   /^\/thermal\/(list|meta|raw|measure)$/,
+  /^\/thermal\/export\/[0-9a-f]{24}(\/zip)?$/,
   /^\/smart-farming\/captures(\/manifest)?\/?$/,
   /^\/live\/status$/,
   /^\/live\/hls\/pilot\/[A-Za-z0-9_-]{1,96}\.(m3u8|mp4)$/
