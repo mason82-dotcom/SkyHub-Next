@@ -50,6 +50,13 @@ Zusätzlich für die Matrice-4-Steuerung herangezogen (Gegenstück der RC Plus 2
 
 Nur ergänzend, **nicht** Referenz: GitHub [dji-sdk/Cloud-API-Doc](https://github.com/dji-sdk/Cloud-API-Doc/tree/master/docs/en) ist auf
 Stand **v1.11.3 (07.11.2024)**, ohne RC-Plus-2- und Matrice-4-Seiten und mit der älteren Nutzlast-API (RC Pro, `services`).
+Ebenfalls nur ergänzend (abgeglichen 04.11.2026):
+- [dji-sdk/FlightHub-2-Plugin](https://github.com/dji-sdk/FlightHub-2-Plugin) 1.0.0 (27.10.2026, Apache-2.0): Plugins **innerhalb** von
+  FlightHub 2, kein Cloud-API-Protokoll. Für SkyHub nur als Vergleich: das FH2-Cockpit bietet Plugins beim Gimbal nur `reset` und `lookAt`,
+  **kein** freies Drehen; `lookAt` auf Kartenpunkt sendet `camera_look_at` mit `locked` = true als Vorgabe (SkyHub: false).
+- [dji-sdk/FlightRecordParsingLib](https://github.com/dji-sdk/FlightRecordParsingLib) 1.0.6 (12.04.2024, MIT): Flugbuch-Dateien bis
+  Version 13; Entschlüsselung nur online (`dev.dji.com/openapi/v1/flight-records/keychains` mit App Key) und meldet jeden Lauf an
+  `statistical-report.djiservice.org`. Matrice 4 nicht in der Produktliste. In SkyHub nicht verwendet.
 
 ## Regeln für die Weiterentwicklung
 1. Neue Protokollteile zuerst gegen die passende Seite oben abgleichen; Quelle (Seite, Feld) im Code-Kommentar nennen.
