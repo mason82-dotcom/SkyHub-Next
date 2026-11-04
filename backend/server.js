@@ -29,6 +29,7 @@ const {createPilotMediaUploadRuntime}=require('./pilot-media-upload-runtime');
 const {createMinioDrRouter}=require('./minio-dr-api');
 const {createWpmlMissionStore,createWpmlMissionRouter}=require('./wpml-mission-store');
 const {releaseConfig,createReleaseStore,pilotLibrary,createMissionReleaseRouter}=require('./mission-release');
+const {drcConfig,createDrcRuntime}=require('./drc-runtime');
 const {createDjiWaylineRouter,createRedisFavorites}=require('./dji-wayline-http');
 const {createSmartFarmingCatalogRouter}=require('./smart-farming-catalog');
 const {createHttpAuth}=require('./http-auth');
@@ -305,6 +306,16 @@ if(wpmlStore&&pilot.wayline.enabled){
     console.log('[pilot wayline] library active for Pilot 2 (released routes only)');
   }
 }
+// Live flight control (DRC) for one pinned DJI RC Plus 2 + Matrice 4E/4T (DJI Cloud API 1.18 pilot live flight controls).
+// Off by default; separate token; operator lease with fail-safe hand-back to the RC (drc-session.js).
+const drc=drcConfig(process.env);
+let drcRuntime=null;
+if(drc.issue)console.error('[drc] disabled:',drc.issue);
+if(drc.enabled){
+  drcRuntime=createDrcRuntime({config:drc,registry,pool,io,express,mqttConnect:require('mqtt').connect,socketAuth});
+  app.use('/api/drc',drcRuntime.router);
+  console.log('[drc] live flight control active for RC '+drc.gateway);
+}
 const mediaLibraryRouter=createPilotMediaLibraryRuntime({
   env:process.env,db:pool,redis,authorize:pilotAuth.principal,
   storage:mediaStorage,pilot
@@ -394,6 +405,8 @@ const port=Number(process.env.PORT||4000);
 const listenAddress=process.env.NODE_ENV==='test'?'127.0.0.1':'0.0.0.0';
 server.listen(port,listenAddress,()=>console.log('[skyhub] Port '+server.address().port+' / read-only'));
 function stop(){
+  // Hand control back to the RC before anything else goes down (drc_mode_exit + cloud_control_release).
+  if(drcRuntime)drcRuntime.shutdown().catch(err=>console.error('[drc] shutdown:',err.message));
   ingest.stop();
   if(tsaHub)tsaHub.close();
   if(mediaUpload)mediaUpload.stop();

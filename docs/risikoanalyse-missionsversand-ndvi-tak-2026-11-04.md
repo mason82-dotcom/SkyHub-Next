@@ -56,3 +56,18 @@ Piloten ladbar. Das ist Risiko M1 und wird als Erstes behoben.
 Keine Hardwareprüfung, kein Flug. DJI-Verhalten (Import in Pilot 2, Prüfungen auf der RC) stammt aus der Cloud-API-Dokumentation und
 dem Demo-Code in `third_party/dji-cloud-api-demo`; es muss auf beiden Fernsteuerungen bestätigt werden. Rechtliche Bewertung
 (Betriebskategorie, Kenntnisnachweis, Geo-Zonen) liegt beim Betrieb.
+
+## Nachtrag: Live-Steuerung (DRC) der Matrice 4E/4T (Entscheidung des Betriebs 04.11.2026)
+
+Der Betrieb hat die vollständige Steuerung der Matrice 4T beauftragt. Umsetzung und Schutzmaßnahmen: `docs/drc-matrice4.md`.
+
+| ID | Bereich | Risiko | W | A | Stufe | Maßnahme | Verantw. | Status |
+|---|---|---|---|---|---|---|---|---|
+| **D1** | Flugsicherheit | Während der Cloud-Steuerung sind Knüppel, Rückkehr- und Not-Aus-Taste der RC wirkungslos; fällt SkyHub/Netz/Browser aus, ist das Fluggerät bis zu 1 min ohne Steuerer (DJI-Herzschlag-Timeout) | mittel | hoch | **hoch** | Bediener-Lease 1,5 s, Totmann: neutral + Anflug stoppen, nach 3 s `drc_mode_exit` + `cloud_control_release`; Rückgabe beim Herunterfahren; Pilot mit Sichtkontakt an der RC, kennt die Rückgabe in Pilot 2 | Entwicklung/Betrieb | umgesetzt, Hardwaretest offen |
+| **D2** | Flugsicherheit | Falsche Zielhöhe, weil `fly_to_point` Ellipsoidhöhe verlangt | mittel | hoch | **hoch** | Umrechnung aus `height` − `elevation` (DJI-Formel), Eingabe nur als Höhe über Start 20–120 m, Test | Entwicklung | umgesetzt |
+| **D3** | Zugriff | Unbefugte steuern das Fluggerät | niedrig | hoch | **mittel** | eigenes Steuer-Token zusätzlich zur SkyHub-Anmeldung, nur festgelegte RC (Seriennummer), Audit; LAN/HTTPS über Caddy | Entwicklung | umgesetzt |
+| **D4** | Flugsicherheit | Befehl an falsches Gerät (z. B. Mavic 3E) | niedrig | hoch | **mittel** | nur RC Plus 2 (2-174-0) mit Matrice 4 (0-99-0/1); RC Pro hat laut DJI keine Flugbefehle | Entwicklung | umgesetzt |
+| **D5** | Flugsicherheit | Knüppel „hängen“ bei Netzlatenz | mittel | mittel | **mittel** | Eingaben > 300 ms → neutral, danach keine Knüppel; Ausschlag begrenzt (50 %) | Entwicklung | umgesetzt |
+| **D6** | Betrieb | Simulator oder MQTTX sendet unter echter Seriennummer oder echte Befehle | niedrig | hoch | **mittel** | Simulator nur mit `SIM`-Seriennummer; MQTTX-Benutzer nur lesend | Entwicklung/Betrieb | umgesetzt |
+| **D7** | Datenqualität | `takeoff_to_point.target_height` ohne Bezugsangabe in der DJI-Tabelle | mittel | hoch | **hoch** | als Ellipsoidhöhe angenommen; Abheben erst nach Bodentest mit echter RC benutzen | Betrieb | **offen** |
+| **D8** | Recht | Cloud-Steuerung ohne Sichtkontakt / außerhalb der Betriebskategorie | mittel | hoch | **hoch** | Warnhinweis, Pilot an der RC, Grenzen 120 m / 2000 m; rechtliche Bewertung beim Betrieb | Betrieb | offen |

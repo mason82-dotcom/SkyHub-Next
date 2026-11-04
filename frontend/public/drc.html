@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SkyHub · Live-Steuerung Matrice 4</title>
+<link rel="stylesheet" href="/vendor/leaflet/1.9.4/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=">
+<link rel="stylesheet" href="/skyhub-light.css">
+<link rel="stylesheet" href="/drc.css">
+</head>
+<body class="drc">
+<header class="drc-top">
+  <div class="drc-title"><strong>Live-Steuerung</strong> <span id="aircraft">kein Fluggerät</span></div>
+  <button id="estop" class="estop" type="button" title="DRC drone_emergency_stop: Fluggerät bremst und schwebt (Taste Leertaste)">NOT-STOPP</button>
+</header>
+
+<section class="drc-warning" role="note">
+  Während der Cloud-Steuerung sind <b>Knüppel, Rückkehr- und Not-Aus-Taste der Fernsteuerung wirkungslos</b> (DJI). Der Pilot bleibt an der
+  Fernsteuerung mit Sichtkontakt. Verliert SkyHub den Bediener (Tab verlassen, Netz weg), gehen die Knüppel auf neutral, ein Anflug wird
+  gestoppt, und nach 3 s bekommt die Fernsteuerung die Kontrolle zurück.
+</section>
+
+<main class="drc-grid">
+  <section class="card" id="access">
+    <h2>Zugang</h2>
+    <label>SkyHub-Token (Ansicht) <input id="viewToken" type="password" autocomplete="off"></label>
+    <label>Steuer-Token (DRC) <input id="drcToken" type="password" autocomplete="off"></label>
+    <button id="connect" type="button">Verbinden</button>
+    <p id="conn" class="muted" role="status">nicht verbunden</p>
+  </section>
+
+  <section class="card" id="state">
+    <h2>Zustand</h2>
+    <dl class="kv">
+      <dt>Ablauf</dt><dd id="phase">–</dd>
+      <dt>Bediener</dt><dd id="operator">–</dd>
+      <dt>Broker / DRC-Kanal</dt><dd id="link">–</dd>
+      <dt>Höhe über Start</dt><dd id="height">–</dd>
+      <dt>Flugzustand</dt><dd id="mode">–</dd>
+      <dt>Anflug</dt><dd id="flyto">–</dd>
+      <dt>Hinweis</dt><dd id="notice">–</dd>
+    </dl>
+    <label class="switch"><input id="active" type="checkbox"> Ich steuere (sendet Lebenszeichen)</label>
+  </section>
+
+  <section class="card" id="steps">
+    <h2>Ablauf</h2>
+    <button id="auth" type="button">1 · Autorisierung anfordern</button>
+    <p class="muted small">Auf der Fernsteuerung erscheint eine Anfrage; der Pilot muss zustimmen.</p>
+    <button id="enter" type="button">2 · Live-Steuermodus starten</button>
+    <button id="exit" type="button">Live-Steuermodus beenden</button>
+    <button id="release" type="button" class="secondary">Kontrolle an Fernsteuerung zurückgeben</button>
+  </section>
+
+  <section class="card wide" id="mapcard">
+    <h2>Zielanflug <span class="muted small">Klick in die Karte setzt das Ziel</span></h2>
+    <div id="map"></div>
+    <div class="row">
+      <label>Höhe über Start (m) <input id="tHeight" type="number" min="20" max="120" step="1" value="40"></label>
+      <label>Geschwindigkeit (m/s) <input id="tSpeed" type="number" min="1" max="15" step="1" value="5"></label>
+      <span id="target" class="muted">kein Ziel</span>
+    </div>
+    <div class="row">
+      <button id="flyto" type="button">Ziel anfliegen</button>
+      <button id="flystop" type="button" class="secondary">Anflug stoppen</button>
+      <button id="takeoff" type="button" class="danger">Abheben zum Ziel …</button>
+    </div>
+  </section>
+
+  <section class="card" id="safety">
+    <h2>Sicherheit</h2>
+    <button id="rth" type="button">Rückkehr zum Startpunkt</button>
+    <button id="rthcancel" type="button" class="secondary">Rückkehr abbrechen (schwebt)</button>
+    <button id="land" type="button" class="danger">Landen …</button>
+  </section>
+
+  <section class="card" id="sticks">
+    <h2>Knüppel <span id="stickstate" class="muted small">aus</span></h2>
+    <p class="small">Tastatur: <b>W/S</b> vor/zurück · <b>A/D</b> seitlich · <b>↑/↓</b> steigen/sinken · <b>←/→</b> drehen. Loslassen = neutral.<br>
+      Gamepad: nur bei gedrückter <b>LB</b>-Taste (Totmann). Ausschlag begrenzt auf <span id="scale">50</span> %.</p>
+    <div class="stickviz"><div id="dotL" class="dot"></div><div id="dotR" class="dot"></div></div>
+  </section>
+
+  <section class="card wide" id="logcard">
+    <h2>Protokoll</h2>
+    <ol id="log" class="log"></ol>
+  </section>
+</main>
+
+<script src="/vendor/leaflet/1.9.4/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="></script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/drc.js"></script>
+</body>
+</html>

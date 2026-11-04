@@ -14,7 +14,8 @@
 [Entwurf](entwurf-missionsfreigabe-ndvi-tak-2026-11-04.md) gegen DJI Cloud API 1.18. Phase 1 im Backend: `backend/mission-envelope.js`
 (Flughülle, DJI-WPML-Regeln mit Quellenzeilen) und `backend/mission-release.js` (Freigabe mit eigenem Token; Pilot-2-Bibliothek zeigt nur
 Freigegebenes und ist ohne Freigabe-Funktion leer). Flugaufträge gehen nur über die Pilot-2-Bibliothek an die Fluggeräte; die
-Cloud-Fernsteuerung (DRC) der RC Plus 2 ist dokumentiert, aber nicht umgesetzt.
+Live-Steuerung der Matrice 4E/4T über RC Plus 2: [drc-matrice4.md](drc-matrice4.md) (Totmannschaltung, Grenzen, Simulator, MQTTX).
+**Verbindliche DJI-Referenz:** [dji-referenz-1.18.md](dji-referenz-1.18.md).
 
 ## AeroNexus-Integrationsentwicklung (02.11.2026)
 

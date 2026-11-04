@@ -38,6 +38,14 @@ function parseTopic(topic) {
     (match[1] === 'thing' && match[3] === 'status')) return null;
   return {source:match[1],sn:match[2],channel:match[3]};
 }
+// Home point (DJI 1.18 aircraft properties home_latitude/home_longitude, pushmode 1 = state; M3 and M4 series alike).
+// 0/0 is DJI's "no home point yet" placeholder and is never taken over.
+function extractHome(p) {
+  if (!p || typeof p !== 'object' || Array.isArray(p)) return null;
+  const latitude=finite(p.home_latitude,-90,90), longitude=finite(p.home_longitude,-180,180);
+  if (latitude===null || longitude===null || (latitude===0 && longitude===0)) return null;
+  return {latitude, longitude};
+}
 function extractTelemetry(p) {
   if (!p || typeof p !== 'object' || Array.isArray(p)) return null;
   const battery=p.battery && typeof p.battery === 'object' ? p.battery : {};
@@ -193,6 +201,7 @@ function parseMessage(topic,raw) {
     propertyValues:['osd','state'].includes(meta.channel) ?
       sanitizeKnownProperties(data,meta.channel) : null,
     telemetry:meta.channel==='osd' ? extractTelemetry(data) : null,
+    home:meta.channel==='state' || meta.channel==='osd' ? extractHome(data) : null,
     state:meta.channel==='state' || meta.channel==='osd' ? extractState(data) : null,
     topology:meta.channel==='status' && method==='update_topo' ? extractTopology(data) : null,
     hms:meta.channel==='events' && isHms(method,data) ? extractHms(data) : null,
