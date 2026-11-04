@@ -437,11 +437,46 @@
   // ---- KMZ upload: local parse -> staged preview -> explicit apply -------------
   const DJI_NAME=/^[^<>:"/|?*._\\]+$/;
   let staged=null,stagedBytes=null,stagedParentId=null,kmzGeneration=0;
+  // Read-only preview of a mapping/oblique/corridor KMZ (not editable): own map layer, never touches the draft.
+  let stagedMapping=null,mappingLayer=null;
+  function clearMappingPreview(){
+    stagedMapping=null;
+    if(mappingLayer&&map){map.removeLayer(mappingLayer);}
+    mappingLayer=null;
+  }
+  function showMappingPreview(preview){
+    stagedMapping=preview;
+    if(!map)return;
+    if(mappingLayer)map.removeLayer(mappingLayer);
+    mappingLayer=L.layerGroup().addTo(map);
+    const ll=list=>list.map(p=>[p.lat,p.lon]);
+    if(preview.area.length>2)L.polygon(ll(preview.area),{color:'#c26a00',weight:2,dashArray:'6 6',fillOpacity:.12})
+      .bindTooltip('Kartierungsfläche (nur Ansicht)').addTo(mappingLayer);
+    if(preview.corridor.length>1)L.polyline(ll(preview.corridor),{color:'#c26a00',weight:3,dashArray:'6 6'})
+      .bindTooltip('Korridor (nur Ansicht)').addTo(mappingLayer);
+    if(preview.path.length>1){
+      L.polyline(ll(preview.path),{color:'#5b6b84',weight:2,opacity:.9}).bindTooltip('Fluglinien aus waylines.wpml').addTo(mappingLayer);
+      L.circleMarker(ll(preview.path)[0],{radius:6,color:'#1e7b34',fillOpacity:.9}).bindTooltip('Beginn der Fluglinien').addTo(mappingLayer);
+    }
+    const all=[...preview.area,...preview.corridor,...preview.path];
+    if(all.length)map.fitBounds(L.latLngBounds(ll(all)).pad(.15),{maxZoom:18});
+  }
+  function mappingSummary(p){
+    const s=p.stats,f=(v,u,d=0)=>v==null?'–':v.toLocaleString('de-DE',{maximumFractionDigits:d})+' '+u;
+    return [p.label+' (WPML '+p.wpmlVersion+'), '+p.aircraft+' – nur Ansicht, im Editor nicht bearbeitbar.',
+      (s.areaM2?'Fläche '+f(s.areaM2/10000,'ha',2)+' · ':'')+(s.corridorM?'Korridor '+f(s.corridorM,'m')+' · ':'')+
+        s.waypoints+' Wegpunkte · Fluglinien '+f(s.lengthM,'m')+' · '+f(s.speedMs,'m/s',1)+
+        (s.durationMin!=null?' · ≈ '+f(s.durationMin,'min',1)+' reine Strecke':''),
+      'Aufnahmehöhe '+f(s.shootHeightM,'m',1)+(s.terrainFollow?' über Grund (Geländefolge)':s.heightMode==='relativeToStartPoint'?' über Start':'')+
+        (s.overlapH!=null?' · Überlappung '+s.overlapH+' % / '+s.overlapW+' %':'')+(s.direction!=null?' · Richtung '+s.direction+'°':'')+
+        (s.smartOblique?' · Smart Oblique':''),
+      'Bearbeiten in DJI Pilot 2; „Original in MinIO ablegen“ speichert die Datei unverändert (danach Missionsfreigabe).'];
+  }
   let compareGeneration=0;
   const kmzApply=$('kmz-import-apply'),kmzStore=$('kmz-import-store'),kmzDiscard=$('kmz-import-discard');
   const kmzPreview=$('kmz-import-preview'),kmzNotes=$('kmz-import-notes');
   function resetKmz(message,error=false){
-    staged=null;stagedBytes=null;stagedParentId=null;
+    staged=null;stagedBytes=null;stagedParentId=null;clearMappingPreview();
     kmzApply.disabled=true;kmzStore.disabled=true;kmzDiscard.disabled=true;
     kmzPreview.textContent=message;
     kmzPreview.style.color=error?'var(--sky-warning)':'var(--sky-muted)';
@@ -478,6 +513,25 @@
       renderMessage('KMZ lokal geprüft. Bestehende Mission unverändert; zum Übernehmen den Button benutzen.');
     }catch(error){
       if(generation!==kmzGeneration)return;
+      // Mapping/oblique/corridor: show it read-only instead of failing.
+      if(error&&error.templateType&&kmzImport.MAPPING&&Object.hasOwn(kmzImport.MAPPING,error.templateType)){
+        try{
+          const preview=await kmzImport.previewKmz(bytes,{fileName,models:core.MODELS});
+          if(generation!==kmzGeneration)return;
+          showMappingPreview(preview);
+          stagedBytes=storable?bytes:null;stagedParentId=sourceId;
+          kmzApply.disabled=true;kmzDiscard.disabled=false;kmzStore.disabled=!storable||!store;
+          const lines=mappingSummary(preview);
+          kmzPreview.textContent=lines[0];kmzPreview.style.color='var(--sky-ink)';
+          showNotes(lines.slice(1));
+          renderMessage('Kartierungsroute als Ansicht geladen. Der Missionsentwurf bleibt unverändert.');
+          return;
+        }catch(previewError){
+          if(generation!==kmzGeneration)return;
+          const message=previewError&&typeof previewError.message==='string'?previewError.message.slice(0,220):'Vorschau fehlgeschlagen.';
+          resetKmz(message,true);renderMessage(message,true);return;
+        }
+      }
       const message=error&&typeof error.message==='string'?error.message.slice(0,220):'KMZ-Import fehlgeschlagen.';
       resetKmz(message,true);
       renderMessage(message,true);
@@ -582,9 +636,9 @@
     }
   });
   kmzStore.addEventListener('click',async()=>{
-    if(!store||!stagedBytes||!staged)return;
+    if(!store||!stagedBytes||(!staged&&!stagedMapping))return;
     try{
-      const name=staged.plan.name.trim();
+      const name=(staged?staged.plan.name:stagedMapping.name).trim();
       if(!DJI_NAME.test(name)||name.length>64)
         throw new TypeError('Dateiname ist kein gültiger DJI-Wayline-Name (keine . _ : usw.). Datei umbenennen.');
       storeStatus('Lege Original-KMZ in MinIO ab …');
