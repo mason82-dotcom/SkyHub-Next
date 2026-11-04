@@ -13,7 +13,11 @@
 const crypto=require('node:crypto');
 
 const SERVICES=Object.freeze(['cloud_control_auth_request','cloud_control_release','drc_mode_enter','drc_mode_exit',
-  'takeoff_to_point','fly_to_point','fly_to_point_stop','fly_to_point_update','return_home','return_home_cancel']);
+  'takeoff_to_point','fly_to_point','fly_to_point_stop','fly_to_point_update','return_home','return_home_cancel',
+  // RC Pro payload control on services (mqtt/rc-pro/drc; drc-payload.js methodFor): checked against the 1.18 page.
+  'camera_mode_switch','camera_photo_take','camera_photo_stop','camera_recording_start','camera_recording_stop','camera_focal_length_set',
+  'camera_aim','gimbal_reset','camera_screen_split','ir_metering_mode_set','ir_metering_point_set','camera_focus_mode_set',
+  'camera_point_focus_action','camera_exposure_mode_set','camera_exposure_set','camera_screen_drag','camera_look_at']);
 const DRC_DOWN=Object.freeze(['heart_beat','stick_control','drone_emergency_stop','drc_force_landing','drc_emergency_landing',
   'drc_initial_state_subscribe']);
 const EVENTS=Object.freeze(['cloud_control_auth_notify','fly_to_point_progress','takeoff_to_point_progress','return_home_info',
@@ -21,6 +25,8 @@ const EVENTS=Object.freeze(['cloud_control_auth_notify','fly_to_point_progress',
 // RC Plus 2 + Matrice 4 only (Product Support: RC Plus 2 = 2-174-0, Matrice 4E = 0-99-0, Matrice 4T = 0-99-1).
 const GATEWAY_MODEL='2-174-0';
 const FLIGHT_AIRCRAFT=Object.freeze({'0-99-0':'Matrice 4E','0-99-1':'Matrice 4T'});
+// Gateway model per variant: RC Plus 2 (flight + payload) and RC Pro Enterprise 2-144-0 (payload only, mqtt/rc-pro/drc).
+const GATEWAY_MODELS=Object.freeze({'rc-plus-2':'2-174-0','rc-pro':'2-144-0'});
 const STICK=Object.freeze({min:364,max:1684,neutral:1024,span:660});     // stick_control: 1024±660
 const JOYSTICK_INVALID=Object.freeze({0:'Fernsteuerung getrennt',1:'Rückkehr wegen niedrigem Akku',2:'Landung wegen niedrigem Akku',
   3:'Nähe zu einer Flugverbotszone',4:'Fernsteuerung hat die Kontrolle übernommen (z. B. Rückkehr ausgelöst)'});
@@ -181,5 +187,5 @@ function eventsReply(event,timestamp=Date.now()){
   return {tid:event.tid,bid:event.bid||event.tid,timestamp,method:event.method,data:{result:0}};
 }
 
-module.exports={eventsReply,SERVICES,DRC_DOWN,EVENTS,GATEWAY_MODEL,FLIGHT_AIRCRAFT,STICK,NEUTRAL,JOYSTICK_INVALID,DrcInputError,
+module.exports={eventsReply,SERVICES,DRC_DOWN,EVENTS,GATEWAY_MODEL,GATEWAY_MODELS,FLIGHT_AIRCRAFT,STICK,NEUTRAL,JOYSTICK_INVALID,DrcInputError,
   serviceMessage,drcMessage,authRequest,authRelease,drcEnter,flyTo,flyToUpdate,takeoff,stick,heartBeat,parseTopic,parseUp,ellipsoidTarget};

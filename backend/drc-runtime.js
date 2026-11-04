@@ -51,11 +51,11 @@ function modelKey(model,role){
   return [domain,model.type,model.subType].join('-');
 }
 // Registry → what the session needs about the aircraft behind the pinned RC.
-function aircraftFromRegistry(registry,gateway){
+function aircraftFromRegistry(registry,gateway,variant='rc-plus-2'){
   return ()=>{
     const rc=registry.get(gateway);
     if(!rc)return null;
-    if(modelKey(rc.model,'gateway')!==P.GATEWAY_MODEL)return null;     // only an RC Plus 2 may be controlled
+    if(modelKey(rc.model,'gateway')!==P.GATEWAY_MODELS[variant])return null;   // only the configured RC model (RC Plus 2 / RC Pro)
     const child=registry.snapshot().find(d=>d.gatewaySn===gateway&&d.sn!==gateway&&modelKey(d.model,'aircraft')?.startsWith('0-'));
     if(!child||!child.online||child.aircraftConnected===false)return null;
     const t=child.telemetry||{};
@@ -71,6 +71,7 @@ function aircraftFromRegistry(registry,gateway){
 }
 
 function createDrcRuntime({config,registry,pool,io,express,mqttConnect,socketAuth,lanSocket=()=>false,log=console}){
+  const variant=config.variant||'rc-plus-2';
   const audit=entry=>{
     const {gateway,action,...detail}=entry;
     log.log('[drc] '+JSON.stringify(entry));
@@ -81,20 +82,20 @@ function createDrcRuntime({config,registry,pool,io,express,mqttConnect,socketAut
   const gw=config.gateway;
   const topics={services:`thing/product/${gw}/services`,drcDown:`thing/product/${gw}/drc/down`,eventsReply:`thing/product/${gw}/events_reply`};
   const client=mqttConnect(config.mqtt.url,{username:config.mqtt.username,password:config.mqtt.password,
-    clientId:'skyhub-drc-'+crypto.randomBytes(4).toString('hex'),reconnectPeriod:2000,clean:true});
+    clientId:'skyhub-drc-'+(variant==='rc-pro'?'rcpro-':'')+crypto.randomBytes(4).toString('hex'),reconnectPeriod:2000,clean:true});
   let connected=false;
   const publish=(topic,msg,qos)=>{
     if(!connected)throw new Error('Broker nicht verbunden');
     client.publish(topic,JSON.stringify(msg),{qos,retain:false});
   };
-  const nsp=io.of('/drc');
+  const nsp=io.of(config.namespace||'/drc');
   let lastEmit=0,pendingEmit=null;
   const broadcast=()=>{
     const t=Date.now();
     if(t-lastEmit<200){if(!pendingEmit)pendingEmit=setTimeout(()=>{pendingEmit=null;broadcast();},200);return;}
     lastEmit=t;nsp.emit('drc',status());
   };
-  const session=createDrcSession({gateway:gw,aircraft:aircraftFromRegistry(registry,gw),limits:config.limits,audit,
+  const session=createDrcSession({gateway:gw,variant,aircraft:aircraftFromRegistry(registry,gw,variant),limits:config.limits,audit,
     onChange:broadcast,userCallsign:config.userCallsign,
     // services and events_reply: QoS 1 (must arrive); DRC down (sticks 10 Hz, heartbeat): QoS 0 as DJI's latency-oriented link.
     publishService:(g,m)=>publish(topics.services,m,1),
@@ -114,10 +115,10 @@ function createDrcRuntime({config,registry,pool,io,express,mqttConnect,socketAut
   client.on('message',(topic,payload)=>session.onUp(P.parseUp(topic,payload)));
 
   function status(){
-    const a=aircraftFromRegistry(registry,gw)();
+    const a=aircraftFromRegistry(registry,gw,variant)();
     return {...session.snapshot(),broker:connected?'verbunden':'getrennt',
       aircraft:a?{sn:a.sn,model:a.modelName,modeCode:a.modeCode,heightAboveTakeoff:a.heightAboveTakeoff,position:a.position,home:a.home,
-        gimbal:a.gimbal,payload:(()=>{const c=PL.payloadContext(a.modelKey,a.payloadIndex);return c?{name:c.name,cameraTypes:c.cameraTypes}:null;})()}:null};
+        gimbal:a.gimbal,payload:(()=>{const c=PL.payloadContext(a.modelKey,a.payloadIndex,variant);return c?{name:c.name,cameraTypes:c.cameraTypes,maxCameraMode:c.maxCameraMode}:null;})()}:null};
   }
 
   // --- HTTP API -----------------------------------------------------------------------------------------------------------

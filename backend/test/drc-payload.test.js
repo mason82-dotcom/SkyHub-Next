@@ -210,3 +210,46 @@ test('simulator: drc_state via RC OSD, camera state pushes and gimbal movement r
   assert.equal(session.snapshot().phase,'authorized');
   sim.stop();await session.shutdown();
 });
+
+// --- RC Pro + Mavic 3 series (mqtt/rc-pro/drc): payload only, commands on services without the drc_ prefix ---------------
+const M3M={sn:'M3MSN',modelKey:'0-77-2',modelName:'Mavic 3M',payloadIndex:null,heightEllipsoid:200,heightAboveTakeoff:50,
+  position:{latitude:49.15,longitude:8.6},home:{latitude:49.15,longitude:8.6}};
+function setupRcPro(aircraft=M3M){
+  const clock=fakeClock(),sent=[],drc=[];
+  let session;
+  const publishService=(gw,msg)=>{sent.push(msg);
+    if(msg.method!=='camera_screen_drag')queueMicrotask(()=>session.onUp({gateway:gw,channel:'services_reply',method:msg.method,tid:msg.tid,result:0}));};
+  session=createDrcSession({gateway:'RCPROSN',variant:'rc-pro',publishService,publishDrc:(gw,m)=>drc.push(m),aircraft:()=>aircraft,clock,
+    broker:()=>({address:'192.168.178.63:1884',clientId:'drc-RCPROSN',username:'drc',password:'pw',expireTime:1793900000,enableTls:false})});
+  return {session,clock,sent,drc};
+}
+test('RC Pro: camera commands go to services without drc_, flight commands are refused, Mavic 3M payload 68-0-0',async()=>{
+  const x=setupRcPro();
+  await x.session.requestAuthorization('op1');
+  x.session.onUp({gateway:'RCPROSN',channel:'events',method:'cloud_control_auth_notify',status:'ok'});
+  await x.session.enterLiveControl('op1');
+  assert.equal(x.drc.some(m=>m.method==='drc_initial_state_subscribe'),false,'RC Plus 2 only');
+  await x.session.payload('op1','photo_take',{});
+  await x.session.payload('op1','camera_mode',{mode:3});
+  await assert.rejects(x.session.payload('op1','camera_mode',{mode:4}),/zwischen 0 und 3/);
+  await assert.rejects(x.session.payload('op1','zoom',{cameraType:'zoom',factor:4}),/gibt es an dieser Kamera nicht/);
+  await assert.rejects(x.session.payload('op1','live_lens',{videoType:'wide'}),/live_lens_change/);
+  const cam=x.sent.filter(m=>m.method.startsWith('camera_'));
+  assert.deepEqual(cam.map(m=>m.method),['camera_photo_take','camera_mode_switch']);
+  assert.deepEqual(cam[0].data,{payload_index:'68-0-0'});
+  assert.equal(x.drc.some(m=>/^drc_camera/.test(m.method)),false);
+  x.session.gimbalDrag('op1',{pitch:0.5});
+  await x.clock.advance(150);
+  assert.ok(x.sent.some(m=>m.method==='camera_screen_drag'&&m.data.pitch_speed>0));
+  assert.throws(()=>x.session.stickInput('op1',{}),/keine Flugbefehle/);
+  await assert.rejects(x.session.flyTo('op1',{latitude:49.15,longitude:8.6,heightAboveTakeoff:40}),/keine Flugbefehle/);
+  await assert.rejects(x.session.returnHome('op1'),/keine Flugbefehle/);
+  assert.throws(()=>x.session.emergencyStop('op1'),/keine Flugbefehle/);
+  assert.equal(x.session.snapshot().variant,'rc-pro');
+  // a Matrice 4 behind an RC Pro is not accepted (and the RC Plus 2 variant still refuses a Mavic 3)
+  const y=setupRcPro(M4T);
+  await assert.rejects(y.session.requestAuthorization('op1'),/nur Mavic 3E\/3T\/3M/);
+  assert.equal(PL.payloadContext('0-77-0','66-0-0','rc-pro').payloadIndex,'66-0-0');
+  assert.equal(PL.methodFor('drc_gimbal_reset','rc-pro'),'gimbal_reset');
+  assert.equal(PL.methodFor('drc_gimbal_reset','rc-plus-2'),'drc_gimbal_reset');
+});

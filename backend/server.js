@@ -349,6 +349,15 @@ if(ppk.enabled){app.use('/api/ppk',createPpkRouter(ppk,{flights:mediaStorage?cre
 const drc=drcConfig(process.env);
 let drcRuntime=null;
 if(drc.issue)console.error('[drc] disabled:',drc.issue);
+// RC Pro + Mavic 3E/3T/3M: camera and gimbal only (mqtt/rc-pro/drc), same accounts, own gateway (SKYHUB_DRC_RCPRO_GATEWAY_SN).
+let drcRcPro=null;
+if(drc.enabled&&/^[A-Za-z0-9_-]{4,64}$/.test(process.env.SKYHUB_DRC_RCPRO_GATEWAY_SN||'')){
+  drcRcPro=createDrcRuntime({config:{...drc,gateway:process.env.SKYHUB_DRC_RCPRO_GATEWAY_SN,variant:'rc-pro',namespace:'/drc-rcpro'},
+    registry,pool,io,express,mqttConnect:require('mqtt').connect,socketAuth,
+    lanSocket:request=>lanSocket(request,ip=>app.get('trust proxy fn')(ip,0))});
+  app.use('/api/drc/rcpro',drcRcPro.router);           // before /api/drc
+  console.log('[drc] camera/gimbal control active for RC Pro '+process.env.SKYHUB_DRC_RCPRO_GATEWAY_SN);
+}
 if(drc.enabled){
   drcRuntime=createDrcRuntime({config:drc,registry,pool,io,express,mqttConnect:require('mqtt').connect,socketAuth,
     lanSocket:request=>lanSocket(request,ip=>app.get('trust proxy fn')(ip,0))});
@@ -460,6 +469,7 @@ server.listen(port,listenAddress,()=>console.log('[skyhub] Port '+server.address
 function stop(){
   // Hand control back to the RC before anything else goes down (drc_mode_exit + cloud_control_release).
   if(drcRuntime)drcRuntime.shutdown().catch(err=>console.error('[drc] shutdown:',err.message));
+  if(drcRcPro)drcRcPro.shutdown().catch(err=>console.error('[drc] rc pro shutdown:',err.message));
   if(liveControl)liveControl.shutdown();
   ingest.stop();
   if(tsaHub)tsaHub.close();

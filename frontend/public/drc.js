@@ -3,6 +3,17 @@
 // diese Seite hält nur das Bediener-Lebenszeichen, schickt Knüppel und zeigt den Zustand.
 (function(){
   const $=id=>document.getElementById(id);
+  // ?rc=pro: RC Pro + Mavic 3E/3T/3M – camera and gimbal only (DJI mqtt/rc-pro/drc has no flight methods).
+  const RCPRO=new URLSearchParams(location.search).get('rc')==='pro';
+  const API=RCPRO?'/api/drc/rcpro':'/api/drc',NS=RCPRO?'/drc-rcpro':'/drc';
+  if(RCPRO){
+    document.title='SkyHub · Kamera Mavic 3 (RC Pro)';
+    for(const id of ['safety','sticks','estop','flyto','flystop','takeoff'])if($(id))$(id).hidden=true;
+    const h=document.querySelector('.drc-title strong');if(h)h.textContent='Kamera & Gimbal (RC Pro)';
+    // camera_mode on the RC Pro: 0–3 (no interval photo).
+    for(const b of document.querySelectorAll('[data-pl="camera_mode"][data-mode="4"]'))b.hidden=true;
+    const mh=document.querySelector('#mapcard h2');if(mh)mh.firstChild.textContent='Karte ';
+  }
   const store=(()=>{try{return window.sessionStorage;}catch{return null;}})();
   const operator=(store&&store.getItem('drcOperator'))||('op-'+crypto.getRandomValues(new Uint32Array(2)).join('-'));
   if(store)store.setItem('drcOperator',operator);
@@ -19,7 +30,7 @@
   // No token fields (decision 04.11.2026): the server accepts the home LAN over HTTPS with same-origin proof.
   async function call(path,body){
     const headers={'Content-Type':'application/json','X-SkyHub-Operator':operator};
-    const res=await fetch('/api/drc'+path,{method:body===undefined?'GET':'POST',headers,body:body===undefined?undefined:JSON.stringify(body),cache:'no-store'});
+    const res=await fetch(API+path,{method:body===undefined?'GET':'POST',headers,body:body===undefined?undefined:JSON.stringify(body),cache:'no-store'});
     const data=await res.json().catch(()=>({}));
     if(data.status)render(data.status);
     if(!res.ok)throw new Error(res.status===401||res.status===403?'Kein Zugriff: nur im Heimnetz über https://rpi5.fritz.box:4443':(data.error||('HTTP '+res.status)));
@@ -33,7 +44,7 @@
   // --- Verbindung und Lebenszeichen ---------------------------------------------------------------------------------------
   function connect(){
     if(socket)socket.close();
-    socket=io('/drc',{auth:{operator},transports:['websocket'],reconnectionAttempts:30,reconnectionDelayMax:5000});   // WebSocket: the handshake carries Origin (LAN gate)
+    socket=io(NS,{auth:{operator},transports:['websocket'],reconnectionAttempts:30,reconnectionDelayMax:5000});   // WebSocket: the handshake carries Origin (LAN gate)
     socket.on('connect',()=>{$('conn').textContent='verbunden';$('conn').className='ok';log('Live-Verbindung steht');});
     socket.on('connect_error',err=>{$('conn').textContent='Fehler: '+err.message;$('conn').className='bad';});
     socket.on('disconnect',()=>{$('conn').textContent='getrennt';$('conn').className='bad';});
@@ -225,7 +236,7 @@
   const typing=e=>/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
   document.addEventListener('keydown',e=>{
     if(typing(e))return;
-    if(e.code==='Space'){e.preventDefault();emergencyStop();return;}
+    if(e.code==='Space'&&!RCPRO){e.preventDefault();emergencyStop();return;}
     if(KEYMAP[e.code]){e.preventDefault();keys.add(e.code);}
   });
   document.addEventListener('keyup',e=>keys.delete(e.code));
@@ -250,7 +261,7 @@
     const live=state&&state.phase==='drc_active'&&state.operator===operator&&$('active').checked;
     $('stickstate').textContent=live?(any?'sendet':'bereit'):'aus';
     // Nur bei Eingabe senden; der Server ergänzt neutral und hört nach kurzer Zeit ohne Eingabe auf (Fluggerät bremst).
-    if(live&&any&&socket&&socket.connected)socket.emit('stick',v);
+    if(!RCPRO&&live&&any&&socket&&socket.connected)socket.emit('stick',v);
   },100);
 
   connect();

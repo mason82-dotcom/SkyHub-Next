@@ -29,6 +29,14 @@ const PAYLOADS=Object.freeze({
   '0-99-0':{payloadIndex:'88-0-0',name:'Matrice 4E Kamera',cameraTypes:['wide','zoom']},
   '0-99-1':{payloadIndex:'89-0-0',name:'Matrice 4T Kamera',cameraTypes:['wide','zoom','ir']}
 });
+// RC Pro + Mavic 3 Enterprise series (mqtt/rc-pro/drc, payload only: the same commands on `services` without the drc_ prefix,
+// camera_mode 0–3). product-support: Mavic 3E camera 66-0-0, Mavic 3T camera 67-0-0. Mavic 3M 68-0-0 is an ASSUMPTION (not in the
+// local 1.11.3 table; continues the 66/67 series) – the payload_index the aircraft reports in its OSD takes precedence.
+const PAYLOADS_RC_PRO=Object.freeze({
+  '0-77-0':{payloadIndex:'66-0-0',name:'Mavic 3E Kamera',cameraTypes:['wide','zoom']},
+  '0-77-1':{payloadIndex:'67-0-0',name:'Mavic 3T Kamera',cameraTypes:['wide','zoom','ir']},
+  '0-77-2':{payloadIndex:'68-0-0',name:'Mavic 3M Kamera (RGB)',cameraTypes:['wide']}
+});
 const PAYLOAD_INDEX=/^\d{1,4}-\d{1,4}-\d{1,2}$/;
 
 // Enums from the page (German labels for the UI).
@@ -60,7 +68,7 @@ const lens=(v,allowed,list)=>{
 // drc_camera_focus_value_set, drc_camera_frame_zoom, drc_ir_metering_area_set, drc_linkage_zoom_set (later, set in Pilot 2).
 const COMMANDS=Object.freeze({
   camera_mode:{method:'drc_camera_mode_switch',label:'Kameramodus',
-    build:(b,c)=>({payload_index:c.payloadIndex,camera_mode:int(b.mode,'camera_mode',0,4)})},
+    build:(b,c)=>({payload_index:c.payloadIndex,camera_mode:int(b.mode,'camera_mode',0,c.maxCameraMode??4)})},
   photo_take:{method:'drc_camera_photo_take',label:'Foto',build:(b,c)=>({payload_index:c.payloadIndex})},
   photo_stop:{method:'drc_camera_photo_stop',label:'Foto stoppen',build:(b,c)=>({payload_index:c.payloadIndex})},
   recording_start:{method:'drc_camera_recording_start',label:'Video starten',build:(b,c)=>({payload_index:c.payloadIndex})},
@@ -73,6 +81,7 @@ const COMMANDS=Object.freeze({
     camera_type:lens(b.cameraType,c.cameraTypes,['ir','wide','zoom']),locked:bool(b.locked,'locked'),x:coord(b.x,'x'),y:coord(b.y,'y')})},
   // dji-rc-plus-2/live.html: drc_live_lens_change {payload_index, video_type thermal|wide|zoom} – lens of the livestream.
   live_lens:{method:'drc_live_lens_change',label:'Livestream-Objektiv',build:(b,c)=>{
+    if(c.variant==='rc-pro')fail('RC Pro: Objektiv des Livestreams über die Livestream-Steuerung (live_lens_change)');
     oneOf(b.videoType,'video_type',['thermal','wide','zoom']);
     if(b.videoType==='thermal'&&!c.cameraTypes.includes('ir'))fail('Wärmebild nur mit Matrice 4T');
     if(b.videoType!=='thermal'&&!c.cameraTypes.includes(b.videoType))fail('Objektiv '+b.videoType+' gibt es an dieser Kamera nicht');
@@ -124,13 +133,15 @@ function lookAt({latitude,longitude,height,locked=false},ctx){
 }
 
 // Payload context for the aircraft: the payload_index observed in OSD wins if it is well-formed, else the documented default.
-function payloadContext(modelKey,observedIndex){
-  const p=PAYLOADS[modelKey];
+function payloadContext(modelKey,observedIndex,variant='rc-plus-2'){
+  const p=(variant==='rc-pro'?PAYLOADS_RC_PRO:PAYLOADS)[modelKey];
   if(!p)return null;
   const idx=typeof observedIndex==='string'&&PAYLOAD_INDEX.test(observedIndex)&&observedIndex.split('-')[0]===p.payloadIndex.split('-')[0]
     ?observedIndex:p.payloadIndex;
-  return {payloadIndex:idx,name:p.name,cameraTypes:[...p.cameraTypes]};
+  return {payloadIndex:idx,name:p.name,cameraTypes:[...p.cameraTypes],variant,maxCameraMode:variant==='rc-pro'?3:4};
 }
+// RC Pro sends the same payload commands on `services` without the drc_ prefix (camera_mode_switch, gimbal_reset, …).
+const methodFor=(method,variant)=>variant==='rc-pro'?method.replace(/^drc_/,''):method;
 
 // --- parsers (field by field, unknown fields dropped) ------------------------------------------------------------------
 const f=v=>typeof v==='number'&&Number.isFinite(v)?v:null;
@@ -169,5 +180,5 @@ function parsePush(method,d){
   return null;
 }
 
-module.exports={PAYLOADS,COMMANDS,METHODS,PUSHES,DRAG_METHOD,LOOK_AT_METHOD,DRAG_MAX_RAD_S,CAMERA_MODE,GIMBAL_RESET,IR_METERING,
+module.exports={PAYLOADS,PAYLOADS_RC_PRO,methodFor,COMMANDS,METHODS,PUSHES,DRAG_METHOD,LOOK_AT_METHOD,DRAG_MAX_RAD_S,CAMERA_MODE,GIMBAL_RESET,IR_METERING,
   FOCUS_MODE,EXPOSURE_MODE,EV,command,drag,lookAt,payloadContext,parsePush};

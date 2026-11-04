@@ -20,7 +20,11 @@ const DEFAULTS=Object.freeze({replyTimeoutMs:10000,leaseMs:1500,releaseAfterMs:3
 class DrcError extends Error{constructor(message,status=409){super(message);this.status=status;}}
 
 function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=()=>{},aircraft,broker,limits={},audit=()=>{},onChange=()=>{},
-  clock={now:()=>Date.now(),setInterval,clearInterval,setTimeout,clearTimeout},userId='skyhub',userCallsign='SkyHub Leitstand'}){
+  clock={now:()=>Date.now(),setInterval,clearInterval,setTimeout,clearTimeout},userId='skyhub',userCallsign='SkyHub Leitstand',
+  variant='rc-plus-2'}){
+  // variant 'rc-pro': RC Pro + Mavic 3 series, payload only (mqtt/rc-pro/drc): commands on services, no flight methods at all.
+  const rcPro=variant==='rc-pro';
+  const noFlight=()=>{if(rcPro)throw new DrcError('RC Pro: DJI erlaubt über die Cloud nur Kamera und Gimbal, keine Flugbefehle',409);};
   if(typeof gateway!=='string'||!/^[A-Za-z0-9_-]{1,64}$/.test(gateway))throw new Error('DRC: gateway serial required');
   const L={...DEFAULTS,...limits};
   const s={phase:'idle',lease:null,lastStick:null,stickSending:false,seq:0,pending:new Map(),lastUpHeartbeat:null,latencyMs:null,
@@ -108,7 +112,7 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
     s.lastStick=null;
     s.failsafe={reason,at:now(),pending:true};
     log('failsafe',{reason});
-    if(s.phase==='drc_active'){try{drc('stick_control',P.NEUTRAL);}catch{}}
+    if(s.phase==='drc_active'&&!rcPro){try{drc('stick_control',P.NEUTRAL);}catch{}}
     stopDrag(true);
     if((s.flyTo&&s.flyTo.active)||(s.takeoff&&s.takeoff.active))service('fly_to_point_stop',{}).catch(err=>log('failsafe-flyto-stop-failed',{error:err.message}));
     clock.clearTimeout(releaseTimer);
@@ -141,6 +145,7 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
   }
   function stopSticks(){if(stickTimer){clock.clearInterval(stickTimer);stickTimer=null;}}
   function stickInput(operator,vector){
+    noFlight();
     requireLease(operator);
     if(s.phase!=='drc_active')throw new DrcError('Knüppelsteuerung erst im Live-Steuermodus');
     if(s.joystickInvalid)throw new DrcError('Knüppelsteuerung gesperrt: '+s.joystickInvalid.text);
@@ -150,7 +155,7 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
 
   // --- payload: camera, gimbal, zoom (Matrice 4E/4T, drc-payload.js) --------------------------------------------------
   function payloadCtx(a){
-    const ctx=PL.payloadContext(a.modelKey,a.payloadIndex);
+    const ctx=PL.payloadContext(a.modelKey,a.payloadIndex,variant);
     if(!ctx)throw new DrcError('Kamerasteuerung für '+(a.modelName||a.modelKey||'?')+' nicht verfügbar');
     return ctx;
   }
@@ -164,7 +169,7 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
     const cmd=PL.command(name,body,ctx);
     log('command',{operator,method:cmd.method,data:cmd.data});
     s.camera.lastCommand={label:cmd.label,status:'gesendet',at:now()};changed();
-    try{await drcRequest(cmd.method,cmd.data);}
+    try{if(rcPro)await service(PL.methodFor(cmd.method,variant),cmd.data);else await drcRequest(cmd.method,cmd.data);}
     catch(err){s.camera.lastCommand={label:cmd.label,status:'Fehler: '+err.message,at:now()};changed();throw err;}
     s.camera.lastCommand={label:cmd.label,status:'OK',at:now()};changed();
     return {method:cmd.method};
@@ -182,7 +187,7 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
     const data=PL.lookAt({latitude,longitude,height,locked},ctx);
     log('command',{operator,method:PL.LOOK_AT_METHOD,target:{latitude:data.latitude,longitude:data.longitude,heightAboveTakeoff,ellipsoid:height},locked:data.locked});
     s.camera.lastCommand={label:'Blick auf Punkt',status:'gesendet',at:now()};changed();
-    await drcRequest(PL.LOOK_AT_METHOD,data);
+    if(rcPro)await service(PL.methodFor(PL.LOOK_AT_METHOD,variant),data);else await drcRequest(PL.LOOK_AT_METHOD,data);
     s.camera.lastCommand={label:'Blick auf Punkt',status:'OK',at:now()};changed();
   }
   // Gimbal drag (drc_camera_screen_drag) is a speed command. ASSUMPTION (page gives no rate): sent at dragHz while the operator
@@ -197,21 +202,28 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
     dragTimer=clock.setInterval(()=>{
       const d=s.lastDrag;
       if(s.phase!=='drc_active'||!d){stopDrag(false);return;}
-      if(now()-d.at<=L.dragStaleMs&&holds(d.operator)){try{drc(PL.DRAG_METHOD,d.value);}catch(err){s.lastError='Gimbal: '+err.message;}}
+      if(now()-d.at<=L.dragStaleMs&&holds(d.operator)){try{dragSend(d.value);}catch(err){s.lastError='Gimbal: '+err.message;}}
       else stopDrag(true);
     },Math.round(1000/L.dragHz));
   }
   function stopDrag(sendZero){
     if(dragTimer){clock.clearInterval(dragTimer);dragTimer=null;}
     const d=s.lastDrag;s.lastDrag=null;
-    if(sendZero&&d&&s.phase==='drc_active'){try{drc(PL.DRAG_METHOD,{...d.value,pitch_speed:0,yaw_speed:0});}catch{}}
+    if(sendZero&&d&&s.phase==='drc_active'){try{dragSend({...d.value,pitch_speed:0,yaw_speed:0});}catch{}}
+  }
+  // RC Plus 2: drc_camera_screen_drag on drc/down. RC Pro: camera_screen_drag on services, fire-and-forget (replies ignored).
+  function dragSend(value){
+    if(rcPro)publishService(gateway,P.serviceMessage(PL.methodFor(PL.DRAG_METHOD,variant),value,{timestamp:now()}));
+    else drc(PL.DRAG_METHOD,value);
   }
 
   // --- preconditions ---------------------------------------------------------------------------------------------------
   function aircraftState(){
     const a=aircraft();
     if(!a)throw new DrcError('Fluggerät an '+gateway+' nicht verbunden');
-    if(!P.FLIGHT_AIRCRAFT[a.modelKey])throw new DrcError('Fluggerät '+(a.modelName||a.modelKey||'?')+' unterstützt keine Cloud-Flugsteuerung (nur Matrice 4E/4T)');
+    if(rcPro){
+      if(!PL.PAYLOADS_RC_PRO[a.modelKey])throw new DrcError('Fluggerät '+(a.modelName||a.modelKey||'?')+' an der RC Pro nicht unterstützt (nur Mavic 3E/3T/3M)');
+    }else if(!P.FLIGHT_AIRCRAFT[a.modelKey])throw new DrcError('Fluggerät '+(a.modelName||a.modelKey||'?')+' unterstützt keine Cloud-Flugsteuerung (nur Matrice 4E/4T)');
     return a;
   }
   function targetChecks(a,{latitude,longitude,heightAboveTakeoff}){
@@ -244,7 +256,7 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
     catch(err){setPhase('authorized','DRC-Kanal fehlgeschlagen');throw err;}
     s.joystickInvalid=null;
     setPhase('drc_active','drc_mode_enter bestätigt');
-    try{drc('drc_initial_state_subscribe',{});}catch{}
+    if(!rcPro)try{drc('drc_initial_state_subscribe',{});}catch{}
   }
   async function exitLiveControl(operator){
     requireLease(operator);
@@ -260,6 +272,7 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
     if(leaseTimer){clock.clearInterval(leaseTimer);leaseTimer=null;}
   }
   async function flyTo(operator,{latitude,longitude,heightAboveTakeoff,maxSpeed}){
+    noFlight();
     requireLease(operator);
     if(s.phase!=='drc_active'&&s.phase!=='authorized')throw new DrcError('Erst Autorisierung');
     const a=aircraftState();
@@ -274,6 +287,7 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
     return s.flyTo;
   }
   async function flyToStop(operator){
+    noFlight();
     if(!holds(operator)&&!s.lease)acquire(operator);
     log('command',{operator,method:'fly_to_point_stop'});
     await service('fly_to_point_stop',{});
@@ -282,6 +296,7 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
     changed();
   }
   async function takeoff(operator,{latitude,longitude,heightAboveTakeoff,rthAltitude,maxSpeed}){
+    noFlight();
     requireLease(operator);
     if(s.phase!=='authorized'&&s.phase!=='drc_active')throw new DrcError('Erst Autorisierung');
     const a=aircraftState();
@@ -303,6 +318,7 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
     changed();
   }
   async function returnHome(operator){
+    noFlight();
     // Return home is a safety action: allowed for any authenticated operator while cloud control is held.
     if(s.phase==='idle'||s.phase==='auth_pending')throw new DrcError('Keine Cloud-Kontrolle: Rückkehr an der Fernsteuerung auslösen');
     log('command',{operator,method:'return_home'});
@@ -312,6 +328,7 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
     changed();
   }
   async function returnHomeCancel(operator){
+    noFlight();
     requireLease(operator);
     log('command',{operator,method:'return_home_cancel'});
     await service('return_home_cancel',{});
@@ -319,6 +336,7 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
     changed();
   }
   function emergencyStop(operator){
+    noFlight();
     // DRC drone_emergency_stop: needs the DRC channel. Any authenticated operator, lease not required.
     if(s.phase!=='drc_active'&&s.phase!=='drc_pending')throw new DrcError('Not-Stopp braucht den Live-Steuermodus: sonst an der Fernsteuerung bremsen');
     log('command',{operator,method:'drone_emergency_stop'});
@@ -327,6 +345,7 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
     changed();
   }
   function landing(operator,kind){
+    noFlight();
     requireLease(operator);
     if(s.phase!=='drc_active')throw new DrcError('Landung erst im Live-Steuermodus');
     const method=kind==='emergency'?'drc_emergency_landing':'drc_force_landing';
@@ -386,7 +405,7 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
 
   function snapshot(){
     const t=now();
-    return {gateway,phase:s.phase,operator:s.lease&&s.lease.expiresAt>t?s.lease.operator:null,
+    return {gateway,variant,phase:s.phase,operator:s.lease&&s.lease.expiresAt>t?s.lease.operator:null,
       upLink:s.lastUpHeartbeat===null?'unbekannt':t-s.lastUpHeartbeat>L.upLinkLostMs?'verloren':'ok',latencyMs:s.latencyMs,
       osd:s.osd,flyTo:s.flyTo,takeoff:s.takeoff,returnHome:s.returnHome,joystickInvalid:s.joystickInvalid,failsafe:s.failsafe,
       sticksActive:Boolean(stickTimer),gimbalDragActive:Boolean(dragTimer),camera:s.camera,limits:{maxSpeedMs:L.maxSpeedMs,maxHeightAboveTakeoffM:L.maxHeightAboveTakeoffM,
