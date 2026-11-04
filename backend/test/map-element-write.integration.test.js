@@ -17,7 +17,17 @@ test('map elements: SkyHub + Pilot 2 write, audit, WebSocket push, read-back as 
   await pool.query('DELETE FROM dji_map_element_groups WHERE workspace_id=$1',[WS]);
   const pushes=[];
   const writer=createMapElementWriter({pool,workspaceId:WS,publish:m=>pushes.push(m),clock:()=>1700000000000});
+  // legacy non-UUID group with one element is migrated into the SkyHub group
+  await pool.query("INSERT INTO dji_map_element_groups (workspace_id,group_id,name,group_type,is_locked,is_distributed) VALUES ($1,'skyhub-shared','SkyHub',2,false,true)",[WS]);
+  await pool.query("INSERT INTO dji_map_elements (workspace_id,group_id,element_id,name,resource_type,geometry,revision) VALUES ($1,'skyhub-shared','legacy-1','Alt',0,'{\"type\":\"Point\",\"coordinates\":[8.6,49.15]}',1)",[WS]);
   await writer.ensureGroup();await writer.ensureGroup();
+  const groups=(await pool.query('SELECT group_id,group_type FROM dji_map_element_groups WHERE workspace_id=$1 ORDER BY group_type',[WS])).rows;
+  assert.deepEqual(groups.map(g=>[g.group_id,g.group_type]),[[writer.SKYHUB_GROUP,1],[writer.SHARE_GROUP,2]]);
+  assert.match(writer.SHARE_GROUP,/^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  assert.equal((await pool.query('SELECT group_id FROM dji_map_elements WHERE element_id=$1',['legacy-1'])).rows[0].group_id,writer.SKYHUB_GROUP);
+  assert.equal(pushes[0].biz_code,'map_group_refresh');
+  await writer.remove({kind:'skyhub',id:'test',name:'SkyHub'},'legacy-1');
+  pushes.length=0;
   const app=express();app.use(express.json());
   app.use((req,res,next)=>{Object.defineProperty(req,'secure',{value:true});next();});
   app.use('/api/map-elements',createMapElementRouter({express,writer}));
@@ -32,31 +42,32 @@ test('map elements: SkyHub + Pilot 2 write, audit, WebSocket push, read-back as 
     const c=await call('POST','/api/map-elements',{name:'Sperrfläche',color:'#E23C39',geometry:poly});
     assert.equal(c.status,200,JSON.stringify(c.body));
     assert.equal(pushes[0].biz_code,'map_element_create');
-    assert.equal(pushes[0].data.group_id,'skyhub-shared');
+    assert.equal(pushes[0].data.group_id,writer.SKYHUB_GROUP);
     assert.equal(pushes[0].data.resource.content.properties.color,'#E23C39');
     // Pilot 2: point into the shared group (DJI create)
     const pid='0b9b7e5e-6f6a-4a51-9d1e-1c2a3b4c5d6e';
-    const p=await call('POST','/map/api/v1/workspaces/'+WS+'/element-groups/skyhub-shared/elements',
+    const p=await call('POST','/map/api/v1/workspaces/'+WS+'/element-groups/'+writer.SHARE_GROUP+'/elements',
       {id:pid,name:'PILOT 1',resource:{type:0,user_name:'Mason',content:{type:'Feature',properties:{color:'#2D8CF0',clampToGround:true},
         geometry:{type:'Point',coordinates:[8.605,49.152]}}}},{'x-auth-token':'pilot-token'});
     assert.deepEqual(p.body,{code:0,message:'success',data:{id:pid}});
     assert.equal(pushes[1].data.resource.user_name,'Mason');
-    assert.equal((await call('POST','/map/api/v1/workspaces/'+WS+'/element-groups/skyhub-shared/elements',{id:'x'},{'x-auth-token':'bad'})).status,401);
+    assert.equal((await call('POST','/map/api/v1/workspaces/'+WS+'/element-groups/'+writer.SHARE_GROUP+'/elements',{id:'x'},{'x-auth-token':'bad'})).status,401);
     // Pilot 2: update name, keep geometry; then delete
     const u=await call('PUT','/map/api/v1/workspaces/'+WS+'/elements/'+pid,{name:'PILOT Treffpunkt'},{'x-auth-token':'pilot-token'});
     assert.equal(u.body.code,0);assert.equal(pushes[2].biz_code,'map_element_update');assert.equal(pushes[2].data.name,'PILOT Treffpunkt');
     // read-back exactly as Pilot 2 gets it (GET element-groups)
     const read=await createMapElementStore(pool).readResponse(WS,{isDistributed:true});
-    const g=read.data.find(x=>x.id==='skyhub-shared');
-    assert.equal(g.elements.length,2);
+    assert.equal(read.data.find(x=>x.id===writer.SKYHUB_GROUP).elements.length,1);
+    assert.equal(read.data.find(x=>x.id===writer.SHARE_GROUP).elements.length,1);
+    assert.equal(read.data.find(x=>x.id===writer.SHARE_GROUP).type,2);
     // invalid geometry and unknown element
     assert.equal((await call('POST','/api/map-elements',{name:'x',color:'#E23C39',geometry:{type:'Point',coordinates:[999,0]}})).status,400);
     assert.equal((await call('DELETE','/api/map-elements/nope')).status,404);
     const d=await call('DELETE','/map/api/v1/workspaces/'+WS+'/elements/'+pid,null,{'x-auth-token':'pilot-token'});
-    assert.equal(d.body.code,0);assert.deepEqual(pushes[3].data,{id:pid,group_id:'skyhub-shared'});
+    assert.equal(d.body.code,0);assert.deepEqual(pushes[3].data,{id:pid,group_id:writer.SHARE_GROUP});
     // audit trail: create, create, update, delete with the actor kind
     const {rows}=await pool.query('SELECT actor_id,action FROM dji_map_element_audit WHERE workspace_id=$1 ORDER BY 1,2',[WS]);
-    assert.deepEqual(rows.map(r=>r.actor_id.split(':')[0]+'/'+r.action).sort(),['pilot/create','pilot/delete','pilot/update','skyhub/create']);
+    assert.deepEqual(rows.map(r=>r.actor_id.split(':')[0]+'/'+r.action).sort(),['pilot/create','pilot/delete','pilot/update','skyhub/create','skyhub/delete']);
     // a group not distributed to Pilot 2 is refused for the RC
     await pool.query("INSERT INTO dji_map_element_groups (workspace_id,group_id,name,group_type,is_locked,is_distributed) VALUES ($1,'private','Privat',0,false,false)",[WS]);
     const priv=await call('POST','/map/api/v1/workspaces/'+WS+'/element-groups/private/elements',

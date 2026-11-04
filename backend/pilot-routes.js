@@ -36,6 +36,14 @@ function registerPilotRoutes(app,{pilot,pairing,redis,registry,pool,ack,pilotAut
       workspaceId:pilot.workspaceId,
       authorize:pilotAuth.principal
     }));
+    // Pilot 2 (seen 05.11.2026, Pilot 2 on RC Plus 2) asks GET …/element-icons before the element groups; the endpoint is not in
+    // the DJI 1.18 documentation. SkyHub has no custom icons: an empty list (same response envelope as element-groups).
+    app.get('/map/api/v1/workspaces/:workspaceId/element-icons',async(req,res)=>{
+      if(!req.secure)return res.status(403).json({code:403,message:'HTTPS required',data:[]});
+      let p=null;try{p=await pilotAuth.principal(req.headers['x-auth-token']);}catch{return res.status(503).json({code:503,message:'Authorization unavailable',data:[]});}
+      if(!p||p.workspaceId!==pilot.workspaceId||req.params.workspaceId!==pilot.workspaceId)return res.status(401).json({code:401,message:'Unauthorized',data:[]});
+      res.set('Cache-Control','no-store').json({code:0,message:'success',data:[]});
+    });
     // Pilot 2 writes (create/update/delete) only with SKYHUB_DJI_MAP_WRITES_ENABLED; server.js builds the writer.
     if(mapWriter)registerPilotMapWrites(app,{writer:mapWriter,workspaceId:pilot.workspaceId,authorize:pilotAuth.principal});
   }else if(process.env.SKYHUB_DJI_MAP_ELEMENTS_ENABLED==='true'){

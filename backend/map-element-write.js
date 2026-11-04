@@ -11,7 +11,13 @@
 // home LAN (same-origin gate). Every change is audited (dji_map_element_audit, migration 002) and pushed to all RCs.
 const {createMapMutationStore,normalizedElement}=require('./map-element-mutation');
 
-const SHARED_GROUP='skyhub-shared';
+const LEGACY_GROUP='skyhub-shared';      // first deployment (05.11.2026): not a UUID; migrated by ensureGroups()
+// Group IDs as in DJI's demo seed (cloud_sample.sql map_group): UUIDs, one "Pilot Share Layer" (type 2: Pilot 2 adds its own
+// elements there) and one "Default Layer" (type 1: SkyHub's elements). Derived from the workspace, so they stay stable.
+function groupUuid(workspaceId,label){
+  const h=require('node:crypto').createHash('sha256').update(workspaceId+'/'+label).digest('hex');
+  return h.slice(0,8)+'-'+h.slice(8,12)+'-5'+h.slice(13,16)+'-'+((parseInt(h[16],16)&3)|8).toString(16)+h.slice(17,20)+'-'+h.slice(20,32);
+}
 const ELEMENT_ID=/^[A-Za-z0-9_.:-]{1,128}$/;
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 // DJI colour palette (create.html; labels as published, the hex values are what Pilot 2 shows).
@@ -35,9 +41,26 @@ function createMapElementWriter({pool,workspaceId,publish=()=>{},clock=Date.now,
   const mutations=createMapMutationStore(pool,{clock});
   const message=(biz,data)=>({biz_code:biz,version:'1.0',timestamp:clock(),data});
 
+  const SHARE_GROUP=groupUuid(workspaceId,'pilot-share'),SKYHUB_GROUP=groupUuid(workspaceId,'skyhub-default');
   async function ensureGroup(){
+    const t=clock();
     await pool.query('INSERT INTO dji_map_element_groups (workspace_id,group_id,name,group_type,is_locked,is_distributed,create_time) '+
-      'VALUES ($1,$2,$3,2,false,true,$4) ON CONFLICT DO NOTHING',[workspaceId,SHARED_GROUP,'SkyHub',clock()]);
+      'VALUES ($1,$2,$3,2,false,true,$5),($1,$4,$6,1,false,true,$5) ON CONFLICT DO NOTHING',
+      [workspaceId,SHARE_GROUP,'Pilot-Ebene',SKYHUB_GROUP,t,'SkyHub']);
+    // Elements of the first, non-UUID group move to the SkyHub group; then the old group is removed.
+    const old=await pool.query('SELECT 1 FROM dji_map_element_groups WHERE workspace_id=$1 AND group_id=$2',[workspaceId,LEGACY_GROUP]);
+    if(old.rows.length){
+      const c=await pool.connect();
+      try{
+        await c.query('BEGIN');
+        await c.query('UPDATE dji_map_elements SET group_id=$3 WHERE workspace_id=$1 AND group_id=$2',[workspaceId,LEGACY_GROUP,SKYHUB_GROUP]);
+        await c.query('DELETE FROM dji_map_element_groups WHERE workspace_id=$1 AND group_id=$2',[workspaceId,LEGACY_GROUP]);
+        await c.query('COMMIT');
+        log.log('[map elements] legacy group migrated to '+SKYHUB_GROUP);
+      }catch(err){await c.query('ROLLBACK').catch(()=>{});throw err;}
+      finally{c.release();}
+    }
+    publish(message('map_group_refresh',{ids:[SHARE_GROUP,SKYHUB_GROUP]}));
   }
   async function group(groupId){
     const {rows}=await pool.query('SELECT group_id,is_locked,is_distributed FROM dji_map_element_groups WHERE workspace_id=$1 AND group_id=$2',
@@ -109,7 +132,7 @@ function createMapElementWriter({pool,workspaceId,publish=()=>{},clock=Date.now,
       'ON g.workspace_id=e.workspace_id AND g.group_id=e.group_id WHERE e.workspace_id=$1 ORDER BY e.update_time DESC NULLS LAST LIMIT 500',[workspaceId]);
     return rows.map(r=>({...wireElement(r),groupName:r.group_name,revision:Number(r.revision),updateTime:r.update_time!==null?Number(r.update_time):null}));
   }
-  return {ensureGroup,create,update,remove,list,SHARED_GROUP};
+  return {ensureGroup,create,update,remove,list,SHARE_GROUP,SKYHUB_GROUP,SHARED_GROUP:SKYHUB_GROUP};
 }
 
 // DJI HTTPS responses: {code, message, data}. DJI defines no error codes for map elements; non-zero code + HTTP status.
@@ -167,4 +190,4 @@ function createMapElementRouter({express,writer,log=console}){
   return router;
 }
 
-module.exports={createMapElementWriter,registerPilotMapWrites,createMapElementRouter,wireElement,COLORS,SHARED_GROUP,MapWriteError};
+module.exports={createMapElementWriter,registerPilotMapWrites,createMapElementRouter,wireElement,COLORS,groupUuid,LEGACY_GROUP,MapWriteError};
