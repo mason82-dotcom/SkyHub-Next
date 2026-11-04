@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SkyHub · Missionsfreigabe</title>
+<link rel="stylesheet" href="/skyhub-light.css">
+<link rel="stylesheet" href="/missionsfreigabe.css">
+</head>
+<body class="mrel">
+<header class="mrel-top">
+  <h1>Missionsfreigabe <span class="muted">für die Routenbibliothek in DJI Pilot 2</span></h1>
+  <nav><a href="/wpml-route-library.html">Routenverwaltung</a> · <a href="/">Übersicht</a></nav>
+</header>
+
+<p class="mrel-note" role="note">
+  Pilot 2 zeigt nur freigegebene Routen. Eine Freigabe gilt für genau diese Revision und läuft nach der gewählten Zeit ab.
+  Gestartet wird die Route immer vom Piloten an der Fernsteuerung.
+</p>
+
+<main class="mrel-grid">
+  <section class="card" aria-labelledby="h-access">
+    <h2 id="h-access">Zugang</h2>
+    <label>SkyHub-Token <span class="muted">(zum Ansehen im Heimnetz meist leer, zum Freigeben nötig)</span>
+      <input id="viewToken" type="password" autocomplete="off"></label>
+    <label>Freigabe-Token <span class="muted">(nur zum Freigeben und Zurückziehen, wird nicht gespeichert)</span>
+      <input id="releaseToken" type="password" autocomplete="off"></label>
+    <button id="reload" type="button">Routen laden</button>
+    <p id="accessStatus" class="muted" role="status" aria-live="polite">Noch nicht geladen.</p>
+  </section>
+
+  <section class="card wide" aria-labelledby="h-list">
+    <h2 id="h-list">Routen auf dem Server</h2>
+    <div class="tablewrap">
+      <table>
+        <caption class="sr-only">Gespeicherte Routen mit Freigabestatus</caption>
+        <thead><tr><th scope="col">Route</th><th scope="col">Fluggerät</th><th scope="col">Wegpunkte</th>
+          <th scope="col">Revision</th><th scope="col">In Pilot 2</th><th scope="col"><span class="sr-only">Aktion</span></th></tr></thead>
+        <tbody id="routes"><tr><td colspan="6" class="muted">Noch nicht geladen.</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card wide" id="detail" aria-labelledby="h-detail" hidden>
+    <h2 id="h-detail" tabindex="-1">Prüfung: <span id="dName"></span></h2>
+    <p id="dState" role="status"></p>
+    <div class="cols">
+      <div>
+        <h3>Flughülle</h3>
+        <dl class="kv" id="envelope"></dl>
+      </div>
+      <div>
+        <div id="errorsBox" hidden>
+          <h3 class="bad">Fehler – Freigabe nicht möglich</h3>
+          <ul id="errors" class="msgs"></ul>
+          <p class="small">Route in der Routenverwaltung korrigieren, als neue Revision speichern und erneut prüfen.</p>
+        </div>
+        <fieldset id="warningsBox" hidden>
+          <legend>Warnungen – jede einzeln bestätigen</legend>
+          <div id="warnings"></div>
+        </fieldset>
+        <fieldset id="checklistBox">
+          <legend>Vor der Freigabe bestätigen</legend>
+          <div id="checklist"></div>
+        </fieldset>
+        <label class="inline">Gültig für <input id="hours" type="number" min="1" step="1" value="72"> Stunden
+          <span class="muted" id="hoursMax"></span></label>
+        <button id="release" type="button" disabled>Route für Pilot 2 freigeben</button>
+        <p id="releaseHint" class="small muted" role="status" aria-live="polite"></p>
+      </div>
+    </div>
+    <div id="activeBox" hidden>
+      <h3>Aktive Freigabe</h3>
+      <p id="activeText"></p>
+      <label>Grund für das Zurückziehen <input id="revokeReason" maxlength="200" placeholder="z. B. Wetter, Luftraum geändert"></label>
+      <button id="revoke" type="button" class="danger">Freigabe zurückziehen</button>
+    </div>
+    <h3>Verlauf</h3>
+    <ol id="history" class="history"></ol>
+  </section>
+</main>
+
+<script src="/wpml-mission-store-client.js"></script>
+<script src="/missionsfreigabe.js"></script>
+</body>
+</html>

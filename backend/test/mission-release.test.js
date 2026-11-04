@@ -127,6 +127,16 @@ test('release flow: token, check, warnings, checklist, hash; one active release 
     assert.equal(r.status,201);
     const active=await releases.active();
     assert.deepEqual(active.map(x=>x.waylineId),[b.id]);
+    const overview=await srv.call('GET','/');
+    assert.equal(overview.status,200);
+    assert.deepEqual(overview.body.active.map(x=>x.waylineId),[b.id]);
+    assert.equal('envelope' in overview.body.active[0],false);
+    assert.equal(overview.body.active[0].visible,true);
+    // A release whose route no longer matches (e.g. other aircraft in the stored metadata) is active but not visible.
+    b.droneModelKey='0-99-1';
+    const stale=await srv.call('GET','/');
+    assert.equal(stale.body.active[0].visible,false);
+    b.droneModelKey='0-77-2';
     r=await srv.call('DELETE','/'+b.id+'/release',{reason:'Wetter'},TOKEN);
     assert.equal(r.status,200);
     assert.deepEqual(await releases.active(),[]);

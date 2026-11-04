@@ -2,7 +2,9 @@
 // Explicit, opt-in token-free access for the HTTPS home-LAN WPML mission library.
 // Other write APIs, DJI Pilot 2 and requests from outside the allowlisted network stay protected.
 const UUID='[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
-const READ=new RegExp('^/wpml/missions(?:/status|/'+UUID+'(?:/kmz)?)?/?$');
+// Read-only: the mission store and the release overview/check (mission-release.js GET routes). Release and revoke are
+// POST/DELETE and stay behind the normal SkyHub access plus the release token.
+const READ=new RegExp('^/wpml/(?:missions(?:/status|/'+UUID+'(?:/kmz)?)?|release(?:/config|/'+UUID+')?)/?$');
 function parseWpmlLanOrigins(raw){
   if(typeof raw!=='string'||!raw.trim()||raw.length>1024)
     throw new Error('SKYHUB_WPML_LAN_ORIGINS must list explicit HTTPS origins');

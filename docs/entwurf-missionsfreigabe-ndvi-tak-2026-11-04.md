@@ -45,6 +45,14 @@ tausend Wegpunkte. NDVI-Serien bis einige hundert Aufnahmen (je 4 Bänder à ~2,
 5. **Zurückziehen** (`DELETE …/release`): sofort aus der Bibliothek. Eine neue Freigabe einer Revision derselben Wurzel ersetzt die
    vorige (je Routenfamilie höchstens eine freigegebene Revision).
 
+### Oberfläche (`frontend/public/missionsfreigabe.html`, Stand 04.11.2026)
+Liste der Routen auf dem Server mit Status „in Pilot 2 sichtbar bis …“ (`GET /api/wpml/release`; `visible` nach denselben Regeln wie
+die Pilot-2-Bibliothek: Hash und Fluggerät müssen noch passen), Prüfung mit Flughülle, Fehlern, einzeln zu bestätigenden Warnungen und
+Checkliste, Gültigkeit in Stunden, Freigeben und Zurückziehen mit Grund, Verlauf. Lesen geht im Heimnetz ohne Token, wenn der
+WPML-Heimnetzzugang eingeschaltet ist (`wpml-lan-auth.js`); Freigeben und Zurückziehen brauchen immer SkyHub-Zugang **und**
+Freigabe-Token. Tokens werden nicht gespeichert. Erreichbar über die Routenverwaltung und die Übersicht.
+Offen: Prüfmeldungen kommen englisch vom Server (die Bestätigung erfolgt mit dem exakten Text); eine deutsche Anzeige wäre zusätzlich.
+
 ### Flughülle (`backend/mission-envelope.js`)
 Aus `wpmz/waylines.wpml` (ausführbare Datei, DJI WPML 1.0.x laut 1.18):
 - Höhenmodus `wpml:executeHeightMode`: `relativeToStartPoint` (Höhe relativ zum Start), `realTimeFollowSurface` (Höhe über Grund),

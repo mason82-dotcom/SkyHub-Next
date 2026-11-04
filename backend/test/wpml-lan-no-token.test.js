@@ -55,10 +55,13 @@ test('tokenfree GET only accesses exact mission-store paths',()=>{
   // Existing read-only LAN exemptions (e.g. drone telemetry) remain intact.
   assert.deepEqual(request(handler,{method:'GET',path:'/drone/a/telemetry'}),{granted:true,status:0});
   for(const path of ['/wpml/missions','/wpml/missions/','/wpml/missions/status',
-    '/wpml/missions/'+UUID,'/wpml/missions/'+UUID+'/kmz'])
+    '/wpml/missions/'+UUID,'/wpml/missions/'+UUID+'/kmz','/wpml/release','/wpml/release/config','/wpml/release/'+UUID])
     assert.deepEqual(request(handler,{method:'GET',path}),{granted:true,status:0},path);
+  // Releasing and revoking are never token-free.
+  for(const [method,path] of [['POST','/wpml/release/'+UUID+'/release'],['DELETE','/wpml/release/'+UUID+'/release']])
+    assert.deepEqual(request(handler,{method,path}),{granted:false,status:401},method+' '+path);
   for(const path of ['/drone/a/not-allowed','/wpml/missions/a/../b',
-    '/wpml/missions/x/extra','/wpml/missions/status/more','/pilot-admin/pairings'])
+    '/wpml/missions/x/extra','/wpml/missions/status/more','/pilot-admin/pairings','/wpml/release/x','/wpml/release/'+UUID+'/release'])
     assert.deepEqual(request(handler,{method:'GET',path}),{granted:false,status:401},path);
 });
 test('explicit valid token is accepted irrespective of the LAN no-token flag',()=>{

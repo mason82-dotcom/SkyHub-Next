@@ -1,8 +1,8 @@
 'use strict';
 // Mission release for DJI Pilot 2 (risk register M1/M2/M4/M5/M6, design docs/entwurf-missionsfreigabe-ndvi-tak-2026-11-04.md).
 // DJI Cloud API 1.18: flight tasks (flighttask_*) are dock-only, so a route reaches the aircraft only through the Pilot 2
-// wayline library, and the pilot starts it on the RC. SkyHub never starts, stops or steers a flight. (1.18 does offer
-// Pilot live flight controls (DRC, fly-to, one-key takeoff/return) for RC Plus 2 + Matrice 4; SkyHub does not implement them.)
+// wayline library, and the pilot starts it on the RC. The release never starts, stops or steers a flight. (Live flight
+// control of a Matrice 4 through an RC Plus 2 is a separate, separately authorised module: drc-*.js, docs/drc-matrice4.md.)
 //
 // A stored WPML revision becomes visible to Pilot 2 only through an explicit release:
 //   - check passes (mission-envelope.js), every warning acknowledged, checklist confirmed
@@ -188,6 +188,15 @@ function createMissionReleaseRouter({express,store,releases,config,audit=e=>cons
   router.get('/config',(req,res)=>send(res,200,{checklist:CHECKLIST,limits:{...DEFAULT_LIMITS,...config.limits},
     hours:config.hours,reference:'DJI Cloud API 1.18: Route geht über die Pilot-2-Bibliothek an das Fluggerät; Start nur auf der Fernsteuerung'}));
 
+  // Read-only overview of the active releases (for the release page list). Needs normal SkyHub access only.
+  // `visible` applies the same rules as the Pilot 2 library (hash and aircraft must still match the stored route).
+  router.get('/',wrap(async(req,res)=>{
+    const [rows,shown]=await Promise.all([releases.active(),releasedLibrary(store,releases,{log:()=>{}}).all()]);
+    const visible=new Set(shown.map(w=>w.id));
+    const list=rows.map(r=>({waylineId:r.waylineId,rootId:r.rootId,name:r.name,droneModelKey:r.droneModelKey,
+      releasedAt:r.releasedAt,expiresAt:r.expiresAt,visible:visible.has(r.waylineId)}));
+    send(res,200,{active:list});
+  }));
   // Read-only: check result and release history. Needs normal SkyHub access only.
   router.get('/:id',wrap(async(req,res)=>{
     const {meta,sha256,check}=await load(req.params.id);
