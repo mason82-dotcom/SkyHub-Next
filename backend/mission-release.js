@@ -136,7 +136,7 @@ function releasedLibrary(store,releases,{log=m=>console.error(m)}={}){
         return r&&waylineId(r.sha256)===w.id&&(!w.sha256||w.sha256===r.sha256)&&w.droneModelKey===r.droneModelKey;
       }).map(w=>{
         const r=map.get(w.id);
-        return {...w,releasedAt:r.releasedAt,expiresAt:r.expiresAt};
+        return {...w,releasedAt:r.releasedAt,expiresAt:r.expiresAt,startPoint:r.envelope&&r.envelope.startPoint||null};
       });
     },
     async downloadUrl(id,opts){

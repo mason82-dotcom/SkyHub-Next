@@ -88,6 +88,9 @@ function createDjiWaylineRouter({workspace,authorize,store,favorites,importUploa
     const key=typeof q.key==='string'?q.key.slice(0,64):undefined;
     const favoriteFilter=q.favorited===undefined?null:q.favorited==='true'?true:q.favorited==='false'?false:undefined;
     if(favoriteFilter===undefined)return error(res,400,'Invalid favorited');
+    // action_type 1 = AI spot-check waylines (obtain-waypointfile-list); SkyHub has none, every route is action_type 0.
+    if(q.action_type!==undefined&&!/^[01]$/.test(String(q.action_type)))return error(res,400,'Invalid action_type');
+    if(String(q.action_type)==='1')return ok(res,{list:[],pagination:{page,page_size:pageSize,total:0}});
     const favored=await favorites.list(workspace);
     // Filter and sort over the full (bounded, cached) library, then paginate.
     const collected=(await store.all())
@@ -112,6 +115,10 @@ function createDjiWaylineRouter({workspace,authorize,store,favorites,importUploa
       favorited:favored.has(w.id),
       object_key:w.objectKey,
       user_name:w.username||'SkyHub',
+      action_type:0,
+      // DJI spells the field start_lontitude (sic).
+      ...(w.startPoint&&Number.isFinite(w.startPoint.lat)&&Number.isFinite(w.startPoint.lon)?
+        {start_wayline_point:{start_latitude:w.startPoint.lat,start_lontitude:w.startPoint.lon}}:{}),
       // Wayline files are write-once: update time equals creation time.
       update_time:w.createTime,
       create_time:w.createTime

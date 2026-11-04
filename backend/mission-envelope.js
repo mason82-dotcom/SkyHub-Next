@@ -180,6 +180,8 @@ function computeEnvelope(waylinesXml,templateXml){
     payloadModelKeys:payloadType===null?[]:['1-'+payloadType+'-0'],
     heightModes:[...modes].filter(Boolean),templateTypes,takeOffRefPoint:ref?{lat:round(ref.lat,7),lon:round(ref.lon,7),height:round(ref.height,1)}:null,
     waylines:folders.length,waypoints:points.length,
+    // First waypoint: Pilot 2 wayline list start_wayline_point (https/waypoint-management/obtain-waypointfile-list).
+    startPoint:points.length?{lat:round(points[0].lat,7),lon:round(points[0].lon,7)}:null,
     maxHeightAboveTakeoffM:heights.length?round(Math.max(...heights)):null,
     minHeightAboveTakeoffM:heights.length?round(Math.min(...heights)):null,
     rthHeightM:rth,takeOffSecurityHeightM:takeOffSecurity,maxSpeedMs:round(maxSpeed),

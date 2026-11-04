@@ -12,7 +12,7 @@ const B='22222222-2222-8222-8222-222222222222';
 function fakeStore(){
   const rows=[
     {id:A,name:'Alpha',objectKey:'missions/'+A+'.kmz',sign:'a'.repeat(32),droneModelKey:'0-77-2',
-      payloadModelKeys:['1-68-0'],templateTypes:[0],username:'SkyHub',createTime:2000},
+      payloadModelKeys:['1-68-0'],templateTypes:[0],username:'SkyHub',createTime:2000,startPoint:{lat:49.1525,lon:8.6044}},
     {id:B,name:'Bravo',objectKey:'missions/'+B+'.kmz',sign:'b'.repeat(32),droneModelKey:'0-99-0',
       payloadModelKeys:['1-88-0'],templateTypes:[0],username:null,createTime:1000}
   ];
@@ -52,8 +52,8 @@ test('wayline list follows the DJI PaginationData contract with filters and orde
     assert.equal(body.code,0);
     assert.equal(body.message,'success');
     assert.deepEqual(body.data.pagination,{page:1,page_size:10,total:2});
-    assert.deepEqual(Object.keys(body.data.list[0]).sort(),['create_time','drone_model_key','favorited',
-      'id','name','object_key','payload_model_keys','sign','template_types','update_time','user_name']);
+    assert.deepEqual(Object.keys(body.data.list[0]).sort(),['action_type','create_time','drone_model_key','favorited',
+      'id','name','object_key','payload_model_keys','sign','start_wayline_point','template_types','update_time','user_name']);
     assert.equal(body.data.list[0].name,'Alpha');
     assert.equal(body.data.list[1].user_name,'SkyHub');
     res=await call('/waylines?order_by=name%20desc');
@@ -133,4 +133,18 @@ test('Pilot bootstrap offers the mission module only when explicitly enabled ove
   const bad=pilotConfiguration({SKYHUB_PILOT_PUBLIC_URL:'http://pi.lan/',SKYHUB_PILOT_WAYLINE_ENABLED:'true'});
   assert.equal(bad.wayline.enabled,false);
   assert.match(bad.wayline.issue,/HTTPS/);
+});
+
+test('wayline list: action_type 0, AI spot-check filter empty, start point from the release (start_lontitude sic)',async()=>{
+  const {server,call}=await serve();
+  try{
+    let body=await (await call('/waylines?order_by=name%20asc')).json();
+    const alpha=body.data.list.find(w=>w.name==='Alpha'),bravo=body.data.list.find(w=>w.name==='Bravo');
+    assert.equal(alpha.action_type,0);
+    assert.deepEqual(alpha.start_wayline_point,{start_latitude:49.1525,start_lontitude:8.6044});
+    assert.equal('start_wayline_point' in bravo,false,'no start point known: field omitted (optional in DJI)');
+    body=await (await call('/waylines?action_type=1')).json();
+    assert.deepEqual(body.data,{list:[],pagination:{page:1,page_size:10,total:0}});
+    assert.equal((await call('/waylines?action_type=7')).status,400);
+  }finally{server.close();}
 });
