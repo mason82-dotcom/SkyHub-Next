@@ -166,16 +166,20 @@ function createPpkStorage({storage,now=()=>Date.now()}){
       zip.add('flights/'+folder+'/'+f.mrk.name,Buffer.from(f.rows.map(r=>r.line).join('\r\n')+'\r\n','latin1'));
       zip.add('flights/'+folder+'/'+f.rover.name,await read(f.rover.key));
       done+=2;onStep(done,total);
-      for(const p of f.photos){
-        if(cancelled())throw new Error('abgebrochen');
-        let head=null;
+      const headOf=async p=>{
         for(const size of [262144,1048576,4194304]){
           const r=jpegHeader(await read(p.key,'bytes=0-'+(Math.min(size,p.size||size)-1)));
-          if(r.header){head=r.header;break;}
-          if(r.error||size>=(p.size||0))break;
+          if(r.header)return r.header;
+          if(r.error||size>=(p.size||0))return null;
         }
-        if(head)zip.add('flights/'+folder+'/'+p.name,head);else skipped++;
-        done++;onStep(done,total);
+        return null;
+      };
+      // Eight range reads in flight, ZIP entries written in exposure order.
+      for(let i=0;i<f.photos.length;i+=8){
+        if(cancelled())throw new Error('abgebrochen');
+        const batch=f.photos.slice(i,i+8),heads=await Promise.all(batch.map(headOf));
+        batch.forEach((p,k)=>{if(heads[k])zip.add('flights/'+folder+'/'+p.name,heads[k]);else skipped++;});
+        done+=batch.length;onStep(done,total);
       }
     }
     return {skipped};
