@@ -233,3 +233,27 @@ test('home LAN: release and revoke without token when the LAN gate marked the re
     assert.equal((await call('DELETE','/'+a.id+'/release',{reason:'Test'},{'X-Test-Lan':'1'})).status,200);
   }finally{server.close();}
 });
+
+test('terrain check (optional): findings join the check, an error above 120 m above ground blocks the release',async()=>{
+  const a=entry(Buffer.from(planner.build(plan(100)).kmz));
+  let agl=95;const seen=[];
+  const terrain={config:{dataset:'test',minAglM:15},async check(key,points,ref){seen.push({key,n:points.length,ref});
+    return {status:'ok',dataset:'test',samples:9,missing:0,assumedTakeoff:true,takeoffGroundM:300,groundMinM:280,groundMaxM:300,
+      maxAgl:{aglM:agl,waypoint:2,lat:49.1,lon:8.5},minAgl:{aglM:90,waypoint:1,lat:49.1,lon:8.5}};}};
+  const config=releaseConfig({SKYHUB_MISSION_RELEASE_ENABLED:'true',SKYHUB_MISSION_RELEASE_TOKEN:TOKEN});
+  const srv=await serve(createMissionReleaseRouter({express,store:fakeStore([a]),releases:fakeReleases(),config,terrain,audit:()=>{}}));
+  try{
+    let info=await srv.call('GET','/'+a.id);
+    assert.equal(info.body.check.ok,true);
+    assert.ok(info.body.check.warnings.some(w=>/no buildings or trees/.test(w)));
+    assert.ok(!info.body.check.warnings.some(w=>/^heights are relative to the take-off point/.test(w)),'generic warning replaced');
+    assert.equal(info.body.check.envelope.terrain.maxAgl.aglM,95);
+    assert.equal('route' in info.body.check,false,'waypoint list not sent');
+    assert.match(seen[0].key,/^[0-9a-f]{64}:test$/);
+    agl=130;
+    info=await srv.call('GET','/'+a.id);
+    assert.equal(info.body.check.ok,false);
+    const r=await srv.call('POST','/'+a.id+'/release',{sha256:info.body.sha256,acknowledgedWarnings:info.body.check.warnings,checklist:allChecked},TOKEN);
+    assert.equal(r.status,422);
+  }finally{await srv.close();}
+});

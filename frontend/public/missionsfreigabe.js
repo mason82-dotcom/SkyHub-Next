@@ -76,6 +76,13 @@
     [/^WPML 1\.0\.6 as written by DJI Pilot 2/,()=>'Route im Format WPML 1.0.6 aus DJI Pilot 2: SkyHub hat die Flughülle geprüft, die Datei wird unverändert freigegeben (der SkyHub-Editor schreibt 1.0.2).'],
     [/^no return-to-home height in the route/,()=>'Keine Rückkehrhöhe in der Route: Das Fluggerät nutzt die in Pilot 2 eingestellte Rückkehrhöhe – vor dem Start dort prüfen.'],
     [/^wayline (\d+): terrain follow \(height above ground\) for the Matrice 4/,m=>'Abschnitt '+m[1]+': Geländefolge (Höhe über Grund) für die Matrice 4, wie von Pilot 2 erzeugt – Geländedaten und Sensorik in Pilot 2 müssen funktionieren.'],
+    [/^terrain from (\S+) \(25-30 m grid, no buildings or trees\): highest ([-\d.]+) m and lowest ([-\d.]+) m above ground/,
+      m=>'Gelände ('+m[1]+', Raster 25–30 m, ohne Gebäude und Bäume): höchstens '+m[2]+' m, mindestens '+m[3]+' m über Grund. Hindernisse trotzdem vor Ort prüfen.'],
+    [/^terrain: take-off point assumed at the first waypoint \(ground ([-\d.]+) m\)/,m=>'Gelände: Startpunkt als erster Wegpunkt angenommen (Boden '+m[1]+' m). Ein anderer Startpunkt verschiebt alle Höhen über Grund.'],
+    [/^terrain: ([-\d.]+) m above ground near waypoint (\d+) exceeds ([\d.]+) m/,m=>'Gelände: '+m[1]+' m über Grund bei Wegpunkt '+m[2]+' – mehr als '+m[3]+' m.'],
+    [/^terrain: only ([-\d.]+) m above ground near waypoint (\d+) \(below ([\d.]+) m\)/,m=>'Gelände: nur '+m[1]+' m über Grund bei Wegpunkt '+m[2]+' (unter '+m[3]+' m).'],
+    [/^terrain: (\d+) route points without elevation data/,m=>'Gelände: '+m[1]+' Routenpunkte ohne Höhendaten.'],
+    [/^terrain not checked: elevation service unavailable/,()=>'Gelände nicht geprüft: Höhendienst nicht erreichbar – Höhen über Grund selbst prüfen.'],
     [/^no take-off reference point/,()=>'Kein Startbezugspunkt: Entfernung und Dauer sind ab dem ersten Wegpunkt gerechnet.'],
     [/^heights are relative to the take-off point, not to the ground.*exceed ([\d.]+) m/,m=>'Höhen gelten relativ zum Startpunkt, nicht zum Boden: Gelände entlang der Route prüfen (ansteigendes Gelände verringert den Abstand, abfallendes kann mehr als '+m[1]+' m über Grund ergeben).'],
     [/^lowest waypoint ([\d.]+) m above take-off/,m=>'Niedrigster Wegpunkt '+m[1]+' m über Start: Hindernisabstand prüfen.'],
@@ -108,6 +115,9 @@
     ['estimatedDurationMin','Geschätzte Flugzeit',v=>num(v,'min',1)],['maxDistanceFromOriginM','Größte Entfernung vom Start',v=>num(v,'m')],
     ['heightModes','Höhenbezug',v=>(v||[]).map(h=>({relativeToStartPoint:'relativ zum Start',realTimeFollowSurface:'über Grund',WGS84:'Ellipsoid (WGS84)'}[h]||h)).join(', ')||'–'],
     ['finishAction','Nach dem Flug',v=>({goHome:'Rückkehr zum Start',noAction:'keine Aktion',autoLand:'Landen',gotoFirstWaypoint:'zum ersten Wegpunkt'}[v]||v||'–')],
+    ['terrain','Gelände (über Grund)',t=>!t?'nicht geprüft (kein Höhendienst eingestellt)':t.status==='ok'?
+      t.minAgl.aglM+' bis '+t.maxAgl.aglM+' m ('+t.dataset+(t.assumedTakeoff?', Start = 1. Wegpunkt':'')+')':
+      t.status==='skipped'?(t.reason==='terrain-follow'?'Geländefolge der Route':'WGS84-Höhen, nicht umgerechnet'):'Dienst nicht erreichbar'],
     ['exitOnRCLost','Bei Verbindungsverlust',v=>({goContinue:'Route fortsetzen',executeLostAction:'Notfallaktion ausführen'}[v]||v||'–')]
   ];
   async function select(id,focus){

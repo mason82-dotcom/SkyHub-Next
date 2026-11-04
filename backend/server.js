@@ -33,6 +33,7 @@ const {drcConfig,createDrcRuntime}=require('./drc-runtime');
 const {createDjiWaylineRouter,createRedisFavorites,UPLOAD_DISABLED_CODE}=require('./dji-wayline-http');
 let pilotWaylineImport=null;
 const {createPilotWaylineImport,ImportError}=require('./pilot-wayline-import');
+const {terrainConfig,createTerrainClient}=require('./mission-terrain');
 const {createSmartFarmingCatalogRouter}=require('./smart-farming-catalog');
 const {createHttpAuth}=require('./http-auth');
 const {mapPageReferrerPolicy}=require('./map-page-referrer');
@@ -289,7 +290,12 @@ if(wpmlStore&&missionRelease.enabled){
   else{
     releaseStore=createReleaseStore(pool);
     releaseStore.init().catch(err=>console.error('[mission release] schema:',err.message));
-    app.use('/api/wpml/release',createMissionReleaseRouter({express,store:wpmlStore,releases:releaseStore,config:missionRelease}));
+    // Optional terrain check (SKYHUB_TERRAIN_URL, Open Topo Data); off by default.
+    const terrainSettings=terrainConfig(process.env);
+    if(terrainSettings.issue)console.error('[terrain] disabled:',terrainSettings.issue);
+    const terrain=terrainSettings.enabled?createTerrainClient(terrainSettings):null;
+    if(terrain)console.log('[terrain] height above ground check active ('+terrainSettings.dataset+(terrainSettings.public?', PUBLIC service: route coordinates leave the network':'')+')');
+    app.use('/api/wpml/release',createMissionReleaseRouter({express,store:wpmlStore,releases:releaseStore,config:missionRelease,terrain}));
     console.log('[mission release] active ('+missionRelease.hours+' h validity)');
   }
 }

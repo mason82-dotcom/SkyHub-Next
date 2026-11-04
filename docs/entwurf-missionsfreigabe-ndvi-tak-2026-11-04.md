@@ -60,6 +60,14 @@ Pilot 2 auf der RC Plus 2 schreibt WPML **1.0.6** (Beispiel „Michaelsberg“, 
 Für 1.0.2 gelten die bisherigen Regeln (Rückkehrhöhe Pflicht, Geländefolge nur M3E/M3T/M3M). Die Seite zeigt die Meldungen
 deutsch, bestätigt wird mit dem Originaltext.
 
+### Geländeprüfung (optional, `backend/mission-terrain.js`, Idee aus hdrpano/GeoTIFF-Python, MIT)
+Mit `SKYHUB_TERRAIN_URL` (Open Topo Data, Datensatz `SKYHUB_TERRAIN_DATASET`, Standard `eudem25m`) berechnet die Freigabe die
+Höhe über Grund entlang der Route (alle ~25 m): Boden am Start + Höhe über Start − Boden am Punkt. > 120 m über Grund = Fehler,
+< `SKYHUB_TERRAIN_MIN_AGL_M` (15 m) = Warnung, dazu Pflicht-Warnung zu den Grenzen des Höhenmodells (25–30 m Raster, ohne Gebäude
+und Bäume). Startpunkt = `takeOffRefPoint`, sonst erster Wegpunkt (Warnung). Geländefolge-Routen werden übersprungen, WGS84 nicht
+umgerechnet. **Standard aus.** Der öffentliche Dienst `api.opentopodata.org` erhält die Routenkoordinaten (1 Anfrage/s,
+1000/Tag); ein eigener Open-Topo-Data-Dienst auf brix-node hält sie lokal.
+
 ### Flughülle (`backend/mission-envelope.js`)
 Aus `wpmz/waylines.wpml` (ausführbare Datei, DJI WPML 1.0.x laut 1.18):
 - Höhenmodus `wpml:executeHeightMode`: `relativeToStartPoint` (Höhe relativ zum Start), `realTimeFollowSurface` (Höhe über Grund),

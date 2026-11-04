@@ -188,7 +188,9 @@ function computeEnvelope(waylinesXml,templateXml){
     minWaypointSpacingM:minSpacing===null?null:round(minSpacing,2),
     finishAction,exitOnRCLost:rcLost,executeRCLostAction:rcLostAction
   };
-  return {errors,warnings,envelope};
+  // route: waypoints with height above take-off and the take-off reference, for the optional terrain check
+  // (mission-terrain.js). Not part of the envelope that is stored with a release.
+  return {errors,warnings,envelope,route:{points,ref:ref?{lat:ref.lat,lon:ref.lon}:null}};
 }
 
 function checkLimits(envelope,limits=DEFAULT_LIMITS){
@@ -223,7 +225,7 @@ function checkMission(kmzBytes,limits){
   const base=computeEnvelope(docs.waylines,docs.template);
   const lim=checkLimits(base.envelope,limits);
   const errors=[...base.errors,...lim.errors],warnings=[...base.warnings,...lim.warnings];
-  return {ok:errors.length===0,errors,warnings,envelope:base.envelope,limits:{...DEFAULT_LIMITS,...limits}};
+  return {ok:errors.length===0,errors,warnings,envelope:base.envelope,limits:{...DEFAULT_LIMITS,...limits},route:base.route||null};
 }
 
 function limitsFromEnv(env=process.env){

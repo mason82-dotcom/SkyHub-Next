@@ -11,6 +11,7 @@
 // The Pilot 2 library lists and serves only actively released revisions; without the database it shows nothing.
 const crypto=require('node:crypto');
 const {checkMission,limitsFromEnv,DEFAULT_LIMITS}=require('./mission-envelope');
+const {terrainFindings}=require('./mission-terrain');
 const {waylineId}=require('./wpml-mission-store');
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -162,7 +163,7 @@ function clientAddress(req){
   return (fwd[fwd.length-1]||req.socket?.remoteAddress||'?').slice(0,64);
 }
 
-function createMissionReleaseRouter({express,store,releases,config,audit=e=>console.log('[mission release] '+JSON.stringify(e)),now=()=>new Date()}){
+function createMissionReleaseRouter({express,store,releases,config,terrain=null,audit=e=>console.log('[mission release] '+JSON.stringify(e)),now=()=>new Date()}){
   const router=express.Router();
   const send=(res,status,body)=>{res.set('Cache-Control','no-store');return res.status(status).json(body);};
   // Release/revoke: from the home LAN with same-origin proof (req.skyhubLan, set by http-auth/wpml-lan-auth; decision
@@ -179,7 +180,19 @@ function createMissionReleaseRouter({express,store,releases,config,audit=e=>cons
     if(!meta){const e=new Error('Route nicht gefunden');e.status=404;throw e;}
     const {bytes}=await store.get(id);    // get() verifies waylineId(sha256(bytes)) === id
     const sha256=crypto.createHash('sha256').update(bytes).digest('hex');
-    return {meta,bytes,sha256,check:checkMission(bytes,config.limits)};
+    const check=checkMission(bytes,config.limits);
+    // Optional terrain check (mission-terrain.js): height above ground along the route. Cached per route hash so the
+    // check shown to the operator and the one at release time carry the same warnings.
+    if(terrain&&check.envelope&&check.route){
+      const t=await terrain.check(sha256+':'+terrain.config.dataset,check.route.points,check.route.ref);
+      const f=terrainFindings(t,{maxHeightM:check.limits.maxHeightM,minAglM:terrain.config.minAglM});
+      if(t.status==='ok')check.warnings=check.warnings.filter(w=>!/^heights are relative to the take-off point/.test(w));
+      check.errors.push(...f.errors);check.warnings.push(...f.warnings);
+      check.ok=check.errors.length===0;
+      check.envelope={...check.envelope,terrain:t};
+    }
+    delete check.route;
+    return {meta,bytes,sha256,check};
   }
   const wrap=fn=>async(req,res)=>{
     try{await fn(req,res);}
