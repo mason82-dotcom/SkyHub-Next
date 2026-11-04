@@ -67,6 +67,10 @@ Höhe über Grund entlang der Route (alle ~25 m): Boden am Start + Höhe über S
 und Bäume). Startpunkt = `takeOffRefPoint`, sonst erster Wegpunkt (Warnung). Geländefolge-Routen werden übersprungen, WGS84 nicht
 umgerechnet. **Standard aus.** Der öffentliche Dienst `api.opentopodata.org` erhält die Routenkoordinaten (1 Anfrage/s,
 1000/Tag); ein eigener Open-Topo-Data-Dienst auf brix-node hält sie lokal.
+**Eigener Dienst (Entscheidung 04.11.2026):** Compose-Profil `terrain`, Dienst `opentopodata` (ajnisbet/opentopodata v1.10.0,
+MIT, aus festem Upstream-Commit gebaut), nur internes Netz. Daten: Copernicus DEM GLO-30 (Oberflächenmodell, ~30 m; © DLR e.V.
+2010-2014 und © Airbus Defence and Space GmbH 2014-2018, bereitgestellt unter COPERNICUS von EU und ESA) per
+`bash scripts/terrain-dem-fetch.sh 48 49 7 9`; Backend `SKYHUB_TERRAIN_URL=http://opentopodata:5000`, `SKYHUB_TERRAIN_DATASET=cop30`.
 
 ### Flughülle (`backend/mission-envelope.js`)
 Aus `wpmz/waylines.wpml` (ausführbare Datei, DJI WPML 1.0.x laut 1.18):

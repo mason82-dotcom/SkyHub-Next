@@ -247,7 +247,7 @@ test('terrain check (optional): findings join the check, an error above 120 m ab
   try{
     let info=await srv.call('GET','/'+a.id);
     assert.equal(info.body.check.ok,true);
-    assert.ok(info.body.check.warnings.some(w=>/no buildings or trees/.test(w)));
+    assert.ok(info.body.check.warnings.some(w=>/not reliably included/.test(w)));
     assert.ok(!info.body.check.warnings.some(w=>/^heights are relative to the take-off point/.test(w)),'generic warning replaced');
     assert.equal(info.body.check.envelope.terrain.maxAgl.aglM,95);
     assert.equal('route' in info.body.check,false,'waypoint list not sent');

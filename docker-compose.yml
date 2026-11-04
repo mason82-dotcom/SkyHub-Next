@@ -210,6 +210,7 @@ services:
       - default
       - thermal_sdk
       - live
+      - terrain
   # DJI Thermal SDK (dji_irp, x86-64) via box64 on the Pi 5. Opt-in: compose profile "thermal-sdk".
   # Internal network only (no host port, no internet); the SDK directory is mounted read-only and is
   # never part of the image (DJI license). The backend talks to it with SKYHUB_THERMAL_SDK_TOKEN.
@@ -238,12 +239,45 @@ services:
         read_only: true
     networks:
       - thermal_sdk
+  # Own elevation service for the terrain check of the mission release (backend/mission-terrain.js). Opt-in: compose
+  # profile "terrain". Open Topo Data (ajnisbet/opentopodata, MIT) built from a pinned upstream commit (v1.10.0);
+  # data and config from ops/terrain (scripts/terrain-dem-fetch.sh). Internal network only: no host port, no internet,
+  # route coordinates never leave the stack. Backend: SKYHUB_TERRAIN_URL=http://opentopodata:5000.
+  opentopodata:
+    profiles: ["terrain"]
+    build:
+      context: https://github.com/ajnisbet/opentopodata.git#b6d115663076476ef5ee795a5bff2e87e1a3c68f
+      dockerfile: docker/Dockerfile
+    image: skyhub-opentopodata:1.10.0
+    restart: unless-stopped
+    logging: *default-logging
+    labels: *no-watchtower
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETUID, SETGID, DAC_OVERRIDE]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 768m
+    cpus: 1.0
+    pids_limit: 128
+    volumes:
+      - type: bind
+        source: ${SKYHUB_TERRAIN_DIR:-./ops/terrain}/config.yaml
+        target: /app/config.yaml
+        read_only: true
+      - type: bind
+        source: ${SKYHUB_TERRAIN_DIR:-./ops/terrain}/data
+        target: /app/data
+        read_only: true
+    networks:
+      - terrain
 volumes:
   pgdata:
   redis_data:
   minio_data:
   tile_cache:
 networks:
+  # Backend <-> opentopodata only; internal: no route to the outside.
+  terrain:
+    internal: true
   # Backend <-> thermal-sdk only; internal: no route to the outside.
   thermal_sdk:
     internal: true

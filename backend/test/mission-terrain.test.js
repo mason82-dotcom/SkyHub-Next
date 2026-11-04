@@ -44,7 +44,7 @@ test('height above ground: rising ground lowers the clearance; >120 m above grou
   let f=terrainFindings(r);
   assert.deepEqual(f.errors,[]);
   assert.ok(f.warnings.some(w=>/take-off point assumed/.test(w)));
-  assert.ok(f.warnings.some(w=>/no buildings or trees/.test(w)));
+  assert.ok(f.warnings.some(w=>/not reliably included/.test(w)));
   // Take-off on the hill (reference 0.002° north) and route going down south: ground falls away → too high above ground.
   const down=[0,1,2].map(i=>({lat:49.1-i*0.001,lon:8.5,heightAboveTakeoffM:110,heightMode:'relativeToStartPoint'}));
   r=await t.check('b',down,{lat:49.102,lon:8.5});

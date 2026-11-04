@@ -8,7 +8,8 @@
 // Height above ground for relativeToStartPoint routes: ground(take-off) + height above take-off − ground(point).
 // The take-off point is wpml:takeOffRefPoint if present, otherwise ASSUMED to be the first waypoint (flagged).
 // realTimeFollowSurface routes fly at height above ground already; WGS84 routes are not converted (geoid unknown).
-// A DEM knows neither buildings nor trees and has 25–30 m cells: the result is a plausibility check, not clearance.
+// A 25–30 m elevation model does not reliably contain buildings, trees or masts (Copernicus GLO-30 is a surface model
+// that includes them only roughly): the result is a plausibility check, not obstacle clearance.
 const BATCH=100,MAX_SAMPLES=600,STEP_M=25;
 
 const RAD=Math.PI/180,R=6371008.8;
@@ -120,7 +121,7 @@ function terrainFindings(t,{maxHeightM=120,minAglM=15}={}){
     return {errors,warnings};
   }
   if(t.status!=='ok')return {errors,warnings};
-  warnings.push('terrain from '+t.dataset+' (25-30 m grid, no buildings or trees): highest '+t.maxAgl.aglM+' m and lowest '+
+  warnings.push('terrain from '+t.dataset+' (25-30 m grid, buildings, trees and masts not reliably included): highest '+t.maxAgl.aglM+' m and lowest '+
     t.minAgl.aglM+' m above ground; obstacles must still be checked on site');
   if(t.assumedTakeoff)warnings.push('terrain: take-off point assumed at the first waypoint (ground '+t.takeoffGroundM+' m); a different take-off point shifts all heights above ground');
   if(t.maxAgl.aglM>maxHeightM)errors.push('terrain: '+t.maxAgl.aglM+' m above ground near waypoint '+t.maxAgl.waypoint+' exceeds '+maxHeightM+' m');
