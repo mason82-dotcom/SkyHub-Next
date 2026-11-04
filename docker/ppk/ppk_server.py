@@ -169,6 +169,9 @@ def run_job(job: dict) -> None:
             # Offline: never download IGS products; broadcast ephemeris unless precise files were uploaded.
             ppk_solver.download_igs_data = lambda *a, **k: [str(x) for x in precise]
             default_ppk_dict.DEFAULT_PPK_CONF["pos1-sateph"] = "precise" if precise else "brdc"
+            # SAPOS GPPS thins archived base data to 15 s after 200 days; without interpolation RTKLIB would only
+            # fix rover epochs that coincide with a base epoch. Harmless for 1 s base data (times then match).
+            default_ppk_dict.DEFAULT_PPK_CONF["misc-timeinterp"] = "on"
             job["ephemeris"] = "präzise (hochgeladen)" if precise else "Broadcast (SAPOS-Navigationsdatei)"
             prog = Progress(on_progress=lambda ev: job.update(message=str(getattr(ev, "message", ""))[:160],
                                                               fraction=getattr(ev, "fraction", None)),
