@@ -42,7 +42,7 @@ test('a verified upload is stored write-once under its name by "Pilot 2"; callba
   assert.equal(r.created,true);
   assert.deepEqual(x.calls.get,[{bucket:'dji-cloud',key:KEY,opts:{ifMatch:'"e"'}}]);   // read bound to the HEAD ETag
   assert.equal(x.calls.put.length,1);
-  assert.deepEqual(x.calls.put[0].opts,{name:'Michaelsberg',username:'Pilot 2'});
+  assert.deepEqual(x.calls.put[0].opts,{name:'Michaelsberg',username:'Pilot 2',origin:'pilot2'});
   assert.ok(x.calls.put[0].buf.equals(KMZ));
   assert.equal(x.calls.audit.at(-1).action,'wayline-import');
 });

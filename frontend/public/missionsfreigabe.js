@@ -82,6 +82,7 @@
     [/^terrain: ([-\d.]+) m above ground near waypoint (\d+) exceeds ([\d.]+) m/,m=>'Gelände: '+m[1]+' m über Grund bei Wegpunkt '+m[2]+' – mehr als '+m[3]+' m.'],
     [/^terrain: only ([-\d.]+) m above ground near waypoint (\d+) \(below ([\d.]+) m\)/,m=>'Gelände: nur '+m[1]+' m über Grund bei Wegpunkt '+m[2]+' (unter '+m[3]+' m).'],
     [/^terrain: (\d+) route points without elevation data/,m=>'Gelände: '+m[1]+' Routenpunkte ohne Höhendaten.'],
+    [/^droneSubEnumValue (\d+) \(([^)]+)\) does not match camera (\d+) of the ([^:]+): treated as/,m=>'Route nennt '+m[2]+' (Untertyp '+m[1]+'), die Kamera '+m[3]+' gehört aber zur '+m[4]+'. Wie in Pilot 2 gilt die Kamera: Route wird als '+m[4]+' behandelt. Fluggerät in Pilot 2 prüfen.'],
     [/^terrain not checked: elevation service unavailable/,()=>'Gelände nicht geprüft: Höhendienst nicht erreichbar – Höhen über Grund selbst prüfen.'],
     [/^no take-off reference point/,()=>'Kein Startbezugspunkt: Entfernung und Dauer sind ab dem ersten Wegpunkt gerechnet.'],
     [/^heights are relative to the take-off point, not to the ground.*exceed ([\d.]+) m/,m=>'Höhen gelten relativ zum Startpunkt, nicht zum Boden: Gelände entlang der Route prüfen (ansteigendes Gelände verringert den Abstand, abfallendes kann mehr als '+m[1]+' m über Grund ergeben).'],

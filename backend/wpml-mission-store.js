@@ -122,6 +122,7 @@ function fromMetadata(id,head){
     templateTypes:(m['template-types']||'').split(',').filter(t=>/^[0-3]$/.test(t)).map(Number),
     aircraft:dec(m.aircraft),
     username:dec(m['user-name']),
+    origin:m.origin==='pilot2'?'pilot2':null,
     wpmlVersion:/^1\.0\.\d$/.test(m['wpml-version']||'')?m['wpml-version']:null,
     waypointCount:n(m['waypoint-count']),
     createTime:n(m['create-time'])??(head.LastModified?.getTime?.()||null),
@@ -240,7 +241,7 @@ function createWpmlMissionStore({env=process.env,client,now=()=>new Date(),cache
     const wanted=new Set(names.map(n=>String(n)));
     return [...new Set((await catalog({fresh:true})).map(w=>w.name).filter(n=>wanted.has(n)))];
   }
-  function put(buffer,{name,username,parentId}={}){
+  function put(buffer,{name,username,parentId,origin}={}){
     if(!Buffer.isBuffer(buffer)||buffer.length<22)return Promise.reject(httpError(400,'KMZ body required'));
     if(buffer.length>MAX_KMZ)return Promise.reject(httpError(413,'KMZ exceeds 12 MiB'));
     let missionName;
@@ -250,7 +251,7 @@ function createWpmlMissionStore({env=process.env,client,now=()=>new Date(),cache
       return Promise.reject(httpError(400,'Invalid parent wayline id'));
     return serialized(async()=>{
       let validation;
-      try{validation=inspectKmz(buffer);}
+      try{validation=inspectKmz(buffer,{cameraDecides:origin==='pilot2'});}
       catch(err){throw httpError(422,'KMZ archive rejected',{errors:[{path:'kmz',
         message:String(err.message||'invalid archive').slice(0,160)}]});}
       if(!validation.valid){
@@ -295,7 +296,8 @@ function createWpmlMissionStore({env=process.env,client,now=()=>new Date(),cache
         // Immutable, S3-native ancestry. Root is inherited only from a validated parent.
         ...(parent?{'parent-id':parent.id,'root-id':parent.rootId,
           generation:String(parent.generation+1)}:{}),
-        'flight-ready':'false'
+        'flight-ready':'false',
+        ...(origin==='pilot2'?{origin:'pilot2'}:{})
       };
       let created=true;
       try{

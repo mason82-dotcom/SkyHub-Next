@@ -105,7 +105,7 @@ function createPilotWaylineImport({workspace,media,headObject,getObject,store,au
     // No ':' etc. (DJI name rule); minutes as HHhMM.
     const name=item.name||('Pilot 2 '+new Date(now).toISOString().slice(0,16).replace('T',' ').replace(':','h'));
     let stored;
-    try{stored=await store.put(bytes,{name,username:'Pilot 2'});}
+    try{stored=await store.put(bytes,{name,username:'Pilot 2',origin:'pilot2'});}
     catch(err){
       const status=err&&err.status;
       audit({action:'wayline-import-rejected',status:status||500,name,principal:principal?.userId||null});

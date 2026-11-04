@@ -180,7 +180,7 @@ function createMissionReleaseRouter({express,store,releases,config,terrain=null,
     if(!meta){const e=new Error('Route nicht gefunden');e.status=404;throw e;}
     const {bytes}=await store.get(id);    // get() verifies waylineId(sha256(bytes)) === id
     const sha256=crypto.createHash('sha256').update(bytes).digest('hex');
-    const check=checkMission(bytes,config.limits);
+    const check=checkMission(bytes,config.limits,{cameraDecides:meta.origin==='pilot2'});
     // Optional terrain check (mission-terrain.js): height above ground along the route. Cached per route hash so the
     // check shown to the operator and the one at release time carry the same warnings.
     if(terrain&&check.envelope&&check.route){

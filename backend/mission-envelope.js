@@ -69,7 +69,7 @@ function parseRefPoint(raw){
 }
 const round=(v,d=1)=>v===null?null:Math.round(v*10**d)/10**d;
 
-function computeEnvelope(waylinesXml,templateXml){
+function computeEnvelope(waylinesXml,templateXml,options={}){
   const errors=[],warnings=[];
   let root,ns,wpmlVersion;
   try{({root,ns,version:wpmlVersion}=parseWpml(waylinesXml));}
@@ -79,11 +79,12 @@ function computeEnvelope(waylinesXml,templateXml){
   const config=one(doc,'wpml:missionConfig');
   if(!config)return {errors:['wpml:missionConfig missing'],warnings,envelope:null};
   const drone=one(config,'wpml:droneInfo'),payload=one(config,'wpml:payloadInfo');
-  const droneType=num(text(drone,'droneEnumValue')),droneSub=num(text(drone,'droneSubEnumValue'))??0;
+  const droneType=num(text(drone,'droneEnumValue'));let droneSub=num(text(drone,'droneSubEnumValue'))??0;
   const payloadType=num(text(payload,'payloadEnumValue')),payloadIndex=num(text(payload,'payloadPositionIndex'))??0;
   if(droneType===null)errors.push('aircraft (wpml:droneEnumValue) missing: a release must name the aircraft');
   else if(DOCK_ONLY_DRONES.has(droneType))errors.push('dock-only aircraft (droneEnumValue '+droneType+'): no RC on site can fly this route');
-  const aircraft=droneType===null?{model:null,errors:[],warnings:[]}:assessAircraft(droneType,droneSub,payloadType,payloadIndex);
+  const aircraft=droneType===null?{model:null,errors:[],warnings:[]}:assessAircraft(droneType,droneSub,payloadType,payloadIndex,options);
+  if(aircraft.effectiveSubtype!==undefined)droneSub=aircraft.effectiveSubtype;     // camera decides within the family (see wpml-product-support.js)
   errors.push(...aircraft.errors);warnings.push(...aircraft.warnings);
   // Take-off reference: missionConfig in waylines.wpml or, as written by DJI Pilot 2, in template.kml.
   // [T:163] takeOffRefPoint <latitude,longitude,altitude> (ellipsoid height), template.kml only, optional.
@@ -221,10 +222,10 @@ function checkLimits(envelope,limits=DEFAULT_LIMITS){
 }
 
 // Full check of a stored KMZ: envelope plus limits. Pure function of the bytes and the limits.
-function checkMission(kmzBytes,limits){
+function checkMission(kmzBytes,limits,options={}){
   let docs;
   try{docs=readKmz(kmzBytes);}catch(err){return {ok:false,errors:['KMZ unreadable: '+err.message],warnings:[],envelope:null};}
-  const base=computeEnvelope(docs.waylines,docs.template);
+  const base=computeEnvelope(docs.waylines,docs.template,options);
   const lim=checkLimits(base.envelope,limits);
   const errors=[...base.errors,...lim.errors],warnings=[...base.warnings,...lim.warnings];
   return {ok:errors.length===0,errors,warnings,envelope:base.envelope,limits:{...DEFAULT_LIMITS,...limits},route:base.route||null};
