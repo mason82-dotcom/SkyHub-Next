@@ -171,6 +171,10 @@
     $('dState').className=c.ok?'ok':'bad';
     const dl=$('envelope');dl.replaceChildren();
     for(const [k,label,f] of ENVELOPE)if(c.envelope)dl.append(el('dt',{},label),el('dd',{},f(c.envelope[k])));
+    const terr=c.envelope&&c.envelope.terrain;
+    $('profileBox').hidden=!terr;
+    if(terr&&window.SkyHubElevationProfile)window.SkyHubElevationProfile.render($('profile'),terr,
+      {maxHeightM:(config&&config.limits&&config.limits.maxHeightM)||120,minAglM:(config&&config.terrain&&config.terrain.minAglM)||15});
     $('errorsBox').hidden=!c.errors.length;
     $('errors').replaceChildren(...c.errors.map(e=>el('li',{},message(e))));
     $('warningsBox').hidden=!c.warnings.length;

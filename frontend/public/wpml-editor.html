@@ -40,6 +40,7 @@ hr{border:0;border-top:1px solid var(--edge);margin:16px 0}
 @media(max-width:880px){main{grid-template-columns:1fr}.map-wrap{height:43vh;min-height:280px}#map{min-height:280px}aside{max-height:none;border-left:0;border-top:1px solid var(--edge)}}
 </style>
 <link rel="stylesheet" href="/skyhub-light.css">
+<link rel="stylesheet" href="/elevation-profile.css">
 </head>
 <body data-skyhub-page="wpml-editor">
 <a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
@@ -153,6 +154,14 @@ hr{border:0;border-top:1px solid var(--edge);margin:16px 0}
      <div id="mission-review" class="waypoint" role="status" aria-live="polite">Lokale Prüfung noch nicht verfügbar. Kein Flugbereitschaftsnachweis.</div>
    </section>
    <hr>
+   <section aria-labelledby="h-profile">
+     <h2 id="h-profile">Höhenprofil (Gelände)</h2>
+     <p class="caption">Sendet die Wegpunkte einmalig an den SkyHub-Höhendienst im Heimnetz (Copernicus-Geländemodell, nur Landkreis Karlsruhe geladen); nichts wird gespeichert. Startpunkt = erster Wegpunkt. Gebäude, Bäume und Masten sind im Modell nicht zuverlässig enthalten.</p>
+     <div class="tools"><button type="button" id="profile-run" disabled>Höhenprofil berechnen</button></div>
+     <p id="profile-status" class="caption" role="status" aria-live="polite"></p>
+     <div id="profile-chart"></div>
+   </section>
+   <hr>
    <button type="submit" id="export">WPML-KMZ lokal exportieren</button>
    <p class="caption">Ausgegeben werden template.kml und waylines.wpml im KMZ-Archiv. Wegpunkte, relative und WGS84-Ellipsoidhöhen sowie experimentelle, noch nicht in DJI Pilot 2 geprüfte Intervall-Fotoaktionen. Mapping2D/3D, Korridore, Terrain-Referenzen und Multispektralaktionen werden hier noch nicht zu Missionswegen berechnet.</p>
    <div id="message" role="status" aria-live="polite">Mindestens zwei unterschiedliche Wegpunkte setzen.</div>
@@ -196,6 +205,8 @@ hr{border:0;border-top:1px solid var(--edge);margin:16px 0}
 <script src="/wpml-waylines-reference.js"></script>
 <script src="/wpml-mission-review.js"></script>
 <script src="/geozones-layer.js"></script>
+<script src="/elevation-profile.js"></script>
+<script src="/wpml-terrain-client.js"></script>
 <script src="/wpml-editor.js"></script>
 </body>
 </html>

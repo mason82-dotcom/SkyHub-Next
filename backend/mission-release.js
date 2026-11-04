@@ -204,7 +204,7 @@ function createMissionReleaseRouter({express,store,releases,config,terrain=null,
   };
 
   router.get('/config',(req,res)=>send(res,200,{checklist:CHECKLIST,limits:{...DEFAULT_LIMITS,...config.limits},
-    hours:config.hours,reference:'DJI Cloud API 1.18: Route geht über die Pilot-2-Bibliothek an das Fluggerät; Start nur auf der Fernsteuerung'}));
+    hours:config.hours,terrain:terrain?{dataset:terrain.config.dataset,minAglM:terrain.config.minAglM}:null,reference:'DJI Cloud API 1.18: Route geht über die Pilot-2-Bibliothek an das Fluggerät; Start nur auf der Fernsteuerung'}));
 
   // Read-only overview of the active releases (for the release page list). Needs normal SkyHub access only.
   // `visible` applies the same rules as the Pilot 2 library (hash and aircraft must still match the stored route).

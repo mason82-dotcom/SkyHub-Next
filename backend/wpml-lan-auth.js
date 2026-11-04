@@ -12,7 +12,7 @@ const DRC_COMMANDS=new Set(['auth/request','release','live/enter','live/exit','f
 // drc-payload.js COMMANDS (camera_mode, photo_take, gimbal_reset, …): lower case with underscores, checked again by the router.
 const DRC_PAYLOAD=/^payload\/[a-z][a-z_]{1,31}$/;
 const WRITES=Object.freeze({
-  POST:path=>path==='/wpml/missions'||path==='/thermal/export'||path==='/ppk/jobs'||path==='/ppk/jobs/storage'||RELEASE.test(path)||
+  POST:path=>path==='/wpml/missions'||path==='/thermal/export'||path==='/ppk/jobs'||path==='/ppk/jobs/storage'||path==='/terrain/profile'||RELEASE.test(path)||
     (path.startsWith('/drc/')&&(DRC_COMMANDS.has(path.slice(5))||DRC_PAYLOAD.test(path.slice(5)))),
   DELETE:path=>RELEASE.test(path)||/^\/(thermal\/export|ppk\/jobs)\/[0-9a-f]{24}$/.test(path)
 });

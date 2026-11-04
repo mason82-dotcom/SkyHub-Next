@@ -33,7 +33,7 @@ const {drcConfig,createDrcRuntime}=require('./drc-runtime');
 const {createDjiWaylineRouter,createRedisFavorites,UPLOAD_DISABLED_CODE}=require('./dji-wayline-http');
 let pilotWaylineImport=null;
 const {createPilotWaylineImport,ImportError}=require('./pilot-wayline-import');
-const {terrainConfig,createTerrainClient}=require('./mission-terrain');
+const {terrainConfig,createTerrainClient,createTerrainRouter}=require('./mission-terrain');
 const {ppkConfig,createPpkRouter}=require('./ppk');
 const {createPpkStorage}=require('./ppk-storage');
 const {createSmartFarmingCatalogRouter}=require('./smart-farming-catalog');
@@ -298,6 +298,7 @@ if(wpmlStore&&missionRelease.enabled){
     const terrain=terrainSettings.enabled?createTerrainClient(terrainSettings):null;
     if(terrain)console.log('[terrain] height above ground check active ('+terrainSettings.dataset+(terrainSettings.public?', PUBLIC service: route coordinates leave the network':'')+')');
     app.use('/api/wpml/release',createMissionReleaseRouter({express,store:wpmlStore,releases:releaseStore,config:missionRelease,terrain}));
+    if(terrain)app.use('/api/terrain',createTerrainRouter({express,terrain}));
     console.log('[mission release] active ('+missionRelease.hours+' h validity)');
   }
 }

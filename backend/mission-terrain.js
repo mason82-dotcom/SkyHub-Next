@@ -37,18 +37,19 @@ function terrainConfig(env=process.env){
 
 // Densify the route (straight lines between waypoints) so ridges between waypoints are seen.
 function routeSamples(points,{stepM=STEP_M,max=MAX_SAMPLES}={}){
-  const out=[];
+  const out=[];let d=0;
   for(let i=0;i<points.length;i++){
     const a=points[i];
-    out.push({lat:a.lat,lon:a.lon,h:a.heightAboveTakeoffM,wp:i});
+    out.push({lat:a.lat,lon:a.lon,h:a.heightAboveTakeoffM,wp:i,d});
     const b=points[i+1];
     if(!b)break;
-    const n=Math.min(50,Math.floor(haversine(a,b)/stepM));
+    const seg=haversine(a,b),n=Math.min(50,Math.floor(seg/stepM));
     for(let k=1;k<n;k++){
       const t=k/n;
       out.push({lat:a.lat+(b.lat-a.lat)*t,lon:a.lon+(b.lon-a.lon)*t,
-        h:a.heightAboveTakeoffM===null||b.heightAboveTakeoffM===null?null:a.heightAboveTakeoffM+(b.heightAboveTakeoffM-a.heightAboveTakeoffM)*t,wp:i+t});
+        h:a.heightAboveTakeoffM===null||b.heightAboveTakeoffM===null?null:a.heightAboveTakeoffM+(b.heightAboveTakeoffM-a.heightAboveTakeoffM)*t,wp:i+t,d:d+seg*t});
     }
+    d+=seg;
   }
   if(out.length<=max)return out;
   const every=out.length/max;                       // thin out evenly, always keep waypoints
@@ -96,6 +97,12 @@ function createTerrainClient(config,{fetchImpl=globalThis.fetch,timeoutMs=8000,c
     const g0=ground[0];
     if(g0===null)return {status:'unavailable',reason:'no elevation at the take-off point'};
     let max=null,min=null,gMin=null,gMax=null,missing=0;
+    // Profile along the route for the charts (editor, release page): distance, ground and flight height above sea level.
+    const profile=samples.map((p,i)=>{
+      const g=ground[i+1];
+      return {d:round(p.d,0),ground:g===null?null:round(g),flight:p.h===null?null:round(g0+p.h),
+        agl:g===null||p.h===null?null:round(g0+p.h-g),...(Number.isInteger(p.wp)?{wp:p.wp+1}:{})};
+    });
     samples.forEach((p,i)=>{
       const g=ground[i+1];
       if(g===null||p.h===null){missing++;return;}
@@ -107,9 +114,9 @@ function createTerrainClient(config,{fetchImpl=globalThis.fetch,timeoutMs=8000,c
     if(!max)return {status:'unavailable',reason:'no elevations along the route'};
     const at=x=>({aglM:round(x.agl),waypoint:Math.floor(x.wp)+1,lat:round(x.lat,6),lon:round(x.lon,6)});
     return {status:'ok',dataset:config.dataset,samples:samples.length,missing,assumedTakeoff:!ref,
-      takeoffGroundM:round(g0),groundMinM:round(gMin),groundMaxM:round(gMax),maxAgl:at(max),minAgl:at(min)};
+      takeoffGroundM:round(g0),groundMinM:round(gMin),groundMaxM:round(gMax),maxAgl:at(max),minAgl:at(min),profile};
   }
-  return {check,elevations,config};
+  return {check,compute,elevations,config};
 }
 
 // Errors/warnings for the release from a terrain result (exact texts: they are acknowledged one by one).
@@ -130,4 +137,35 @@ function terrainFindings(t,{maxHeightM=120,minAglM=15}={}){
   return {errors,warnings};
 }
 
-module.exports={terrainConfig,createTerrainClient,terrainFindings,routeSamples,haversine};
+// Editor profile: POST /api/terrain/profile {points:[{lat,lon,h}], takeoff?:{lat,lon}} with h = height above take-off (m).
+// Only on explicit request from the editor; the route is not stored. Same computation as the release check.
+function parseProfileRequest(body){
+  const pts=body&&body.points;
+  if(!Array.isArray(pts)||pts.length<2||pts.length>500)return null;
+  const num=(v,lo,hi)=>typeof v==='number'&&Number.isFinite(v)&&v>=lo&&v<=hi;
+  const points=[];
+  for(const p of pts){
+    if(!p||!num(p.lat,-90,90)||!num(p.lon,-180,180)||!num(p.h,-200,1500))return null;
+    points.push({lat:p.lat,lon:p.lon,heightMode:'relativeToStartPoint',heightAboveTakeoffM:p.h});
+  }
+  const t=body.takeoff;
+  if(t!==undefined&&t!==null&&(!num(t.lat,-90,90)||!num(t.lon,-180,180)))return null;
+  return {points,ref:t?{lat:t.lat,lon:t.lon}:null};
+}
+function createTerrainRouter({express,terrain,maxPerMinute=30,now=()=>Date.now()}){
+  const router=express.Router();
+  let window=[];
+  router.post('/profile',express.json({limit:'64kb'}),async(req,res)=>{
+    res.set('Cache-Control','no-store');
+    const parsed=parseProfileRequest(req.body);
+    if(!parsed)return res.status(400).json({error:'2–500 Wegpunkte mit lat, lon und h (Höhe über Start) erwartet'});
+    const t=now();window=window.filter(x=>t-x<60000);
+    if(window.length>=maxPerMinute)return res.status(429).json({error:'Zu viele Anfragen, bitte kurz warten'});
+    window.push(t);
+    const result=await terrain.compute(parsed.points,parsed.ref);
+    res.json({...result,minAglM:terrain.config.minAglM});
+  });
+  return router;
+}
+
+module.exports={terrainConfig,createTerrainClient,terrainFindings,routeSamples,haversine,parseProfileRequest,createTerrainRouter};

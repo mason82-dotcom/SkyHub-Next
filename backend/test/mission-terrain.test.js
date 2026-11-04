@@ -70,3 +70,37 @@ test('cache per route key; unavailable service and terrain-follow routes are han
   assert.deepEqual(follow,{status:'skipped',reason:'terrain-follow'});
   assert.deepEqual(terrainFindings(follow),{errors:[],warnings:[]});
 });
+
+test('profile: distance, ground and flight height per sample; waypoints marked',async()=>{
+  const {createTerrainClient}=require('../mission-terrain');
+  const fetchImpl=async url=>{
+    const locs=decodeURIComponent(new URL(url).searchParams.get('locations')).split('|');
+    return {ok:true,json:async()=>({status:'OK',results:locs.map((l,i)=>({elevation:100+i}))})};
+  };
+  const c=createTerrainClient({base:'http://t',dataset:'cop30',minAglM:15},{fetchImpl});
+  const pts=[{lat:49,lon:8.5,heightMode:'relativeToStartPoint',heightAboveTakeoffM:50},{lat:49.001,lon:8.5,heightMode:'relativeToStartPoint',heightAboveTakeoffM:60}];
+  const r=await c.compute(pts,null);
+  assert.equal(r.status,'ok');
+  assert.equal(r.profile[0].d,0);assert.equal(r.profile[0].wp,1);assert.equal(r.profile.at(-1).wp,2);
+  assert.ok(r.profile.at(-1).d>100&&r.profile.at(-1).d<120);
+  assert.equal(r.profile[0].flight,150);assert.equal(r.profile[0].agl,r.profile[0].flight-r.profile[0].ground);
+});
+
+test('profile request: validated, rate limited, no storage',async()=>{
+  const {parseProfileRequest,createTerrainRouter}=require('../mission-terrain');
+  assert.equal(parseProfileRequest({points:[{lat:49,lon:8,h:50}]}),null,'two points needed');
+  assert.equal(parseProfileRequest({points:[{lat:49,lon:8,h:50},{lat:91,lon:8,h:50}]}),null);
+  assert.equal(parseProfileRequest({points:[{lat:49,lon:8,h:'50'},{lat:49,lon:8,h:50}]}),null);
+  assert.deepEqual(parseProfileRequest({points:[{lat:49,lon:8,h:50},{lat:49.1,lon:8,h:60}],takeoff:{lat:49,lon:8}}).ref,{lat:49,lon:8});
+  const express=require('express');
+  const app=express();
+  app.use('/t',createTerrainRouter({express,terrain:{config:{minAglM:15},compute:async()=>({status:'ok'})},maxPerMinute:1}));
+  const srv=app.listen(0);await new Promise(r=>srv.once('listening',r));
+  const url='http://127.0.0.1:'+srv.address().port+'/t/profile';
+  const post=b=>fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});
+  const ok={points:[{lat:49,lon:8,h:50},{lat:49.1,lon:8,h:60}]};
+  assert.equal((await post({points:[]})).status,400);
+  const r1=await post(ok);assert.equal(r1.status,200);assert.equal((await r1.json()).minAglM,15);
+  assert.equal((await post(ok)).status,429);
+  srv.close();
+});

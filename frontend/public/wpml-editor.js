@@ -290,8 +290,33 @@
     if(points.length===1)map.setView([points[0].lat,points[0].lon],Math.max(map.getZoom(),15));
     else map.fitBounds(L.latLngBounds(points.map(p=>[p.lat,p.lon])).pad(.15),{maxZoom:19});
   }
+  // --- Elevation profile (backend /api/terrain/profile, explicit request only) -----------------------------------------
+  var profileFor=null;
+  const profileInput=()=>{
+    const global=Number($('height').value),local=$('local-heights').checked;
+    return points.map(p=>({lat:p.lat,lon:p.lon,h:local&&Number.isFinite(p.height)?p.height:global}));
+  };
+  function profileStale(){
+    $('profile-run').disabled=points.length<2;
+    if(profileFor&&profileFor!==JSON.stringify(profileInput())){
+      $('profile-status').textContent='Route geändert – Profil neu berechnen.';$('profile-chart').replaceChildren();profileFor=null;
+    }
+  }
+  $('profile-run').addEventListener('click',async()=>{
+    const input=profileInput();
+    if(input.length<2||input.some(p=>!Number.isFinite(p.h)))return;
+    $('profile-run').disabled=true;$('profile-status').textContent='Geländehöhen werden abgefragt …';
+    try{
+      const b=await window.SkyHubTerrainClient.profile(input);
+      profileFor=JSON.stringify(input);
+      window.SkyHubElevationProfile.render($('profile-chart'),b,{maxHeightM:120,minAglM:b.minAglM||15});
+      $('profile-status').textContent=b.status==='ok'?(b.maxAgl.aglM>120?'Achtung: über 120 m über Grund bei Wegpunkt '+b.maxAgl.waypoint+'.':
+        b.minAgl.aglM<(b.minAglM||15)?'Achtung: nur '+b.minAgl.aglM+' m über Grund bei Wegpunkt '+b.minAgl.waypoint+'.':'Profil berechnet.'):'';
+    }catch(err){$('profile-status').textContent='Höhenprofil nicht verfügbar: '+err.message;$('profile-chart').replaceChildren();}
+    finally{$('profile-run').disabled=points.length<2;}
+  });
   function render(){
-    renderList();renderMap();updateReview();
+    renderList();renderMap();updateReview();profileStale();
     updateSaveState();
     $('export').disabled=points.length<2;
     $('undo').disabled=history.length===0;
@@ -459,6 +484,7 @@
   // Headless editor tests provide getElementById but no querySelector.
   // In browsers the form listener tracks all editable mission fields.
   document.querySelector?.('form')?.addEventListener('input',updateSaveState);
+  document.querySelector?.('form')?.addEventListener('input',()=>profileStale());
   document.querySelector?.('form')?.addEventListener('change',updateSaveState);
   // ASCII-only, filesystem-safe download name derived from the mission name.
   function fileStem(name){
