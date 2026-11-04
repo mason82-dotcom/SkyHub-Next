@@ -143,7 +143,7 @@ function createThermalExport({fetchSource,parse,sdk,dir=path.join(os.tmpdir(),'s
           const m=frame.meta||{};
           const tif=writeTemperatureTiff({width:out.width,height:out.height,temps:out.temps,meta:{model:m.model,
             datetime:m.utcAtExposure,latitude:m.latitude,longitude:m.longitude,altitude:m.absoluteAltitude}});
-          let name=(it.key.split('/').pop()||'image').replace(/\.jpe?g$/i,'')+'.tif';
+          let name=(it.name||it.key.split('/').pop()||'image').replace(/[\\/:*?"<>|\x00-\x1f]/g,'_').replace(/\.jpe?g$/i,'')+'.tif';
           while(used.has(name))name=name.replace(/\.tif$/,'_'+used.size+'.tif');
           used.add(name);
           zip.add(name,tif);

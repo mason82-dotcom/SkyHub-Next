@@ -318,12 +318,19 @@ function createThermalRouter({storage,bucketIndex,buckets,sdk=null}={}){
       if(!exporter)return res.status(404).json({error:'DJI Thermal SDK nicht eingerichtet'});
       const b=req.body&&typeof req.body==='object'?req.body:{};
       if(!Array.isArray(b.items)||!b.items.length||b.items.length>MAX_ITEMS)return res.status(400).json({error:'1 bis '+MAX_ITEMS+' Bilder auswählen'});
-      const allowed=new Set(await buckets());
+      // Only objects the thermal index lists as DJI thermal images (Pilot 2 stores them under technical names; the DJI
+      // file name comes from the index and names the TIFF).
+      const allowed=new Set(await buckets()),thermal=new Map();
+      for(const bucket of new Set(b.items.map(it=>it&&it.bucket)))
+        if(allowed.has(bucket))for(const o of (await bucketIndex(bucket)).objects){
+          const name=o.displayName||o.key.split('/').pop();
+          if(isThermalName(name))thermal.set(bucket+'\n'+o.key,name);
+        }
       const items=[];
       for(const it of b.items){
-        if(!it||typeof it.bucket!=='string'||!allowed.has(it.bucket)||typeof it.key!=='string'||!it.key||it.key.length>1024||
-           /[\x00-\x1f\x7f]/.test(it.key)||!isThermalName(it.key.split('/').pop()))return res.status(400).json({error:'Ungültige Bildauswahl'});
-        items.push({bucket:it.bucket,key:it.key});
+        const name=it&&typeof it.bucket==='string'&&typeof it.key==='string'?thermal.get(it.bucket+'\n'+it.key):undefined;
+        if(!name)return res.status(400).json({error:'Ungültige Bildauswahl (kein Wärmebild im Index)'});
+        items.push({bucket:it.bucket,key:it.key,name});
       }
       let params;
       try{params=sdkParameters(b.parameters||{});}catch(err){return res.status(400).json({error:err.message});}
