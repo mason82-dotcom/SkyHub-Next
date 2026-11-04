@@ -8,8 +8,8 @@
 <link rel="stylesheet" href="/missionsfreigabe.css">
 <style>
 .ppk-source{border:0;padding:0;margin:0 0 8px}.ppk-source legend{font-weight:600;margin-bottom:4px}
-.ppk-flights label{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line,#d0d7de)}
-.ppk-flights input{margin-top:3px;min-width:20px;min-height:20px}
+.ppk-flights label{display:flex;flex-direction:row;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line,#d0d7de)}
+.ppk-flights input{flex:0 0 auto;width:20px;height:20px;margin-top:2px}
 .ppk-flights small{display:block;color:var(--muted,#57606a)}
 .ppk-flights .bad small{color:#b3261e}
 </style>
@@ -37,7 +37,7 @@
       <div id="storageFlights" class="ppk-flights"></div>
     </div>
     <div id="srcSd" hidden>
-      <label>Ordner wählen (z. B. <code>DCIM/DJI_202611041030_001_…</code>), mehrere nacheinander möglich
+      <label><span>Ordner wählen (z. B. <code>DCIM/DJI_202611041030_001_…</code>), mehrere nacheinander möglich</span>
         <input id="flight" type="file" webkitdirectory multiple></label>
       <ul id="flights" class="history"></ul>
       <button id="flightsClear" type="button" class="secondary">Auswahl leeren</button>
@@ -45,7 +45,7 @@
   </section>
   <section class="card" aria-labelledby="h-base">
     <h2 id="h-base">2 · SAPOS-Referenzstation</h2>
-    <label>RINEX-Dateien: Beobachtung (<code>…_MO.rnx</code> / <code>.26o</code>) und Navigation (<code>…_MN.rnx</code> / <code>.26n</code>), optional SP3/CLK
+    <label><span>RINEX-Dateien: Beobachtung (<code>…_MO.rnx</code> / <code>.26o</code>) und Navigation (<code>…_MN.rnx</code> / <code>.26n</code>), optional SP3/CLK</span>
       <input id="base" type="file" multiple></label>
     <ul id="baseList" class="history"></ul>
     <p class="small muted">Empfohlen: im SAPOS-GPPS-Shop eine <strong>virtuelle Referenzstation</strong> an der Flugstelle bestellen –
