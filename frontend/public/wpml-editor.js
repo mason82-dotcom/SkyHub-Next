@@ -11,6 +11,8 @@
   if(!core){$('message').textContent='WPML-Modul nicht geladen – kein Export möglich.';return;}
   const points=[];
   let map=null,markers=[],line=null,hasFit=false;
+  // Turn mode of the route ('stop' or 'pass' with damping); an orbit sets 'pass', clearing the route resets it.
+  let routeTurn={mode:'stop',damping:null},orbitPicking=false,poiLayer=null;
   // Undo history of waypoint edits (bounded, in memory only).
   const history=[];
   function remember(){
@@ -36,7 +38,10 @@
       maxZoom:19,attribution:'© OpenStreetMap contributors',
       referrerPolicy:'strict-origin-when-cross-origin'
     }).addTo(map);
-    map.on('click',event=>addPoint(event.latlng.lat,event.latlng.lng));
+    map.on('click',event=>{
+      if(orbitPicking){setOrbitCenter(event.latlng.lat,event.latlng.lng);return;}
+      addPoint(event.latlng.lat,event.latlng.lng);
+    });
   }else{
     $('map').textContent='Kartendienst nicht verfügbar. Wegpunkte können weiterhin manuell hinzugefügt und als KMZ exportiert werden.';
     $('map').style.padding='32px 18px';
@@ -101,6 +106,43 @@
     if(typeof raw!=='number'||!Number.isFinite(raw)||raw<min||raw>max)return null;
     return Math.round(raw*10000000)/10000000;
   }
+  // --- Orbit around a point of interest (core.orbit) --------------------------------------------------------------------
+  function setOrbitCenter(lat,lon){
+    $('orbit-lat').value=String(Math.round(lat*1e7)/1e7);$('orbit-lon').value=String(Math.round(lon*1e7)/1e7);
+    orbitPicking=false;$('orbit-pick').setAttribute('aria-pressed','false');$('orbit-pick').textContent='Objekt in der Karte wählen';
+    $('orbit-status').textContent='Objekt gesetzt. Jetzt „Orbit erzeugen“.';
+  }
+  $('orbit-pick').addEventListener('click',()=>{
+    orbitPicking=!orbitPicking;
+    $('orbit-pick').setAttribute('aria-pressed',String(orbitPicking));
+    $('orbit-pick').textContent=orbitPicking?'Klick in die Karte setzt das Objekt … (abbrechen)':'Objekt in der Karte wählen';
+    $('orbit-status').textContent=orbitPicking?'Nächster Kartenklick setzt das Objekt (kein Wegpunkt).':'';
+  });
+  $('orbit-create').addEventListener('click',()=>{
+    try{
+      const o=core.orbit({center:{lat:$('orbit-lat').value,lon:$('orbit-lon').value},radiusM:$('orbit-radius').value,
+        points:$('orbit-points').value,heightM:$('orbit-height').value,poiHeightM:$('orbit-poi-height').value,
+        direction:$('orbit-direction').value,startBearing:$('orbit-start').value,photo:$('orbit-photo').checked});
+      if(points.length&&!window.confirm('Die '+points.length+' vorhandenen Wegpunkte durch den Orbit ersetzen?'))return;
+      remember();
+      $('local-heights').checked=false;
+      $('height').value=String(o.waypoints[0].height);
+      points.splice(0,points.length,...o.waypoints.map(p=>({...p,poi:{...p.poi}})));
+      routeTurn={mode:'pass',damping:o.turnDampingM};
+      if($('photo-trigger').value!=='reachPoint'){$('photo-trigger').value='reachPoint';photoModeUpdate();}
+      hasFit=false;render();
+      $('orbit-status').textContent='Orbit: '+(o.waypoints.length-1)+' Punkte, '+o.lengthM+' m Kreis, Abschnitte '+o.segmentM+
+        ' m, Gimbal '+o.gimbalPitch+'°, Kurven durchfliegend. Vor dem Flug in Pilot 2 prüfen.';
+      renderMessage('Orbit erzeugt. Die Nase zeigt zum Objekt; die Gimbal-Neigung wird an jedem Punkt gesetzt.');
+    }catch(error){
+      const why=error&&error.message?error.message.replace(/^.*invalid: /,''):'';
+      const de={'orbit center required':'Objekt fehlt','orbit center latitude':'Breitengrad des Objekts','orbit center longitude':'Längengrad des Objekts',
+        'orbit radius':'Radius (5–500 m)','orbit points':'Wegpunkte (4–72)','orbit height':'Flughöhe (2–120 m)','POI height':'Objekthöhe (0–120 m)',
+        'start bearing':'Startrichtung (0–360°)'};
+      const key=Object.keys(de).find(k=>why.startsWith(k));
+      $('orbit-status').textContent='Bitte prüfen: '+(key?de[key]:why||'Orbit fehlgeschlagen')+'.';
+    }
+  });
   function addPoint(lat,lon){
     const latitude=normalizeCoordinate(lat,-90,90);
     const longitude=normalizeCoordinate(lon,-180,180);
@@ -227,12 +269,25 @@
     if(points.length>1){
       line=L.polyline(points.map(p=>[p.lat,p.lon]),{color:'#2458d3',weight:4,opacity:.9}).addTo(map);
     }
+    // Points of interest: marker and thin sight lines from each waypoint that faces it.
+    if(poiLayer){map.removeLayer(poiLayer);poiLayer=null;}
+    const facing=points.filter(p=>p.poi);
+    if(facing.length){
+      poiLayer=L.layerGroup().addTo(map);
+      const seen=new Set();
+      for(const p of facing){
+        L.polyline([[p.lat,p.lon],[p.poi.lat,p.poi.lon]],{color:'#1e7b34',weight:1,opacity:.6,dashArray:'3 4'}).addTo(poiLayer);
+        const k=p.poi.lat+','+p.poi.lon;
+        if(!seen.has(k)){seen.add(k);L.circleMarker([p.poi.lat,p.poi.lon],{radius:7,color:'#1e7b34',fillOpacity:.8})
+          .bindTooltip('Objekt (POI)').addTo(poiLayer);}
+      }
+    }
     if(!hasFit){fitRoute();hasFit=true;}
   }
   function fitRoute(){
     if(!map||!points.length)return;
     if(points.length===1)map.setView([points[0].lat,points[0].lon],Math.max(map.getZoom(),15));
-    else map.fitBounds(L.latLngBounds(points.map(p=>[p.lat,p.lon])).pad(.15),{maxZoom:17});
+    else map.fitBounds(L.latLngBounds(points.map(p=>[p.lat,p.lon])).pad(.15),{maxZoom:19});
   }
   function render(){
     renderList();renderMap();updateReview();
@@ -252,7 +307,7 @@
   $('clear').addEventListener('click',()=>{
     if(!points.length)return;
     if(!window.confirm('Alle Wegpunkte aus dem Entwurf entfernen?'))return;
-    remember();points.length=0;hasFit=false;
+    remember();points.length=0;hasFit=false;routeTurn={mode:'stop',damping:null};
     currentParentId=null;savedPlanSignature=null;render();
   });
   $('undo').addEventListener('click',undo);
@@ -339,7 +394,7 @@
     $('photo-trigger').value='reachPoint';
     $('photo-interval-fields').hidden=true;
     remember();
-    points.splice(0,points.length,...mapped.plan.waypoints.map(p=>({...p})));
+    points.splice(0,points.length,...mapped.plan.waypoints.map(p=>({...p})));routeTurn={mode:'stop',damping:null};
     currentParentId=null;savedPlanSignature=null;
     hasFit=false;
     render();
@@ -380,9 +435,11 @@
       ...($('rth')&&String($('rth').value).trim()!==''?{rthHeight:Number($('rth').value)}:{}),
       finishAction:$('finish').value,
       ...(intervalPhotos?{intervalPhotos}:{}),
-      waypoints:points.map(p=>$('local-heights').checked?
+      ...(routeTurn.mode==='pass'?{turnMode:'pass',turnDampingM:routeTurn.damping}:{}),
+      waypoints:points.map(p=>({...($('local-heights').checked?
         {lat:p.lat,lon:p.lon,height:p.height,ellipsoidHeight:p.ellipsoidHeight,photo:p.photo}:
-        {lat:p.lat,lon:p.lon,height,photo:p.photo})
+        {lat:p.lat,lon:p.lon,height,photo:p.photo}),
+        ...(p.poi?{poi:{lat:p.poi.lat,lon:p.poi.lon}}:{}),...(p.gimbalPitch!=null?{gimbalPitch:p.gimbalPitch}:{})}))
     };
   }
   // No background network writes. The baseline is set only after an explicit successful save.
@@ -566,7 +623,7 @@
     photoModeUpdate();
     if(plan.intervalPhotos)$('photo-interval').value=String(plan.intervalPhotos.interval);
     remember();
-    points.splice(0,points.length,...plan.waypoints.map(p=>({...p})));
+    points.splice(0,points.length,...plan.waypoints.map(p=>({...p})));routeTurn={mode:'stop',damping:null};
     currentParentId=linkedParent;savedPlanSignature=null;
     hasFit=false;
     render();

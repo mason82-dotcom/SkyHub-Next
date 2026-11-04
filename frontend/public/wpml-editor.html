@@ -111,6 +111,25 @@ hr{border:0;border-top:1px solid var(--edge);margin:16px 0}
    <div class="tools"><button type="button" id="add">Koordinate hinzufügen</button><button type="button" id="undo" disabled title="Letzte Wegpunktänderung rückgängig machen">Rückgängig</button><button type="button" id="reverse">Richtung umkehren</button><button type="button" id="clear">Route leeren</button><button type="button" id="fit">Route einpassen</button></div>
    <div id="waypoints" role="list" aria-label="Wegpunktliste"></div>
    <hr>
+   <h2>Orbit um ein Objekt</h2>
+   <p class="caption">Kreisflug um einen Punkt (z. B. Mast, Gebäude): Nase zum Objekt (DJI <code>towardPOI</code>), Gimbal-Neigung aus Abstand und Höhe berechnet, weiche Kurven. Ersetzt die aktuellen Wegpunkte. Idee: hdrpano/map-creator und fcsonline/droneroute (MIT).</p>
+   <div class="rows">
+    <div><label for="orbit-lat">Objekt Breitengrad (°)</label><input id="orbit-lat" type="number" step="any" min="-90" max="90"></div>
+    <div><label for="orbit-lon">Objekt Längengrad (°)</label><input id="orbit-lon" type="number" step="any" min="-180" max="180"></div>
+   </div>
+   <div class="tools"><button type="button" id="orbit-pick" aria-pressed="false">Objekt in der Karte wählen</button></div>
+   <div class="rows">
+    <div><label for="orbit-radius">Radius (m)</label><input id="orbit-radius" type="number" min="5" max="500" step="1" value="30"></div>
+    <div><label for="orbit-points">Wegpunkte auf dem Kreis</label><input id="orbit-points" type="number" min="4" max="72" step="1" value="12"></div>
+    <div><label for="orbit-height">Flughöhe über Start (m)</label><input id="orbit-height" type="number" min="2" max="120" step="1" value="40"></div>
+    <div><label for="orbit-poi-height">Höhe des Objektpunkts über Start (m)</label><input id="orbit-poi-height" type="number" min="0" max="120" step="1" value="10"></div>
+    <div><label for="orbit-start">Startrichtung vom Objekt (°, 0 = Nord)</label><input id="orbit-start" type="number" min="0" max="359" step="1" value="0"></div>
+    <div><label for="orbit-direction">Richtung</label><select id="orbit-direction"><option value="cw">im Uhrzeigersinn</option><option value="ccw">gegen den Uhrzeigersinn</option></select></div>
+   </div>
+   <label class="photo"><input type="checkbox" id="orbit-photo" checked> Foto an jedem Kreispunkt</label>
+   <div class="tools"><button type="button" id="orbit-create">Orbit erzeugen</button></div>
+   <p id="orbit-status" class="caption" role="status" aria-live="polite"></p>
+   <hr>
    <h2>Intervall-Fotoaktion (experimenteller WPML-Entwurf)</h2>
    <label for="photo-trigger">Aufnahmemodus</label>
    <select id="photo-trigger">
