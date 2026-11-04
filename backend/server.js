@@ -30,7 +30,9 @@ const {createMinioDrRouter}=require('./minio-dr-api');
 const {createWpmlMissionStore,createWpmlMissionRouter}=require('./wpml-mission-store');
 const {releaseConfig,createReleaseStore,pilotLibrary,createMissionReleaseRouter}=require('./mission-release');
 const {drcConfig,createDrcRuntime}=require('./drc-runtime');
-const {createDjiWaylineRouter,createRedisFavorites}=require('./dji-wayline-http');
+const {createDjiWaylineRouter,createRedisFavorites,UPLOAD_DISABLED_CODE}=require('./dji-wayline-http');
+let pilotWaylineImport=null;
+const {createPilotWaylineImport,ImportError}=require('./pilot-wayline-import');
 const {createSmartFarmingCatalogRouter}=require('./smart-farming-catalog');
 const {createHttpAuth}=require('./http-auth');
 const {mapPageReferrerPolicy}=require('./map-page-referrer');
@@ -301,8 +303,16 @@ if(wpmlStore&&pilot.wayline.enabled){
   else{
     const pilotRoutes=pilotLibrary(wpmlStore,releaseStore);
     if(!releaseStore)console.error('[pilot wayline] mission release not active: the Pilot 2 library stays empty (set SKYHUB_MISSION_RELEASE_*)');
+    // Uploads from Pilot 2 (decision 04.11.2026): accepted into the WPML store when the media upload grants exist,
+    // never released automatically. The import uses the full store; Pilot 2 still sees released routes only.
+    // Same STS grants as the media upload (dji_pilot_media_grants): the importer is attached once the media upload
+    // runtime exists (below); until then, or without it, uploads are refused.
+    const importUpload=(principal,body)=>{
+      if(!pilotWaylineImport)throw new ImportError(UPLOAD_DISABLED_CODE,'Wayline upload from Pilot 2 needs the Pilot media upload');
+      return pilotWaylineImport(principal,body);
+    };
     app.use(createDjiWaylineRouter({workspace:pilot.workspaceId,authorize:pilotAuth.principal,
-      store:pilotRoutes,favorites:createRedisFavorites(redis)}));
+      store:pilotRoutes,favorites:createRedisFavorites(redis),importUpload}));
     console.log('[pilot wayline] library active for Pilot 2 (released routes only)');
   }
 }
@@ -332,6 +342,12 @@ if(mediaUpload){
   app.use(mediaUpload.router);
   mediaUpload.start();
   console.log('[pilot media] upload sync active, S3 endpoint '+mediaUpload.endpoint);
+  if(wpmlStore&&pilot.wayline.enabled&&pilot.ready){
+    pilotWaylineImport=createPilotWaylineImport({workspace:pilot.workspaceId,media:mediaUpload.grants,
+      headObject:mediaStorage.headObject,getObject:mediaStorage.getObject,store:wpmlStore,
+      audit:e=>console.log('[pilot wayline] '+JSON.stringify(e))});
+    console.log('[pilot wayline] uploads from Pilot 2 accepted into the route store (visible in Pilot 2 only after release)');
+  }
 }
 
 app.get('/api/devices',(req,res)=>res.json(registry.snapshot()));
