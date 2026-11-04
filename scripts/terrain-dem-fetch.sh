@@ -38,7 +38,7 @@ done; done
 # covers the gaps; Open Topo Data then reads the single VRT file.
 IMAGE=${SKYHUB_TERRAIN_IMAGE:-skyhub-opentopodata:1.10.0}
 mkdir -p "$DIR/data/cop30vrt"
-docker run --rm --network none -v "$PWD/$DIR/data:/d" "$IMAGE" python3 - <<'PY'
+docker run -i --rm --network none -v "$PWD/$DIR/data:/d" "$IMAGE" python3 - <<'PY'
 import glob,os,rasterio
 files=sorted(glob.glob('/d/cop30/*.tif'))
 srcs=[rasterio.open(f) for f in files]
@@ -59,6 +59,7 @@ out+=['</VRTRasterBand>','</VRTDataset>']
 open('/d/cop30vrt/cop30.vrt','w').write('\n'.join(out)+'\n')
 print('VRT: %d Kacheln, %dx%d Pixel, %.4f..%.4f N, %.4f..%.4f O'%(len(files),W,H,bottom,top,left,right))
 PY
+[[ -s "$DIR/data/cop30vrt/cop30.vrt" ]] || { echo "VRT-Mosaik fehlt" >&2; exit 4; }
 cat > "$DIR/config.yaml" <<'YAML'
 # Written by scripts/terrain-dem-fetch.sh. Open Topo Data configuration for SkyHub (terrain check of the release).
 max_locations_per_request: 100
