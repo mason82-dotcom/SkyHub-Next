@@ -75,7 +75,7 @@ Abgelaufene Freigaben bleiben als Audit stehen.
   aus, zeigt Pilot 2 **nichts** (fail-closed, gewollt).
 - **Eigenes Freigabe-Token statt Rollenmodell:** klein, passt zum bestehenden Einzel-Token-Modell; ein echtes Benutzer-/Rollenmodell
   wäre später der Schritt bei mehreren Personen.
-- **Flugaufträge nur an Fluggeräte, über Pilot 2:** 1.18 schließt `flighttask_*` für RC-Gateways aus (`AbstractWaylineService`,
+- **Flugaufträge nur an Fluggeräte, über Pilot 2:** 1.18 kennt `flighttask_*` nur für Docks (`AbstractWaylineService`,
   `exclude = GatewayTypeEnum.RC`). Die Freigabe nennt Fluggerät und Nutzlast aus der KMZ; Routen für die nur am Dock fliegenden
   Matrice 3D/3TD/4D/4TD (Typ 91/100) werden nicht freigegeben.
 - **Docks (Entscheidung 04.11.2026):** keine Dock-Hardware vor Ort. Der Dock-Code im Backend (Profile, HMS, `dji-flighttask-*`)
@@ -122,3 +122,22 @@ Abgelaufene Freigaben bleiben als Audit stehen.
 - Geo-Zonen-Abgleich (dipul-GeoJSON) in der Flughülle (M3).
 - Orthomosaik-NDVI statt Einzelbild (ODM/DEDAL-Pfad aus den bestehenden Workern).
 - TAK eingehend (z. B. Sperrgebiete als Overlay) nur mit eigener Risikoanalyse (T2).
+
+## 8. Korrektur 04.11.2026: Cloud-Fernsteuerung über Pilot 2 (DRC)
+
+Die Annahme „Steuerbefehle aus der Cloud nur über ein Dock“ war falsch. Sie stützte sich auf das Demo-SDK in `third_party`, das
+älter ist als der 1.18-Stand. Die DJI-Referenz (developer.dji.com, *Pilot Feature Set → Live Flight Controls*,
+*pilot-to-cloud/mqtt/dji-rc-plus-2/drc* und */remote-control*; im 1.18-Feldkatalog des Projekts belegt durch
+`cloud_control_auth` und `drc_state` der RC Plus 2) sieht vor:
+
+| Gerät | Cloud-Steuerung |
+|---|---|
+| Matrice 4E/4T + RC Plus 2 | Flug und Nutzlast: `drc_mode_enter`, Knüppelsteuerung, fly-to (ein Zielpunkt, ändern, abbrechen), one-key-takeoff, one-key-return / cancel-return, Not-Aus, Notlandung, erzwungene Landung, ~30 Nutzlastbefehle |
+| Mavic 3E/3T/3M + RC Pro | nur Nutzlast (Gimbal, Zoom, Wärmebild); Pilot fliegt weiter mit den Knüppeln |
+
+Voraussetzungen und Folgen laut DJI: Der Pilot muss eine Anfrage auf der RC bestätigen (`cloud_control_auth_request`);
+**während der Cloud-Steuerung sind Drehrad, Knüppel, Rückkehr- und Not-Aus-Taste der RC wirkungslos**; DJI empfiehlt einen
+eigenen MQTT-Broker für die DRC-Verbindung. Flugaufträge (`flighttask_*`) gibt es für RC-Gateways weiterhin nicht.
+
+SkyHub implementiert das **nicht**. Es wäre ein eigenes Vorhaben mit eigener Risikoanalyse: Die Cloud wird zum Steuerer,
+die RC verliert ihre Notfallfunktionen.

@@ -28,6 +28,7 @@ const {createPilotMediaLibraryRuntime}=require('./pilot-media-library-runtime');
 const {createPilotMediaUploadRuntime}=require('./pilot-media-upload-runtime');
 const {createMinioDrRouter}=require('./minio-dr-api');
 const {createWpmlMissionStore,createWpmlMissionRouter}=require('./wpml-mission-store');
+const {releaseConfig,createReleaseStore,pilotLibrary,createMissionReleaseRouter}=require('./mission-release');
 const {createDjiWaylineRouter,createRedisFavorites}=require('./dji-wayline-http');
 const {createSmartFarmingCatalogRouter}=require('./smart-farming-catalog');
 const {createHttpAuth}=require('./http-auth');
@@ -274,16 +275,34 @@ if(process.env.SKYHUB_WPML_STORE_ENABLED==='true'){
     console.log('[wpml store] active, bucket '+wpmlStore.bucket);
   }catch(err){console.error('[wpml store] disabled:',err.message);}
 }
+// Mission release (docs/entwurf-missionsfreigabe-ndvi-tak-2026-11-04.md): checked, explicitly released revisions only.
+// DJI Cloud API 1.18: flight tasks (flighttask_*) are dock-only, routes reach the aircraft through the Pilot 2 library.
+// (Pilot live flight controls / DRC exist for RC Plus 2 + Matrice 4 and payload-only for M3E/M3T/M3M; not used by SkyHub.)
+const missionRelease=releaseConfig(process.env);
+let releaseStore=null;
+if(missionRelease.issue)console.error('[mission release] disabled:',missionRelease.issue);
+if(wpmlStore&&missionRelease.enabled){
+  if(!pool)console.error('[mission release] disabled: needs PostgreSQL (DATABASE_URL)');
+  else{
+    releaseStore=createReleaseStore(pool);
+    releaseStore.init().catch(err=>console.error('[mission release] schema:',err.message));
+    app.use('/api/wpml/release',createMissionReleaseRouter({express,store:wpmlStore,releases:releaseStore,config:missionRelease}));
+    console.log('[mission release] active ('+missionRelease.hours+' h validity)');
+  }
+}
 // DJI Pilot 2 wayline library (DJI Cloud API wayline/api/v1): list + presigned download only.
 // Separate opt-in; never creates a flight task (no flighttask_prepare / MQTT services).
+// Fail-closed since 04.11.2026 (risk M1): Pilot 2 sees ONLY released revisions; without mission release it sees none.
 if(pilot.wayline.issue)console.error('[pilot wayline] disabled:',pilot.wayline.issue);
 if(pilot.wayline.enabled&&!wpmlStore)console.error('[pilot wayline] disabled: WPML store is not active');
 if(wpmlStore&&pilot.wayline.enabled){
   if(!pilot.ready)console.error('[pilot wayline] disabled: Pilot 2 configuration is incomplete');
   else{
+    const pilotRoutes=pilotLibrary(wpmlStore,releaseStore);
+    if(!releaseStore)console.error('[pilot wayline] mission release not active: the Pilot 2 library stays empty (set SKYHUB_MISSION_RELEASE_*)');
     app.use(createDjiWaylineRouter({workspace:pilot.workspaceId,authorize:pilotAuth.principal,
-      store:wpmlStore,favorites:createRedisFavorites(redis)}));
-    console.log('[pilot wayline] library active for Pilot 2');
+      store:pilotRoutes,favorites:createRedisFavorites(redis)}));
+    console.log('[pilot wayline] library active for Pilot 2 (released routes only)');
   }
 }
 const mediaLibraryRouter=createPilotMediaLibraryRuntime({

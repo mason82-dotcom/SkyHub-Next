@@ -8,6 +8,14 @@
 
 **Navigationsstand ergänzt am 02.11.2026; dokumentierter Raspberry-Pi-Betriebsstand weiter vom 27.10.2026.** Primäre Einstiegspunkte sind der [Betriebsstand des Pi vom 27.10.2026](stand-2026-10-27-betriebsstand.md), der [Main-Audit des Quellcodes](stand-2026-10-25-main-audit.md) und die [Dokumentationspflege](dokumentationspflege.md). Die bisherige Repository-Statusdatei und die umfangreichen PR-Triageberichte sind ältere Messungen **desselben Tages** und kein Ersatz für eine aktuelle GitHub-Abfrage. Diese Navigation gilt für den Root-Stack `skyhub-next`. Die wichtigste Unterscheidung ist die zwischen dem **Code auf `main`** und **noch nicht integrierten Entwicklungszweigen**.
 
+## Missionsfreigabe, NDVI, TAK/CloudTAK (04.11.2026)
+
+[Risikoanalyse](risikoanalyse-missionsversand-ndvi-tak-2026-11-04.md) (17 Risiken; kritisch: Pilot 2 sah bisher jede gespeicherte Route) und
+[Entwurf](entwurf-missionsfreigabe-ndvi-tak-2026-11-04.md) gegen DJI Cloud API 1.18. Phase 1 im Backend: `backend/mission-envelope.js`
+(Flughülle, DJI-WPML-Regeln mit Quellenzeilen) und `backend/mission-release.js` (Freigabe mit eigenem Token; Pilot-2-Bibliothek zeigt nur
+Freigegebenes und ist ohne Freigabe-Funktion leer). Flugaufträge gehen nur über die Pilot-2-Bibliothek an die Fluggeräte; die
+Cloud-Fernsteuerung (DRC) der RC Plus 2 ist dokumentiert, aber nicht umgesetzt.
+
 ## AeroNexus-Integrationsentwicklung (02.11.2026)
 
 - [AeroNexusAdvanced P0: Funktionsmatrix, Quell-SHAs und Sicherheitsgrenzen](aeronexus-integration-matrix-2026-11-02.md) – unabhängige P1–P5-PRs ohne automatische Hardwarefreigabe.
