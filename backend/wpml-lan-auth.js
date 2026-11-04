@@ -2,9 +2,20 @@
 // Explicit, opt-in token-free access for the HTTPS home-LAN WPML mission library.
 // Other write APIs, DJI Pilot 2 and requests from outside the allowlisted network stay protected.
 const UUID='[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
-// Read-only: the mission store and the release overview/check (mission-release.js GET routes). Release and revoke are
-// POST/DELETE and stay behind the normal SkyHub access plus the release token.
-const READ=new RegExp('^/wpml/(?:missions(?:/status|/'+UUID+'(?:/kmz)?)?|release(?:/config|/'+UUID+')?)/?$');
+// Read-only: the mission store, the release overview/check (mission-release.js) and the live-control status (drc-runtime.js).
+const READ=new RegExp('^/(?:wpml/(?:missions(?:/status|/'+UUID+'(?:/kmz)?)?|release(?:/config|/'+UUID+')?)|drc/status)/?$');
+// Token-free writes from the home LAN (decision 04.11.2026: no token fields in the UI), always with browser same-origin proof.
+// Explicit allowlist per method (fail closed): a new route is NOT token-free until it is added here.
+const RELEASE=new RegExp('^/wpml/release/'+UUID+'/release$');
+const DRC_COMMANDS=new Set(['auth/request','release','live/enter','live/exit','flyto','flyto/stop','takeoff','return-home',
+  'return-home/cancel','emergency-stop','landing','payload/look-at']);
+// drc-payload.js COMMANDS (camera_mode, photo_take, gimbal_reset, …): lower case with underscores, checked again by the router.
+const DRC_PAYLOAD=/^payload\/[a-z][a-z_]{1,31}$/;
+const WRITES=Object.freeze({
+  POST:path=>path==='/wpml/missions'||RELEASE.test(path)||
+    (path.startsWith('/drc/')&&(DRC_COMMANDS.has(path.slice(5))||DRC_PAYLOAD.test(path.slice(5)))),
+  DELETE:path=>RELEASE.test(path)
+});
 function parseWpmlLanOrigins(raw){
   if(typeof raw!=='string'||!raw.trim()||raw.length>1024)
     throw new Error('SKYHUB_WPML_LAN_ORIGINS must list explicit HTTPS origins');
@@ -22,21 +33,32 @@ function parseWpmlLanOrigins(raw){
   return origins;
 }
 function createWpmlLanAuth({enabled=false,origins='',lanAccess}={}){
-  if(!enabled)return ()=>false;
+  if(!enabled){const off=()=>false;off.socket=()=>false;return off;}
   if(!lanAccess?.enabled)throw new Error('WPML LAN no-token access requires SKYHUB_LAN_VIEW_CIDR');
   const allowed=parseWpmlLanOrigins(origins);
-  return req=>{
+  const check=req=>{
     if(req.secure!==true)return false;
     const host=req.headers?.host;
     if(typeof host!=='string'||!allowed.has('https://'+host))return false;
     if(!lanAccess.allows(req.socket?.remoteAddress,req.headers?.['x-forwarded-for']))return false;
     if(req.method==='GET'||req.method==='HEAD')return READ.test(req.path);
-    if(req.method!=='POST'||req.path!=='/wpml/missions')return false;
+    if(!Object.hasOwn(WRITES,req.method)||!WRITES[req.method](req.path))return false;
     // Browser same-origin proof is mandatory for token-free writes.
     if(req.headers.origin!=='https://'+host)return false;
     if(req.headers['sec-fetch-site']!==undefined&&
       req.headers['sec-fetch-site']!=='same-origin')return false;
     return true;
   };
+  // Socket.IO handshake (live control): same rules for host, LAN client and Origin. HTTPS is taken from X-Forwarded-Proto
+  // only where Express would trust it (isTrustedProxy = the app's compiled "trust proxy" function, so the same
+  // loopback-bind condition applies as for req.secure), never from a direct client.
+  check.socket=(request,isTrustedProxy)=>{
+    const h=request?.headers||{},host=h.host,remote=request?.socket?.remoteAddress;
+    if(typeof host!=='string'||!allowed.has('https://'+host))return false;
+    if(typeof isTrustedProxy!=='function'||!isTrustedProxy(remote)||h['x-forwarded-proto']!=='https')return false;
+    if(!lanAccess.allows(remote,h['x-forwarded-for']))return false;
+    return h.origin==='https://'+host;
+  };
+  return check;
 }
 module.exports={createWpmlLanAuth,parseWpmlLanOrigins};

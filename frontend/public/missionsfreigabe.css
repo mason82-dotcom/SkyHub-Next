@@ -21,6 +21,8 @@ body.mrel{margin:0;background:var(--sky-bg);color:var(--sky-ink);font:14px/1.45 
 .card button.danger{background:#fff;color:#b3261e;border-color:#b3261e}
 .card button:disabled{opacity:.45;cursor:not-allowed}
 .card button:focus-visible,.card input:focus-visible,.check input:focus-visible{outline:3px solid #ffb703;outline-offset:2px}
+.row-inline{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px}
+.row-inline p{margin:0}
 .tablewrap{overflow-x:auto;position:relative}
 fieldset{min-width:0}
 table{width:100%;border-collapse:collapse}

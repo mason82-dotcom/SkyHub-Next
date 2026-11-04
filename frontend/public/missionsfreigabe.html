@@ -15,22 +15,14 @@
 
 <p class="mrel-note" role="note">
   Pilot 2 zeigt nur freigegebene Routen. Eine Freigabe gilt für genau diese Revision und läuft nach der gewählten Zeit ab.
-  Gestartet wird die Route immer vom Piloten an der Fernsteuerung.
+  Gestartet wird die Route immer vom Piloten an der Fernsteuerung. Freigeben geht nur im Heimnetz über diese Seite.
 </p>
 
 <main class="mrel-grid">
-  <section class="card" aria-labelledby="h-access">
-    <h2 id="h-access">Zugang</h2>
-    <label>SkyHub-Token <span class="muted">(zum Ansehen im Heimnetz meist leer, zum Freigeben nötig)</span>
-      <input id="viewToken" type="password" autocomplete="off"></label>
-    <label>Freigabe-Token <span class="muted">(nur zum Freigeben und Zurückziehen, wird nicht gespeichert)</span>
-      <input id="releaseToken" type="password" autocomplete="off"></label>
-    <button id="reload" type="button">Routen laden</button>
-    <p id="accessStatus" class="muted" role="status" aria-live="polite">Noch nicht geladen.</p>
-  </section>
-
   <section class="card wide" aria-labelledby="h-list">
     <h2 id="h-list">Routen auf dem Server</h2>
+    <div class="row-inline"><button id="reload" type="button" class="secondary">Neu laden</button>
+      <p id="accessStatus" class="muted" role="status" aria-live="polite">Lade …</p></div>
     <div class="tablewrap">
       <table>
         <caption class="sr-only">Gespeicherte Routen mit Freigabestatus</caption>

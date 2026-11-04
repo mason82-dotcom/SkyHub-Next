@@ -27,6 +27,8 @@
 - **Abheben** nur am Boden (≤ 2 m) aus Standby/Live-Steuerung, mit Rückkehr bei Signalverlust; Bestätigung durch Eintippen von ABHEBEN.
   **Landen** nur mit LANDEN.
 - **Ereignisse mit `need_reply`** (Anflug-/Abhebefortschritt, Knüppel ungültig, Rückkehrinfo) werden auf `events_reply` bestätigt.
+- **Zugang:** keine Token-Felder; Schreiben nur aus dem Heimnetz mit Same-Origin-Nachweis (oder Steuer-Token). Wer im Heimnetz die
+  Seite öffnen kann, kann autorisieren – die eigentliche Freigabe gibt weiterhin der Pilot an der RC (Zustimmung in Pilot 2).
 - **Audit:** jeder Befehl, jede Ablehnung und jede Fail-safe-Aktion in PostgreSQL (`drc_audit`), ohne Token.
 
 ## Kamera und Gimbal (Matrice 4E/4T)
@@ -80,7 +82,9 @@ kommt auf `drc/up` und wird über `seq` **und** Methode zugeordnet (5 s Zeitlimi
 2. **`.env`**: `SKYHUB_DRC_*` laut `.env.example`, `SKYHUB_DRC_GATEWAY_SN` = Seriennummer **der** RC Plus 2.
    `SKYHUB_DRC_BROKER_ADDRESS` = Adresse, unter der die RC den Broker erreicht (heute `192.168.178.63:1884`, Weiterleitung zum brix-node).
 3. Backend neu starten; Log: `[drc] live flight control active for RC …`.
-4. Oberfläche: `https://rpi5.fritz.box:4443/drc.html` (SkyHub-Token + Steuer-Token).
+4. Oberfläche: `https://rpi5.fritz.box:4443/drc.html`, **ohne Token-Eingabe** (Entscheidung 04.11.2026): Befehle nur aus dem Heimnetz
+   über HTTPS mit Same-Origin-Nachweis des Browsers (`wpml-lan-auth.js`, setzt `SKYHUB_WPML_LAN_NO_TOKEN_ENABLED` voraus); Live-Kanal
+   als WebSocket mit geprüftem `Origin`. Von außen/Tailscale gesperrt. `SKYHUB_DRC_TOKEN` bleibt als Zugang für Skripte.
 
 ## Mitlesen mit MQTTX (DJI-Empfehlung)
 Desktop: neue Verbindung, Host = Broker (`192.168.178.63`, Port `1884`), Benutzer `mqttx_debug`. Abonnieren:

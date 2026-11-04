@@ -165,10 +165,12 @@ function clientAddress(req){
 function createMissionReleaseRouter({express,store,releases,config,audit=e=>console.log('[mission release] '+JSON.stringify(e)),now=()=>new Date()}){
   const router=express.Router();
   const send=(res,status,body)=>{res.set('Cache-Control','no-store');return res.status(status).json(body);};
+  // Release/revoke: from the home LAN with same-origin proof (req.skyhubLan, set by http-auth/wpml-lan-auth; decision
+  // 04.11.2026, no token field in the UI), or with the release token (scripts, access outside the LAN rules).
   function requireReleaseToken(req,res){
-    if(tokenMatches(req.get('X-SkyHub-Release-Token'),config.token))return true;
+    if(req.skyhubLan===true||tokenMatches(req.get('X-SkyHub-Release-Token'),config.token))return true;
     audit({ts:now().toISOString(),action:'denied',from:clientAddress(req),path:req.path});
-    send(res,403,{error:'Freigabe-Token fehlt oder ist falsch'});
+    send(res,403,{error:'Freigeben nur im Heimnetz über die SkyHub-Seite (oder mit Freigabe-Token)'});
     return false;
   }
   async function load(id){
@@ -227,7 +229,8 @@ function createMissionReleaseRouter({express,store,releases,config,audit=e=>cons
       droneModelKey:check.envelope.droneModelKey,payloadModelKeys:check.envelope.payloadModelKeys,envelope:check.envelope,
       acknowledged:{warnings:check.warnings,checklist:Object.keys(CHECKLIST)},releasedAt:released,
       expiresAt:new Date(released.getTime()+hours*3600e3),from});
-    audit({ts:released.toISOString(),action:'release',wayline:meta.id,sha256,aircraft:check.envelope.aircraft,hours,from});
+    audit({ts:released.toISOString(),action:'release',wayline:meta.id,sha256,aircraft:check.envelope.aircraft,hours,from,
+      via:req.skyhubLan===true?'lan':'token'});
     send(res,201,{release:r});
   }));
 
@@ -237,7 +240,7 @@ function createMissionReleaseRouter({express,store,releases,config,audit=e=>cons
     const reason=typeof req.body?.reason==='string'?req.body.reason.slice(0,200):'zurückgezogen';
     const from=clientAddress(req);
     const revoked=await releases.revoke(req.params.id,{from,reason});
-    audit({ts:now().toISOString(),action:'revoke',wayline:req.params.id,count:revoked.length,from});
+    audit({ts:now().toISOString(),action:'revoke',wayline:req.params.id,count:revoked.length,from,via:req.skyhubLan===true?'lan':'token'});
     send(res,revoked.length?200:404,revoked.length?{revoked}:{error:'Keine aktive Freigabe'});
   }));
   return router;

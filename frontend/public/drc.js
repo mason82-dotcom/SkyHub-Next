@@ -16,15 +16,13 @@
     $('log').prepend(li);
     while($('log').children.length>100)$('log').lastChild.remove();
   }
-  const tokens=()=>({view:$('viewToken').value.trim(),drc:$('drcToken').value.trim()});
+  // No token fields (decision 04.11.2026): the server accepts the home LAN over HTTPS with same-origin proof.
   async function call(path,body){
-    const t=tokens();
-    const headers={'Content-Type':'application/json','X-SkyHub-DRC-Token':t.drc,'X-SkyHub-Operator':operator};
-    if(t.view)headers.Authorization='Bearer '+t.view;
+    const headers={'Content-Type':'application/json','X-SkyHub-Operator':operator};
     const res=await fetch('/api/drc'+path,{method:body===undefined?'GET':'POST',headers,body:body===undefined?undefined:JSON.stringify(body),cache:'no-store'});
     const data=await res.json().catch(()=>({}));
     if(data.status)render(data.status);
-    if(!res.ok)throw new Error(data.error||('HTTP '+res.status));
+    if(!res.ok)throw new Error(res.status===401||res.status===403?'Kein Zugriff: nur im Heimnetz über https://rpi5.fritz.box:4443':(data.error||('HTTP '+res.status)));
     return data;
   }
   async function action(label,path,body){
@@ -34,11 +32,8 @@
 
   // --- Verbindung und Lebenszeichen ---------------------------------------------------------------------------------------
   function connect(){
-    const t=tokens();
-    if(!t.drc){log('Steuer-Token fehlt','bad');return;}
-    if(store){store.setItem('drcView',t.view);}
     if(socket)socket.close();
-    socket=io('/drc',{auth:{token:t.view||undefined,drcToken:t.drc,operator},reconnectionDelayMax:2000});
+    socket=io('/drc',{auth:{operator},transports:['websocket'],reconnectionAttempts:30,reconnectionDelayMax:5000});   // WebSocket: the handshake carries Origin (LAN gate)
     socket.on('connect',()=>{$('conn').textContent='verbunden';$('conn').className='ok';log('Live-Verbindung steht');});
     socket.on('connect_error',err=>{$('conn').textContent='Fehler: '+err.message;$('conn').className='bad';});
     socket.on('disconnect',()=>{$('conn').textContent='getrennt';$('conn').className='bad';});
@@ -256,5 +251,5 @@
     if(live&&any&&socket&&socket.connected)socket.emit('stick',v);
   },100);
 
-  if(store&&store.getItem('drcView'))$('viewToken').value=store.getItem('drcView');
+  connect();
 })();

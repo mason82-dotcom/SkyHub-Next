@@ -48,9 +48,9 @@ tausend Wegpunkte. NDVI-Serien bis einige hundert Aufnahmen (je 4 Bänder à ~2,
 ### Oberfläche (`frontend/public/missionsfreigabe.html`, Stand 04.11.2026)
 Liste der Routen auf dem Server mit Status „in Pilot 2 sichtbar bis …“ (`GET /api/wpml/release`; `visible` nach denselben Regeln wie
 die Pilot-2-Bibliothek: Hash und Fluggerät müssen noch passen), Prüfung mit Flughülle, Fehlern, einzeln zu bestätigenden Warnungen und
-Checkliste, Gültigkeit in Stunden, Freigeben und Zurückziehen mit Grund, Verlauf. Lesen geht im Heimnetz ohne Token, wenn der
-WPML-Heimnetzzugang eingeschaltet ist (`wpml-lan-auth.js`); Freigeben und Zurückziehen brauchen immer SkyHub-Zugang **und**
-Freigabe-Token. Tokens werden nicht gespeichert. Erreichbar über die Routenverwaltung und die Übersicht.
+Checkliste, Gültigkeit in Stunden, Freigeben und Zurückziehen mit Grund, Verlauf. **Keine Token-Felder** (Entscheidung 04.11.2026): Lesen,
+Freigeben und Zurückziehen gehen aus dem Heimnetz über HTTPS, Schreiben nur mit Same-Origin-Nachweis des Browsers
+(`wpml-lan-auth.js`, `req.skyhubLan`). Von außen gesperrt; das Freigabe-Token bleibt als Zugang für Skripte. Erreichbar über die Routenverwaltung und die Übersicht.
 Offen: Prüfmeldungen kommen englisch vom Server (die Bestätigung erfolgt mit dem exakten Text); eine deutsche Anzeige wäre zusätzlich.
 
 ### Flughülle (`backend/mission-envelope.js`)

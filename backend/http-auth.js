@@ -33,7 +33,8 @@ function createHttpAuth({secret,lanAccess,wpmlLanAuth}){
   function auth(req,res,next){
     const hdr=req.headers.authorization||'';
     if(lanView(req))return next();
-    if(!hdr && allowWpmlLan(req))return next();
+    // Token-free home-LAN access (reads and same-origin writes); downstream routers see req.skyhubLan.
+    if(!hdr && allowWpmlLan(req)){req.skyhubLan=true;return next();}
     if(!authorized(hdr.startsWith('Bearer ')?hdr.slice(7):'')){
       return res.status(401).json({error:'Unauthorized'});
     }
@@ -44,6 +45,6 @@ function createHttpAuth({secret,lanAccess,wpmlLanAuth}){
       lanAccess.allows(socket.request.socket.remoteAddress,socket.handshake.headers['x-forwarded-for'])
       ?next():next(new Error('Unauthorized'));
   }
-  return {authorized,auth,socketAuth};
+  return {authorized,auth,socketAuth,lanSocket:allowWpmlLan.socket};
 }
 module.exports={createHttpAuth};

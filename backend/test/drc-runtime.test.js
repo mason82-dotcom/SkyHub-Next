@@ -93,3 +93,41 @@ test('compose passes the DRC settings to the backend (default off)',()=>{
   for(const k of ['TOKEN','GATEWAY_SN','MQTT_URL','MQTT_USERNAME','MQTT_PASSWORD','BROKER_ADDRESS','BROKER_USERNAME','BROKER_PASSWORD','BROKER_TLS',
     'MAX_SPEED_MS','MAX_HEIGHT_M','MAX_DISTANCE_M','STICK_SCALE'])assert.ok(compose.includes('SKYHUB_DRC_'+k+':'),k);
 });
+
+test('home LAN: no token needed when the LAN gate marked the request (req.skyhubLan); otherwise still denied',async()=>{
+  const mqtt=fakeMqtt();
+  const rt=createDrcRuntime({config:drcConfig(ENV),registry:registry(),pool:null,io:fakeIo(),express,mqttConnect:()=>mqtt,log:{log(){},error(){}}});
+  mqtt.emit('connect');
+  const app=express();app.use(express.json());
+  app.use((req,res,next)=>{if(req.get('X-Test-Lan')==='1')req.skyhubLan=true;next();});   // stands in for http-auth
+  app.use('/api/drc',rt.router);
+  const server=http.createServer(app);await new Promise(r=>server.listen(0,'127.0.0.1',r));
+  const base='http://127.0.0.1:'+server.address().port+'/api/drc';
+  const call=(method,path,headers={})=>fetch(base+path,{method,headers:{'Content-Type':'application/json',...headers},body:method==='POST'?'{}':undefined})
+    .then(r=>r.status);
+  try{
+    assert.equal(await call('GET','/status'),403);
+    assert.equal(await call('GET','/status',{'X-Test-Lan':'1'}),200);
+    assert.equal(await call('POST','/release',{'X-Test-Lan':'1'}),400,'operator id still required');
+    assert.equal(await call('POST','/release',{'X-Test-Lan':'1','X-SkyHub-Operator':'operator-tab-1'}),200);
+    assert.equal(await call('POST','/release',{'X-SkyHub-Operator':'operator-tab-1'}),403);
+  }finally{server.close();await rt.shutdown();}
+});
+
+test('home LAN socket check: allowed host, trusted proxy with https, LAN client and same Origin are all required',()=>{
+  const {createHttpAuth}=require('../http-auth');
+  const {createLanAccess}=require('../lan-access');
+  const {lanSocket}=createHttpAuth({secret:'s'.repeat(32),lanAccess:createLanAccess('192.168.178.0/24',require('../proxy-trust').parseTrustedProxyIps('192.168.178.63')),
+    wpmlLanAuth:{enabled:true,origins:'https://rpi5.fritz.box:4443'}});
+  const proxy=ip=>ip==='192.168.178.63';
+  const ok={headers:{host:'rpi5.fritz.box:4443','x-forwarded-proto':'https','x-forwarded-for':'192.168.178.39',origin:'https://rpi5.fritz.box:4443'},
+    socket:{remoteAddress:'192.168.178.63'}};
+  assert.equal(lanSocket(ok,proxy),true);
+  const variant=(h,remote)=>({headers:{...ok.headers,...h},socket:{remoteAddress:remote||ok.socket.remoteAddress}});
+  assert.equal(lanSocket(variant({origin:'https://evil.example'}),proxy),false);
+  assert.equal(lanSocket(variant({origin:undefined}),proxy),false);
+  assert.equal(lanSocket(variant({'x-forwarded-proto':'http'}),proxy),false);
+  assert.equal(lanSocket(variant({'x-forwarded-for':'100.64.0.7'}),proxy),false);
+  assert.equal(lanSocket(variant({host:'rpi5.fritz.box'}),proxy),false);
+  assert.equal(lanSocket(variant({},'192.168.178.77'),proxy),false,'direct client cannot claim https');
+});

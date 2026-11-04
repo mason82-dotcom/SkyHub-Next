@@ -211,3 +211,25 @@ test('compose passes the release settings to the backend (default off)',()=>{
   assert.match(compose,/SKYHUB_MISSION_RELEASE_TOKEN: \$\{SKYHUB_MISSION_RELEASE_TOKEN:-\}/);
   for(const k of ['HEIGHT_M','RTH_HEIGHT_M','SPEED_MS','DURATION_MIN','DISTANCE_M'])assert.ok(compose.includes('SKYHUB_MISSION_MAX_'+k+':'),k);
 });
+
+test('home LAN: release and revoke without token when the LAN gate marked the request; otherwise 403',async()=>{
+  const a=entry(Buffer.from(planner.build(plan(50)).kmz));
+  const releases=fakeReleases();
+  const config=releaseConfig({SKYHUB_MISSION_RELEASE_ENABLED:'true',SKYHUB_MISSION_RELEASE_TOKEN:TOKEN});
+  const app=express();app.use(express.json());
+  app.use((req,res,next)=>{if(req.get('X-Test-Lan')==='1')req.skyhubLan=true;next();});   // stands in for http-auth
+  app.use('/api/wpml/release',createMissionReleaseRouter({express,store:fakeStore([a]),releases,config,audit:()=>{}}));
+  const server=http.createServer(app);await new Promise(r=>server.listen(0,'127.0.0.1',r));
+  const base='http://127.0.0.1:'+server.address().port+'/api/wpml/release';
+  const call=(method,path,body,headers={})=>fetch(base+path,{method,headers:{'Content-Type':'application/json',...headers},
+    body:body===undefined?undefined:JSON.stringify(body)}).then(async r=>({status:r.status,body:await r.json()}));
+  try{
+    const info=await call('GET','/'+a.id);
+    const body={sha256:info.body.sha256,acknowledgedWarnings:info.body.check.warnings,checklist:allChecked};
+    assert.equal((await call('POST','/'+a.id+'/release',body)).status,403);
+    assert.equal((await call('POST','/'+a.id+'/release',{...body,checklist:{}},{'X-Test-Lan':'1'})).status,409,'checks still apply');
+    assert.equal((await call('POST','/'+a.id+'/release',body,{'X-Test-Lan':'1'})).status,201);
+    assert.equal((await call('DELETE','/'+a.id+'/release',{reason:'Test'})).status,403);
+    assert.equal((await call('DELETE','/'+a.id+'/release',{reason:'Test'},{'X-Test-Lan':'1'})).status,200);
+  }finally{server.close();}
+});

@@ -1,7 +1,8 @@
 'use strict';
 // Wiring of the live flight control (DRC) for one pinned DJI RC Plus 2 + Matrice 4E/4T: configuration, a dedicated MQTT
 // connection, the registry adapter, the audit trail, the HTTP API and the Socket.IO namespace for lease and sticks.
-// Off by default. Every control action needs the normal SkyHub access PLUS the DRC token (X-SkyHub-DRC-Token).
+// Off by default. Control actions need either the home-LAN same-origin access (req.skyhubLan / lanSocket; decision 04.11.2026,
+// no token field in the UI) or the DRC token (X-SkyHub-DRC-Token) on top of the normal SkyHub access.
 const crypto=require('node:crypto');
 const P=require('./drc-protocol');
 const PL=require('./drc-payload');
@@ -69,7 +70,7 @@ function aircraftFromRegistry(registry,gateway){
   };
 }
 
-function createDrcRuntime({config,registry,pool,io,express,mqttConnect,socketAuth,log=console}){
+function createDrcRuntime({config,registry,pool,io,express,mqttConnect,socketAuth,lanSocket=()=>false,log=console}){
   const audit=entry=>{
     const {gateway,action,...detail}=entry;
     log.log('[drc] '+JSON.stringify(entry));
@@ -123,13 +124,16 @@ function createDrcRuntime({config,registry,pool,io,express,mqttConnect,socketAut
   const router=express.Router();
   router.use((req,res,next)=>{
     res.set('Cache-Control','no-store');
-    if(!tokenOk(req.get('X-SkyHub-DRC-Token'),config.token)){
+    if(req.skyhubLan!==true&&!tokenOk(req.get('X-SkyHub-DRC-Token'),config.token)){
       audit({gateway:gw,action:'denied',path:req.path});
-      return res.status(403).json({error:'Steuer-Token fehlt oder ist falsch'});
+      return res.status(403).json({error:'Live-Steuerung nur im Heimnetz über die SkyHub-Seite (oder mit Steuer-Token)'});
     }
     const op=req.get('X-SkyHub-Operator');
     if(req.method!=='GET'&&!/^[A-Za-z0-9_-]{8,64}$/.test(op||''))return res.status(400).json({error:'Bediener-Kennung fehlt'});
     req.operator=op;
+    // Who sent it: access path (home LAN without token, or token) and client address, for every command.
+    if(req.method!=='GET')audit({gateway:gw,action:'request',path:req.path,operator:op,via:req.skyhubLan===true?'lan':'token',
+      from:String(req.ip||req.socket?.remoteAddress||'?').slice(0,64)});
     next();
   });
   const act=fn=>async(req,res)=>{
@@ -167,10 +171,11 @@ function createDrcRuntime({config,registry,pool,io,express,mqttConnect,socketAut
 
   // --- Socket.IO: lease keep-alive and sticks (high rate, no HTTP overhead) --------------------------------------------
   if(typeof socketAuth==='function')nsp.use(socketAuth);           // normal SkyHub access first, then the DRC token
-  nsp.use((socket,next)=>tokenOk(socket.handshake.auth?.drcToken,config.token)&&/^[A-Za-z0-9_-]{8,64}$/.test(socket.handshake.auth?.operator||'')
-    ?next():next(new Error('Unauthorized')));
+  nsp.use((socket,next)=>(lanSocket(socket.request)||tokenOk(socket.handshake.auth?.drcToken,config.token))&&
+    /^[A-Za-z0-9_-]{8,64}$/.test(socket.handshake.auth?.operator||'')?next():next(new Error('Unauthorized')));
   nsp.on('connection',socket=>{
     const op=socket.handshake.auth.operator;
+    audit({gateway:gw,action:'socket',operator:op,from:String(socket.handshake.headers['x-forwarded-for']||socket.handshake.address||'?').slice(0,64)});
     socket.emit('drc',status());
     socket.on('lease',(ack)=>{
       try{session.acquire(op);if(typeof ack==='function')ack({ok:true});}

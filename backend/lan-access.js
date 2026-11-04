@@ -45,6 +45,8 @@ function createLanAccess(cidrValue,trustedProxies=parseTrustedProxyIps()){
     enabled:Boolean(cidr),
     allows(peer,forwardedFor){
       if(!cidr)return false;
+      // A request through the trusted proxy without a client address is not attributable to a LAN client.
+      if(isTrustedProxyIp(peer,trustedProxies)&&!(typeof forwardedFor==='string'&&forwardedFor.trim()))return false;
       const ip=ipv4(clientAddress(peer,forwardedFor,trustedProxies));
       return ip!==null && within(ip,cidr);
     }

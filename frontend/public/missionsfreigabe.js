@@ -10,26 +10,19 @@
     for(const c of children)if(c!==null&&c!==undefined)n.append(c instanceof Node?c:String(c));
     return n;
   };
-  // Tokens stay in the input fields only (memory), as in the route library client; nothing is persisted.
+  // No token fields (decision 04.11.2026): reads and release/revoke work from the home LAN over HTTPS with the browser's
+  // same-origin proof (wpml-lan-auth.js); fetch sends Origin on POST/DELETE automatically.
   let config=null,missions=[],active=new Map(),current=null,selectSeq=0;
 
   const fmtTime=ms=>Number.isFinite(ms)?new Date(ms).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'}):'–';
   const num=(v,unit,d=0)=>Number.isFinite(v)?v.toLocaleString('de-DE',{maximumFractionDigits:d})+(unit?' '+unit:''):'–';
 
-  function headers(extra={},withRelease=false){
-    const h={Accept:'application/json',...extra};
-    const view=$('viewToken').value.trim();
-    if(view)h.Authorization='Bearer '+view;
-    if(withRelease)h['X-SkyHub-Release-Token']=$('releaseToken').value.trim();
-    return h;
-  }
-  async function api(path,{method='GET',body,release=false}={}){
+  async function api(path,{method='GET',body}={}){
     const res=await fetch(path,{method,cache:'no-store',credentials:'same-origin',
-      headers:headers(body?{'Content-Type':'application/json'}:{},release),body:body?JSON.stringify(body):undefined});
+      headers:{Accept:'application/json',...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined});
     const data=await res.json().catch(()=>({}));
     if(!res.ok){
-      const msg=res.status===401?'Kein Zugriff: SkyHub-Token prüfen.'
-        :res.status===403&&release?'Freigabe-Token fehlt oder ist falsch.'
+      const msg=res.status===401||res.status===403?'Kein Zugriff: Diese Seite funktioniert nur im Heimnetz über https://rpi5.fritz.box:4443.'
         :res.status===404&&path.startsWith('/api/wpml/release')&&!data.error?'Missionsfreigabe ist auf diesem Server nicht eingeschaltet.'
         :(data.error||('HTTP '+res.status));
       const err=new Error(msg);err.status=res.status;err.data=data;throw err;
@@ -43,7 +36,7 @@
     setStatus('accessStatus','Lade …');
     try{
       const [cfg,list,rel]=await Promise.all([api('/api/wpml/release/config'),
-        window.SkyHubWpmlMissionStore.list($('viewToken').value.trim(),{page:1,pageSize:100}),api('/api/wpml/release')]);
+        window.SkyHubWpmlMissionStore.list('',{page:1,pageSize:100}),api('/api/wpml/release')]);
       config=cfg;missions=list.list||[];
       active=new Map((rel.active||[]).map(r=>[r.waylineId,r]));
       $('hours').max=cfg.hours;$('hours').value=Math.min(Number($('hours').value)||cfg.hours,cfg.hours);
@@ -143,11 +136,10 @@
     const d=current,hours=Number($('hours').value),max=config?.hours||72;
     if(!Number.isInteger(hours)||hours<1||hours>max){
       setStatus('releaseHint','Gültigkeit als ganze Stunden zwischen 1 und '+max+' eingeben.','bad');$('hours').focus();return;}
-    if(!$('releaseToken').value.trim()){setStatus('releaseHint','Freigabe-Token eingeben.','bad');$('releaseToken').focus();return;}
     if(!confirm('Route „'+(d.name||d.id)+'“ für '+hours+' Stunden in DJI Pilot 2 freigeben?\n\n'+
       'Der Pilot kann sie dann auf der Fernsteuerung laden und starten. Eine aktive Freigabe einer anderen Revision dieser Route endet dabei.'))return;
     try{
-      await api('/api/wpml/release/'+encodeURIComponent(d.id)+'/release',{method:'POST',release:true,body:{sha256:d.sha256,
+      await api('/api/wpml/release/'+encodeURIComponent(d.id)+'/release',{method:'POST',body:{sha256:d.sha256,
         acknowledgedWarnings:d.check.warnings,hours,checklist:Object.fromEntries(Object.keys(config.checklist).map(k=>[k,true]))}});
       await load('Freigegeben: „'+(d.name||d.id)+'“ für '+hours+' h.');
     }catch(err){
@@ -159,11 +151,10 @@
   }
   async function revoke(){
     const d=current;
-    if(!$('releaseToken').value.trim()){setStatus('releaseHint','Freigabe-Token eingeben.','bad');$('releaseToken').focus();return;}
     if(!confirm('Freigabe von „'+(d.name||d.id)+'“ zurückziehen?\n\nDie Route verschwindet sofort aus der Pilot-2-Bibliothek. '+
       'Eine bereits auf die Fernsteuerung geladene Kopie kann SkyHub nicht löschen – dem Piloten Bescheid geben.'))return;
     try{
-      await api('/api/wpml/release/'+encodeURIComponent(d.id)+'/release',{method:'DELETE',release:true,
+      await api('/api/wpml/release/'+encodeURIComponent(d.id)+'/release',{method:'DELETE',
         body:{reason:$('revokeReason').value.trim()||'zurückgezogen'}});
       $('revokeReason').value='';
       await load('Freigabe zurückgezogen: „'+(d.name||d.id)+'“ ist nicht mehr in Pilot 2 sichtbar.');

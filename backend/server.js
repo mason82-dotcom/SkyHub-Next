@@ -115,7 +115,7 @@ app.use((req,res,next)=>{
 // Scope the OSM Referer exception to the two browser map documents only.
 // API, Pilot 2 and other routes retain the global no-referrer policy.
 app.use(mapPageReferrerPolicy);
-const {auth,socketAuth}=createHttpAuth({secret,lanAccess,wpmlLanAuth:{
+const {auth,socketAuth,lanSocket}=createHttpAuth({secret,lanAccess,wpmlLanAuth:{
   enabled:process.env.SKYHUB_WPML_LAN_NO_TOKEN_ENABLED==='true',
   origins:process.env.SKYHUB_WPML_LAN_ORIGINS||''
 }});
@@ -322,7 +322,8 @@ const drc=drcConfig(process.env);
 let drcRuntime=null;
 if(drc.issue)console.error('[drc] disabled:',drc.issue);
 if(drc.enabled){
-  drcRuntime=createDrcRuntime({config:drc,registry,pool,io,express,mqttConnect:require('mqtt').connect,socketAuth});
+  drcRuntime=createDrcRuntime({config:drc,registry,pool,io,express,mqttConnect:require('mqtt').connect,socketAuth,
+    lanSocket:request=>lanSocket(request,ip=>app.get('trust proxy fn')(ip,0))});
   app.use('/api/drc',drcRuntime.router);
   console.log('[drc] live flight control active for RC '+drc.gateway);
 }
