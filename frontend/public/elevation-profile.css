@@ -1,6 +1,6 @@
 /* Elevation profile (elevation-profile.js) */
 .elev-profile{margin:8px 0}
-.elev-svg{width:100%;height:220px;display:block;background:var(--sky-muted-bg,#f6f8fa);border:1px solid var(--sky-border,#d0d7de);border-radius:6px}
+.elev-svg{width:100%;height:auto;display:block;background:var(--sky-muted-bg,#f6f8fa);border:1px solid var(--sky-border,#d0d7de);border-radius:6px}
 .elev-svg .grid{stroke:var(--sky-border,#d0d7de);stroke-width:1}
 .elev-svg .tick{font-size:11px;fill:var(--sky-muted,#57606a)}
 .elev-svg .ground{fill:#9a7b4f;fill-opacity:.35;stroke:#7a5c32;stroke-width:1.2}

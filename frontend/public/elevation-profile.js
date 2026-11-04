@@ -27,19 +27,18 @@
     let yMin=Math.min(...ys),yMax=Math.max(...ys);
     const pad=Math.max(5,(yMax-yMin)*0.08);yMin-=pad;yMax+=pad;
     const dMax=Math.max(1,pts[pts.length-1].d);
-    const W=720,H=height,L=52,R=12,T=12,B=30;
+    const W=Math.max(280,Math.round(container.clientWidth||720)),H=height,L=44,R=10,T=10,B=26;
     const x=d=>L+(d/dMax)*(W-L-R),y=v=>T+(1-(v-yMin)/(yMax-yMin))*(H-T-B);
-    const svg=el('svg',{viewBox:'0 0 '+W+' '+H,role:'img',preserveAspectRatio:'none',class:'elev-svg'});
+    const svg=el('svg',{viewBox:'0 0 '+W+' '+H,role:'img',class:'elev-svg',width:W,height:H});
     const title=el('title',{},'Höhenprofil entlang der Route');svg.append(title);
     // grid + axes
-    const yStep=niceStep(yMax-yMin,4),xStep=niceStep(dMax,6);
+    const yStep=niceStep(yMax-yMin,4),xStep=niceStep(dMax,Math.max(2,Math.floor((W-L-R)/90)));
     for(let v=Math.ceil(yMin/yStep)*yStep;v<=yMax;v+=yStep){
       svg.append(el('line',{x1:L,x2:W-R,y1:y(v),y2:y(v),class:'grid'}),el('text',{x:L-6,y:y(v)+4,'text-anchor':'end',class:'tick'},fmt(v)));
     }
     for(let d=0;d<=dMax+1e-6;d+=xStep){
       svg.append(el('text',{x:x(d),y:H-10,'text-anchor':'middle',class:'tick'},d>=1000?(d/1000).toLocaleString('de-DE',{maximumFractionDigits:1})+' km':fmt(d)+' m'));
     }
-    svg.append(el('text',{x:4,y:T+8,class:'tick'},'m ü. NN'));
     // ground area
     const g=pts.filter(p=>p.ground!==null);
     if(g.length>1){
@@ -57,7 +56,7 @@
     container.append(svg);
     // legend + text summary (also for screen readers)
     const legend=document.createElement('p');legend.className='elev-legend';
-    legend.innerHTML='<span class="k flight"></span>Flughöhe <span class="k ground"></span>Gelände ('+String(result.dataset||'DGM').replace(/[<>&]/g,'')+') <span class="k limit"></span>'+maxHeightM+' m über Grund';
+    legend.innerHTML='Höhen in m ü. NN: <span class="k flight"></span>Flughöhe <span class="k ground"></span>Gelände ('+String(result.dataset||'DGM').replace(/[<>&]/g,'')+') <span class="k limit"></span>'+maxHeightM+' m über Grund';
     const sum=document.createElement('p');sum.className='elev-sum';
     sum.textContent='Strecke '+(dMax/1000).toLocaleString('de-DE',{maximumFractionDigits:2})+' km · Höhe über Grund '+
       result.minAgl.aglM+'–'+result.maxAgl.aglM+' m (höchste bei Wegpunkt '+result.maxAgl.waypoint+', niedrigste bei Wegpunkt '+result.minAgl.waypoint+')'+
