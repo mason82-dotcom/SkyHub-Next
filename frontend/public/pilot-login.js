@@ -15,7 +15,55 @@
   let liveState=null; // same for the livestream (liveshare module)
   const memory=Object.create(null);
   const isTls=location.protocol==='https:';
-  function status(text){el('result').textContent=text;}
+  // Optional diagnostics relay (server switch SKYHUB_PILOT_DIAGNOSTICS_ENABLED, see backend/pilot-diagnostics.js).
+  // DJI Pilot 2 blocks WebView debugging, so the page reports its own steps to the SkyHub log. Sent are only: status texts,
+  // JSBridge method names with result codes, callback names, own request paths with HTTP status, JS errors.
+  // NEVER bridge arguments, callback payloads, tokens, pairing codes or credentials. Entries wait until the server says on.
+  let diagOn=null,diagTimer=null;
+  const diagQueue=[];
+  // The global fetch is not patched; this page's own calls go through the local fetch() below (function scope).
+  const nativeFetch=typeof globalThis.fetch==='function'?globalThis.fetch.bind(globalThis):null;
+  function diag(level,kind,msg){
+    if(diagOn===false)return;
+    if(diagQueue.length<200)diagQueue.push({t:Date.now(),level,kind,msg:String(msg).slice(0,300)});
+    if(diagOn&&!diagTimer)diagTimer=setTimeout(flushDiag,level==='error'?200:1500);
+  }
+  function flushDiag(){
+    diagTimer=null;
+    if(!diagOn||!diagQueue.length)return;
+    const entries=diagQueue.splice(0,40);
+    const headers={'Content-Type':'application/json'};
+    if(sessionToken)headers.Authorization='Bearer '+sessionToken;
+    if(!nativeFetch)return;
+    nativeFetch('/api/pilot/diagnostics',{method:'POST',cache:'no-store',keepalive:true,headers,
+      body:JSON.stringify({page:'pilot-login',entries})}).catch(()=>{});
+    if(diagQueue.length)diagTimer=setTimeout(flushDiag,1000);
+  }
+  function setDiagnostics(on){
+    diagOn=on===true;
+    if(!diagOn){diagQueue.length=0;return;}
+    diag('info','step','Diagnose an · '+navigator.userAgent.replace(/\s+/g,' ').slice(0,160));
+    flushDiag();
+  }
+  // Own requests of this page: path without query, long ids shortened, plus status and duration.
+  const safePath=url=>{try{const u=new URL(url,location.href);
+    return u.pathname.split('/').map(p=>p.length>16?p.slice(0,4)+'…':p).join('/');}catch(_){return '?';}};
+  function fetch(input,init){
+    const url=typeof input==='string'?input:(input&&input.url)||'',method=(init&&init.method)||'GET',start=Date.now();
+    const path=safePath(url);
+    if(path==='/api/pilot/diagnostics')return nativeFetch(input,init);
+    return nativeFetch(input,init).then(r=>{diag(r.ok?'info':'warn','fetch',method+' '+path+' → '+r.status+' ('+(Date.now()-start)+' ms)');return r;},
+      e=>{diag('error','fetch',method+' '+path+' → Netzwerkfehler '+(e&&e.name||''));throw e;});
+  }
+  if(typeof window.addEventListener==='function'){
+    window.addEventListener('error',e=>diag('error','js',(e.message||'Fehler')+' @'+safePath(e.filename||'')+':'+(e.lineno||0)));
+    window.addEventListener('unhandledrejection',e=>diag('error','js','Promise: '+String(e.reason&&e.reason.message||e.reason).slice(0,200)));
+  }
+  function status(text){
+    el('result').textContent=text;
+    // The pairing code is a short-lived secret: report only that it was shown.
+    diag('info','step',/pi-pilot-pair/.test(text)?'Kopplungscode angezeigt (Code nicht übertragen)':text);
+  }
   function storageGet(key){
     try{const value=window.localStorage?window.localStorage.getItem(key):null;return value??memory[key]??null;}
     catch(_){return memory[key]??null;}
@@ -49,6 +97,9 @@
     if(!window.djiBridge || typeof window.djiBridge[method]!=='function')
       throw new Error('DJI JSBridge-Funktion fehlt: '+method);
     const outcome=parseBridge(window.djiBridge[method](...args));
+    // Method name and result code only; the arguments may contain license, keys or MQTT credentials.
+    diag(outcome.ok?'info':'warn','bridge',method+(args.length&&typeof args[0]==='string'&&/^[a-z]{2,12}$/.test(args[0])?'('+args[0]+')':'')+
+      ' → '+(outcome.ok?'OK':'Code '+(Number.isFinite(outcome.code)?outcome.code:'?')+(outcome.message?' '+outcome.message:'')));
     if(!outcome.ok)throw new Error(method+': DJI Bridge-Code '+(Number.isFinite(outcome.code)?outcome.code:'unbekannt'));
     return outcome.data;
   }
@@ -110,6 +161,7 @@
         ' · Mission-Modul geladen: '+readBridgeStatus('platformIsComponentLoaded','mission')]),
       'Gerät gekoppelt: '+(storageGet(TOKEN_KEY)?'ja':'nein')
     ].join('\n');
+    diag('info','step','Status: '+target.textContent.replace(/\n/g,' · '));
   }
   function show(id,visible){
     const node=el(id);
@@ -249,7 +301,11 @@
     show('liveStart',!parsed.living);
     show('liveStop',parsed.living);
   }
-  window.skyhubLiveStatus=function(arg){renderLive(arg);};
+  window.skyhubLiveStatus=function(arg){
+    const parsed=liveStatusText(arg);
+    diag('info','callback','skyhubLiveStatus'+(parsed?' → '+parsed.text:''));
+    renderLive(arg);
+  };
   function loadLive(config){
     const live=config&&config.live;
     if(!live||typeof live.rtmpUrl!=='string'||!/^rtmp:\/\/[^/?#]+\/pilot\?/.test(live.rtmpUrl))return;
@@ -276,6 +332,7 @@
   }
   window.skyhubPilotWsState=function(_callbackResult){
     // The callback payload is intentionally ignored; the state is queried instead.
+    diag('info','callback','skyhubPilotWsState');
     refreshDiagnostics();
   };
   // A new MQTT session makes Pilot 2 publish update_topo again, which SkyHub acknowledges.
@@ -292,6 +349,7 @@
   }
   window.skyhubPilotMqttState=function(_callbackResult){
     // The callback payload is intentionally ignored. Query the current state.
+    diag('info','callback','skyhubPilotMqttState');
     refreshDiagnostics();
     try{
       const bridge=window.djiBridge;
@@ -469,6 +527,7 @@
       const response=await fetch('/api/pilot/status',{cache:'no-store'});
       if(!response.ok)throw new Error('HTTP '+response.status);
       const data=await response.json();
+      setDiagnostics(data.diagnostics===true);
       ready=data.configured===true;
       el('headline').textContent=ready?'Plattform vorbereitet':'Pilot-2-Onboarding noch deaktiviert';
       el('details').textContent=ready?

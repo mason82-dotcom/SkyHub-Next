@@ -4,9 +4,11 @@ const {serial}=require('./dji');
 const {createMapElementStore}=require('./map-element-store');
 const {createMapElementHandler}=require('./map-element-api');
 const {createPilotAuth}=require('./pilot-auth');
+const {createPilotDiagnostics}=require('./pilot-diagnostics');
 
 // Pilot 2 onboarding endpoints. Public part: mounted before the view-token guard.
-function registerPilotRoutes(app,{pilot,pairing,redis,registry,pool,ack,pilotAuth=createPilotAuth({pilot,pairing,redis})}){
+function registerPilotRoutes(app,{pilot,pairing,redis,registry,pool,ack,pilotAuth=createPilotAuth({pilot,pairing,redis}),
+  diagnostics=createPilotDiagnostics({enabled:process.env.SKYHUB_PILOT_DIAGNOSTICS_ENABLED==='true'})}){
   // Existing DJI Pilot 2 URL /pilot-login now resolves when v3 takes over port 4000.
   // Login/bootstrap remains opt-in; secret provisioning is forbidden over plaintext HTTP.
   app.get('/pilot-login',(req,res)=>{
@@ -16,7 +18,7 @@ function registerPilotRoutes(app,{pilot,pairing,redis,registry,pool,ack,pilotAut
     res.sendFile(path.resolve(__dirname,'../frontend/public/pilot-login.html'));
   });
   app.get('/api/pilot/status',(req,res)=>res.json({
-    configured:pilot.ready,missing:pilot.missing,mqttPort:pilot.mqttPort,requiresHttps:true
+    configured:pilot.ready,missing:pilot.missing,mqttPort:pilot.mqttPort,requiresHttps:true,diagnostics:diagnostics.enabled
   }));
   function guard(req,res){
     if(!pilot.ready){res.status(503).json({error:'Pilot 2 not configured'});return false;}
@@ -60,6 +62,13 @@ function registerPilotRoutes(app,{pilot,pairing,redis,registry,pool,ack,pilotAut
       if(result.status==='approved')console.log('[pilot pairing] device paired');
       res.json(result);
     }catch(_err){res.status(503).json({error:'Pairing store unavailable'});}
+  });
+  // Diagnostics from the Pilot 2 page (pilot-diagnostics.js): HTTPS only; paired devices get their own rate bucket.
+  app.post('/api/pilot/diagnostics',async(req,res)=>{
+    if(!req.secure)return res.status(403).json({error:'HTTPS required'});
+    let paired=false;
+    try{paired=pilot.ready&&Boolean(await pilotAuthorized(req));}catch(_err){paired=false;}
+    return diagnostics.receive(req,res,{paired});
   });
   // Lets the Pilot page see whether SkyHub acknowledged this RC's topology.
   app.get('/api/pilot/session',async(req,res)=>{
