@@ -5,6 +5,8 @@
 (function(global){
   const NS='http://www.w3.org/2000/svg';
   const el=(name,attrs={},text)=>{const n=document.createElementNS(NS,name);for(const [k,v] of Object.entries(attrs))n.setAttribute(k,String(v));if(text!==undefined)n.textContent=text;return n;};
+  const REASONS={'no elevation at the take-off point':'keine Geländehöhe am Startpunkt (außerhalb des geladenen Geländemodells?)',
+    'no elevations along the route':'keine Geländehöhen entlang der Route (außerhalb des geladenen Geländemodells?)',timeout:'Höhendienst antwortet nicht'};
   const fmt=v=>Math.round(v).toLocaleString('de-DE');
 
   function niceStep(span,target){
@@ -19,7 +21,7 @@
       const p=document.createElement('p');p.className='muted';
       p.textContent=!result?'Kein Höhenprofil.':result.status==='skipped'?
         (result.reason==='terrain-follow'?'Geländefolgeflug: Höhe über Grund wird von der Drohne gehalten, kein Profil nötig.':'Höhen in WGS84: kein Profil (Geoid unbekannt).'):
-        'Höhenprofil nicht verfügbar'+(result.reason?' ('+result.reason+')':'')+'.';
+        'Höhenprofil nicht verfügbar: '+(REASONS[result.reason]||result.reason||'unbekannter Grund')+'.';
       container.append(p);return;
     }
     const pts=result.profile.filter(p=>Number.isFinite(p.d));
