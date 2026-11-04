@@ -259,6 +259,6 @@ test('mobile map instructions move below WPML and Survey maps, retaining full sa
   assert.match(mobile, /pointer-events:\s*auto;/);
   const editor=html('wpml-editor.html');
   const survey=html('wpml-survey-preview.html');
-  assert.match(editor, /Keine Hindernis-, Geländehöhen- oder Flugfreigabeprüfung/);
+  assert.match(editor, /keine automatische Hinderniserkennung und keine Flugfreigabe/);
   assert.match(survey, /Keine DJI-Waylines/);
 });
