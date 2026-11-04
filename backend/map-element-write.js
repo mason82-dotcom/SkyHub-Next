@@ -47,14 +47,15 @@ function createMapElementWriter({pool,workspaceId,publish=()=>{},clock=Date.now,
     await pool.query('INSERT INTO dji_map_element_groups (workspace_id,group_id,name,group_type,is_locked,is_distributed,create_time) '+
       'VALUES ($1,$2,$3,2,false,true,$5),($1,$4,$6,1,false,true,$5) ON CONFLICT DO NOTHING',
       [workspaceId,SHARE_GROUP,'Pilot-Ebene',SKYHUB_GROUP,t,'SkyHub']);
-    // Elements of the first, non-UUID group move to the SkyHub group; then the old group is removed.
-    const old=await pool.query('SELECT 1 FROM dji_map_element_groups WHERE workspace_id=$1 AND group_id=$2',[workspaceId,LEGACY_GROUP]);
+    // Elements of the first, non-UUID group move to the SkyHub group. The old group itself stays (the immutable audit trail
+    // references it) but is hidden from Pilot 2 (is_distributed=false).
+    const old=await pool.query('SELECT 1 FROM dji_map_element_groups WHERE workspace_id=$1 AND group_id=$2 AND is_distributed',[workspaceId,LEGACY_GROUP]);
     if(old.rows.length){
       const c=await pool.connect();
       try{
         await c.query('BEGIN');
         await c.query('UPDATE dji_map_elements SET group_id=$3 WHERE workspace_id=$1 AND group_id=$2',[workspaceId,LEGACY_GROUP,SKYHUB_GROUP]);
-        await c.query('DELETE FROM dji_map_element_groups WHERE workspace_id=$1 AND group_id=$2',[workspaceId,LEGACY_GROUP]);
+        await c.query("UPDATE dji_map_element_groups SET is_distributed=false,name='SkyHub (alt, nur Protokoll)' WHERE workspace_id=$1 AND group_id=$2",[workspaceId,LEGACY_GROUP]);
         await c.query('COMMIT');
         log.log('[map elements] legacy group migrated to '+SKYHUB_GROUP);
       }catch(err){await c.query('ROLLBACK').catch(()=>{});throw err;}

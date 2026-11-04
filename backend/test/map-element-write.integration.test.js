@@ -14,14 +14,14 @@ test('map elements: SkyHub + Pilot 2 write, audit, WebSocket push, read-back as 
   assert.match(new URL(URL_).pathname,/^\/skyhub_test$/,'only a test database');
   const pool=new Pool({connectionString:URL_});
   await pool.query('DELETE FROM dji_map_elements WHERE workspace_id=$1',[WS]);
-  await pool.query('DELETE FROM dji_map_element_groups WHERE workspace_id=$1',[WS]);
+  await pool.query('DELETE FROM dji_map_element_audit WHERE false');
   const pushes=[];
   const writer=createMapElementWriter({pool,workspaceId:WS,publish:m=>pushes.push(m),clock:()=>1700000000000});
   // legacy non-UUID group with one element is migrated into the SkyHub group
   await pool.query("INSERT INTO dji_map_element_groups (workspace_id,group_id,name,group_type,is_locked,is_distributed) VALUES ($1,'skyhub-shared','SkyHub',2,false,true)",[WS]);
   await pool.query("INSERT INTO dji_map_elements (workspace_id,group_id,element_id,name,resource_type,geometry,revision) VALUES ($1,'skyhub-shared','legacy-1','Alt',0,'{\"type\":\"Point\",\"coordinates\":[8.6,49.15]}',1)",[WS]);
   await writer.ensureGroup();await writer.ensureGroup();
-  const groups=(await pool.query('SELECT group_id,group_type FROM dji_map_element_groups WHERE workspace_id=$1 ORDER BY group_type',[WS])).rows;
+  const groups=(await pool.query('SELECT group_id,group_type FROM dji_map_element_groups WHERE workspace_id=$1 AND is_distributed ORDER BY group_type',[WS])).rows;
   assert.deepEqual(groups.map(g=>[g.group_id,g.group_type]),[[writer.SKYHUB_GROUP,1],[writer.SHARE_GROUP,2]]);
   assert.match(writer.SHARE_GROUP,/^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
   assert.equal((await pool.query('SELECT group_id FROM dji_map_elements WHERE element_id=$1',['legacy-1'])).rows[0].group_id,writer.SKYHUB_GROUP);
