@@ -38,6 +38,7 @@ hr{border:0;border-top:1px solid var(--edge);margin:16px 0}
 .store-item{border:1px solid var(--edge);padding:8px 10px;border-radius:8px;margin:6px 0;background:#132c42}
 .store-item small{display:block;margin:3px 0 6px}
 @media(max-width:880px){main{grid-template-columns:1fr}.map-wrap{height:43vh;min-height:280px}#map{min-height:280px}aside{max-height:none;border-left:0;border-top:1px solid var(--edge)}}
+.caption.bad{color:#b3261e;font-weight:600}
 </style>
 <link rel="stylesheet" href="/skyhub-light.css">
 <link rel="stylesheet" href="/elevation-profile.css">
@@ -131,6 +132,40 @@ hr{border:0;border-top:1px solid var(--edge);margin:16px 0}
    <div class="tools"><button type="button" id="orbit-create">Orbit erzeugen</button></div>
    <p id="orbit-status" class="caption" role="status" aria-live="polite"></p>
    <hr>
+   <h2>Fassadenscan</h2>
+   <p class="caption">Bahnen parallel zur Fassade (A → B) im festen Abstand, von unten nach oben, jede zweite Bahn um eine halbe Spalte versetzt. Nase senkrecht zur Fassade (<code>towardPOI</code> je Wegpunkt), Foto an jedem Punkt, Halt an jedem Punkt. Ersetzt die aktuellen Wegpunkte.</p>
+   <div class="tools">
+     <button type="button" id="facade-pick-a" aria-pressed="false">Fassade Punkt A wählen</button>
+     <button type="button" id="facade-pick-b" aria-pressed="false">Fassade Punkt B wählen</button>
+   </div>
+   <p id="facade-ab" class="caption">A und B: Ecken der Fassade (Grundlinie) in der Karte anklicken.</p>
+   <div class="rows">
+    <div><label for="facade-side">Flugseite (Blick von A nach B)</label><select id="facade-side"><option value="left">links der Fassade</option><option value="right">rechts der Fassade</option></select></div>
+    <div><label for="facade-distance">Abstand zur Fassade (m)</label><input id="facade-distance" type="number" min="3" max="100" step="0.5" value="12"></div>
+    <div><label for="facade-min">Unterste Bahn über Start (m)</label><input id="facade-min" type="number" min="2" max="120" step="0.5" value="5"></div>
+    <div><label for="facade-max">Oberste Bahn über Start (m)</label><input id="facade-max" type="number" min="2" max="120" step="0.5" value="20"></div>
+    <div><label for="facade-overlap">Überlappung (%)</label><input id="facade-overlap" type="number" min="30" max="95" step="5" value="75"></div>
+    <div><label for="facade-pitch">Gimbal-Neigung (°, 0 = waagrecht)</label><input id="facade-pitch" type="number" min="-90" max="35" step="1" value="0"></div>
+    <div><label for="facade-row">Bahnabstand (m)</label><input id="facade-row" type="number" min="0.5" max="50" step="0.1"></div>
+    <div><label for="facade-col">Fotoabstand entlang (m)</label><input id="facade-col" type="number" min="0.5" max="100" step="0.1"></div>
+    <div><label for="facade-ellipsoid">Ellipsoidhöhe des Startpunkts (m, WGS84)</label><input id="facade-ellipsoid" type="number" step="0.01" placeholder="z. B. aus RTK-Messung"></div>
+   </div>
+   <p class="caption">Abstände: Vorschlag aus Abstand und Überlappung (Sichtfeld ca. 73° × 53°, Weitwinkel); anpassbar. Die <strong>Ellipsoidhöhe des Startpunkts</strong> muss bekannt sein (z. B. RTK-Anzeige in Pilot 2): DJI verlangt bei verschiedenen Höhen je Wegpunkt die Ellipsoidhöhe; SkyHub addiert nur die Höhe über Start und schätzt nichts.</p>
+   <div class="tools"><button type="button" id="facade-suggest" class="secondary">Abstände vorschlagen</button><button type="button" id="facade-create">Fassadenscan erzeugen</button></div>
+   <p id="facade-status" class="caption" role="status" aria-live="polite"></p>
+   <hr>
+   <h2>Hindernisse</h2>
+   <p class="caption">Masten, Kräne, Bäume oder Gebäude als Zylinder (Mittelpunkt, Radius, Höhe über Start). Die Route wird in 3D mit Sicherheitsabstand dagegen geprüft. Bleibt nur in diesem Browser gespeichert. Keine Hinderniserkennung: nicht eingetragene Hindernisse werden nicht erkannt.</p>
+   <div class="rows">
+    <div><label for="obst-name">Bezeichnung</label><input id="obst-name" maxlength="40" placeholder="z. B. Mast"></div>
+    <div><label for="obst-radius">Radius (m)</label><input id="obst-radius" type="number" min="0" max="500" step="0.5" value="3"></div>
+    <div><label for="obst-height">Höhe über Start (m)</label><input id="obst-height" type="number" min="0" max="1000" step="0.5" value="30"></div>
+    <div><label for="obst-buffer">Sicherheitsabstand (m)</label><input id="obst-buffer" type="number" min="0" max="100" step="1" value="10"></div>
+   </div>
+   <div class="tools"><button type="button" id="obst-pick" aria-pressed="false">Hindernis in der Karte setzen</button></div>
+   <ul id="obst-list" class="notes"></ul>
+   <p id="obst-status" class="caption" role="status" aria-live="polite"></p>
+   <hr>
    <h2>Intervall-Fotoaktion (experimenteller WPML-Entwurf)</h2>
    <label for="photo-trigger">Aufnahmemodus</label>
    <select id="photo-trigger">
@@ -207,6 +242,7 @@ hr{border:0;border-top:1px solid var(--edge);margin:16px 0}
 <script src="/geozones-layer.js"></script>
 <script src="/elevation-profile.js"></script>
 <script src="/wpml-terrain-client.js"></script>
+<script src="/wpml-obstacle-store.js"></script>
 <script src="/wpml-editor.js"></script>
 </body>
 </html>

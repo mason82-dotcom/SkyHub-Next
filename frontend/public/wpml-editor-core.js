@@ -312,5 +312,80 @@
     return {waypoints,turnMode:'pass',turnDampingM,gimbalPitch:pitch,
       segmentM:Math.round(2*r*Math.sin(Math.PI/n)*10)/10,lengthM:Math.round(2*Math.PI*r)};
   }
-  return Object.freeze({MODELS,normalize,documents,createKmz,build,orbit});
+  // Local metric frame around a reference point (equirectangular; error < 0.1 % below 2 km, enough for a facade or obstacle check).
+  function enu(ref){
+    const kx=Math.cos(ref.lat*RAD)*RAD*R_EARTH,ky=RAD*R_EARTH;
+    return {to:p=>({x:(p.lon-ref.lon)*kx,y:(p.lat-ref.lat)*ky}),
+      from:q=>({lat:Math.round((ref.lat+q.y/ky)*1e7)/1e7,lon:Math.round((ref.lon+q.x/kx)*1e7)/1e7})};
+  }
+  // Facade scan (idea: hdrpano facade/inspection apps, droneroute; own implementation): rows parallel to the facade A→B at
+  // distance d on the chosen side, serpentine from the lowest row up (odd rows staggered by half a column), a photo at every point, nose toward the facade point
+  // straight opposite (per-waypoint POI → towardPOI), gimbal level (pitch 0) or as given. Heights relative to the take-off;
+  // different heights need DJI's ellipsoid height per waypoint: computed EXACTLY from the operator-entered ellipsoid height
+  // of the take-off point (+ relative height), never estimated. Spacing defaults from the camera field of view and overlap.
+  function facade({a,b,side='left',distanceM,minHeightM,maxHeightM,rowSpacingM,columnSpacingM,takeoffEllipsoidM,
+    gimbalPitch=0,margin=0}={}){
+    for(const [p,n] of [[a,'A'],[b,'B']])if(!p||typeof p!=='object')invalid('facade point '+n+' required');
+    const A={lat:numeric(a.lat,'A latitude',-90,90),lon:numeric(a.lon,'A longitude',-180,180)};
+    const B={lat:numeric(b.lat,'B latitude',-90,90),lon:numeric(b.lon,'B longitude',-180,180)};
+    if(!['left','right'].includes(side))invalid('facade side');
+    const d=numeric(distanceM,'facade distance',3,100);
+    const h0=numeric(minHeightM,'lowest row',2,120),h1=numeric(maxHeightM,'highest row',2,120);
+    if(h1<h0)invalid('highest row below lowest row');
+    const dv=numeric(rowSpacingM,'row spacing',0.5,50),dh=numeric(columnSpacingM,'column spacing',0.5,100);
+    const e0=numeric(takeoffEllipsoidM,'take-off ellipsoid height',-500,9000);
+    const pitch=Math.round(numeric(gimbalPitch,'gimbal pitch',-90,35)*10)/10;
+    const ext=numeric(margin,'margin',0,50);
+    const f=enu(A),pa={x:0,y:0},pb=f.to(B);
+    const len=Math.hypot(pb.x,pb.y);
+    if(len<2)invalid('facade shorter than 2 m');
+    if(len>1000)invalid('facade longer than 1000 m');
+    const ux=pb.x/len,uy=pb.y/len;                               // along the facade
+    const nx=side==='left'?-uy:uy,ny=side==='left'?ux:-ux;       // outward normal (left/right of A→B)
+    const cols=Math.max(2,Math.ceil((len+2*ext)/dh)+1),rows=Math.max(1,Math.floor((h1-h0)/dv+1e-9)+1);
+    if(cols*rows>500)invalid('facade scan needs '+cols*rows+' waypoints (max 500): larger spacing');
+    const waypoints=[];
+    for(let r=0;r<rows;r++){
+      const h=Math.round((h0+r*dv)*10)/10;
+      for(let k=0;k<cols;k++){
+        const c=r%2===0?k:cols-1-k;
+        // odd rows shifted by half a column: no two consecutive points at the same 2D position (normalize() forbids them;
+        // a purely vertical leg is not verified on Pilot 2) and a staggered grid covers the facade better.
+        const t=-ext+(len+2*ext)*c/(cols-1)+(r%2?(len+2*ext)/(cols-1)/2:0);
+        const onFacade={x:pa.x+ux*t,y:pa.y+uy*t};
+        const wp=f.from({x:onFacade.x+nx*d,y:onFacade.y+ny*d});
+        waypoints.push({...wp,height:h,ellipsoidHeight:Math.round((e0+h)*100)/100,photo:true,poi:f.from(onFacade),gimbalPitch:pitch});
+      }
+    }
+    return {waypoints,rows,columns:cols,lengthM:Math.round(len*10)/10,turnMode:'stop'};
+  }
+  // Suggested spacing from distance, field of view and overlap (footprint = 2·d·tan(FOV/2)).
+  function facadeSpacing({distanceM,hfovDeg=73,vfovDeg=53,overlap=0.7}={}){
+    const d=numeric(distanceM,'facade distance',3,100),o=numeric(overlap,'overlap',0.3,0.95);
+    const w=2*d*Math.tan(numeric(hfovDeg,'hfov',10,120)/2*RAD),h=2*d*Math.tan(numeric(vfovDeg,'vfov',10,120)/2*RAD);
+    return {columnSpacingM:Math.max(0.5,Math.round(w*(1-o)*10)/10),rowSpacingM:Math.max(0.5,Math.round(h*(1-o)*10)/10)};
+  }
+  // Obstacles (operator-entered: position, radius, height above take-off): every route segment is checked in 3D against a
+  // vertical cylinder enlarged by a buffer. Returns the conflicts; an empty list proves nothing about unmapped obstacles.
+  function obstacleConflicts(waypoints,obstacles,{bufferM=10}={}){
+    const out=[];
+    if(!Array.isArray(waypoints)||waypoints.length<1||!Array.isArray(obstacles)||!obstacles.length)return out;
+    const f=enu(waypoints[0]);
+    const pts=waypoints.map(p=>({...f.to(p),h:p.height}));
+    obstacles.forEach((o,oi)=>{
+      const c=f.to(o),r=numeric(o.radiusM,'obstacle radius',0,500)+bufferM,top=numeric(o.heightM,'obstacle height',0,1000)+bufferM;
+      let worst=null;
+      for(let i=0;i<pts.length;i++){
+        const p=pts[i],q=pts[i+1]||p;
+        const vx=q.x-p.x,vy=q.y-p.y,l2=vx*vx+vy*vy;
+        const t=l2?Math.max(0,Math.min(1,((c.x-p.x)*vx+(c.y-p.y)*vy)/l2)):0;
+        const dist=Math.hypot(p.x+vx*t-c.x,p.y+vy*t-c.y),h=p.h+(q.h-p.h)*t;
+        if(dist<r&&h<top&&(!worst||dist<worst.distanceM))worst={obstacle:oi,name:o.name||('Hindernis '+(oi+1)),segment:i+1,
+          distanceM:Math.round(dist*10)/10,routeHeightM:Math.round(h*10)/10,obstacleHeightM:o.heightM,radiusM:o.radiusM};
+      }
+      if(worst)out.push(worst);
+    });
+    return out;
+  }
+  return Object.freeze({MODELS,normalize,documents,createKmz,build,orbit,facade,facadeSpacing,obstacleConflicts});
 });
