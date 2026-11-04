@@ -279,7 +279,8 @@
     refreshDiagnostics();
   }
   // Livestream: DJI's liveshare module streams RTMP to the SkyHub relay. Publish type
-  // "video-by-manual": only the pilot starts/stops (here or in Pilot 2); the cloud cannot demand it.
+  // "video-by-manual": only the pilot starts/stops (here or in Pilot 2). With SkyHub's live control the server sends
+  // "video-demand-aux-manual": SkyHub may request the stream, the pilot can still change or stop it.
   // The RTMP URL carries the publish password and is never displayed or stored.
   const LIVE_STATUS=['getrennt','verbunden','LIVE'];
   function liveStatusText(raw){
@@ -312,7 +313,7 @@
     try{
       if(bridgeBoolean('platformIsComponentLoaded','liveshare')!==true)
         invoke('platformLoadComponent','liveshare',JSON.stringify({
-          videoPublishType:'video-by-manual',statusCallback:'skyhubLiveStatus'}));
+          videoPublishType:live.publishType==='video-demand-aux-manual'?'video-demand-aux-manual':'video-by-manual',statusCallback:'skyhubLiveStatus'}));
       // Type 2 = RTMP (DJI liveshare types: 1 Agora, 2 RTMP, 3 RTSP, 4 GB28181).
       invoke('liveshareSetConfig',2,JSON.stringify({url:live.rtmpUrl}));
       liveState='bereit (Start durch den Piloten)';

@@ -30,6 +30,7 @@ const {createMinioDrRouter}=require('./minio-dr-api');
 const {createWpmlMissionStore,createWpmlMissionRouter}=require('./wpml-mission-store');
 const {releaseConfig,createReleaseStore,pilotLibrary,createMissionReleaseRouter}=require('./mission-release');
 const {drcConfig,createDrcRuntime}=require('./drc-runtime');
+const {liveControlConfig,createLiveControl}=require('./live-control');
 const {createDjiWaylineRouter,createRedisFavorites,UPLOAD_DISABLED_CODE}=require('./dji-wayline-http');
 let pilotWaylineImport=null;
 const {createPilotWaylineImport,ImportError}=require('./pilot-wayline-import');
@@ -68,9 +69,12 @@ const pilot=pilotConfiguration(process.env);
 const liveSettings=liveStreamSettings(process.env);
 if(liveSettings.issue)console.error('[live] disabled:',liveSettings.issue);
 const liveStream=createLiveStreamRouter({settings:liveSettings});
+// Livestream on demand (live_start_push etc. over MQTT, DJI Cloud API 1.18); opt-in, needs the relay above.
+const liveControlSettings=liveControlConfig(process.env,liveSettings);
+if(liveControlSettings.issue)console.error('[live control] disabled:',liveControlSettings.issue);
 // The authenticated Pilot bootstrap additionally carries the RTMP target when the relay is enabled.
 const pilotWithLive=Object.assign(Object.create(null),pilot,{bootstrap(){
-  const live=pilotLiveConfig(liveSettings);
+  const live=pilotLiveConfig(liveSettings,{onDemand:liveControlSettings.enabled});
   return {...pilot.bootstrap(),...(live?{live}:{})};
 }});
 let lanAccess,trackRetentionDays,trustedProxyIps,tileSettings;
@@ -340,6 +344,14 @@ if(drc.enabled){
   app.use('/api/drc',drcRuntime.router);
   console.log('[drc] live flight control active for RC '+drc.gateway);
 }
+let liveControl=null;
+if(liveControlSettings.enabled){
+  liveControl=createLiveControl({config:liveControlSettings,liveSettings,registry,mqttConnect:require('mqtt').connect,express,
+    audit:e=>{console.log('[live control] '+JSON.stringify(e));
+      if(pool)pool.query('INSERT INTO drc_audit(gateway,action,detail) VALUES ($1,$2,$3)',[e.gateway,'live',JSON.stringify(e)]).catch(()=>{});}});
+  app.use('/api/live/control',liveControl.router);
+  console.log('[live control] livestream on demand active');
+}
 const mediaLibraryRouter=createPilotMediaLibraryRuntime({
   env:process.env,db:pool,redis,authorize:pilotAuth.principal,
   storage:mediaStorage,pilot
@@ -437,6 +449,7 @@ server.listen(port,listenAddress,()=>console.log('[skyhub] Port '+server.address
 function stop(){
   // Hand control back to the RC before anything else goes down (drc_mode_exit + cloud_control_release).
   if(drcRuntime)drcRuntime.shutdown().catch(err=>console.error('[drc] shutdown:',err.message));
+  if(liveControl)liveControl.shutdown();
   ingest.stop();
   if(tsaHub)tsaHub.close();
   if(mediaUpload)mediaUpload.stop();

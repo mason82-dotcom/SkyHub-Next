@@ -71,6 +71,12 @@ const COMMANDS=Object.freeze({
     return {payload_index:c.payloadIndex,camera_type:type,zoom_factor:round(num(b.factor,'zoom_factor',2,type==='ir'?20:200),1)};}},
   aim:{method:'drc_camera_aim',label:'Kamera auf Bildpunkt',build:(b,c)=>({payload_index:c.payloadIndex,
     camera_type:lens(b.cameraType,c.cameraTypes,['ir','wide','zoom']),locked:bool(b.locked,'locked'),x:coord(b.x,'x'),y:coord(b.y,'y')})},
+  // dji-rc-plus-2/live.html: drc_live_lens_change {payload_index, video_type thermal|wide|zoom} – lens of the livestream.
+  live_lens:{method:'drc_live_lens_change',label:'Livestream-Objektiv',build:(b,c)=>{
+    oneOf(b.videoType,'video_type',['thermal','wide','zoom']);
+    if(b.videoType==='thermal'&&!c.cameraTypes.includes('ir'))fail('Wärmebild nur mit Matrice 4T');
+    if(b.videoType!=='thermal'&&!c.cameraTypes.includes(b.videoType))fail('Objektiv '+b.videoType+' gibt es an dieser Kamera nicht');
+    return {payload_index:c.payloadIndex,video_type:b.videoType};}},
   gimbal_reset:{method:'drc_gimbal_reset',label:'Gimbal',
     build:(b,c)=>({payload_index:c.payloadIndex,reset_mode:int(b.mode,'reset_mode',0,3)})},
   split_screen:{method:'drc_camera_screen_split',label:'Geteilter Bildschirm',build:(b,c)=>{

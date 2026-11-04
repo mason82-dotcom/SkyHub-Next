@@ -123,6 +123,12 @@
           <label>Zoomfaktor <input id="zoomFactor" type="number" min="2" max="200" step="1" value="2"></label>
           <button id="zoomSet" type="button">Zoom setzen</button>
         </div>
+        <div class="row" aria-label="Objektiv des Livestreams">
+          <span class="muted">Livestream-Bild:</span>
+          <button type="button" class="secondary" data-pl="live_lens" data-video-type="wide">Weitwinkel</button>
+          <button type="button" class="secondary" data-pl="live_lens" data-video-type="zoom">Zoom</button>
+          <button type="button" class="secondary" data-pl="live_lens" data-video-type="thermal" data-needs-ir="true">Wärmebild</button>
+        </div>
         <div id="irtools" hidden>
           <div class="row">
             <label>Temperaturmessung <select id="irMode"><option value="0">aus</option><option value="1">Punkt</option><option value="2">Fläche</option></select></label>

@@ -194,6 +194,7 @@ services:
       SKYHUB_LIVE_RTMP_URL: ${SKYHUB_LIVE_RTMP_URL:-}
       SKYHUB_LIVE_PUBLISH_PASS: ${SKYHUB_LIVE_PUBLISH_PASS:-}
       SKYHUB_LIVE_READ_PASS: ${SKYHUB_LIVE_READ_PASS:-}
+      SKYHUB_LIVE_CONTROL_ENABLED: ${SKYHUB_LIVE_CONTROL_ENABLED:-false}
       # Retention applies only while recording is enabled.
       SKYHUB_TRACK_RETENTION_DAYS: ${SKYHUB_TRACK_RETENTION_DAYS:-30}
       # Map tiles: OFF = redirect to tile.openstreetmap.org (as before); ON = on-demand disk cache that

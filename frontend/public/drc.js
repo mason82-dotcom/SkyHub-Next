@@ -155,13 +155,14 @@
     }
     $('irtools').hidden=!types.includes('ir');
     $('zoomFactor').max=$('zoomLens').value==='ir'?20:200;
-    document.querySelectorAll('#payloadcard button').forEach(b=>{b.disabled=!can||!p;});
+    document.querySelectorAll('#payloadcard button').forEach(b=>{b.disabled=!can||!p||(b.dataset.needsIr==='true'&&!types.includes('ir'));});
     $('lookat').disabled=!can||!p||!target;
   }
   function payloadBody(b){
     const body={};
     if(b.dataset.mode!==undefined)body.mode=Number(b.dataset.mode);
     if(b.dataset.enable!==undefined)body.enable=b.dataset.enable==='true';
+    if(b.dataset.videoType!==undefined)body.videoType=b.dataset.videoType;
     return body;
   }
   document.querySelectorAll('#payloadcard [data-pl]').forEach(b=>b.addEventListener('click',()=>
