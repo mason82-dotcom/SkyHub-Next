@@ -96,7 +96,8 @@ mqttx sub -h 192.168.178.63 -p 1884 -u mqttx_debug -P '<passwort>' -t 'thing/pro
 1. **Ohne Hardware:** (Simulator kennt auch Kamera, Zoom, Gimbal und meldet `drc_state` über die RC-OSD) `node scripts/drc-rc-simulator.js --url mqtt://192.168.178.63:1884 --username <test-benutzer> --password-file <datei>`
    (Seriennummer `SIMRCP2`, Fluggerät `SIMM4T`; `SKYHUB_DRC_GATEWAY_SN=SIMRCP2`). Ablauf in `drc.html` durchspielen, MQTTX mitlesen lassen,
    Tab wechseln → Rückgabe nach ~4,5 s prüfen. `--deny` simuliert einen ablehnenden Piloten.
-2. **Am Boden, Propeller ab:** echte RC Plus 2, Autorisierung, Live-Modus, Herzschlag/Latenz, Not-Stopp-Antwort, Totmann-Rückgabe, Rückgabe beim
+2. **Am Boden, Propeller ab:** Webansicht in Pilot 2 bei Bedarf mit Chrome DevTools mitlesen (`chrome://inspect/#devices`, in Pilot 2
+   mehrmals auf die Titelleiste der Cloud-Seite tippen; *debug/dji-pilot2-webview-debug*). Dann echte RC Plus 2, Autorisierung, Live-Modus, Herzschlag/Latenz, Not-Stopp-Antwort, Totmann-Rückgabe, Rückgabe beim
    Neustart des Backends. Prüfen, wie Pilot 2 die Cloud-Kontrolle beenden lässt und welcher `mode_code` am Boden im Live-Modus gemeldet wird.
 3. **Erster Flug:** freies Gelände, Sichtflug, 30 m, Zielanflug 50 m, Rückkehr; Knüppel nur kurz mit 30 % Ausschlag
    (`SKYHUB_DRC_STICK_SCALE=0.3`). Abbruchkriterium: jede unerwartete Reaktion → Not-Stopp, Rückgabe, RC übernimmt.

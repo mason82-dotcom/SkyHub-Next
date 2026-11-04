@@ -43,6 +43,7 @@ steckt in `…/../assets/js/v-<id>.<hash>.js`, die Zuordnung Seite → Datei ste
 | andere RC | [mqtt/others/rc/properties](https://developer.dji.com/doc/cloud-api-tutorial/en/api-reference/pilot-to-cloud/mqtt/others/rc/properties.html) | übrige RCs | `cloud_control_auth`, **kein** `drc_state` |
 | andere RC | [mqtt/others/rc/device](https://developer.dji.com/doc/cloud-api-tutorial/en/api-reference/pilot-to-cloud/mqtt/others/rc/device.html) | `update_topo` | Felder = Simulator (`drc-rc-simulator.js`) |
 | Pilot 2 H5 | [pilot-to-cloud/jsbridge](https://developer.dji.com/doc/cloud-api-tutorial/en/api-reference/pilot-to-cloud/jsbridge.html) | Pilot-2-Webview (`pilot-login.html`) | als Referenz aufgenommen, Abgleich offen |
+| Debug | [debug/dji-pilot2-webview-debug](https://developer.dji.com/doc/cloud-api-tutorial/en/debug/dji-pilot2-webview-debug.html) | `pilot-login.html` auf der RC untersuchen | Chrome DevTools (`chrome://inspect/#devices`; Entwicklermodus durch wiederholtes Tippen auf die Titelleiste der Cloud-Seite in Pilot 2). vConsole bewusst **nicht** eingebaut (Fremdcode, DJI: im Betrieb aus) |
 | Debug | [debug/mqttx](https://developer.dji.com/doc/cloud-api-tutorial/en/debug/mqttx.html) und [mqttx.app/docs](https://mqttx.app/docs) | Mitlesen am Broker | `docs/drc-matrice4.md` (MQTTX, nur lesend) |
 
 Zusätzlich für die Matrice-4-Steuerung herangezogen (Gegenstück der RC Plus 2):
