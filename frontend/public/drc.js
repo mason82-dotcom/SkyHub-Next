@@ -75,6 +75,7 @@
       target={latitude:+e.latlng.lat.toFixed(6),longitude:+e.latlng.lng.toFixed(6)};
       if(targetMarker)targetMarker.setLatLng(e.latlng);else targetMarker=L.marker(e.latlng,{title:'Ziel'}).addTo(map);
       $('target').textContent='Ziel '+target.latitude+', '+target.longitude;
+      if(state)render(state);
     });
   }
   let centered=false;
@@ -131,8 +132,70 @@
     $('takeoff').disabled=!held||!mine;
     $('rth').disabled=!held;$('rthcancel').disabled=!held||!mine;
     $('land').disabled=!active||!mine;$('estop').disabled=!(active||s.phase==='drc_pending');
+    renderPayload(s,active&&mine);
     drawMap(s);
   }
+
+  // --- Kamera und Gimbal (drc-payload.js; Befehle nur im Live-Steuermodus mit Lease) ------------------------------------
+  const CAM_MODE={0:'Foto',1:'Video',2:'Smart Low-Light',3:'Panorama',4:'Intervallfoto'};
+  const LENS={wide:'Weitwinkel',zoom:'Zoom',ir:'Wärmebild'};
+  const mmss=t=>Number.isFinite(t)?Math.floor(t/60)+':'+String(t%60).padStart(2,'0'):'–';
+  let lensKey='';
+  function renderPayload(s,can){
+    const p=s.aircraft&&s.aircraft.payload,c=s.camera||{},st=c.state,ln=c.lens,g=s.aircraft&&s.aircraft.gimbal;
+    $('camname').textContent=p?p.name:'keine Kamera';
+    $('camMode').textContent=st&&st.cameraMode!=null?(CAM_MODE[st.cameraMode]??('Code '+st.cameraMode)):'–';
+    $('camRec').textContent=st?(st.recording?'● läuft '+mmss(st.recordTimeS):'aus'):'–';$('camRec').className=st&&st.recording?'bad':'';
+    $('camRemain').textContent=st?((st.remainPhotos??'–')+' Fotos · '+mmss(st.remainRecordS)+' Video'):'–';
+    $('camZoom').textContent=ln?('Zoom '+(ln.zoom.factor??'–')+'×'+(ln.ir&&ln.ir.zoomFactor!=null?' · IR '+ln.ir.zoomFactor+'×':'')):'–';
+    const pitch=s.osd&&Number.isFinite(s.osd.gimbal_pitch)?s.osd.gimbal_pitch:g&&g.pitch,yaw=s.osd&&Number.isFinite(s.osd.gimbal_yaw)?s.osd.gimbal_yaw:g&&g.yaw;
+    $('camGimbal').textContent=Number.isFinite(pitch)?'Neigung '+pitch.toFixed(1)+'° · Gier '+(Number.isFinite(yaw)?yaw.toFixed(1):'–')+'°':'–';
+    $('camLast').textContent=c.lastCommand?(c.lastCommand.label+': '+c.lastCommand.status):'–';
+    $('camLast').className=c.lastCommand&&/^Fehler/.test(c.lastCommand.status)?'bad':'';
+    const types=p?p.cameraTypes:[];
+    if(types.join()!==lensKey){
+      lensKey=types.join();
+      $('zoomLens').replaceChildren(...[...types].sort((x,y)=>(x==='zoom'?-1:0)-(y==='zoom'?-1:0)).map(t=>{const o=document.createElement('option');o.value=t;o.textContent=LENS[t]||t;return o;}));
+    }
+    $('irtools').hidden=!types.includes('ir');
+    $('zoomFactor').max=$('zoomLens').value==='ir'?20:200;
+    document.querySelectorAll('#payloadcard button').forEach(b=>{b.disabled=!can||!p;});
+    $('lookat').disabled=!can||!p||!target;
+  }
+  function payloadBody(b){
+    const body={};
+    if(b.dataset.mode!==undefined)body.mode=Number(b.dataset.mode);
+    if(b.dataset.enable!==undefined)body.enable=b.dataset.enable==='true';
+    return body;
+  }
+  document.querySelectorAll('#payloadcard [data-pl]').forEach(b=>b.addEventListener('click',()=>
+    action(b.textContent.trim(),'/payload/'+b.dataset.pl,payloadBody(b))));
+  $('zoomLens').addEventListener('change',()=>{$('zoomFactor').max=$('zoomLens').value==='ir'?20:200;});
+  $('zoomSet').addEventListener('click',()=>action('Zoom','/payload/zoom',{cameraType:$('zoomLens').value,factor:Number($('zoomFactor').value)}));
+  $('irSet').addEventListener('click',()=>action('Temperaturmessung','/payload/ir_metering_mode',{mode:Number($('irMode').value)}));
+  $('lookat').addEventListener('click',()=>{
+    if(!target){log('Erst ein Ziel in der Karte setzen','bad');return;}
+    action('Kamera auf Kartenziel','/payload/look-at',{...target,heightAboveTakeoff:0});
+  });
+  // Gimbal ziehen: solange gedrückt alle 100 ms senden; der Server stoppt den Gimbal 300 ms nach der letzten Eingabe.
+  const dragHeld=new Map();                 // Quelle → [yaw, pitch]
+  const DRAGKEYS={KeyI:[0,1],KeyK:[0,-1],KeyJ:[-1,0],KeyL:[1,0]};
+  document.querySelectorAll('#payloadcard [data-drag]').forEach(b=>{
+    const v=b.dataset.drag.split(',').map(Number);
+    const on=e=>{if(b.disabled)return;e.preventDefault();b.setPointerCapture?.(e.pointerId);dragHeld.set(b,v);b.classList.add('held');};
+    const off=()=>{dragHeld.delete(b);b.classList.remove('held');};
+    b.addEventListener('pointerdown',on);['pointerup','pointercancel','lostpointercapture'].forEach(t=>b.addEventListener(t,off));
+  });
+  document.addEventListener('keydown',e=>{if(!typing(e)&&DRAGKEYS[e.code]){e.preventDefault();dragHeld.set(e.code,DRAGKEYS[e.code]);}});
+  document.addEventListener('keyup',e=>dragHeld.delete(e.code));
+  window.addEventListener('blur',()=>{dragHeld.clear();document.querySelectorAll('.gimbalpad .held').forEach(b=>b.classList.remove('held'));});
+  setInterval(()=>{
+    if(!dragHeld.size)return;
+    const live=state&&state.phase==='drc_active'&&state.operator===operator&&$('active').checked;
+    if(!live||!socket||!socket.connected)return;
+    let yaw=0,pitch=0;for(const [y,p] of dragHeld.values()){yaw+=y;pitch+=p;}
+    socket.emit('gimbal',{yaw:Math.max(-1,Math.min(1,yaw)),pitch:Math.max(-1,Math.min(1,pitch))});
+  },100);
 
   // --- Knöpfe -------------------------------------------------------------------------------------------------------------
   $('connect').addEventListener('click',connect);

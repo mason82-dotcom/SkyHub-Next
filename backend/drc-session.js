@@ -11,10 +11,11 @@
 // - Emergency stop (DRC drone_emergency_stop) is accepted from any authenticated operator, with or without lease.
 // - Every command and every fail-safe action goes to the audit log.
 const P=require('./drc-protocol');
+const PL=require('./drc-payload');
 
 const PHASES=Object.freeze(['idle','auth_pending','authorized','drc_pending','drc_active']);
 const DEFAULTS=Object.freeze({replyTimeoutMs:10000,leaseMs:1500,releaseAfterMs:3000,stickHz:10,stickStaleMs:300,heartbeatMs:1000,
-  upLinkLostMs:5000,stickScale:0.5,maxSpeedMs:10,maxHeightAboveTakeoffM:120,maxDistanceM:2000,minHeightAboveTakeoffM:20});
+  upLinkLostMs:5000,payloadReplyTimeoutMs:5000,dragHz:10,dragStaleMs:300,stickScale:0.5,maxSpeedMs:10,maxHeightAboveTakeoffM:120,maxDistanceM:2000,minHeightAboveTakeoffM:20});
 
 class DrcError extends Error{constructor(message,status=409){super(message);this.status=status;}}
 
@@ -23,8 +24,9 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
   if(typeof gateway!=='string'||!/^[A-Za-z0-9_-]{1,64}$/.test(gateway))throw new Error('DRC: gateway serial required');
   const L={...DEFAULTS,...limits};
   const s={phase:'idle',lease:null,lastStick:null,stickSending:false,seq:0,pending:new Map(),lastUpHeartbeat:null,latencyMs:null,
-    osd:null,flyTo:null,takeoff:null,returnHome:null,joystickInvalid:null,failsafe:null,lastError:null};
-  let stickTimer=null,heartbeatTimer=null,leaseTimer=null,releaseTimer=null;
+    osd:null,flyTo:null,takeoff:null,returnHome:null,joystickInvalid:null,failsafe:null,lastError:null,
+    pendingDrc:new Map(),camera:{state:null,lens:null,photo:null,lastCommand:null},lastDrag:null};
+  let stickTimer=null,heartbeatTimer=null,leaseTimer=null,releaseTimer=null,dragTimer=null;
 
   const now=()=>clock.now();
   const log=(action,detail={})=>audit({ts:new Date(now()).toISOString(),gateway,action,...detail});
@@ -33,7 +35,7 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
     log('phase',{from:s.phase,to:phase,why});
     s.phase=phase;
     if(phase==='drc_pending'||phase==='drc_active')startHeartbeat();else stopHeartbeat();
-    if(phase!=='drc_active')stopSticks();
+    if(phase!=='drc_active'){stopSticks();stopDrag(false);rejectPendingDrc('DRC-Kanal beendet');}
     changed();
   }
   const changed=()=>onChange(snapshot());
@@ -54,6 +56,22 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
   function drc(method,data){
     s.seq=(s.seq+1)%Number.MAX_SAFE_INTEGER;
     publishDrc(gateway,P.drcMessage(method,data,s.seq));
+    return s.seq;
+  }
+  // DRC command with a reply on drc/up, matched by seq AND method (payload commands: data.result, non-zero = error).
+  function drcRequest(method,data){
+    return new Promise((resolve,reject)=>{
+      let seq;
+      try{seq=drc(method,data);}catch(err){reject(new DrcError(method+': Senden fehlgeschlagen ('+err.message+')',502));return;}
+      const timer=clock.setTimeout(()=>{s.pendingDrc.delete(seq);reject(new DrcError(method+': keine Antwort des Fluggeräts',504));},L.payloadReplyTimeoutMs);
+      s.pendingDrc.set(seq,{method,resolve,reject,timer});
+    }).then(reply=>{
+      if(reply.result!==0)throw new DrcError(method+': vom Fluggerät abgelehnt (result '+reply.result+')',502);
+      return reply;
+    });
+  }
+  function rejectPendingDrc(why){
+    for(const [seq,p] of s.pendingDrc){clock.clearTimeout(p.timer);p.reject(new DrcError(p.method+': '+why,409));s.pendingDrc.delete(seq);}
   }
 
   // --- heartbeat (both directions, 1 Hz) --------------------------------------------------------------------------------
@@ -91,6 +109,7 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
     s.failsafe={reason,at:now(),pending:true};
     log('failsafe',{reason});
     if(s.phase==='drc_active'){try{drc('stick_control',P.NEUTRAL);}catch{}}
+    stopDrag(true);
     if((s.flyTo&&s.flyTo.active)||(s.takeoff&&s.takeoff.active))service('fly_to_point_stop',{}).catch(err=>log('failsafe-flyto-stop-failed',{error:err.message}));
     clock.clearTimeout(releaseTimer);
     releaseTimer=clock.setTimeout(()=>{releaseTimer=null;if(s.failsafe?.pending)handBack('Fail-safe: '+reason);},L.releaseAfterMs);
@@ -99,7 +118,7 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
   // Give control back to the RC: exit DRC, release cloud control. Errors are logged, the local state is reset regardless.
   async function handBack(why){
     log('hand-back',{why});
-    stopSticks();
+    stopSticks();stopDrag(true);
     const steps=[];
     if(s.phase==='drc_active'||s.phase==='drc_pending')steps.push(service('drc_mode_exit',{}).catch(err=>log('hand-back-exit-failed',{error:err.message})));
     if(s.phase!=='idle')steps.push(service('cloud_control_release',P.authRelease()).catch(err=>log('hand-back-release-failed',{error:err.message})));
@@ -127,6 +146,65 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
     if(s.joystickInvalid)throw new DrcError('Knüppelsteuerung gesperrt: '+s.joystickInvalid.text);
     s.lastStick={operator,at:now(),value:P.stick(vector,L.stickScale)};
     startSticks();
+  }
+
+  // --- payload: camera, gimbal, zoom (Matrice 4E/4T, drc-payload.js) --------------------------------------------------
+  function payloadCtx(a){
+    const ctx=PL.payloadContext(a.modelKey,a.payloadIndex);
+    if(!ctx)throw new DrcError('Kamerasteuerung für '+(a.modelName||a.modelKey||'?')+' nicht verfügbar');
+    return ctx;
+  }
+  function requirePayload(operator){
+    requireLease(operator);
+    if(s.phase!=='drc_active')throw new DrcError('Kamera und Gimbal erst im Live-Steuermodus');
+    return payloadCtx(aircraftState());
+  }
+  async function payload(operator,name,body){
+    const ctx=requirePayload(operator);
+    const cmd=PL.command(name,body,ctx);
+    log('command',{operator,method:cmd.method,data:cmd.data});
+    s.camera.lastCommand={label:cmd.label,status:'gesendet',at:now()};changed();
+    try{await drcRequest(cmd.method,cmd.data);}
+    catch(err){s.camera.lastCommand={label:cmd.label,status:'Fehler: '+err.message,at:now()};changed();throw err;}
+    s.camera.lastCommand={label:cmd.label,status:'OK',at:now()};changed();
+    return {method:cmd.method};
+  }
+  // Camera looks at a map point. heightAboveTakeoff is relative to the take-off point (0 = ground there); DJI wants the WGS84
+  // ellipsoid height, computed like for fly_to_point from the current OSD height and elevation.
+  async function lookAt(operator,{latitude,longitude,heightAboveTakeoff=0,locked=false}){
+    const ctx=requirePayload(operator);
+    const a=aircraft();
+    if(typeof heightAboveTakeoff!=='number'||!Number.isFinite(heightAboveTakeoff)||heightAboveTakeoff<-200||heightAboveTakeoff>1500)
+      throw new DrcError('Höhe des Blickziels über Start zwischen -200 und 1500 m',400);
+    if(!Number.isFinite(a.heightEllipsoid)||!Number.isFinite(a.heightAboveTakeoff))
+      throw new DrcError('Ellipsoidhöhe des Fluggeräts unbekannt: Telemetrie (height, elevation) fehlt');
+    const height=Math.round((a.heightEllipsoid-a.heightAboveTakeoff+heightAboveTakeoff)*10)/10;
+    const data=PL.lookAt({latitude,longitude,height,locked},ctx);
+    log('command',{operator,method:PL.LOOK_AT_METHOD,target:{latitude:data.latitude,longitude:data.longitude,heightAboveTakeoff,ellipsoid:height},locked:data.locked});
+    s.camera.lastCommand={label:'Blick auf Punkt',status:'gesendet',at:now()};changed();
+    await drcRequest(PL.LOOK_AT_METHOD,data);
+    s.camera.lastCommand={label:'Blick auf Punkt',status:'OK',at:now()};changed();
+  }
+  // Gimbal drag (drc_camera_screen_drag) is a speed command. ASSUMPTION (page gives no rate): sent at dragHz while the operator
+  // holds a direction, like the sticks; after dragStaleMs without input one zero-speed message stops the gimbal.
+  function gimbalDrag(operator,vector){
+    const ctx=requirePayload(operator);
+    s.lastDrag={operator,at:now(),value:PL.drag(vector||{},ctx)};
+    startDrag();
+  }
+  function startDrag(){
+    if(dragTimer)return;
+    dragTimer=clock.setInterval(()=>{
+      const d=s.lastDrag;
+      if(s.phase!=='drc_active'||!d){stopDrag(false);return;}
+      if(now()-d.at<=L.dragStaleMs&&holds(d.operator)){try{drc(PL.DRAG_METHOD,d.value);}catch(err){s.lastError='Gimbal: '+err.message;}}
+      else stopDrag(true);
+    },Math.round(1000/L.dragHz));
+  }
+  function stopDrag(sendZero){
+    if(dragTimer){clock.clearInterval(dragTimer);dragTimer=null;}
+    const d=s.lastDrag;s.lastDrag=null;
+    if(sendZero&&d&&s.phase==='drc_active'){try{drc(PL.DRAG_METHOD,{...d.value,pitch_speed:0,yaw_speed:0});}catch{}}
   }
 
   // --- preconditions ---------------------------------------------------------------------------------------------------
@@ -269,10 +347,17 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
     if(m.channel==='drc/up'){
       if(m.method==='heart_beat'){s.lastUpHeartbeat=now();if(Number.isFinite(m.timestamp))s.latencyMs=Math.max(0,now()-m.timestamp);}
       else if(m.method==='osd_info_push')s.osd={...m.osd,at:now()};
-      else if(m.result!==null&&m.result!==0)log('drc-rejected',{method:m.method,result:m.result});
+      else if(m.push){
+        const key=m.method==='drc_camera_state_push'?'state':m.method==='drc_camera_osd_info_push'?'lens':'photo';
+        s.camera={...s.camera,[key]:{...m.push,at:now()}};changed();
+      }else{
+        const p=m.seq!==null?s.pendingDrc.get(m.seq):null;
+        if(p&&p.method===m.method){clock.clearTimeout(p.timer);s.pendingDrc.delete(m.seq);p.resolve(m);}
+        else if(m.result!==null&&m.result!==0)log('drc-rejected',{method:m.method,result:m.result});
+      }
       return;
     }
-    if(m.channel==='state'){
+    if(m.channel==='state'||m.channel==='osd'){
       if(m.drcState===0&&(s.phase==='drc_active'||s.phase==='drc_pending'))setPhase('authorized','Fernsteuerung meldet DRC getrennt');
       return;
     }
@@ -304,18 +389,20 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
     return {gateway,phase:s.phase,operator:s.lease&&s.lease.expiresAt>t?s.lease.operator:null,
       upLink:s.lastUpHeartbeat===null?'unbekannt':t-s.lastUpHeartbeat>L.upLinkLostMs?'verloren':'ok',latencyMs:s.latencyMs,
       osd:s.osd,flyTo:s.flyTo,takeoff:s.takeoff,returnHome:s.returnHome,joystickInvalid:s.joystickInvalid,failsafe:s.failsafe,
-      sticksActive:Boolean(stickTimer),limits:{maxSpeedMs:L.maxSpeedMs,maxHeightAboveTakeoffM:L.maxHeightAboveTakeoffM,
+      sticksActive:Boolean(stickTimer),gimbalDragActive:Boolean(dragTimer),camera:s.camera,limits:{maxSpeedMs:L.maxSpeedMs,maxHeightAboveTakeoffM:L.maxHeightAboveTakeoffM,
         minHeightAboveTakeoffM:L.minHeightAboveTakeoffM,maxDistanceM:L.maxDistanceM,stickScale:L.stickScale},lastError:s.lastError};
   }
   async function shutdown(){
     if(s.phase!=='idle')await handBack('SkyHub wird beendet');
     for(const p of s.pending.values())clock.clearTimeout(p.timer);
     s.pending.clear();
-    [stickTimer,heartbeatTimer,leaseTimer].forEach(t=>t&&clock.clearInterval(t));
+    for(const p of s.pendingDrc.values())clock.clearTimeout(p.timer);
+    s.pendingDrc.clear();
+    [stickTimer,heartbeatTimer,leaseTimer,dragTimer].forEach(t=>t&&clock.clearInterval(t));
     if(releaseTimer)clock.clearTimeout(releaseTimer);
   }
   return {acquire,holds,requestAuthorization,enterLiveControl,exitLiveControl,release,flyTo,flyToStop,takeoff,returnHome,
-    returnHomeCancel,emergencyStop,landing,stickInput,onUp,snapshot,shutdown,triggerFailsafe};
+    returnHomeCancel,emergencyStop,landing,stickInput,payload,lookAt,gimbalDrag,onUp,snapshot,shutdown,triggerFailsafe};
 }
 
 function distance(a,b){

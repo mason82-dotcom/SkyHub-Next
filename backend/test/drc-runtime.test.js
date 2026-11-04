@@ -53,7 +53,7 @@ test('HTTP: token gate, auth request on the services topic with QoS 1, reply via
   const pool={query:async(sql,params)=>{if(/INSERT INTO drc_audit/.test(sql))audits.push(params);return {rows:[]};}};
   const rt=createDrcRuntime({config:drcConfig(ENV),registry:registry(),pool,io:fakeIo(),express,mqttConnect:()=>mqtt,log:{log(){},error(){}}});
   mqtt.emit('connect');
-  assert.deepEqual(mqtt.subscribed.sort(),['thing/product/RCP2SN01/drc/up','thing/product/RCP2SN01/events','thing/product/RCP2SN01/services_reply',
+  assert.deepEqual(mqtt.subscribed.sort(),['thing/product/RCP2SN01/drc/up','thing/product/RCP2SN01/events','thing/product/RCP2SN01/osd','thing/product/RCP2SN01/services_reply',
     'thing/product/RCP2SN01/state']);
   const app=express();app.use(express.json());app.use('/api/drc',rt.router);
   const server=http.createServer(app);await new Promise(r=>server.listen(0,'127.0.0.1',r));

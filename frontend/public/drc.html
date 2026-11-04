@@ -81,6 +81,63 @@
     <div class="stickviz"><div id="dotL" class="dot"></div><div id="dotR" class="dot"></div></div>
   </section>
 
+  <section class="card wide" id="payloadcard">
+    <h2>Kamera &amp; Gimbal <span id="camname" class="muted small">–</span></h2>
+    <div class="payload-grid">
+      <div>
+        <dl class="kv">
+          <dt>Modus</dt><dd id="camMode">–</dd>
+          <dt>Aufnahme</dt><dd id="camRec">–</dd>
+          <dt>Speicher</dt><dd id="camRemain">–</dd>
+          <dt>Zoom</dt><dd id="camZoom">–</dd>
+          <dt>Gimbal</dt><dd id="camGimbal">–</dd>
+          <dt>Letzter Befehl</dt><dd id="camLast">–</dd>
+        </dl>
+        <div class="row">
+          <button type="button" class="secondary" data-pl="camera_mode" data-mode="0">Fotomodus</button>
+          <button type="button" class="secondary" data-pl="camera_mode" data-mode="1">Videomodus</button>
+        </div>
+        <div class="row">
+          <button type="button" data-pl="photo_take">Foto auslösen</button>
+          <button type="button" data-pl="recording_start">Video starten</button>
+          <button type="button" class="secondary" data-pl="recording_stop">Video stoppen</button>
+        </div>
+      </div>
+      <div>
+        <p class="small">Gimbal: Pfeiltasten unten gedrückt halten oder <b>I/K</b> neigen · <b>J/L</b> schwenken. Loslassen = Stopp.</p>
+        <div class="gimbalpad" aria-label="Gimbal bewegen">
+          <button type="button" class="secondary" data-drag="0,1" aria-label="Gimbal hoch">▲</button>
+          <button type="button" class="secondary" data-drag="-1,0" aria-label="Gimbal links">◀</button>
+          <button type="button" class="secondary" data-drag="1,0" aria-label="Gimbal rechts">▶</button>
+          <button type="button" class="secondary" data-drag="0,-1" aria-label="Gimbal runter">▼</button>
+        </div>
+        <div class="row">
+          <button type="button" class="secondary" data-pl="gimbal_reset" data-mode="0">Mitte</button>
+          <button type="button" class="secondary" data-pl="gimbal_reset" data-mode="1">Nach unten</button>
+          <button type="button" class="secondary" data-pl="gimbal_reset" data-mode="2">Schwenk zentrieren</button>
+        </div>
+        <button id="lookat" type="button" class="secondary">Kamera auf Kartenziel richten (Boden)</button>
+      </div>
+      <div>
+        <div class="row">
+          <label>Objektiv <select id="zoomLens"><option value="zoom">Zoom</option><option value="wide">Weitwinkel</option></select></label>
+          <label>Zoomfaktor <input id="zoomFactor" type="number" min="2" max="200" step="1" value="2"></label>
+          <button id="zoomSet" type="button">Zoom setzen</button>
+        </div>
+        <div id="irtools" hidden>
+          <div class="row">
+            <label>Temperaturmessung <select id="irMode"><option value="0">aus</option><option value="1">Punkt</option><option value="2">Fläche</option></select></label>
+            <button id="irSet" type="button" class="secondary">Übernehmen</button>
+          </div>
+          <div class="row">
+            <button type="button" class="secondary" data-pl="split_screen" data-enable="true">Bild geteilt: an</button>
+            <button type="button" class="secondary" data-pl="split_screen" data-enable="false">Bild geteilt: aus</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section class="card wide" id="logcard">
     <h2>Protokoll</h2>
     <ol id="log" class="log"></ol>

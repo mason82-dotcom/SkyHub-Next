@@ -35,13 +35,15 @@ const num=(v,name,min,max)=>{
 const int=(v,name,min,max)=>{num(v,name,min,max);if(!Number.isInteger(v))fail(name+' muss ganzzahlig sein');return v;};
 const round=(v,d)=>Math.round(v*10**d)/10**d;
 const uuid=()=>crypto.randomUUID();
+// Payload commands and pushes live in drc-payload.js (which requires this file); loaded lazily to avoid a require cycle.
+const payloadModule=()=>require('./drc-payload');
 
 function serviceMessage(method,data,{tid=uuid(),bid=uuid(),timestamp=Date.now()}={}){
   if(!SERVICES.includes(method))throw new TypeError('unknown service '+method);
   return {tid,bid,timestamp,method,data:data??{}};
 }
 function drcMessage(method,data,seq){
-  if(!DRC_DOWN.includes(method))throw new TypeError('unknown DRC method '+method);
+  if(!DRC_DOWN.includes(method)&&!payloadModule().METHODS.includes(method))throw new TypeError('unknown DRC method '+method);
   if(!Number.isSafeInteger(seq)||seq<0)throw new TypeError('seq must be a non-negative integer');
   return {method,data:data??{},seq};
 }
@@ -103,8 +105,8 @@ const heartBeat=(timestamp=Date.now())=>({timestamp});
 
 // --- Parsing of upstream messages ----------------------------------------------------------------------------------------
 function parseTopic(topic){
-  // For state the serial is the device's own ({device_sn}); drc_state is a property of the RC, so it equals the gateway serial.
-  const m=/^thing\/product\/([A-Za-z0-9_-]{1,64})\/(services_reply|events|state|drc\/up)$/.exec(String(topic||''));
+  // For osd/state the serial is the device's own ({device_sn}); drc_state is a property of the RC, so it equals the gateway serial.
+  const m=/^thing\/product\/([A-Za-z0-9_-]{1,64})\/(services_reply|events|osd|state|drc\/up)$/.exec(String(topic||''));
   return m?{gateway:m[1],channel:m[2]}:null;
 }
 function finite(v){return typeof v==='number'&&Number.isFinite(v)?v:null;}
@@ -134,7 +136,9 @@ function parseUp(topic,payload){
       return {...base,seq,osd:o};
     }
     if(base.method==='heart_beat')return {...base,seq,timestamp:finite(d.timestamp)};
-    if(DRC_DOWN.includes(base.method))return {...base,seq,result:Number.isInteger(d.result)?d.result:null};
+    if(DRC_DOWN.includes(base.method)||payloadModule().METHODS.includes(base.method))
+      return {...base,seq,result:Number.isInteger(d.result)?d.result:null,status:typeof d.status==='string'?d.status.slice(0,32):null};
+    if(payloadModule().PUSHES.includes(base.method))return {...base,seq,push:payloadModule().parsePush(base.method,d)};
     return null;
   }
   if(t.channel==='events'){
@@ -153,7 +157,9 @@ function parseUp(topic,payload){
     if(base.method==='drc_status_notify')out.drcState=Number.isInteger(d.drc_state)?d.drc_state:null;
     return out;
   }
-  if(t.channel==='state'){
+  // dji-rc-plus-2/properties (1.18): drc_state has pushMode 0, i.e. it arrives in the RC's OSD (0.5 Hz), not in state.
+  // state is still accepted (older firmware, RC Pro); cloud_control_auth (pushMode 1) is not needed by the session.
+  if(t.channel==='osd'||t.channel==='state'){
     if(Number.isInteger(d.drc_state)&&[0,1,2].includes(d.drc_state))return {...base,drcState:d.drc_state};
     return null;
   }

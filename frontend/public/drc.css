@@ -36,5 +36,12 @@ body.drc{margin:0;background:var(--sky-bg);color:var(--sky-ink);font:14px/1.45 s
 .stickviz .dot{position:relative;width:110px;height:110px;border-radius:50%;border:2px solid var(--sky-border-strong);background:var(--sky-soft)}
 .stickviz .dot::after{content:"";position:absolute;left:calc(50% - 8px + var(--x,0) * 45px);top:calc(50% - 8px + var(--y,0) * 45px);
   width:16px;height:16px;border-radius:50%;background:var(--sky-primary)}
+.payload-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.card select{padding:8px 10px;border:1px solid var(--sky-border-strong);border-radius:8px;font:inherit;color:var(--sky-ink);background:var(--sky-white)}
+.gimbalpad{display:grid;grid-template-columns:repeat(3,56px);grid-template-rows:repeat(3,48px);gap:6px;justify-content:center;margin:0 0 10px}
+.gimbalpad button{margin:0;min-height:48px;padding:0;font-size:18px;touch-action:none;user-select:none}
+.gimbalpad [data-drag="0,1"]{grid-area:1/2}.gimbalpad [data-drag="-1,0"]{grid-area:2/1}
+.gimbalpad [data-drag="1,0"]{grid-area:2/3}.gimbalpad [data-drag="0,-1"]{grid-area:3/2}
+.gimbalpad button.held{background:var(--sky-primary);color:#fff}
 .log{margin:0;padding-left:18px;max-height:200px;overflow:auto;font:12.5px/1.5 ui-monospace,monospace}
 @media (max-width:600px){.estop{min-width:130px;font-size:17px}#map{height:300px}}

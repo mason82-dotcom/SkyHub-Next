@@ -7,7 +7,7 @@
 | | Matrice 4E/4T + RC Plus 2 | Mavic 3E/3T/3M + RC Pro |
 |---|---|---|
 | Cloud-Flugsteuerung (Knüppel, Zielanflug, Abheben, Rückkehr, Not-Stopp, Landen) | **ja** (DJI) – in SkyHub umgesetzt | nein (DJI bietet sie nicht an) |
-| Nutzlast (Kamera, Gimbal) | ja (DJI) – noch nicht umgesetzt | ja (DJI) – noch nicht umgesetzt |
+| Nutzlast (Kamera, Gimbal) | **ja** (DJI, `drc_camera_*` über `drc/down`) – in SkyHub umgesetzt | ja (DJI, `camera_*` über `services`) – noch nicht umgesetzt |
 | Flugaufträge `flighttask_*` | nein (nur Dock) | nein |
 | Routen | über die Pilot-2-Bibliothek, Start an der RC | ebenso |
 
@@ -29,6 +29,26 @@
 - **Ereignisse mit `need_reply`** (Anflug-/Abhebefortschritt, Knüppel ungültig, Rückkehrinfo) werden auf `events_reply` bestätigt.
 - **Audit:** jeder Befehl, jede Ablehnung und jede Fail-safe-Aktion in PostgreSQL (`drc_audit`), ohne Token.
 
+## Kamera und Gimbal (Matrice 4E/4T)
+Quelle: *dji-rc-plus-2/remote-control* (1.18). Laut *pilot-feature-set/drc* unterscheidet DJI bei Matrice 4 nicht zwischen Flug- und
+Nutzlastrechten: dieselbe Autorisierung gilt. Befehle gehen als `drc_*` über `drc/down` mit `seq`; die Antwort `{method,seq,data:{result}}`
+kommt auf `drc/up` und wird über `seq` **und** Methode zugeordnet (5 s Zeitlimit, `result ≠ 0` = abgelehnt, beides sichtbar und im Audit).
+- **Nur im Live-Steuermodus mit Bediener-Lease.** Kamera: `payload_index` 88-0-0 (4E) / 89-0-0 (4T) laut *product-support*; ein in der
+  OSD gemeldeter `payload_index` derselben Kamera hat Vorrang (*m4-series/properties*, `{type-subtype-gimbalindex}`).
+- **Angeboten:** Kameramodus, Foto, Video Start/Stopp, Zoom (`drc_camera_focal_length_set`, sichtbar 2–200, IR 2–20), Gimbal ziehen
+  (`drc_camera_screen_drag`), Gimbal-Reset (Mitte, nach unten, Schwenk zentrieren), Kamera auf Kartenpunkt (`drc_camera_look_at`,
+  Ellipsoidhöhe wie beim Zielanflug umgerechnet), Kamera auf Bildpunkt, Fokus, Belichtungsmodus/-korrektur, geteilter Bildschirm,
+  Temperaturmessung (nur 4T). API: `POST /api/drc/payload/<befehl>`, `POST /api/drc/payload/look-at`, Socket `gimbal`.
+- **Bewusst nicht angeboten:** Positions-/Antikollisionslichter (`drc_night_lights_state_set`) und Diskretmodus (`drc_stealth_state_set`)
+  bleiben beim Piloten; Speicher-, Auflösungs-, ISO-, Verschluss-, Blenden-Einstellungen vorerst in Pilot 2.
+- **Gimbal ziehen** ist ein Geschwindigkeitsbefehl. DJI nennt weder Bereich noch Senderate. **Annahmen (am Boden prüfen):** höchstens
+  ±0,6 rad/s, `locked=false` (nur der Gimbal dreht, nicht das Fluggerät), 10 Hz solange gehalten, 300 ms nach der letzten Eingabe eine
+  Nachricht mit Geschwindigkeit 0. Totmannschaltung und Rückgabe stoppen den Gimbal ebenso.
+- **Zustand:** `drc_camera_state_push` (Modus, Aufnahme, Restkapazität), `drc_camera_osd_info_push` (Zoom, IR), `drc_camera_photo_info_push`;
+  Gimbalwinkel aus `osd_info_push` bzw. der Fluggeräte-OSD. Felder werden einzeln übernommen, Unbekanntes verworfen.
+- **`drc_state`** kommt laut *dji-rc-plus-2/properties* (pushMode 0) in der **OSD der RC** (0,5 Hz), nicht in `state`. SkyHub liest beide;
+  dafür braucht `skyhub_commander` Leserecht auf `thing/product/+/osd` (siehe unten).
+
 ## Einrichten
 1. **Broker-Benutzer** (Mosquitto auf brix-node, `ops/brix/mosquitto/acl` und `passwd`; Passwörter mit `mosquitto_passwd`):
    ```
@@ -38,6 +58,7 @@
    topic write thing/product/+/events_reply
    topic read thing/product/+/services_reply
    topic read thing/product/+/events
+   topic read thing/product/+/osd     # drc_state der RC (pushMode 0, dji-rc-plus-2/properties)
    topic read thing/product/+/state
    topic read thing/product/+/drc/up
 
@@ -72,7 +93,7 @@ mqttx sub -h 192.168.178.63 -p 1884 -u mqttx_debug -P '<passwort>' -t 'thing/pro
 `mqttx_debug` darf **nur lesen**. Steuerbefehle nie von Hand aus MQTTX senden.
 
 ## Testablauf
-1. **Ohne Hardware:** `node scripts/drc-rc-simulator.js --url mqtt://192.168.178.63:1884 --username <test-benutzer> --password-file <datei>`
+1. **Ohne Hardware:** (Simulator kennt auch Kamera, Zoom, Gimbal und meldet `drc_state` über die RC-OSD) `node scripts/drc-rc-simulator.js --url mqtt://192.168.178.63:1884 --username <test-benutzer> --password-file <datei>`
    (Seriennummer `SIMRCP2`, Fluggerät `SIMM4T`; `SKYHUB_DRC_GATEWAY_SN=SIMRCP2`). Ablauf in `drc.html` durchspielen, MQTTX mitlesen lassen,
    Tab wechseln → Rückgabe nach ~4,5 s prüfen. `--deny` simuliert einen ablehnenden Piloten.
 2. **Am Boden, Propeller ab:** echte RC Plus 2, Autorisierung, Live-Modus, Herzschlag/Latenz, Not-Stopp-Antwort, Totmann-Rückgabe, Rückgabe beim
@@ -81,7 +102,12 @@ mqttx sub -h 192.168.178.63 -p 1884 -u mqttx_debug -P '<passwort>' -t 'thing/pro
    (`SKYHUB_DRC_STICK_SCALE=0.3`). Abbruchkriterium: jede unerwartete Reaktion → Not-Stopp, Rückgabe, RC übernimmt.
 
 ## Offen
-- Nutzlaststeuerung (Kamera, Gimbal, Zoom) für Matrice 4 und Mavic 3E-Serie.
+- Nutzlaststeuerung der Mavic 3E-Serie über RC Pro (`camera_*`/`gimbal_reset` auf `services`, *rc-pro/drc*); Befehlskatalog
+  `drc-payload.js` ist dafür vorbereitet, Übertragungsweg und Freigabe der RC Pro fehlen.
+- Kamera/Gimbal am Boden prüfen: Senderate und Bereich von `drc_camera_screen_drag`, Verhalten von `locked`, Antwortzeiten.
+- `dji-rc-plus-2/device` nennt als Topic `thing/product/{gateway_sn}/status` und keine `domain`; alle anderen Seiten und die echte RC
+  (22.10.2026) nutzen `sys/product/{gateway_sn}/status`. SkyHub bleibt bei `sys/…`; fehlt `domain`, ergänzt die DRC-Erkennung sie nur
+  für RC Plus 2 (type 174) und Matrice 4 (type 99).
 - Livevideo aus der Cloud starten (`live_start_push`, WebRTC bei RC Plus 2) für die Steueroberfläche.
 - POI-Kreisflug (`poi_mode_enter` …).
 - `takeoff_to_point.target_height` ist laut Tabelle „Target point height“ ohne Bezug; SkyHub nimmt wie bei `fly_to_point` Ellipsoidhöhe an –

@@ -29,6 +29,13 @@ steckt in `…/../assets/js/v-<id>.<hash>.js`, die Zuordnung Seite → Datei ste
 | RC Pro | [mqtt/rc-pro/drc](https://developer.dji.com/doc/cloud-api-tutorial/en/api-reference/pilot-to-cloud/mqtt/rc-pro/drc.html) | Live-Steuerung RC Pro | nur Autorisierung, DRC-Modus, Kamera/Gimbal – **keine Flugbefehle** |
 | RC Pro | [mqtt/rc-pro/remote-control](https://developer.dji.com/doc/cloud-api-tutorial/en/api-reference/pilot-to-cloud/mqtt/rc-pro/remote-control.html) | Fernsteuerung RC Pro | nur Zustandsmeldungen, kein Knüppel/Not-Stopp |
 | RC Pro | [mqtt/rc-pro/live](https://developer.dji.com/doc/cloud-api-tutorial/en/api-reference/pilot-to-cloud/mqtt/rc-pro/live.html) | Livevideo | `live_start_push` usw.; SkyHub nutzt bisher nur manuell gestartetes Video |
+| RC Pro | [mqtt/rc-pro/drc](https://developer.dji.com/doc/cloud-api-tutorial/en/api-reference/pilot-to-cloud/mqtt/rc-pro/drc.html) (Nutzlast) | Kamera/Gimbal Mavic 3E-Serie | 26 Methoden auf `services` (`camera_*`, `gimbal_reset`, …), **ohne** `drc_`-Präfix; noch nicht umgesetzt |
+| RC Plus 2 | [mqtt/dji-rc-plus-2/properties](https://developer.dji.com/doc/cloud-api-tutorial/en/api-reference/pilot-to-cloud/mqtt/dji-rc-plus-2/properties.html) | Zustand der RC | **`drc_state` pushMode 0 → OSD der RC**, nicht `state` → `drc-runtime.js` abonniert `…/{rc}/osd` (behoben); `cloud_control_auth` pushMode 1 |
+| RC Plus 2 | [mqtt/dji-rc-plus-2/device](https://developer.dji.com/doc/cloud-api-tutorial/en/api-reference/pilot-to-cloud/mqtt/dji-rc-plus-2/device.html) | Topologie | Seite nennt `thing/product/{gateway_sn}/status` und **keine** `domain`/`index`; abweichend von allen anderen Seiten und der echten RC → SkyHub bleibt bei `sys/…`, `domain` nur für type 174/99 ergänzt |
+| RC Plus 2 | [mqtt/dji-rc-plus-2/remote-control](https://developer.dji.com/doc/cloud-api-tutorial/en/api-reference/pilot-to-cloud/mqtt/dji-rc-plus-2/remote-control.html) | Kamera/Gimbal Matrice 4 | `drc_camera_*`, `drc_gimbal_reset`, `drc_ir_metering_*` und Pushes über `drc/down`/`drc/up` → `drc-payload.js` |
+| Lageübersicht | [websocket/situation-awareness/message-push](https://developer.dji.com/doc/cloud-api-tutorial/en/api-reference/pilot-to-cloud/websocket/situation-awareness/message-push.html) | WebSocket an Pilot 2 | `device_osd`/`device_online`/`device_offline`/`device_update_topo`, `version` „1.0“ = `tsa-contract.js` |
+| Einstieg | [quick-start/source-code-deployment-steps](https://developer.dji.com/doc/cloud-api-tutorial/en/quick-start/source-code-deployment-steps.html) | Lizenz, Pilot-2-Anmeldung | App ID/Key/License → `SKYHUB_DJI_APP_*` + `platformVerifyLicense`; Demo-Zugänge (`pilot`/`pilot123`, `adminPC`) gibt es in SkyHub nicht |
+| Einstieg | [tutorial-map](https://developer.dji.com/doc/cloud-api-tutorial/en/tutorial-map.html) | Funktionsübersicht | Tabelle älter (Pilot bei *Live Flight Controls* „–“); für Pilot offen: Kartenelemente schreiben + WebSocket, Livestream per MQTT |
 | andere RC | [mqtt/others/rc/properties](https://developer.dji.com/doc/cloud-api-tutorial/en/api-reference/pilot-to-cloud/mqtt/others/rc/properties.html) | übrige RCs | `cloud_control_auth`, **kein** `drc_state` |
 | andere RC | [mqtt/others/rc/device](https://developer.dji.com/doc/cloud-api-tutorial/en/api-reference/pilot-to-cloud/mqtt/others/rc/device.html) | `update_topo` | Felder = Simulator (`drc-rc-simulator.js`) |
 | Pilot 2 H5 | [pilot-to-cloud/jsbridge](https://developer.dji.com/doc/cloud-api-tutorial/en/api-reference/pilot-to-cloud/jsbridge.html) | Pilot-2-Webview (`pilot-login.html`) | als Referenz aufgenommen, Abgleich offen |
@@ -40,6 +47,9 @@ Zusätzlich für die Matrice-4-Steuerung herangezogen (Gegenstück der RC Plus 2
 [mqtt/dji-rc-plus-2/live](https://developer.dji.com/doc/cloud-api-tutorial/en/api-reference/pilot-to-cloud/mqtt/dji-rc-plus-2/live.html),
 [mqtt/m4-series/properties](https://developer.dji.com/doc/cloud-api-tutorial/en/api-reference/pilot-to-cloud/mqtt/m4-series/properties.html),
 [overview/product-support](https://developer.dji.com/doc/cloud-api-tutorial/en/overview/product-support.html).
+
+Nur ergänzend, **nicht** Referenz: GitHub [dji-sdk/Cloud-API-Doc](https://github.com/dji-sdk/Cloud-API-Doc/tree/master/docs/en) ist auf
+Stand **v1.11.3 (07.11.2024)**, ohne RC-Plus-2- und Matrice-4-Seiten und mit der älteren Nutzlast-API (RC Pro, `services`).
 
 ## Regeln für die Weiterentwicklung
 1. Neue Protokollteile zuerst gegen die passende Seite oben abgleichen; Quelle (Seite, Feld) im Code-Kommentar nennen.

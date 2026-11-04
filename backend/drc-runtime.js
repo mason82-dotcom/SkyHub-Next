@@ -4,6 +4,7 @@
 // Off by default. Every control action needs the normal SkyHub access PLUS the DRC token (X-SkyHub-DRC-Token).
 const crypto=require('node:crypto');
 const P=require('./drc-protocol');
+const PL=require('./drc-payload');
 const {createDrcSession,DrcError}=require('./drc-session');
 
 const AUDIT_SCHEMA=`CREATE TABLE IF NOT EXISTS drc_audit(
@@ -39,17 +40,29 @@ function tokenOk(presented,secret){
   return crypto.timingSafeEqual(a,b);
 }
 
+// Model key domain-type-subtype. dji-rc-plus-2/device (1.18) lists update_topo WITHOUT domain; a missing domain is only
+// filled in for the exact RC Plus 2 (type 174 → 2) and Matrice 4 (type 99 → 0), never guessed for anything else.
+function modelKey(model,role){
+  if(!model)return null;
+  let domain=model.domain===null||model.domain===undefined?null:String(model.domain);
+  if(domain===null&&role==='gateway'&&model.type===174)domain='2';
+  if(domain===null&&role==='aircraft'&&model.type===99)domain='0';
+  return [domain,model.type,model.subType].join('-');
+}
 // Registry → what the session needs about the aircraft behind the pinned RC.
 function aircraftFromRegistry(registry,gateway){
   return ()=>{
     const rc=registry.get(gateway);
     if(!rc)return null;
-    const rcKey=rc.model&&[rc.model.domain,rc.model.type,rc.model.subType].join('-');
-    if(rcKey!==P.GATEWAY_MODEL)return null;                       // only an RC Plus 2 may be controlled
-    const child=registry.snapshot().find(d=>d.gatewaySn===gateway&&String(d.model?.domain)==='0');
+    if(modelKey(rc.model,'gateway')!==P.GATEWAY_MODEL)return null;     // only an RC Plus 2 may be controlled
+    const child=registry.snapshot().find(d=>d.gatewaySn===gateway&&d.sn!==gateway&&modelKey(d.model,'aircraft')?.startsWith('0-'));
     if(!child||!child.online||child.aircraftConnected===false)return null;
     const t=child.telemetry||{};
-    return {sn:child.sn,modelKey:[child.model.domain,child.model.type,child.model.subType].join('-'),modelName:child.modelName,
+    // m4-series/properties: OSD object {type-subtype-gimbalindex} with gimbal_pitch/roll/yaw, payload_index, zoom_factor.
+    const g=(child.deviceProperties?.osd?.payload_gimbals||[]).find(x=>x&&typeof x.payload_index==='string')||null;
+    return {sn:child.sn,modelKey:modelKey(child.model,'aircraft'),modelName:child.modelName,
+      payloadIndex:g?g.payload_index:null,
+      gimbal:g?{pitch:g.gimbal_pitch??null,roll:g.gimbal_roll??null,yaw:g.gimbal_yaw??null,zoomFactor:g.zoom_factor??null}:null,
       heightEllipsoid:t.heightEllipsoid,heightAboveTakeoff:t.altitude,modeCode:child.modeCode,
       position:Number.isFinite(t.latitude)&&Number.isFinite(t.longitude)&&child.positionFresh?{latitude:t.latitude,longitude:t.longitude}:null,
       home:child.home||null};
@@ -89,7 +102,9 @@ function createDrcRuntime({config,registry,pool,io,express,mqttConnect,socketAut
     broker:()=>({...config.broker,clientId:('drc-'+gw).slice(0,64),expireTime:Math.floor(Date.now()/1000)+3600})});
   client.on('connect',()=>{
     connected=true;
-    client.subscribe([`thing/product/${gw}/services_reply`,`thing/product/${gw}/events`,`thing/product/${gw}/state`,`thing/product/${gw}/drc/up`],{qos:0},
+    // osd of the RC: drc_state is pushMode 0 (dji-rc-plus-2/properties, 1.18). Only the RC's own serial, not the aircraft's.
+    client.subscribe([`thing/product/${gw}/services_reply`,`thing/product/${gw}/events`,`thing/product/${gw}/osd`,`thing/product/${gw}/state`,
+      `thing/product/${gw}/drc/up`],{qos:0},
       err=>{if(err)log.error('[drc] subscribe failed:',err.message);});
     broadcast();
   });
@@ -100,7 +115,8 @@ function createDrcRuntime({config,registry,pool,io,express,mqttConnect,socketAut
   function status(){
     const a=aircraftFromRegistry(registry,gw)();
     return {...session.snapshot(),broker:connected?'verbunden':'getrennt',
-      aircraft:a?{sn:a.sn,model:a.modelName,modeCode:a.modeCode,heightAboveTakeoff:a.heightAboveTakeoff,position:a.position,home:a.home}:null};
+      aircraft:a?{sn:a.sn,model:a.modelName,modeCode:a.modeCode,heightAboveTakeoff:a.heightAboveTakeoff,position:a.position,home:a.home,
+        gimbal:a.gimbal,payload:(()=>{const c=PL.payloadContext(a.modelKey,a.payloadIndex);return c?{name:c.name,cameraTypes:c.cameraTypes}:null;})()}:null};
   }
 
   // --- HTTP API -----------------------------------------------------------------------------------------------------------
@@ -139,6 +155,10 @@ function createDrcRuntime({config,registry,pool,io,express,mqttConnect,socketAut
       rthAltitude:b.rthAltitude,maxSpeed:b.maxSpeed});}));
   router.post('/return-home',act(req=>session.returnHome(req.operator)));
   router.post('/return-home/cancel',act(req=>session.returnHomeCancel(req.operator)));
+  // Camera / gimbal (drc-payload.js COMMANDS); look-at uses a map point and a height above take-off.
+  router.post('/payload/look-at',act(req=>{const b=body(req);return session.lookAt(req.operator,{latitude:b.latitude,longitude:b.longitude,
+    heightAboveTakeoff:b.heightAboveTakeoff,locked:b.locked});}));
+  router.post('/payload/:command',act(req=>session.payload(req.operator,req.params.command,body(req))));
   router.post('/emergency-stop',act(req=>session.emergencyStop(req.operator)));
   router.post('/landing',act(req=>{const b=body(req);
     if(!['force','emergency'].includes(b.kind))throw new DrcError('kind force oder emergency',400);
@@ -160,6 +180,10 @@ function createDrcRuntime({config,registry,pool,io,express,mqttConnect,socketAut
       try{session.acquire(op);session.stickInput(op,v||{});}
       catch(err){socket.emit('drc-error',err.message);}
     });
+    socket.on('gimbal',(v)=>{
+      try{session.acquire(op);session.gimbalDrag(op,v&&typeof v==='object'?{pitch:v.pitch,yaw:v.yaw}:{});}
+      catch(err){socket.emit('drc-error',err.message);}
+    });
     socket.on('emergency-stop',()=>{try{session.emergencyStop(op);}catch(err){socket.emit('drc-error',err.message);}});
     // A closing socket does not release immediately: the lease timeout and fail-safe decide (brief reconnects survive).
   });
@@ -170,4 +194,4 @@ function createDrcRuntime({config,registry,pool,io,express,mqttConnect,socketAut
   return {router,status,session,shutdown};
 }
 
-module.exports={drcConfig,createDrcRuntime,aircraftFromRegistry,tokenOk,AUDIT_SCHEMA};
+module.exports={drcConfig,createDrcRuntime,aircraftFromRegistry,modelKey,tokenOk,AUDIT_SCHEMA};
