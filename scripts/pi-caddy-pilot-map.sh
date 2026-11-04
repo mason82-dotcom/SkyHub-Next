@@ -57,7 +57,8 @@ check() {
   out=$(curl -sk -o /dev/null -w '%{http_code} %{content_type}' --resolve "${SITE}:443:127.0.0.1" \
     "https://${SITE}/map/api/v1/workspaces/${ws}/element-groups" || true)
   echo "Kartenelemente über Caddy: ${out}  (erwartet 401/404 mit application/json vom SkyHub-Backend)"
-  out=$(curl -sk -o /dev/null -w '%{http_code}' --resolve "${SITE}:443:127.0.0.1" -H 'Connection: Upgrade' -H 'Upgrade: websocket' \
+  # HTTP/1.1: a WebSocket upgrade by header does not exist in HTTP/2 (curl would negotiate h2 and get the plain 404).
+  out=$(curl -sk --http1.1 -o /dev/null -w '%{http_code}' --resolve "${SITE}:443:127.0.0.1" -H 'Connection: Upgrade' -H 'Upgrade: websocket' \
     -H 'Sec-WebSocket-Version: 13' -H 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==' "https://${SITE}/ws/tsa" || true)
   echo "WebSocket /ws/tsa über Caddy: HTTP ${out}  (erwartet 401 ohne Token)"
 }
