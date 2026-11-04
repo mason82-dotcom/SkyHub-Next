@@ -71,11 +71,39 @@
     }
   }
 
+  // German display of the server check messages (mission-envelope.js). The confirmation still sends the original text.
+  const DE=[
+    [/^WPML 1\.0\.6 as written by DJI Pilot 2/,()=>'Route im Format WPML 1.0.6 aus DJI Pilot 2: SkyHub hat die Flughülle geprüft, die Datei wird unverändert freigegeben (der SkyHub-Editor schreibt 1.0.2).'],
+    [/^no return-to-home height in the route/,()=>'Keine Rückkehrhöhe in der Route: Das Fluggerät nutzt die in Pilot 2 eingestellte Rückkehrhöhe – vor dem Start dort prüfen.'],
+    [/^wayline (\d+): terrain follow \(height above ground\) for the Matrice 4/,m=>'Abschnitt '+m[1]+': Geländefolge (Höhe über Grund) für die Matrice 4, wie von Pilot 2 erzeugt – Geländedaten und Sensorik in Pilot 2 müssen funktionieren.'],
+    [/^no take-off reference point/,()=>'Kein Startbezugspunkt: Entfernung und Dauer sind ab dem ersten Wegpunkt gerechnet.'],
+    [/^heights are relative to the take-off point, not to the ground.*exceed ([\d.]+) m/,m=>'Höhen gelten relativ zum Startpunkt, nicht zum Boden: Gelände entlang der Route prüfen (ansteigendes Gelände verringert den Abstand, abfallendes kann mehr als '+m[1]+' m über Grund ergeben).'],
+    [/^lowest waypoint ([\d.]+) m above take-off/,m=>'Niedrigster Wegpunkt '+m[1]+' m über Start: Hindernisabstand prüfen.'],
+    [/^two waypoints only ([\d.]+) m apart/,m=>'Zwei Wegpunkte liegen nur '+m[1]+' m auseinander.'],
+    [/^signal loss does not trigger return-to-home/,()=>'Bei Verbindungsverlust gibt es keine Rückkehr zum Start.'],
+    [/^finish action is "?(\w+)"?, not return-to-home/,m=>'Nach dem Flug: „'+m[1]+'“ statt Rückkehr zum Start.'],
+    [/^wayline (\d+): WGS84 \(ellipsoid\) heights/,m=>'Abschnitt '+m[1]+': Ellipsoidhöhen (WGS84); die Höhe über Start beruht auf dem geplanten Bezugspunkt, geflogen wird ab dem tatsächlichen Startpunkt.'],
+    [/^height ([\d.]+) m above take-off exceeds ([\d.]+) m/,m=>'Höhe '+m[1]+' m über Start überschreitet '+m[2]+' m.'],
+    [/^RTH height ([\d.]+) m exceeds ([\d.]+) m/,m=>'Rückkehrhöhe '+m[1]+' m überschreitet '+m[2]+' m.'],
+    [/^speed ([\d.]+) m\/s exceeds ([\d.]+) m\/s/,m=>'Geschwindigkeit '+m[1]+' m/s überschreitet '+m[2]+' m/s.'],
+    [/^estimated flight time ([\d.]+) min exceeds ([\d.]+) min/,m=>'Geschätzte Flugzeit '+m[1]+' min überschreitet '+m[2]+' min.'],
+    [/^route reaches ([\d.]+) m from its origin, more than ([\d.]+) m/,m=>'Die Route entfernt sich '+m[1]+' m vom Start, erlaubt sind '+m[2]+' m.'],
+    [/^waylines\.wpml unreadable/,()=>'waylines.wpml nicht lesbar.'],
+    [/^wpml:globalRTHHeight missing/,()=>'Rückkehrhöhe (globalRTHHeight) fehlt.'],
+    [/^dock-only aircraft/,()=>'Fluggerät nur für das Dock: vor Ort kann keine Fernsteuerung diese Route fliegen.'],
+    [/^aircraft \(wpml:droneEnumValue\) missing/,()=>'Die Route nennt kein Fluggerät.']
+  ];
+  function german(msg){for(const [re,f] of DE){const m=re.exec(msg);if(m)return f(m);}return null;}
+  function message(msg){
+    const de=german(msg);
+    return de?el('span',{},de,el('br'),el('span',{class:'small muted'},'Original: '+msg)):el('span',{},msg);
+  }
+
   // --- Prüfung und Freigabe -------------------------------------------------------------------------------------------------
   const ENVELOPE=[
-    ['aircraft','Fluggerät',v=>v||'–'],['waylines','Routenabschnitte',v=>num(v)],['waypoints','Wegpunkte',v=>num(v)],
+    ['aircraft','Fluggerät',v=>v||'–'],['wpmlVersion','WPML-Version',v=>v||'–'],['waylines','Routenabschnitte',v=>num(v)],['waypoints','Wegpunkte',v=>num(v)],
     ['maxHeightAboveTakeoffM','Höchste Höhe über Start',v=>num(v,'m',1)],['minHeightAboveTakeoffM','Niedrigste Höhe über Start',v=>num(v,'m',1)],
-    ['rthHeightM','Rückkehrhöhe',v=>num(v,'m',1)],['takeOffSecurityHeightM','Sicherheitssteighöhe',v=>num(v,'m',1)],
+    ['rthHeightM','Rückkehrhöhe',v=>v==null?'nicht in der Route (Einstellung in Pilot 2)':num(v,'m',1)],['takeOffSecurityHeightM','Sicherheitssteighöhe',v=>num(v,'m',1)],
     ['maxSpeedMs','Höchste Geschwindigkeit',v=>num(v,'m/s',1)],['lengthM','Streckenlänge',v=>num(v,'m')],
     ['estimatedDurationMin','Geschätzte Flugzeit',v=>num(v,'min',1)],['maxDistanceFromOriginM','Größte Entfernung vom Start',v=>num(v,'m')],
     ['heightModes','Höhenbezug',v=>(v||[]).map(h=>({relativeToStartPoint:'relativ zum Start',realTimeFollowSurface:'über Grund',WGS84:'Ellipsoid (WGS84)'}[h]||h)).join(', ')||'–'],
@@ -94,7 +122,7 @@
   function checkbox(name,text){
     const box=el('input',{type:'checkbox',name});
     box.addEventListener('change',updateReleaseButton);
-    return el('label',{class:'check'},box,el('span',{},text));
+    return el('label',{class:'check'},box,typeof text==='string'?el('span',{},text):text);
   }
   function renderDetail(){
     const d=current,c=d.check;
@@ -106,9 +134,9 @@
     const dl=$('envelope');dl.replaceChildren();
     for(const [k,label,f] of ENVELOPE)if(c.envelope)dl.append(el('dt',{},label),el('dd',{},f(c.envelope[k])));
     $('errorsBox').hidden=!c.errors.length;
-    $('errors').replaceChildren(...c.errors.map(e=>el('li',{},e)));
+    $('errors').replaceChildren(...c.errors.map(e=>el('li',{},message(e))));
     $('warningsBox').hidden=!c.warnings.length;
-    $('warnings').replaceChildren(...c.warnings.map((w,i)=>checkbox('w'+i,w)));
+    $('warnings').replaceChildren(...c.warnings.map((w,i)=>checkbox('w'+i,message(w))));
     $('checklist').replaceChildren(...Object.entries(config?.checklist||{}).map(([k,t])=>checkbox('c:'+k,t)));
     $('checklistBox').disabled=!c.ok;$('warningsBox').disabled=!c.ok;
     $('activeBox').hidden=!d.active;

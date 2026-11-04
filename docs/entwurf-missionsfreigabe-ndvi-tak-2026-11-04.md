@@ -53,6 +53,13 @@ Freigeben und Zurückziehen gehen aus dem Heimnetz über HTTPS, Schreiben nur mi
 (`wpml-lan-auth.js`, `req.skyhubLan`). Von außen gesperrt; das Freigabe-Token bleibt als Zugang für Skripte. Erreichbar über die Routenverwaltung und die Übersicht.
 Offen: Prüfmeldungen kommen englisch vom Server (die Bestätigung erfolgt mit dem exakten Text); eine deutsche Anzeige wäre zusätzlich.
 
+### WPML 1.0.6 aus Pilot 2 (Entscheidung 04.11.2026)
+Pilot 2 auf der RC Plus 2 schreibt WPML **1.0.6** (Beispiel „Michaelsberg“, Matrice 4T), die DJI-1.18-Beispiele zeigen 1.0.2.
+1.0.6-Routen dürfen nach **derselben** Flughüllenprüfung freigegeben werden; die Datei bleibt unverändert. Pflicht-Warnungen:
+„WPML 1.0.6 aus Pilot 2“, „keine Rückkehrhöhe in der Route (Einstellung in Pilot 2 prüfen)“ und für die Matrice 4 „Geländefolge“.
+Für 1.0.2 gelten die bisherigen Regeln (Rückkehrhöhe Pflicht, Geländefolge nur M3E/M3T/M3M). Die Seite zeigt die Meldungen
+deutsch, bestätigt wird mit dem Originaltext.
+
 ### Flughülle (`backend/mission-envelope.js`)
 Aus `wpmz/waylines.wpml` (ausführbare Datei, DJI WPML 1.0.x laut 1.18):
 - Höhenmodus `wpml:executeHeightMode`: `relativeToStartPoint` (Höhe relativ zum Start), `realTimeFollowSurface` (Höhe über Grund),

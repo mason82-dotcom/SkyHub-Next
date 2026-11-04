@@ -9,7 +9,19 @@
 // Errors block a release; warnings must be acknowledged one by one. This is a plausibility gate in front of
 // DJI Pilot 2, not an airspace check and not a flight authorisation (risk register M2/M3).
 const {readKmz}=require('./wpml-kmz');
-const {parseXml}=require('./wpml');
+const {parseXml,WPML,WPML_REFERENCE_ONLY}=require('./wpml');
+// WPML namespaces: 1.0.2 (DJI Cloud API 1.18 examples, SkyHub editor/export) and 1.0.6 (what DJI Pilot 2 on the RC Plus 2
+// writes, e.g. routes uploaded from the RC). Decision 04.11.2026: 1.0.6 may be released after the SAME envelope check plus
+// an explicit acknowledgement; the file is released unchanged (it came from Pilot 2), it is never edited or re-exported.
+const NAMESPACES=Object.freeze([[WPML,'1.0.2'],[WPML_REFERENCE_ONLY,'1.0.6']]);
+function parseWpml(xml,only){
+  let first=null;
+  for(const [ns,version] of NAMESPACES){
+    if(only&&ns!==only)continue;
+    try{return {root:parseXml(xml,ns),ns,version};}catch(err){first=first||err;}
+  }
+  throw first;
+}
 const {assessAircraft}=require('./wpml-product-support');
 
 const DEFAULT_LIMITS=Object.freeze({
@@ -59,8 +71,10 @@ const round=(v,d=1)=>v===null?null:Math.round(v*10**d)/10**d;
 
 function computeEnvelope(waylinesXml,templateXml){
   const errors=[],warnings=[];
-  let root;
-  try{root=parseXml(waylinesXml);}catch(err){return {errors:['waylines.wpml unreadable: '+err.message],warnings,envelope:null};}
+  let root,ns,wpmlVersion;
+  try{({root,ns,version:wpmlVersion}=parseWpml(waylinesXml));}
+  catch(err){return {errors:['waylines.wpml unreadable: '+err.message],warnings,envelope:null};}
+  if(wpmlVersion==='1.0.6')warnings.push('WPML 1.0.6 as written by DJI Pilot 2: SkyHub checked the flight envelope, the file is released unchanged (SkyHub itself edits and exports WPML 1.0.2)');
   const doc=one(root,'Document');
   const config=one(doc,'wpml:missionConfig');
   if(!config)return {errors:['wpml:missionConfig missing'],warnings,envelope:null};
@@ -77,7 +91,8 @@ function computeEnvelope(waylinesXml,templateXml){
   let templateTypes=[];
   if(templateXml){
     try{
-      const tdoc=one(parseXml(templateXml),'Document');
+      // template.kml must use the same WPML version as waylines.wpml.
+      const tdoc=one(parseWpml(templateXml,ns).root,'Document');
       if(!ref)ref=parseRefPoint(text(one(tdoc,'wpml:missionConfig'),'takeOffRefPoint'));
       templateTypes=kids(tdoc,'Folder').map(f=>text(f,'templateType')).filter(Boolean);
     }catch{ref=ref||null;}
@@ -86,7 +101,11 @@ function computeEnvelope(waylinesXml,templateXml){
   const transition=num(text(config,'globalTransitionalSpeed'));
   const finishAction=text(config,'finishAction'),rcLost=text(config,'exitOnRCLost'),rcLostAction=text(config,'executeRCLostAction');
   // [W:135] globalRTHHeight is required in waylines.wpml.
-  if(rth===null)errors.push('wpml:globalRTHHeight missing (required by DJI WPML waylines.wpml)');
+  // WPML 1.0.6 from DJI Pilot 2 carries no globalRTHHeight (seen on the RC Plus 2, 04.11.2026): the aircraft then uses the
+  // return-to-home altitude set in Pilot 2, which SkyHub cannot see. Must be acknowledged; for 1.0.2 it stays an error.
+  if(rth===null&&wpmlVersion==='1.0.6')
+    warnings.push('no return-to-home height in the route (WPML 1.0.6 from Pilot 2): the aircraft uses the RTH altitude set in Pilot 2, check it before take-off');
+  else if(rth===null)errors.push('wpml:globalRTHHeight missing (required by DJI WPML waylines.wpml)');
   // [W:133] takeOffSecurityHeight required, remote controller range [1.2, 1500] m.
   if(takeOffSecurity===null)errors.push('wpml:takeOffSecurityHeight missing (required by DJI WPML)');
   else if(takeOffSecurity<RC_TAKEOFF_SECURITY[0]||takeOffSecurity>RC_TAKEOFF_SECURITY[1])
@@ -114,8 +133,13 @@ function computeEnvelope(waylinesXml,templateXml){
       errors.push('wayline '+fi+': WGS84 heights need wpml:takeOffRefPoint to know the height above take-off');
     if(mode==='WGS84'&&ref)
       warnings.push('wayline '+fi+': WGS84 (ellipsoid) heights; height above take-off uses the planned reference point, but DJI flies from the actual take-off point [T:163]');
-    if(mode==='realTimeFollowSurface'&&!FOLLOW_SURFACE_AIRCRAFT.has(droneType+'-'+droneSub))
+    // The WPML pages list terrain follow for M3E/M3T/M3M only; DJI Pilot 2 on the RC Plus 2 itself writes it for the
+    // Matrice 4E/4T in WPML 1.0.6 (route "Michaelsberg", 04.11.2026). Accepted only in that combination, with a warning.
+    const m4Follow=wpmlVersion==='1.0.6'&&droneType===99;
+    if(mode==='realTimeFollowSurface'&&!FOLLOW_SURFACE_AIRCRAFT.has(droneType+'-'+droneSub)&&!m4Follow)
       errors.push('wayline '+fi+': realTimeFollowSurface is only supported by M3E/M3T/M3M (DJI WPML)');
+    if(mode==='realTimeFollowSurface'&&m4Follow)
+      warnings.push('wayline '+fi+': terrain follow (height above ground) for the Matrice 4 as written by Pilot 2; needs a working downward/terrain sensing and terrain data in Pilot 2');
     if(mode==='realTimeFollowSurface'&&!(templateTypes.length&&templateTypes.every(t=>MAPPING_TEMPLATES.has(t))))
       errors.push('wayline '+fi+': realTimeFollowSurface only applies to mapping templates (DJI WPML template.kml), template is '+
         (templateTypes.join(', ')||'unknown'));
@@ -152,7 +176,7 @@ function computeEnvelope(waylinesXml,templateXml){
   if(ref&&points.length&&transition&&transition>0)
     durationS+=(haversine(ref,points[0])+haversine(points[points.length-1],ref))/transition;
   const envelope={
-    aircraft:aircraft.model,droneModelKey:droneType===null?null:'0-'+droneType+'-'+droneSub,
+    wpmlVersion,aircraft:aircraft.model,droneModelKey:droneType===null?null:'0-'+droneType+'-'+droneSub,
     payloadModelKeys:payloadType===null?[]:['1-'+payloadType+'-0'],
     heightModes:[...modes].filter(Boolean),templateTypes,takeOffRefPoint:ref?{lat:round(ref.lat,7),lon:round(ref.lon,7),height:round(ref.height,1)}:null,
     waylines:folders.length,waypoints:points.length,

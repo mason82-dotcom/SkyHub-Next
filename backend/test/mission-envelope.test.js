@@ -112,3 +112,29 @@ test('limits from the environment may only tighten the defaults',()=>{
   assert.ok(r.errors.some(e=>/exceeds 40 m/.test(e)));
   assert.equal(DEFAULT_LIMITS.maxHeightM,120);
 });
+
+test('WPML 1.0.6 from DJI Pilot 2: same envelope check, RTH and M4 terrain follow become warnings, 1.0.2 rules unchanged',()=>{
+  const {waylines,template}=docs();
+  const to106=x=>x.split('http://www.dji.com/wpmz/1.0.2').join('http://www.dji.com/wpmz/1.0.6');
+  // Pilot 2 (RC Plus 2) writes no globalRTHHeight.
+  const noRth=x=>x.replace(/<wpml:globalRTHHeight>[^<]*<\/wpml:globalRTHHeight>/g,'');
+  const w106=to106(noRth(waylines)),t106=to106(noRth(template));
+  let r=check(w106,t106);
+  assert.deepEqual(r.errors,[]);
+  assert.equal(r.envelope.wpmlVersion,'1.0.6');
+  assert.ok(r.warnings.some(w=>/WPML 1\.0\.6 as written by DJI Pilot 2/.test(w)),'explicit acknowledgement required');
+  assert.ok(r.warnings.some(w=>/RTH altitude set in Pilot 2/.test(w)));
+  assert.ok(check(noRth(waylines),noRth(template)).errors.some(e=>/globalRTHHeight missing/.test(e)),'1.0.2 still requires it');
+  // Matrice 4T terrain follow: accepted only in 1.0.6 (with warning); the mapping-template rule still applies.
+  const m4=x=>x.replace('<wpml:droneEnumValue>77<','<wpml:droneEnumValue>99<').replace('<wpml:droneSubEnumValue>2<','<wpml:droneSubEnumValue>1<')
+    .replace('<wpml:payloadEnumValue>68<','<wpml:payloadEnumValue>89<').replace('<wpml:executeHeightMode>relativeToStartPoint<','<wpml:executeHeightMode>realTimeFollowSurface<');
+  r=check(m4(w106),t106);
+  assert.ok(!r.errors.some(e=>/only supported by M3E/.test(e)));
+  assert.ok(r.errors.some(e=>/only applies to mapping templates/.test(e)),'still mapping templates only');
+  assert.ok(check(m4(waylines),template).errors.some(e=>/only supported by M3E/.test(e)),'1.0.2 unchanged');
+  // Mixed versions between template.kml and waylines.wpml do not silently pass: the template is ignored then.
+  r=check(w106,template);
+  assert.ok(r.warnings.some(w=>/no take-off reference point/.test(w))||r.envelope.templateTypes.length===0);
+  // Any other namespace stays unreadable.
+  assert.ok(check(waylines.split('wpmz/1.0.2').join('wpmz/9.9.9'),template).errors.some(e=>/unreadable/.test(e)));
+});
