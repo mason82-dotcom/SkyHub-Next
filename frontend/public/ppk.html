@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SkyHub · PPK-Geotagging</title>
+<link rel="stylesheet" href="/skyhub-light.css">
+<link rel="stylesheet" href="/missionsfreigabe.css">
+</head>
+<body class="mrel">
+<header class="mrel-top">
+  <h1>PPK-Geotagging <span class="muted">zentimetergenaue Kamerapositionen für DJI-RTK-Flüge</span></h1>
+  <nav><a href="/thermal.html">Thermal</a> · <a href="/">Übersicht</a></nav>
+</header>
+<p class="mrel-note" role="note">
+  Rechnet aus den GNSS-Rohdaten der Drohne (<code>*_PPKRAW.bin</code>, <code>*.MRK</code>) und einer SAPOS-Referenzstation die
+  Kamerapositionen jedes Fotos mit Genauigkeitsangabe – als CSV für Metashape, Pix4D oder ODM. Läuft vollständig im Heimnetz
+  (dji-geotagger + RTKLIB, beide BSD-2). Von den Fotos wird nur der Bildkopf (EXIF/XMP) hochgeladen.
+</p>
+<main class="mrel-grid">
+  <section class="card" aria-labelledby="h-flight">
+    <h2 id="h-flight">1 · Flugordner von der SD-Karte</h2>
+    <label>Ordner wählen (z. B. <code>DCIM/DJI_202611041030_001_…</code>), mehrere nacheinander möglich
+      <input id="flight" type="file" webkitdirectory multiple></label>
+    <ul id="flights" class="history"></ul>
+    <button id="flightsClear" type="button" class="secondary">Auswahl leeren</button>
+  </section>
+  <section class="card" aria-labelledby="h-base">
+    <h2 id="h-base">2 · SAPOS-Referenzstation</h2>
+    <label>RINEX-Dateien: Beobachtung (<code>…_MO.rnx</code> / <code>.26o</code>) und Navigation (<code>…_MN.rnx</code> / <code>.26n</code>), optional SP3/CLK
+      <input id="base" type="file" multiple></label>
+    <ul id="baseList" class="history"></ul>
+    <label class="check"><input type="radio" name="mode" value="header" checked> Koordinaten aus dem RINEX-Kopf (SAPOS / virtuelle Referenzstation)</label>
+    <label class="check"><input type="radio" name="mode" value="manual"> Koordinaten von Hand (ETRS89, ellipsoidische Höhe)</label>
+    <div id="manual" hidden>
+      <label>Breite (°) <input id="lat" type="number" step="any"></label>
+      <label>Länge (°) <input id="lon" type="number" step="any"></label>
+      <label>Ellipsoidische Höhe (m) <input id="height" type="number" step="any"></label>
+    </div>
+    <label>Genauigkeit der Basis σ Lage / Höhe (m)
+      <span style="display:flex;gap:8px"><input id="sigH" type="number" step="0.001" value="0.01" min="0.001" max="1"><input id="sigU" type="number" step="0.001" value="0.02" min="0.001" max="1"></span></label>
+  </section>
+  <section class="card wide" aria-labelledby="h-run">
+    <h2 id="h-run">3 · Auswerten</h2>
+    <button id="run" type="button" disabled>Hochladen und auswerten</button>
+    <button id="cancel" type="button" class="secondary" disabled>Abbrechen</button>
+    <p id="status" class="muted" role="status" aria-live="polite">Flugordner und SAPOS-Dateien wählen.</p>
+    <progress id="progress" max="1" value="0" hidden style="width:100%"></progress>
+    <p><a id="download" href="#" hidden>Ergebnis (CSV) herunterladen</a></p>
+    <ul id="failed" class="history"></ul>
+    <p class="small muted">Ohne Internet: Bahndaten aus der SAPOS-Navigationsdatei (Broadcast). Für kurze Basislinien zur SAPOS-Station
+      reicht das; präzise IGS-Bahnen (SP3/CLK) können zusätzlich hochgeladen werden. Ergebnisse bleiben 24 h abrufbar.</p>
+  </section>
+</main>
+<script src="/ppk.js"></script>
+</body>
+</html>

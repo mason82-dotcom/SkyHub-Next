@@ -34,6 +34,7 @@ const {createDjiWaylineRouter,createRedisFavorites,UPLOAD_DISABLED_CODE}=require
 let pilotWaylineImport=null;
 const {createPilotWaylineImport,ImportError}=require('./pilot-wayline-import');
 const {terrainConfig,createTerrainClient}=require('./mission-terrain');
+const {ppkConfig,createPpkRouter}=require('./ppk');
 const {createSmartFarmingCatalogRouter}=require('./smart-farming-catalog');
 const {createHttpAuth}=require('./http-auth');
 const {mapPageReferrerPolicy}=require('./map-page-referrer');
@@ -322,6 +323,10 @@ if(wpmlStore&&pilot.wayline.enabled){
     console.log('[pilot wayline] library active for Pilot 2 (released routes only)');
   }
 }
+// PPK geotagging (dji-geotagger) through the internal ppk service; opt-in (SKYHUB_PPK_URL + SKYHUB_PPK_TOKEN).
+const ppk=ppkConfig(process.env);
+if(ppk.issue)console.error('[ppk] disabled:',ppk.issue);
+if(ppk.enabled){app.use('/api/ppk',createPpkRouter(ppk));console.log('[ppk] PPK geotagging service active');}
 // Live flight control (DRC) for one pinned DJI RC Plus 2 + Matrice 4E/4T (DJI Cloud API 1.18 pilot live flight controls).
 // Off by default; separate token; operator lease with fail-safe hand-back to the RC (drc-session.js).
 const drc=drcConfig(process.env);

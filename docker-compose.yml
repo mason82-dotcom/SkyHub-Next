@@ -115,6 +115,8 @@ services:
       SKYHUB_MISSION_MAX_DURATION_MIN: ${SKYHUB_MISSION_MAX_DURATION_MIN:-}
       SKYHUB_MISSION_MAX_DISTANCE_M: ${SKYHUB_MISSION_MAX_DISTANCE_M:-}
       SKYHUB_TERRAIN_URL: ${SKYHUB_TERRAIN_URL:-}
+      SKYHUB_PPK_URL: ${SKYHUB_PPK_URL:-}
+      SKYHUB_PPK_TOKEN: ${SKYHUB_PPK_TOKEN:-}
       SKYHUB_TERRAIN_DATASET: ${SKYHUB_TERRAIN_DATASET:-}
       SKYHUB_TERRAIN_MIN_AGL_M: ${SKYHUB_TERRAIN_MIN_AGL_M:-}
       SKYHUB_DRC_ENABLED: ${SKYHUB_DRC_ENABLED:-false}
@@ -211,6 +213,7 @@ services:
       - thermal_sdk
       - live
       - terrain
+      - ppk
   # DJI Thermal SDK (dji_irp, x86-64) via box64 on the Pi 5. Opt-in: compose profile "thermal-sdk".
   # Internal network only (no host port, no internet); the SDK directory is mounted read-only and is
   # never part of the image (DJI license). The backend talks to it with SKYHUB_THERMAL_SDK_TOKEN.
@@ -269,12 +272,42 @@ services:
         read_only: true
     networks:
       - terrain
+  # PPK geotagging (dji-geotagger, BSD-2 + RTKLIB 2.4.3, BSD-2), opt-in: compose profile "ppk". Offline: internal network,
+  # SAPOS RINEX as base, broadcast ephemeris (no CSRS-PPP, no IGS download). Jobs and results in the ppk_jobs volume (24 h).
+  ppk:
+    profiles: ["ppk"]
+    build:
+      context: docker/ppk
+    image: skyhub-ppk:3.1.1
+    restart: unless-stopped
+    logging: *default-logging
+    labels: *no-watchtower
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=512m
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 3g
+    cpus: 2.0
+    pids_limit: 128
+    environment:
+      SKYHUB_PPK_TOKEN: ${SKYHUB_PPK_TOKEN:-}
+      MPLCONFIGDIR: /tmp
+      HOME: /tmp
+    volumes:
+      - ppk_jobs:/jobs
+    networks:
+      - ppk
 volumes:
+  ppk_jobs:
   pgdata:
   redis_data:
   minio_data:
   tile_cache:
 networks:
+  # Backend <-> ppk only; internal: no route to the outside.
+  ppk:
+    internal: true
   # Backend <-> opentopodata only; internal: no route to the outside.
   terrain:
     internal: true
