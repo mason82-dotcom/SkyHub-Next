@@ -110,16 +110,21 @@ const assertNoOverflow=async page=>{
    opsHidden:document.getElementById('operationsPanel').hidden,
    takHidden:document.getElementById('takPanel').hidden,
    tabs:document.querySelectorAll('[role=tab]').length,
-   // Shared frame (scripts/webui-shell.py): "Übersicht" plus five groups at the top level must stay fully visible;
-   // the 17 module links live in the group menus (hidden while closed), Thermal included.
+   // Shared frame (scripts/webui-shell.py, DESIGN.md "Layout und Navigation", reorganised in #284): top level along the
+   // operator workflow = "Lagebild" as a direct link to / plus the groups Planen, Fliegen, Auswerten, Diagnose, all fully
+   // visible; the 17 module links live in the group menus (hidden while closed), Thermal included.
    allNavLinksVisible:(()=>{
      const nav=document.querySelector('.skyhub-global-nav');
      if(!nav)return false;
      const bound=nav.getBoundingClientRect();
      const top=[...nav.querySelectorAll(':scope > a, :scope > details > summary')];
+     const direct=[...nav.querySelectorAll(':scope > a')].map(a=>a.getAttribute('href'));
+     const groups=[...nav.querySelectorAll(':scope > details > summary')].map(g=>g.textContent.replace(/\s+/g,' ').trim());
      const links=[...nav.querySelectorAll('a')].map(a=>a.getAttribute('href'));
      const current=[...nav.querySelectorAll('a[aria-current="page"]')];
-     return top.length===6 && links.length===17 && links.includes('/thermal.html') &&
+     return top.length===5 && direct.length===1 && direct[0]==='/' &&
+       ['Planen','Fliegen','Auswerten','Diagnose'].every((name,i)=>(groups[i]||'').startsWith(name)) &&
+       links.length===17 && links.includes('/thermal.html') &&
        current.length===1 && current[0].getAttribute('href')==='/' &&
        top.every(item=>{
          const rect=item.getBoundingClientRect();
@@ -136,7 +141,7 @@ const assertNoOverflow=async page=>{
  assert.equal(dimensions.mainCount,1,'one semantic main landmark');
  assert.equal(dimensions.tabs,2,'two accessible tabs');
  assert.equal(dimensions.allNavLinksVisible,true,
-   'top-level navigation (overview + five groups) must stay visible; 17 module links, current page marked once');
+   'top-level navigation (Lagebild link + Planen, Fliegen, Auswerten, Diagnose) must stay visible; 17 module links, current page marked once');
  assert.equal(dimensions.lightStylesheet,true,'light stylesheet must be loaded successfully');
  assert.equal(dimensions.colorScheme,'light','root color-scheme must remain light');
  assert.equal(dimensions.bodyBackground,'rgb(243, 246, 251)','light canvas must be rendered');
@@ -217,7 +222,7 @@ async function run(){
     if(width===320||width===1440)
       await page.screenshot({path:path.join(output,'tak-'+width+'.png'),fullPage:true});
     const beforeInvalidate=await page.evaluate(()=>window.__invalidationCount);
-    await page.getByRole('tab',{name:/Operations/}).click();
+    await page.getByRole('tab',{name:/^Lagebild$/}).click();
     assert.equal(await page.locator('#operationsPanel').isVisible(),true);
     await page.waitForFunction(previous=>window.__invalidationCount>previous,beforeInvalidate);
     assert.equal(await page.locator('.device').count(),1,'device list survives tab switches');
@@ -255,7 +260,7 @@ async function run(){
       assert.deepEqual(small,[],'tap targets must be at least 24 px high: '+JSON.stringify(small));
     }
   }
-  await page.getByRole('tab',{name:/Operations/}).focus();
+  await page.getByRole('tab',{name:/^Lagebild$/}).focus();
   await page.keyboard.press('ArrowRight');
   assert.equal(await page.locator('#tabTak').getAttribute('aria-selected'),'true');
   assert.equal(await page.evaluate(()=>document.activeElement.id),'tabTak');
@@ -339,7 +344,7 @@ async function run(){
           scrollWidth:document.documentElement.scrollWidth,
           width:window.innerWidth,
           menuLinks:document.querySelectorAll('.skyhub-global-nav a').length,
-          // top level of the shared frame (overview + group buttons); module links sit in the closed group menus
+          // top level of the shared frame (Lagebild link + group buttons); module links sit in the closed group menus
           navLinksVisible:(()=>{
             const nav=document.querySelector('.skyhub-global-nav');
             if(!nav)return true;
@@ -405,7 +410,8 @@ async function run(){
   await hmsPage.waitForFunction(()=>document.querySelector('#count')?.textContent==='1',{timeout:15000});
   assert.equal(hmsQueries.length,hmsBefore,'HMS history loads lazily, only when opened');
   // HMS history: nothing is fetched until the operator opens the panel.
-  assert.match(await hmsPage.locator('.notice').first().textContent(),/ohne Internet verfügbar/);
+  // Offline hint moved from a .notice box into the sidebar legend with #284 (calmer status area).
+  assert.match(await hmsPage.locator('.sidebar-legend').first().textContent(),/ohne Internet verfügbar/);
   await hmsPage.locator('#hmsHistoryPanel summary').click();
   await hmsPage.waitForFunction(()=>document.querySelectorAll('#hmsHistoryList li').length===20,{timeout:10000});
   assert.match(await hmsPage.locator('#hmsHistorySummary').textContent(),/^20\+ Einträge$/);
