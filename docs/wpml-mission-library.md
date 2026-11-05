@@ -86,8 +86,8 @@ lässt nur `192.168.178.0/24` durch, also 403 `Forbidden` von Caddy. Gemessen mi
 gültiger KMZ. Abhilfe ohne Änderung der Caddy-Sperre: `SKYHUB_WPML_S3_PUBLIC_ENDPOINT=https://192.168.178.63:9446`. Caddy liefert für die
 IP-Adresse ein Zertifikat derselben lokalen CA (SAN `IP Address:192.168.178.63`), die Signatur deckt genau diesen Host (`X-Amz-SignedHeaders=host`),
 der `:4002`-Proxy reicht ihn unverändert an MinIO. Eine Ausnahme für IPv6 in Caddy wurde verworfen: das öffentliche Präfix vergibt der
-Anbieter dynamisch. **Gleiches gilt für Medien-Uploads** (`PUT /dji-cloud/*` auf `:9446`, `SKYHUB_PILOT_MEDIA_S3_PUBLIC_ENDPOINT`), dort noch
-nicht umgestellt.
+Anbieter dynamisch. **Gleiches galt für Medien-Uploads** (`PUT /dji-cloud/*` auf `:9446`): `SKYHUB_PILOT_MEDIA_S3_PUBLIC_ENDPOINT` ist seit
+05.11.2026 ebenfalls `https://192.168.178.63:9446`, siehe `docs/dji-pilot2-media-sync.md`.
 
 **Rückweg:** Pilot 2: `SKYHUB_PILOT_WAYLINE_ENABLED=false` + Backend-Update, optional `sudo bash scripts/pi-caddy-pilot-wayline.sh rollback`. Bibliothek: `bash scripts/pi-minio-wpml-store.sh rollback` (stellt die gesicherte Policy wieder her und setzt `SKYHUB_WPML_STORE_ENABLED=false`) bzw. `SKYHUB_PILOT_WAYLINE_ENABLED=false`; danach Backend über denselben Weg neu erzeugen. Bucket und Objekte bleiben erhalten.
 

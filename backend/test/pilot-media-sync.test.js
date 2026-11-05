@@ -56,6 +56,17 @@ test('STS issuer refuses wrong scope, plain-HTTP public endpoints and broken rep
   assert.match(sessionPolicy(WS+'/media/'+SESSION),/s3:PutObject/);
 });
 
+test('STS issuer hands the RC an IPv4-literal upload origin unchanged (no IPv6 detour, 05.11.2026)',async()=>{
+  const issuer=createMinioStsIssuer({endpoint:'http://skyhub-minio:9000',publicEndpoint:'https://192.168.178.63:9446',
+    accessKeyId:'uploader',secretAccessKey:'uploader-secret',fetchImpl:async()=>({ok:true,text:async()=>XML}),
+    sessionId:()=>SESSION});
+  assert.equal(issuer.config.endpoint,'https://192.168.178.63:9446');
+  const grant=await issuer.issueGrant({workspace:WS,principal:PILOT,maxSeconds:900});
+  assert.equal(grant.endpoint,'https://192.168.178.63:9446');   // the RC signs its PUT for exactly this host
+  assert.throws(()=>createMinioStsIssuer({endpoint:'http://skyhub-minio:9000',publicEndpoint:'https://192.168.178.63:9446/x',
+    accessKeyId:'uploader',secretAccessKey:'uploader-secret'}),/plain HTTPS origin/);
+});
+
 async function listen(server){
   server.listen(0,'127.0.0.1');await once(server,'listening');
   return server.address().port;
