@@ -89,16 +89,19 @@ def assert_light_theme(page, active_href: str, name: str) -> None:
         background: getComputedStyle(document.body).backgroundColor,
         scrollWidth: document.documentElement.scrollWidth,
         viewportWidth: window.innerWidth,
+        // Shared frame (scripts/webui-shell.py): module links sit in group menus; the top level is
+        // "Übersicht" plus five group buttons, which must stay fully visible on every viewport.
         navigation: [...document.querySelectorAll('.skyhub-global-nav a')].map(a => ({
             href: a.getAttribute('href'),
             current: a.getAttribute('aria-current'),
-            fullyVisible: (() => {
-                const nav = a.closest('.skyhub-global-nav').getBoundingClientRect();
-                const rect = a.getBoundingClientRect();
-                return rect.left >= nav.left - 1 && rect.right <= nav.right + 1 &&
-                       rect.top >= nav.top - 1 && rect.bottom <= nav.bottom + 1;
-            })()
+            groupActive: a.closest('details') ? a.closest('details').classList.contains('is-active') : null
         })),
+        topLevel: [...document.querySelectorAll('.skyhub-global-nav > a, .skyhub-global-nav > details > summary')].map(item => {
+            const nav = item.closest('.skyhub-global-nav').getBoundingClientRect();
+            const rect = item.getBoundingClientRect();
+            return rect.width > 0 && rect.left >= nav.left - 1 && rect.right <= nav.right + 1 &&
+                   rect.top >= nav.top - 1 && rect.bottom <= nav.bottom + 1;
+        }),
         // Layout only: never include route names, input values or GPS in CI diagnostics.
         overflowElements: document.documentElement.scrollWidth > window.innerWidth + 1
           ? [...document.body.querySelectorAll('*')]
@@ -122,12 +125,14 @@ def assert_light_theme(page, active_href: str, name: str) -> None:
           name + ": computed light palette mismatch: " + str(state))
     check(state["scrollWidth"] <= state["viewportWidth"] + 1,
           name + ": page overflows screen: " + str(state))
-    check(len(state["navigation"]) == 7,
-          name + ": expected seven operator module navigation links (incl. Thermal)")
-    check(all(a["fullyVisible"] for a in state["navigation"]),
-          name + ": operator navigation clips a module on this viewport")
-    check([a["href"] for a in state["navigation"] if a["current"] == "page"]
-          == [active_href], name + ": active module mismatch")
+    hrefs = [a["href"] for a in state["navigation"]]
+    check(len(hrefs) == 17 and "/thermal.html" in hrefs,
+          name + ": expected 17 operator module links in the shared navigation (incl. Thermal)")
+    check(len(state["topLevel"]) == 6 and all(state["topLevel"]),
+          name + ": top-level navigation (overview + five groups) clipped on this viewport")
+    current = [a for a in state["navigation"] if a["current"] == "page"]
+    check([a["href"] for a in current] == [active_href], name + ": active module mismatch")
+    check(current[0]["groupActive"] in (None, True), name + ": group of the active module is not marked active")
 
 
 def assert_skip_link(page, name: str) -> None:
@@ -777,6 +782,11 @@ def main() -> None:
                             ("/wpml-editor.html", "WPML editor")
                         ]
                         for target, title in journey:
+                            # Shared frame: module links sit in group menus; open the group like a user.
+                            group = nav_page.locator(
+                                '.skyhub-global-nav details:has(a[href="' + target + '"]) > summary')
+                            if group.count():
+                                group.click()
                             nav_page.locator(
                                 '.skyhub-global-nav a[href="' + target + '"]').click()
                             nav_page.wait_for_url(base + target, wait_until="load")

@@ -1,5 +1,5 @@
 .estimate{max-width:42ch;margin:0;padding:10px 14px;border:1px solid #f0d9a8;background:var(--sky-warning-soft);border-radius:10px;color:var(--sky-warning);font-size:12px}
-.tabs{display:flex;gap:6px;margin:0 0 14px;border-bottom:1px solid var(--line)}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px;border-bottom:1px solid var(--line)}
 .tabs button{background:transparent;color:var(--muted);border:1px solid transparent;border-bottom:0;border-radius:9px 9px 0 0;font-weight:650}
 .tabs button[aria-selected=true]{background:var(--surface);border-color:var(--line);color:var(--sky-primary-hover)}
 .thermal-layout{display:grid;grid-template-columns:minmax(220px,300px) minmax(0,1fr);gap:16px;align-items:start}

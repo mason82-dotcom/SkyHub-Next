@@ -110,16 +110,22 @@ const assertNoOverflow=async page=>{
    opsHidden:document.getElementById('operationsPanel').hidden,
    takHidden:document.getElementById('takPanel').hidden,
    tabs:document.querySelectorAll('[role=tab]').length,
+   // Shared frame (scripts/webui-shell.py): "Übersicht" plus five groups at the top level must stay fully visible;
+   // the 17 module links live in the group menus (hidden while closed), Thermal included.
    allNavLinksVisible:(()=>{
      const nav=document.querySelector('.skyhub-global-nav');
      if(!nav)return false;
      const bound=nav.getBoundingClientRect();
-     const links=[...nav.querySelectorAll('a')];
-     return links.length===7 && links.every(link=>{
-       const rect=link.getBoundingClientRect();
-       return rect.left>=bound.left-1 && rect.right<=bound.right+1 &&
-         rect.top>=bound.top-1 && rect.bottom<=bound.bottom+1;
-     });
+     const top=[...nav.querySelectorAll(':scope > a, :scope > details > summary')];
+     const links=[...nav.querySelectorAll('a')].map(a=>a.getAttribute('href'));
+     const current=[...nav.querySelectorAll('a[aria-current="page"]')];
+     return top.length===6 && links.length===17 && links.includes('/thermal.html') &&
+       current.length===1 && current[0].getAttribute('href')==='/' &&
+       top.every(item=>{
+         const rect=item.getBoundingClientRect();
+         return rect.width>0 && rect.left>=bound.left-1 && rect.right<=bound.right+1 &&
+           rect.top>=bound.top-1 && rect.bottom<=bound.bottom+1;
+       });
    })(),
    lightStylesheet: [...document.styleSheets].some(sheet=>sheet.href?.endsWith('/skyhub-light.css')),
    colorScheme: getComputedStyle(document.documentElement).colorScheme,
@@ -130,7 +136,7 @@ const assertNoOverflow=async page=>{
  assert.equal(dimensions.mainCount,1,'one semantic main landmark');
  assert.equal(dimensions.tabs,2,'two accessible tabs');
  assert.equal(dimensions.allNavLinksVisible,true,
-   'seven module links including the current module must all remain visible');
+   'top-level navigation (overview + five groups) must stay visible; 17 module links, current page marked once');
  assert.equal(dimensions.lightStylesheet,true,'light stylesheet must be loaded successfully');
  assert.equal(dimensions.colorScheme,'light','root color-scheme must remain light');
  assert.equal(dimensions.bodyBackground,'rgb(243, 246, 251)','light canvas must be rendered');
@@ -283,10 +289,14 @@ async function run(){
     await crossNav.goto(url,{waitUntil:'load'});
     assert.equal(await crossNav.locator('.skyhub-global-nav a[aria-current="page"]').getAttribute('href'),
       '/','Operations must be the only selected module before navigating');
+    // Smart Farming sits in the "Labor" group menu of the shared frame: open the group like a user, then follow the link.
+    await crossNav.locator('.skyhub-global-nav details:has(a[href="/smart-farming.html"]) > summary').click();
     await crossNav.locator('.skyhub-global-nav a[href="/smart-farming.html"]').click();
     await crossNav.waitForURL(url+'smart-farming.html',{waitUntil:'load'});
     assert.equal(await crossNav.locator('.skyhub-global-nav a[aria-current="page"]').getAttribute('href'),
       '/smart-farming.html','Smart Farming must be the selected module');
+    assert.equal(await crossNav.locator('.skyhub-global-nav details.is-active a[aria-current="page"]').count(),1,
+      'the group of the selected module is marked active');
     assert.equal(await crossNav.evaluate(()=>getComputedStyle(document.body).backgroundColor),
       'rgb(243, 246, 251)','Light canvas remains after module navigation');
     assert.ok(await crossNav.locator('main#skyhubMain').count()===1);
@@ -329,11 +339,12 @@ async function run(){
           scrollWidth:document.documentElement.scrollWidth,
           width:window.innerWidth,
           menuLinks:document.querySelectorAll('.skyhub-global-nav a').length,
+          // top level of the shared frame (overview + group buttons); module links sit in the closed group menus
           navLinksVisible:(()=>{
             const nav=document.querySelector('.skyhub-global-nav');
             if(!nav)return true;
             const parent=nav.getBoundingClientRect();
-            return [...nav.querySelectorAll('a')].every(link=>{
+            return [...nav.querySelectorAll(':scope > a, :scope > details > summary')].every(link=>{
               const rect=link.getBoundingClientRect();
               return rect.left>=parent.left-1 && rect.right<=parent.right+1 &&
                 rect.top>=parent.top-1 && rect.bottom<=parent.bottom+1;
@@ -347,8 +358,8 @@ async function run(){
       assert.equal(visual.panelBg,'rgb(255, 255, 255)',filename+' white panel');
       assert.equal(visual.scheme,'light',filename+' color scheme');
       assert.ok(visual.scrollWidth<=visual.width+1,filename+' overflow: '+JSON.stringify(visual));
-      assert.equal(visual.menuLinks,pageType==='pilot'?0:7,filename+' operator navigation');
-      assert.equal(visual.navLinksVisible,true,filename+' all nav links must remain visible');
+      assert.equal(visual.menuLinks,pageType==='pilot'?0:17,filename+' operator navigation');
+      assert.equal(visual.navLinksVisible,true,filename+' top-level navigation must remain visible');
       if(pageType==='pilot'){
         assert.equal(visual.pilotBridge,false,'synthetic Pilot 2 has no device bridge');
         assert.match(await screen.locator('#result').innerText(),/JSBridge nicht verfügbar/);
