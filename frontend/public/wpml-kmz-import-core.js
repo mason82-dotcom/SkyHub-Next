@@ -229,6 +229,23 @@
     return base||'Importierte Mission';
   }
 
+  // Aircraft profile for droneInfo/payloadInfo. Exact match first. DJI Pilot 2 itself writes Matrice 4T routes as
+  // droneSubEnumValue 0 (= Matrice 4E) with the 4T camera 89 (seen 05.11.2026, routes from Feb/Mar 2025) and lists them as M4T:
+  // within one aircraft family the camera decides, as in backend/wpml-product-support.js. The re-export carries the corrected
+  // droneSubEnumValue; the note makes the correction visible. A camera from another family stays an error.
+  function resolveModel(models,droneEnum,droneSub,payloadEnum){
+    const keys=Object.keys(models||{});
+    const same=(k,sub)=>String(models[k].drone)===droneEnum&&(sub===undefined||String(models[k].subtype)===sub);
+    const exact=keys.find(k=>same(k,droneSub)&&(payloadEnum===''||String(models[k].payload)===payloadEnum));
+    if(exact)return {key:exact,note:null};
+    const declared=keys.find(k=>same(k,droneSub));
+    const byCamera=payloadEnum!==''&&declared?keys.find(k=>same(k)&&String(models[k].payload)===payloadEnum):undefined;
+    if(!byCamera)return {key:undefined,note:null};
+    return {key:byCamera,note:'Fluggerät: droneSubEnumValue '+droneSub+' ('+models[declared].name+') passt nicht zur Kamera '+
+      payloadEnum+' der '+models[byCamera].name+'; übernommen als '+models[byCamera].name+' wie in DJI Pilot 2 '+
+      '(droneSubEnumValue '+models[byCamera].subtype+' im Export). Bitte das Fluggerät in Pilot 2 prüfen.'};
+  }
+
   function convert({template,waylines=null,fileName='',models}={}){
     if(!models||typeof models!=='object')fail('Fluggeräteprofile fehlen.');
     const notes=[];
@@ -242,8 +259,8 @@
     const drone=one(config,'wpml:droneInfo'),payload=one(config,'wpml:payloadInfo');
     const droneEnum=drone?text(drone,'droneEnumValue'):'',droneSub=drone?text(drone,'droneSubEnumValue')||'0':'';
     const payloadEnum=payload?text(payload,'payloadEnumValue'):'';
-    const modelKey=Object.keys(models).find(k=>String(models[k].drone)===droneEnum&&
-      String(models[k].subtype)===droneSub&&(payloadEnum===''||String(models[k].payload)===payloadEnum));
+    const {key:modelKey,note:modelNote}=resolveModel(models,droneEnum,droneSub,payloadEnum);
+    if(modelNote)notes.push(modelNote);
     if(!modelKey)fail('Fluggerät/Nutzlast (drone '+(droneEnum||'?')+'/'+(droneSub||'?')+', payload '+
       (payloadEnum||'?')+') wird vom Editor nicht unterstützt.');
     const finish=text(config,'finishAction')||'goHome';
@@ -434,7 +451,7 @@
     const drone=one(config,'wpml:droneInfo'),payload=one(config,'wpml:payloadInfo');
     const droneEnum=drone?text(drone,'droneEnumValue'):'',droneSub=drone?text(drone,'droneSubEnumValue')||'0':'';
     const payloadEnum=payload?text(payload,'payloadEnumValue'):'';
-    const modelKey=models&&Object.keys(models).find(k=>String(models[k].drone)===droneEnum&&String(models[k].subtype)===droneSub);
+    const {key:modelKey}=resolveModel(models,droneEnum,droneSub,payloadEnum);
     const placemark=one(folder,'Placemark');
     const polygon=placemark?one(one(one(one(placemark,'Polygon'),'outerBoundaryIs'),'LinearRing'),'coordinates'):null;
     const lineString=placemark?one(one(placemark,'LineString'),'coordinates'):null;
