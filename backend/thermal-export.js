@@ -161,7 +161,13 @@ function createThermalExport({fetchSource,parse,sdk,dir=path.join(os.tmpdir(),'s
       zip.add('README.txt',Buffer.from(['SkyHub Next – Wärmebild-Export',
         'Jede .tif: Float32-Temperaturen in °C (DJI Thermal SDK), unkomprimiert, mit EXIF-GPS aus den DJI-Metadaten.',
         'Parameter: '+JSON.stringify(j.params),'Fehler: '+j.errors.length+(j.errors.length?' (siehe Statusseite)':''),
-        'Hinweis: Viele Bildbetrachter zeigen Float-TIFFs weiß; in Metashape/ODM/QGIS öffnen.'].join('\n')+'\n','utf8'));
+        'Hinweis: Viele Bildbetrachter zeigen Float-TIFFs weiß; in Metashape/ODM/QGIS öffnen.',
+        '',
+        'OpenDroneMap / WebODM:',
+        '- Lücken im 3D-Netz trotz dichter Punktwolke (Forum community.opendronemap.org, Thema 24650, Matrice 4 Wärmebild, 2025):',
+        '  --mesh-octree-depth senken; 13 verringerte die Lücken, 10 schloss sie. Zum Eingrenzen, ob die Texturierung schuld ist,',
+        '  wurde --texturing-keep-unseen-faces vorgeschlagen (dort nicht bestätigt).',
+        '- Allgemein: für reine Wärmebild-Orthofotos --skip-3dmodel; hohe Überlappung (z. B. 80 % längs / 70 % quer) hilft dem Abgleich.'].join('\n')+'\n','utf8'));
       zip.close();
       j.bytes=(await fsp.stat(j.file)).size;
       j.status=j.cancelled?'cancelled':'done';

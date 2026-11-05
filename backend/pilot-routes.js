@@ -9,7 +9,7 @@ const {createPilotAuth}=require('./pilot-auth');
 const {createPilotDiagnostics}=require('./pilot-diagnostics');
 
 // Pilot 2 onboarding endpoints. Public part: mounted before the view-token guard.
-function registerPilotRoutes(app,{pilot,pairing,redis,registry,pool,ack,pilotAuth=createPilotAuth({pilot,pairing,redis}),mapWriter=null,pilotLogs=null,
+function registerPilotRoutes(app,{pilot,pairing,redis,registry,pool,ack,pilotAuth=createPilotAuth({pilot,pairing,redis}),mapWriter=null,pilotLogs=null,waylineUploads=()=>null,
   diagnostics=createPilotDiagnostics({enabled:process.env.SKYHUB_PILOT_DIAGNOSTICS_ENABLED==='true'})}){
   // Existing DJI Pilot 2 URL /pilot-login now resolves when v3 takes over port 4000.
   // Login/bootstrap remains opt-in; secret provisioning is forbidden over plaintext HTTP.
@@ -52,6 +52,13 @@ function registerPilotRoutes(app,{pilot,pairing,redis,registry,pool,ack,pilotAut
   }
   // Pilot 2 log upload (pull-pilot-log): device token like the bootstrap; viewer in server.js (/api/pilot-logs).
   if(pilotLogs)registerPilotLogUpload(app,{express:require('express'),store:pilotLogs,authorized:pilotAuthorized});
+  // Last route uploads from Pilot 2 with the reason of a refusal (Pilot 2 shows only "Netzwerkfehler (3100xx)").
+  app.get('/api/pilot/wayline-uploads',async(req,res)=>{
+    if(!guard(req,res))return;
+    if(!await pilotAuthorized(req))return res.status(401).json({error:'Unauthorized'});
+    const h=waylineUploads();
+    res.set('Cache-Control','no-store').json({enabled:Boolean(h),uploads:h||[]});
+  });
   app.post('/api/pilot/bootstrap',async(req,res)=>{
     if(!guard(req,res))return;
     try{

@@ -203,7 +203,8 @@ if(process.env.SKYHUB_DJI_MAP_ELEMENTS_ENABLED==='true'&&process.env.SKYHUB_DJI_
 }
 // Pilot 2 logs (pull-pilot-log): upload from the RC, viewer in the home LAN; PostgreSQL, 30 days.
 const pilotLogs=pool?createPilotLogStore(pool):null;
-registerPilotRoutes(app,{pilot:pilotWithLive,pairing,redis,registry,pool,ack,pilotAuth,mapWriter,pilotLogs});
+registerPilotRoutes(app,{pilot:pilotWithLive,pairing,redis,registry,pool,ack,pilotAuth,mapWriter,pilotLogs,
+  waylineUploads:()=>pilotWaylineImport&&pilotWaylineImport.history?pilotWaylineImport.history():null});
 if(tsaHub){
   app.get('/manage/api/v1/workspaces/:workspaceId/devices/topologies',createTopologyListHandler({
     registry,workspaceId:pilot.workspaceId,authorize:pilotAuth.principal,

@@ -125,6 +125,11 @@ main > p.detail:last-child {
     <button id="liveStart" type="button" hidden disabled>Livestream starten</button>
     <button id="liveStop" type="button" hidden disabled>Livestream beenden</button>
   </section>
+  <section id="uploadPanel" class="panel" hidden aria-labelledby="uploadHeadline">
+    <strong id="uploadHeadline">Letzte Routen-Uploads an SkyHub</strong>
+    <p class="detail">Pilot 2 meldet jede Ablehnung nur als „Netzwerkfehler“ – hier steht der Grund.</p>
+    <ul id="uploadList" class="detail" aria-live="polite"></ul>
+  </section>
   <section id="logPanel" class="panel" hidden aria-labelledby="logHeadline">
     <strong id="logHeadline">Pilot-2-Protokoll an SkyHub senden</strong>
     <p class="detail">Bei Fehlern in Pilot 2: Protokolldatei wählen und senden. Sie wird in SkyHub entschlüsselt (Protokollansicht, 30 Tage).</p>

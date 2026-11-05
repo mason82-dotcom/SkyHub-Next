@@ -77,7 +77,28 @@ function createPilotWaylineImport({workspace,media,headObject,getObject,store,au
     if(recent.size>200)for(const [k,v] of recent)if(!v.some(t=>now-t<RATE.windowMs))recent.delete(k);
     return true;
   }
-  return async function importUpload(principal,body){
+  // Last results for the Pilot page: Pilot 2 itself only shows "Netzwerkfehler (3100xx)" for any refusal.
+  const history=[];
+  const GERMAN={[CODES.invalid]:'Upload-Meldung von Pilot 2 unvollständig',[CODES.scope]:'Datei nicht im zugeteilten Upload-Bereich oder inzwischen verändert',
+    [CODES.tooLarge]:'Datei größer als 12 MB',[CODES.rejected]:'Keine gültige DJI-Route (WPML-Prüfung)',
+    [CODES.nameTaken]:'Name schon für eine andere Route vergeben',[CODES.unavailable]:'Speicher nicht erreichbar',
+    [CODES.busy]:'Zu viele Uploads in einer Minute'};
+  function remember(entry){history.unshift({at:new Date().toISOString(),...entry});history.length=Math.min(history.length,20);}
+  async function importUpload(principal,body){
+    const name0=body&&typeof body.name==='string'?body.name.slice(0,64):null;
+    try{
+      const r=await importInner(principal,body);
+      remember({name:r.name,ok:true,created:r.created,text:r.created?'angenommen – sichtbar in Pilot 2 erst nach Freigabe':'schon vorhanden'});
+      return r;
+    }catch(err){
+      const detail=err.detail?String(err.detail).slice(0,200):null;
+      remember({name:err.routeName||name0,ok:false,code:err.code||null,text:(GERMAN[err.code]||'Fehler')+(detail?': '+detail:'')});
+      throw err;
+    }
+  }
+  importUpload.history=()=>history.map(h=>({...h}));
+  return importUpload;
+  async function importInner(principal,body){
     const now=Date.now(),who=String(principal?.userId||principal?.deviceId||'pilot');
     if(!allow(who,now))throw new ImportError(CODES.busy,'Too many uploads, try again in a minute');
     const item=parseCallback(body);
@@ -109,9 +130,14 @@ function createPilotWaylineImport({workspace,media,headObject,getObject,store,au
     catch(err){
       const status=err&&err.status;
       audit({action:'wayline-import-rejected',status:status||500,name,principal:principal?.userId||null});
-      if(status===409)throw new ImportError(CODES.nameTaken,'A different route named "'+name+'" already exists in SkyHub');
+      if(status===409){const e=new ImportError(CODES.nameTaken,'A different route named "'+name+'" already exists in SkyHub');e.routeName=name;throw e;}
       if(status===400&&/name/i.test(String(err.message)))throw new ImportError(CODES.invalid,'Route name not accepted: '+String(err.message).slice(0,120));
-      if(status===400||status===413||status===422)throw new ImportError(CODES.rejected,'Not an accepted DJI WPML route: '+String(err.message||'').slice(0,120));
+      if(status===400||status===413||status===422){
+        const e=new ImportError(CODES.rejected,'Not an accepted DJI WPML route: '+String(err.message||'').slice(0,120));
+        // first validation messages (English, from wpml.js) for the Pilot page
+        e.detail=((err.details&&err.details.errors)||[]).slice(0,2).map(x=>x.message).join('; ')||String(err.message||'').slice(0,160);
+        e.routeName=name;throw e;
+      }
       log('[pilot wayline] import: store failed ('+(err&&err.name||'error')+')');
       throw new ImportError(CODES.unavailable,'Storage unavailable');
     }

@@ -553,7 +553,28 @@
   }
   // Pilot 2 log (pull-pilot-log): show where Pilot 2 keeps its logs, upload one file with the device token.
   // SkyHub sets no own encryption key (platformSetLogEncryptKey): the logs keep DJI's default key and SkyHub decrypts them.
+  // Route uploads (pilot-wayline-import.js history): reason of a refusal, refreshed every 15 s while the page is open.
+  let uploadPolling=false;
+  async function refreshUploads(){
+    if(!el('uploadPanel')||!sessionToken)return;
+    let again=false;
+    try{
+      const r=await fetch('/api/pilot/wayline-uploads',{cache:'no-store',headers:{'Authorization':'Bearer '+sessionToken}});
+      if(!r.ok)return;
+      const b=await r.json();
+      if(!b.enabled){el('uploadPanel').hidden=true;return;}
+      el('uploadPanel').hidden=false;
+      const list=(b.uploads||[]).slice(0,6);
+      el('uploadList').replaceChildren(...(list.length?list.map(u=>{const li=document.createElement('li');
+        li.textContent=new Date(u.at).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+' · '+(u.name||'Route')+' · '+(u.ok?'✓ ':'✗ ')+u.text;
+        return li;}):[Object.assign(document.createElement('li'),{textContent:'Noch kein Upload seit dem letzten Neustart von SkyHub.'})]));
+      again=true;
+    }catch(_){}
+    // Poll only while the service answers; one chain at a time (showLogPanel runs on every bootstrap).
+    if(again){if(!uploadPolling){uploadPolling=true;setTimeout(()=>{uploadPolling=false;refreshUploads();},15000);}}
+  }
   function showLogPanel(){
+    refreshUploads();
     if(!el('logPanel')||!sessionToken)return;
     el('logPanel').hidden=false;
     let p='';try{p=String(window.djiBridge.platformGetLogPath()||'');}catch(_){p='';}

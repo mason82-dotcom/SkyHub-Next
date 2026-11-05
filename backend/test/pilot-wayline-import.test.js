@@ -137,3 +137,20 @@ test('only import errors reach Pilot 2; other errors stay generic',async()=>{
   assert.equal(r.status,503);
   assert.doesNotMatch(JSON.stringify(r.body),/secret/);
 });
+
+test('history for the Pilot page: accepted, refused with the WPML reason, name taken; newest first, max 20',async()=>{
+  const ok=setup();
+  await ok.importUpload({},{object_key:KEY,name:'SeeRutsche1'});
+  assert.deepEqual(ok.importUpload.history().map(h=>[h.name,h.ok,h.text]),[['SeeRutsche1',true,'angenommen – sichtbar in Pilot 2 erst nach Freigabe']]);
+  const bad=setup({put:()=>{const e=new Error('WPML validation failed');e.status=422;
+    e.details={errors:[{path:'template.kml/missionConfig',message:'payloadEnumValue incompatible with Matrice 4E (99-0)'}]};throw e;}});
+  await assert.rejects(bad.importUpload({},{object_key:KEY,name:'Michaelsbergkapelle'}),e=>e.code===CODES.rejected);
+  const h=bad.importUpload.history()[0];
+  assert.equal(h.ok,false);assert.equal(h.name,'Michaelsbergkapelle');
+  assert.equal(h.text,'Keine gültige DJI-Route (WPML-Prüfung): payloadEnumValue incompatible with Matrice 4E (99-0)');
+  const taken=setup({put:()=>{const e=new Error('exists');e.status=409;throw e;}});
+  await assert.rejects(taken.importUpload({},{object_key:KEY,name:'See'}),e=>e.code===CODES.nameTaken);
+  assert.match(taken.importUpload.history()[0].text,/Name schon/);
+  for(let i=0;i<25;i++)await bad.importUpload({},{object_key:KEY,name:'n'+i}).catch(()=>{});
+  assert.equal(bad.importUpload.history().length,20);
+});
