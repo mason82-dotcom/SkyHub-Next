@@ -36,7 +36,7 @@
     if(zero)return mode==='manual'?{ok:true,block:false,text:'Basis: '+who+' – Position aus der Handeingabe.'}
       :{ok:false,block:true,text:'Basis: '+who+' – der RINEX-Kopf enthält keine Position. „Koordinaten von Hand“ wählen und die Basisposition eintragen.'};
     const geo=ecefToGeo(h.approx.x,h.approx.y,h.approx.z);
-    if(!(geo.lat>-90&&geo.lat<90)||!(geo.h>-200&&geo.h<5000))
+    if(!(geo.lat>-90&&geo.lat<90)||!(geo.h>-200&&geo.h<3500))
       return {ok:false,block:true,text:'Position im RINEX-Kopf unplausibel ('+geo.h.toFixed(0)+' m ellipsoidisch). Datei prüfen oder „Koordinaten von Hand“ wählen.'};
     let text='Basis: '+who+' · '+geo.lat.toFixed(4)+' N, '+geo.lon.toFixed(4)+' E, '+geo.h.toFixed(1)+' m ellipsoidisch';
     const d=flights.filter(f=>f&&Number.isFinite(f.lat)&&Number.isFinite(f.lon)).map(f=>distKm(geo,f));
