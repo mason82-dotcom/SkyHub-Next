@@ -189,6 +189,14 @@ body:not([data-skyhub-page="pilot"]) > header {
 .sidebar-heading h2 { margin: 0; text-transform: none; letter-spacing: -.035em; font-size: 22px; color: var(--sky-ink); }
 .readonly-pill { white-space: nowrap; font-size: 10px; font-weight: 800; padding: 6px 10px; background: var(--sky-success-soft); color: var(--sky-success); border-radius: 99px; }
 
+/* Small shared helpers instead of inline style attributes. */
+.skyhub-check-row { display: flex; align-items: center; gap: 8px; }
+.skyhub-check-row input { width: auto; }
+.skyhub-subpanel { border: 1px solid var(--sky-border); padding: 12px; border-radius: 9px; }
+.skyhub-full { width: 100%; }
+.skyhub-pair { display: flex; gap: 8px; }
+.skyhub-plain-fieldset { border: 0; padding: 0; margin: 0 0 8px; }
+
 /* Shared page frame (markup written by scripts/webui-shell.py): app bar with grouped navigation + page head. */
 body > header.skyhub-appbar {
   position: sticky; top: 0; z-index: 1000;

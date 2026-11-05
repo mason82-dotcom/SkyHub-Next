@@ -6,8 +6,8 @@
 <title>SkyHub Next · 2D-Vermessungsvorschau</title>
 <link rel="stylesheet" href="/vendor/leaflet/1.9.4/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=">
 <style>
-:root{color-scheme:light;--bg:#081321;--panel:#102338;--edge:#305069;--accent:#44c6e5}
-*{box-sizing:border-box}body{background:var(--bg);color:#f0f7ff;margin:0;font:14px system-ui,"Segoe UI",sans-serif}
+
+*{box-sizing:border-box}body{margin:0}
 header.skyhub-pagehead{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:14px 18px;border-bottom:1px solid var(--edge)}
 h1{font-size:18px;margin:0}header.skyhub-pagehead span{color:var(--accent)}a{color:#9ceaff}
 main{display:grid;grid-template-columns:minmax(300px,1fr) 350px;height:calc(100vh - 64px)}
@@ -91,11 +91,11 @@ p{line-height:1.5}.muted{color:#a8bdd0;font-size:12px}
 </div>
 <section aria-label="Optionale Kamerageometrie">
 <h2>Bildberechnung (optionaler Expertenmodus)</h2>
-<label style="display:flex;align-items:center;gap:8px"><input id="optics-enable" type="checkbox" style="width:auto"> Bildbasierte Streifenabstände, GSD und Fotoabstände schätzen</label>
+<label class="skyhub-check-row"><input id="optics-enable" type="checkbox"> Bildbasierte Streifenabstände, GSD und Fotoabstände schätzen</label>
 <p class="muted">Alle Werte müssen zur <strong>tatsächlich gewählten Kamera und Linse</strong> gehören. Keine voreingestellten Mavic-/Matrice-Kameradaten; gerade bei Mavic 3M dürfen RGB- und Multispektralkameras nicht verwechselt werden. Höhe ist tatsächliche AGL-Höhe, nicht Höhe über Startpunkt.</p>
-<fieldset id="optics-fields" hidden style="border:1px solid var(--edge);padding:12px;border-radius:9px">
+<fieldset id="optics-fields" hidden class="skyhub-subpanel">
 <label for="camera-mode">Aufnahmereferenz (optional, DJI Mavic 3M)</label>
-<select id="camera-mode" style="width:100%">
+<select id="camera-mode" class="skyhub-full">
 <option value="manual" selected>Manuell / unbekannte Kamera – keine DJI-Referenzannahme</option>
 <option value="m3m-rgb-jpeg">Mavic 3M – RGB JPEG (DJI Minimum 0,7 s)</option>
 <option value="m3m-rgb-jpeg-raw">Mavic 3M – RGB JPEG + DNG (DJI Minimum 3 s)</option>
@@ -103,8 +103,8 @@ p{line-height:1.5}.muted{color:#a8bdd0;font-size:12px}
 <option value="m3m-rgb-ms-tiff">Mavic 3M – RGB + Multispektral simultan (DJI Minimum 2 s)</option>
 </select>
 <p class="muted">Die Auswahl prüft Bildabmessungen und Foto-Mindestintervalle gegen DJI-Referenzangaben. Bei RGB+Multispektral ist für die geometrische Berechnung ausschließlich der Multispektralsensor maßgeblich. Physische Sensorgröße und Brennweite müssen weiterhin selbst bestätigt werden; die Auswahl erzeugt keine Kamerakalibrierung oder DJI-Freigabe.</p>
-<label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="dual-optics-enable" style="width:auto" disabled> Unabhängige RGB- und Multispektral-Optik vergleichen (nur M3M RGB+MS; experimentell)</label>
-<fieldset id="dual-optics-fields" hidden style="border:1px solid var(--edge);padding:12px;border-radius:9px">
+<label class="skyhub-check-row"><input type="checkbox" id="dual-optics-enable" disabled> Unabhängige RGB- und Multispektral-Optik vergleichen (nur M3M RGB+MS; experimentell)</label>
+<fieldset id="dual-optics-fields" hidden class="skyhub-subpanel">
 <legend>RGB-Zweitkamera – eigene physische Parameter (nicht aus MS abgeleitet)</legend>
 <p class="muted">Die unten stehenden RGB-Optikwerte sind Pflicht. RGB hat bei der M3M 5280 × 3956 Pixel; die MS-Werte stehen im regulären Kamerafeld darunter. Gemeinsame AGL und Geschwindigkeit sind dieselbe theoretische Flugbahn. Sensorlage, Kalibrierung und Synchronisation sind ungeprüft. Es entstehen keine Fotopunkte oder Missionsaktionen.</p>
 <div class="row">
@@ -131,7 +131,7 @@ p{line-height:1.5}.muted{color:#a8bdd0;font-size:12px}
 <p class="muted">Modellannahme: senkrechte Nadir-Aufnahme, flaches Gelände, konstante Flughöhe/-geschwindigkeit und Sensorkante quer zur Flugrichtung. Kein Import von Kamera- oder Gerätezertifikaten.</p>
 </fieldset>
 </section>
-<label style="display:flex;align-items:center;gap:8px"><input id="show-photo-centers" type="checkbox" style="width:auto" disabled> Theoretische Fotopositionen auf der Karte anzeigen (nur mit Optikwerten)</label>
+<label class="skyhub-check-row"><input id="show-photo-centers" type="checkbox" disabled> Theoretische Fotopositionen auf der Karte anzeigen (nur mit Optikwerten)</label>
 <p class="muted">Maximal 2.000 Kartenmarkierungen. Bei größeren Schätzungen werden ausschließlich die Endpunkte jedes Streifensegments markiert, niemals versteckte Zwischenbilder als vollständig dargestellt.</p>
 <div class="actions"><button id="preview" type="button">2D-Vorschau berechnen</button><button id="fit" type="button">Fläche einpassen</button><button id="geojson" type="button" disabled>Vorschau als GeoJSON exportieren</button></div>
 <div id="status" role="status" aria-live="polite">Mindestens drei Polygonpunkte setzen.</div>

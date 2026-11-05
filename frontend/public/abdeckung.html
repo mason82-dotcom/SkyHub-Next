@@ -11,6 +11,7 @@
 #covmap{height:min(70vh,640px);border-radius:8px;border:1px solid var(--sky-border,#d0d7de)}
 .cov-legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;margin:8px 0}
 .cov-legend span::before{content:"";display:inline-block;width:14px;height:10px;margin-right:5px;vertical-align:middle;border-radius:2px;background:var(--c)}
+.cov-none{--c:#d1242f}.cov-low{--c:#f0883e}.cov-ok{--c:#2da44e}.cov-area{--c:transparent;outline:2px dashed #1f6feb}
 .cov-stats dt{font-weight:600}.cov-stats dd{margin:0 0 6px}
 </style>
 <link rel="stylesheet" href="/skyhub-light.css">
@@ -64,8 +65,8 @@
     <h2 id="h-map">Karte</h2>
     <div id="covmap" aria-label="Karte der Fotoabdeckung"></div>
     <p class="cov-legend" aria-label="Legende">
-      <span style="--c:#d1242f">keine Abdeckung</span><span style="--c:#f0883e">unter Mindestanzahl</span><span style="--c:#2da44e">ausreichend</span>
-      <span style="--c:transparent;outline:2px dashed #1f6feb">beflogene Fläche</span></p>
+      <span class="cov-sw cov-none">keine Abdeckung</span><span class="cov-sw cov-low">unter Mindestanzahl</span><span class="cov-sw cov-ok">ausreichend</span>
+      <span class="cov-sw cov-area">beflogene Fläche</span></p>
   </section>
   <section class="card" aria-labelledby="h-run">
     <h2 id="h-run">Flug</h2>
