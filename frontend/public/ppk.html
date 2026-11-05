@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SkyHub · PPK-Geotagging</title>
+<title>PPK-Geotagging · SkyHub</title>
 <style>
 .ppk-source{border:0;padding:0;margin:0 0 8px}.ppk-source legend{font-weight:600;margin-bottom:4px}
 .ppk-flights label{display:flex;flex-direction:row;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line,#d0d7de)}
@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="/skyhub-light.css">
 <link rel="stylesheet" href="/missionsfreigabe.css">
 <script defer src="/skyhub-nav.js"></script>
+<script defer src="/skyhub-disabled-reason.js"></script>
 </head>
 <body class="mrel" data-skyhub-page="ppk">
 <a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
@@ -103,9 +104,9 @@
   </section>
   <section class="card wide" aria-labelledby="h-run">
     <h2 id="h-run">3 · Auswerten</h2>
-    <button id="run" type="button" disabled>Hochladen und auswerten</button>
+    <button id="run" type="button" disabled data-disabled-reason="Erst Flug und SAPOS-Dateien wählen." data-disabled-reason-after="cancel">Hochladen und auswerten</button>
     <button id="cancel" type="button" class="secondary" disabled>Abbrechen</button>
-    <p id="status" class="muted" role="status" aria-live="polite">Flug und SAPOS-Dateien wählen.</p>
+    <p id="status" class="muted" role="status" aria-live="polite"></p>
     <progress id="progress" max="1" value="0" hidden class="skyhub-full"></progress>
     <p><a id="download" href="#" hidden>Ergebnis (CSV) herunterladen</a></p>
     <ul id="failed" class="history"></ul>

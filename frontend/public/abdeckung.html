@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SkyHub · Fotoabdeckung</title>
+<title>Fotoabdeckung · SkyHub</title>
 <link rel="stylesheet" href="/vendor/leaflet/1.9.4/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=">
 <style>
 .cov-grid{display:grid;grid-template-columns:minmax(0,2fr) minmax(280px,1fr);gap:16px}
@@ -17,6 +17,7 @@
 <link rel="stylesheet" href="/skyhub-light.css">
 <link rel="stylesheet" href="/missionsfreigabe.css">
 <script defer src="/skyhub-nav.js"></script>
+<script defer src="/skyhub-disabled-reason.js"></script>
 </head>
 <body class="mrel" data-skyhub-page="coverage">
 <a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
@@ -76,7 +77,7 @@
     <h2 id="h-run">Flug</h2>
     <label>Flug aus dem Speicher <select id="flight"><option value="">wird geladen …</option></select></label>
     <label>Mindestanzahl Fotos je Bodenpunkt <input id="min" type="number" min="1" max="20" step="1" value="5"></label>
-    <button id="run" type="button" disabled>Abdeckung berechnen</button>
+    <button id="run" type="button" disabled data-disabled-reason="Flugliste wird geladen …">Abdeckung berechnen</button>
     <p id="status" class="muted" role="status" aria-live="polite"></p>
     <dl id="stats" class="cov-stats"></dl>
     <h3>Größte Lücken</h3>

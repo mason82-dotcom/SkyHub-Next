@@ -4,6 +4,8 @@
 // Photos are reduced to their header (all segments before the first scan + EOI): dji-geotagger reads only the XMP.
 (function(){
   const $=id=>document.getElementById(id);
+  // Reason shown next to a disabled action (skyhub-disabled-reason.js); tolerant of elements without dataset.
+  const setDisabledReason=(el,text)=>{if(el&&el.dataset)el.dataset.disabledReason=text;};
   const flights=new Map();   // folder -> [{name, file}]
   let baseFiles=[],job=null,timer=null,stored=[],baseHead=null,baseHeadFor=null;
   const source=()=>document.querySelector('input[name=source]:checked').value;
@@ -27,6 +29,12 @@
     const check=baseCheck(obs);
     const ok=flightsOk&&obs.length===1&&!check.block&&baseFiles.some(f=>NAV.test(f.name));
     $('run').disabled=!ok||Boolean(job);
+    // Visible reason next to the disabled button (skyhub-disabled-reason.js); the first missing step wins.
+    setDisabledReason($('run'),job?'Auswertung läuft – abwarten oder abbrechen.':
+      !flightsOk?(source()==='storage'?'Erst einen Flug aus dem Speicher wählen.':'Erst einen Flugordner mit MRK-Datei und GNSS-Rohdaten wählen.'):
+      obs.length!==1?'Genau eine SAPOS-Beobachtungsdatei wählen (…O.rnx, .obs oder .yyo).':
+      check.block?'Die Basisdatei ist ungeeignet – siehe Prüfung bei 2.':
+      !baseFiles.some(f=>NAV.test(f.name))?'Noch die SAPOS-Navigationsdatei wählen (…N.rnx, .nav oder .yyn).':'');
   }
   // --- base check before upload (rinex-head.js): drone file, missing position, distance to the flight -----------------
   const OBS=/(_[A-Z]O\.rnx|\.obs|\.\d\do)$/i,NAV=/(_[A-Z]N\.rnx|\.nav|\.\d\d[nglpfhq])$/i;
@@ -157,6 +165,7 @@
   const status=(t,cls)=>{$('status').textContent=t;$('status').className=cls||'muted';};
 
   $('run').addEventListener('click',async()=>{
+    setDisabledReason($('run'),'Auswertung läuft – abwarten oder abbrechen.');
     $('run').disabled=true;$('download').hidden=true;$('failed').replaceChildren();
     const prog=$('progress');prog.hidden=false;prog.value=0;
     try{

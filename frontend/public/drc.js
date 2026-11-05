@@ -7,9 +7,9 @@
   const RCPRO=new URLSearchParams(location.search).get('rc')==='pro';
   const API=RCPRO?'/api/drc/rcpro':'/api/drc',NS=RCPRO?'/drc-rcpro':'/drc';
   if(RCPRO){
-    document.title='SkyHub · Kamera Mavic 3 (RC Pro)';
+    document.title='Kamera & Gimbal · SkyHub';
     for(const id of ['safety','sticks','estop','flyto','flystop','takeoff'])if($(id))$(id).hidden=true;
-    const h=document.querySelector('.drc-title strong');if(h)h.textContent='Kamera & Gimbal (RC Pro)';
+    const h=document.querySelector('.drc-title strong');if(h)h.textContent='Kamera & Gimbal';
     // camera_mode on the RC Pro: 0–3 (no interval photo).
     for(const b of document.querySelectorAll('[data-pl="camera_mode"][data-mode="4"]'))b.hidden=true;
     const mh=document.querySelector('#mapcard h2');if(mh)mh.firstChild.textContent='Karte ';

@@ -2,13 +2,13 @@
 <html lang="de">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SkyHub Next · DJI Operations</title>
+<title>Lagebild · SkyHub</title>
 <link rel="stylesheet" href="/vendor/leaflet/1.9.4/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=">
 <style>
 
 *{box-sizing:border-box}body{margin:0}
 header.skyhub-pagehead{height:66px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 18px;border-bottom:1px solid var(--edge)}
-h1{margin:0;font-size:20px;letter-spacing:.04em}h1 span{color:var(--blue)}small,.muted{color:var(--muted)}
+h1{margin:0;font-size:20px;letter-spacing:.04em}h1 span:not(.muted){color:var(--blue)}small,.muted{color:var(--muted)}
 .auth{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.auth input{min-width:205px}
 [hidden]{display:none!important}
 input,button,select{padding:9px 11px;border:1px solid #40576d;border-radius:8px;background:#1b2b3d;color:white}
@@ -196,7 +196,7 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;margin:14px 0 8p
   </section>
   <aside id="fleetPanel" tabindex="-1" aria-labelledby="fleetHeading">
     <div class="sidebar-heading"><div><p class="skyhub-eyebrow">FLOTTE / TELEMETRIE</p><h2 id="fleetHeading">Gerätestatus</h2></div><span class="readonly-pill">Nur Lesen</span></div>
-    <div class="notice">Lesende Ansicht · keine Flugsteuerung. Fehlende Werte: —. Bereits angesehene Kartenbereiche bleiben ohne Internet verfügbar.</div>
+    <p class="sidebar-legend">Fehlende Werte: —. Bereits angesehene Kartenbereiche bleiben ohne Internet verfügbar.</p>
     <div class="grid">
       <div class="tile"><small>Geräte</small><strong id="count">0</strong></div>
       <div class="tile"><small>OSD &lt;15 s</small><strong id="live">0</strong></div>
@@ -213,7 +213,7 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;margin:14px 0 8p
     </div>
   </section>
   <section id="cockpit" class="cockpit" aria-labelledby="cockpitTitle">
-    <div class="cockpit-top"><div><span class="cockpit-overline">OSD / Instrumente</span><h2 id="cockpitTitle">Fluginstrumente</h2></div><span class="cockpit-badge">Nur lesend</span></div>
+    <div class="cockpit-top"><div><span class="cockpit-overline">OSD / Instrumente</span><h2 id="cockpitTitle">Fluginstrumente</h2></div></div>
     <label for="cockpitDevice">Gerät für Instrumente</label>
     <select id="cockpitDevice" disabled aria-describedby="cockpitHelp"><option value="">Warte auf Gerätedaten</option></select>
     <p id="cockpitStatus" class="cockpit-status" role="status">Warte auf Gerätedaten.</p>
@@ -374,7 +374,15 @@ function refreshFieldAges(){
     if(d)node.textContent=positionLabel(d);
   }
 }
-const map=window.L?L.map('map').setView([51.1657,10.4515],6):null;
+// Start view: the last map view in this browser (centre and zoom only, local convenience, never sent anywhere);
+// without one, Germany. Device positions take over as soon as they arrive (see renderDevices).
+const VIEW_KEY='skyhub.lagebild.view';
+const savedView=(()=>{try{const v=JSON.parse(localStorage.getItem(VIEW_KEY)||'null');
+  return v&&Number.isFinite(v.lat)&&Number.isFinite(v.lon)&&Number.isInteger(v.zoom)&&Math.abs(v.lat)<=90&&Math.abs(v.lon)<=180&&
+    v.zoom>=3&&v.zoom<=19?v:null;}catch(_){return null;}})();
+const map=window.L?L.map('map').setView(savedView?[savedView.lat,savedView.lon]:[51.1657,10.4515],savedView?savedView.zoom:6):null;
+if(map)map.on('moveend',()=>{try{const c=map.getCenter();
+  localStorage.setItem(VIEW_KEY,JSON.stringify({lat:+c.lat.toFixed(5),lon:+c.lng.toFixed(5),zoom:map.getZoom()}));}catch(_){}});
 // Tiles via the SkyHub offline cache (or a redirect to OSM, which requires an origin Referer).
 if(map)L.tileLayer('/tiles/osm/{z}/{x}/{y}.png',
   {attribution:'© OpenStreetMap',maxZoom:19,referrerPolicy:'strict-origin-when-cross-origin'}).addTo(map);
@@ -394,7 +402,7 @@ function shownDevice(d){
   return String(m.domain)!=='3'&&!(String(m.domain)==='0'&&DOCK_AIRCRAFT_TYPES.has(Number(m.type)));
 }
 function putDevice(d){if(d&&shownDevice(d))records.set(d.sn,d);else if(d&&d.sn)records.delete(d.sn);}
-let socket=null,centered=false,authToken=null,selectedSn=null,connectAttempt=0;
+let socket=null,centered=false,overviewFitted=false,authToken=null,selectedSn=null,connectAttempt=0;
 let trackLoadId=0,trackController=null;
 let healthController=null;
 let eventsController=null,eventsLoadId=0;
@@ -703,6 +711,11 @@ function update(){
   const currentPositions=positioned.filter(d=>positionFresh(d)&&d.positionTimeVerified===true).length;
   const unverifiedPositions=positioned.filter(d=>positionFresh(d)&&d.positionTimeVerified!==true).length;
   const olderPositions=count-currentPositions-unverifiedPositions;
+  // No current fix yet: show the last known positions (already drawn as grey markers) once instead of the default view.
+  if(map&&!centered&&!overviewFitted&&count&&!currentPositions){
+    map.fitBounds(L.latLngBounds(positioned.map(d=>[d.telemetry.latitude,d.telemetry.longitude])),{maxZoom:13,padding:[44,44]});
+    overviewFitted=true;
+  }
   el('fitDevices').disabled=!map||!count;
   const trackSummary=tracks.size?tracks.size+' '+(tracks.size===1?'Flugspur':'Flugspuren')+' sichtbar':'';
   const mapMessage=!map?'Karte konnte nicht geladen werden. Gerätedaten bleiben in der Liste verfügbar.':
@@ -731,7 +744,7 @@ async function connect(token=null,quiet=false){
   if(socket){const previous=socket;socket=null;previous.disconnect();}
   records.clear();
   for(const line of tracks.values())line.remove();tracks.clear();
-  selectedSn=null;centered=false;
+  selectedSn=null;centered=false;overviewFitted=false;
   listState='loading';update();
   if(!quiet)el('message').textContent='Verbinde…';
   try{

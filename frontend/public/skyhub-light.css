@@ -110,7 +110,7 @@ button:hover:not(:disabled) {
   box-shadow: 0 4px 12px rgba(36, 88, 211, .16);
 }
 button:active:not(:disabled) { transform: translateY(1px); }
-button:disabled { opacity: .56; cursor: not-allowed; box-shadow: none; }
+button:disabled { background: #e6ebf2; border-color: #d7e0ed; color: #556579; opacity: 1; cursor: not-allowed; box-shadow: none; }
 button.secondary, .finder-search button, .track-feedback button,
 .health-panel button, .events-panel button, .device .map-action,
 .map-tools button, .waypoint button {
@@ -126,6 +126,7 @@ button.secondary:hover:not(:disabled), .finder-search button:hover:not(:disabled
   border-color: #bdd0ff;
   color: #123d9c;
 }
+button.secondary:disabled { background: #e6ebf2; border-color: #d7e0ed; color: #556579; opacity: 1; box-shadow: none; }
 label { color: var(--sky-muted); }
 section, aside, .panel, .tile, .device, .item, .metric-card,
 .tak-card, .tak-heading, .health-panel, .events-panel {
@@ -189,6 +190,16 @@ body:not([data-skyhub-page="pilot"]) > header {
 .sidebar-heading h2 { margin: 0; text-transform: none; letter-spacing: -.035em; font-size: 22px; color: var(--sky-ink); }
 .readonly-pill { white-space: nowrap; font-size: 10px; font-weight: 800; padding: 6px 10px; background: var(--sky-success-soft); color: var(--sky-success); border-radius: 99px; }
 
+/* Checkboxes and radio buttons: 20 px instead of the browser's 13 px, brand colour; the label stays the larger target. */
+input[type="checkbox"], input[type="radio"] {
+  width: 20px; height: 20px; min-width: 20px; min-height: 0; margin: 0 6px 0 0; flex: none;
+  accent-color: var(--sky-primary); vertical-align: middle; cursor: pointer;
+}
+label:has(> input[type="checkbox"]), label:has(> input[type="radio"]) { cursor: pointer; }
+/* Disabled actions: neutral (not a pale brand colour that reads as "loading") plus the reason as text next to them. */
+.skyhub-disabled-reason { display: inline-block; margin: 6px 0 0 8px; font-size: 12px; line-height: 1.4; color: var(--sky-muted); }
+.skyhub-disabled-reason::before { content: "Gesperrt: "; font-weight: 700; }
+.skyhub-disabled-reason[hidden] { display: none; }
 /* Small shared helpers instead of inline style attributes. */
 .skyhub-check-row { display: flex; align-items: center; gap: 8px; }
 .skyhub-check-row input { width: auto; }
@@ -322,6 +333,8 @@ body[data-skyhub-page="dashboard"] aside {
   background: var(--sky-bg); padding: 20px; border-left: 0;
   scrollbar-color: #c3d0e0 transparent;
 }
+/* Neutral legend instead of a warning box: the read-only state is stated once in the page head and the fleet pill. */
+body[data-skyhub-page="dashboard"] .sidebar-legend { margin: -4px 0 14px; font-size: 12px; line-height: 1.45; color: var(--sky-muted); }
 body[data-skyhub-page="dashboard"] .notice {
   color: var(--sky-warning); background: var(--sky-warning-soft);
   border: 1px solid #efdcb7; border-radius: 10px; padding: 10px 12px;
@@ -435,8 +448,8 @@ body[data-skyhub-page="smart-farming"] #catalogStatus[data-kind="error"] { color
 /* WPML editor and photogrammetry map workspaces */
 body[data-skyhub-page="wpml-editor"] header,
 body[data-skyhub-page="survey"] header.skyhub-pagehead { gap: 18px; }
-body[data-skyhub-page="wpml-editor"] header h1 span,
-body[data-skyhub-page="survey"] header h1 span { color: var(--sky-primary); }
+body[data-skyhub-page="wpml-editor"] header h1 span:not(.muted),
+body[data-skyhub-page="survey"] header h1 span:not(.muted) { color: var(--sky-primary); }
 body[data-skyhub-page="wpml-editor"] main { grid-template-columns: minmax(320px,1fr) minmax(350px,430px); }
 body[data-skyhub-page="survey"] main { grid-template-columns: minmax(320px,1fr) minmax(350px,430px); }
 body[data-skyhub-page="wpml-editor"] #map,

@@ -8,6 +8,8 @@
   const kmzImport=window.SkyHubWpmlKmzImport;
   const store=window.SkyHubWpmlMissionStore;
   const $=id=>document.getElementById(id);
+  // Reason shown next to a disabled action (skyhub-disabled-reason.js); tolerant of elements without dataset.
+  const setDisabledReason=(el,text)=>{if(el&&el.dataset)el.dataset.disabledReason=text;};
   if(!core){$('message').textContent='WPML-Modul nicht geladen – kein Export möglich.';return;}
   const points=[];
   let map=null,markers=[],line=null,hasFit=false;
@@ -406,7 +408,7 @@
     return points.map(p=>({lat:p.lat,lon:p.lon,h:local&&Number.isFinite(p.height)?p.height:global}));
   };
   function profileStale(){
-    $('profile-run').disabled=points.length<2;
+    $('profile-run').disabled=points.length<2;setDisabledReason($('profile-run'),'Erst mindestens zwei Wegpunkte auf der Karte setzen.');
     if(profileFor&&profileFor!==JSON.stringify(profileInput())){
       $('profile-status').textContent='Route geändert – Profil neu berechnen.';$('profile-chart').replaceChildren();profileFor=null;
     }
@@ -414,7 +416,7 @@
   $('profile-run').addEventListener('click',async()=>{
     const input=profileInput();
     if(input.length<2||input.some(p=>!Number.isFinite(p.h)))return;
-    $('profile-run').disabled=true;$('profile-status').textContent='Geländehöhen werden abgefragt …';
+    setDisabledReason($('profile-run'),'');$('profile-run').disabled=true;$('profile-status').textContent='Geländehöhen werden abgefragt …';
     try{
       const b=await window.SkyHubTerrainClient.profile(input);
       profileFor=JSON.stringify(input);
@@ -422,15 +424,16 @@
       $('profile-status').textContent=b.status==='ok'?(b.maxAgl.aglM>120?'Achtung: über 120 m über Grund bei Wegpunkt '+b.maxAgl.waypoint+'.':
         b.minAgl.aglM<(b.minAglM||15)?'Achtung: nur '+b.minAgl.aglM+' m über Grund bei Wegpunkt '+b.minAgl.waypoint+'.':'Profil berechnet.'):'';
     }catch(err){$('profile-status').textContent='Höhenprofil nicht verfügbar: '+err.message;$('profile-chart').replaceChildren();}
-    finally{$('profile-run').disabled=points.length<2;}
+    finally{$('profile-run').disabled=points.length<2;setDisabledReason($('profile-run'),'Erst mindestens zwei Wegpunkte auf der Karte setzen.');}
   });
   function render(){
     renderList();renderMap();updateReview();profileStale();renderObstacles();
     updateSaveState();
-    $('export').disabled=points.length<2;
+    $('export').disabled=points.length<2;setDisabledReason($('export'),'Erst mindestens zwei Wegpunkte auf der Karte setzen.');
     $('undo').disabled=history.length===0;
     $('reverse').disabled=points.length<2;
-    if($('store-save'))$('store-save').disabled=points.length<2||!store||storeBusy;
+    if($('store-save')){$('store-save').disabled=points.length<2||!store||storeBusy;
+      setDisabledReason($('store-save'),storeBusy?'Wird gespeichert …':!store?'Bibliotheksanbindung nicht geladen.':'Erst mindestens zwei Wegpunkte auf der Karte setzen.');}
     if(points.length<2)renderMessage('Mindestens zwei unterschiedliche Wegpunkte setzen.');
     else renderMessage(points.length+' Wegpunkte vorgemerkt. Der KMZ-Export erfolgt lokal.');
   }
@@ -814,7 +817,7 @@
       return;
     }
     storeBusy=true;
-    $('store-save').disabled=true;
+    setDisabledReason($('store-save'),'Wird gespeichert …');$('store-save').disabled=true;
     updateSaveState();
     try{
       const name=missionName();
@@ -824,6 +827,7 @@
     }catch(error){storeStatus(error instanceof Error?error.message:'Speichern fehlgeschlagen.',true);}
     finally{
       storeBusy=false;
+      setDisabledReason($('store-save'),!store?'Bibliotheksanbindung nicht geladen.':'Erst mindestens zwei Wegpunkte auf der Karte setzen.');
       $('store-save').disabled=points.length<2||!store;
       updateSaveState();
     }
