@@ -23,7 +23,7 @@ test('drone file is recognised and blocks the run in both modes',()=>{
 });
 test('SAPOS header: position, receiver, antenna and distance to the flight',()=>{
   const h=R.parseHeader(sapos);
-  assert.equal(h.marker,'VRS_0416');assert.equal(h.receiver,'VRS');assert.equal(h.antenna,'LEIAR25.R4      NONE');
+  assert.equal(h.marker,'VRS_0416');assert.equal(h.receiver,'VRS');assert.equal(h.antenna,'LEIAR25.R4 NONE');
   const r=R.assess(h,{flights:[{lat:49.1525,lon:8.6044}]});
   assert.equal(r.block,false);assert.equal(r.warn,false);
   assert.ok(Math.abs(r.geo.lat-49.15)<1e-6&&Math.abs(r.geo.lon-8.60)<1e-6&&Math.abs(r.geo.h-160)<0.01);
@@ -40,4 +40,8 @@ test('real station without position: header mode blocks, manual mode passes',()=
 test('not a RINEX observation file (compressed, binary, cut header)',()=>{
   assert.equal(R.assess(R.parseHeader('\x1f\x8b\x08 binary')).block,true);
   assert.equal(R.assess(R.parseHeader(sapos.replace(/^.*END OF HEADER\n/m,''))).block,true);
+});
+test('implausible header height (e.g. wrong units) blocks the run',()=>{
+  const h=R.parseHeader(sapos);h.approx={x:h.approx.x*1.001,y:h.approx.y*1.001,z:h.approx.z*1.001};
+  const r=R.assess(h);assert.equal(r.block,true);assert.match(r.text,/unplausibel/);
 });
