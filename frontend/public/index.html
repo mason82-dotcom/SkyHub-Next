@@ -33,6 +33,9 @@ aside{background:var(--panel);border-left:1px solid var(--edge);padding:14px;ove
 .device details[open] summary{margin-bottom:8px}
 .device .meta{display:block;margin-top:10px;line-height:1.5;overflow-wrap:anywhere}
 .warning-preview{margin:8px 0 0;color:#ffd6ad;font-size:12px;line-height:1.4}
+.rtk-line{margin:8px 0 0;font-size:12px;line-height:1.4;padding:3px 7px;border-radius:6px;border:1px solid var(--edge)}
+.rtk-line.ok{color:#9be7bf}.rtk-line.info{color:var(--muted)}.rtk-line.warn{color:#ffd6ad;border-color:#a8742b}
+.rtk-line.alarm{color:#ffb4b0;border-color:#c0443f;font-weight:700}
 .finder{display:grid;gap:6px;margin:8px 0}.finder label{font-size:12px;color:var(--muted)}
 .finder-search{display:flex;gap:6px}.finder-search input{flex:1;min-width:0;width:100%}.finder-search button{background:#203c50}
 .finder-search input::-webkit-search-cancel-button{display:none}
@@ -329,6 +332,7 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;margin:14px 0 8p
 <script src="/live-panel.js"></script>
 <script src="/live-control-panel.js"></script>
 <script src="/telemetry-freshness.js"></script>
+<script src="/rtk-status.js"></script>
 <script src="/telemetry-cockpit.js"></script>
 <script src="/workspace-tabs.js"></script>
 <script>
@@ -547,6 +551,14 @@ function update(){
         (first.text&&(first.text.de||first.text.en)||'Unbekannter HMS-Code')+
         (important.length>1?' · '+(important.length-1)+' weitere':'');
       card.append(preview);
+    }
+    // RTK state (rtk-status.js): FIX / searching / failed, stronger while flying.
+    const rtk=window.SkyHubRtkStatus&&window.SkyHubRtkStatus.rtkStatus(d,{freshness:fieldFreshness.evaluateField(d,'rtkFixState')});
+    if(rtk){
+      const line=document.createElement('p');
+      line.className='rtk-line '+rtk.level;line.dataset.rtk=rtk.level;
+      if(rtk.level==='alarm'||rtk.level==='warn')line.setAttribute('role','status');
+      line.textContent=rtk.text;card.append(line);
     }
     // AirSense (ADS-B) summary: counts and distance only, never identity or position of other aircraft.
     const air=d.airsense;
