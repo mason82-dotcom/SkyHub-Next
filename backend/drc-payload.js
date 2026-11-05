@@ -30,8 +30,8 @@ const PAYLOADS=Object.freeze({
   '0-99-1':{payloadIndex:'89-0-0',name:'Matrice 4T Kamera',cameraTypes:['wide','zoom','ir']}
 });
 // RC Pro + Mavic 3 Enterprise series (mqtt/rc-pro/drc, payload only: the same commands on `services` without the drc_ prefix,
-// camera_mode 0–3). product-support: Mavic 3E camera 66-0-0, Mavic 3T camera 67-0-0. Mavic 3M 68-0-0 is an ASSUMPTION (not in the
-// local 1.11.3 table; continues the 66/67 series) – the payload_index the aircraft reports in its OSD takes precedence.
+// camera_mode 0–3). product-support: Mavic 3E camera 66-0-0, Mavic 3T camera 67-0-0; Mavic 3M camera 68 from the DJI WPML
+// payloadEnumValue table ("68 (Mavic 3M Camera)", same enum as payload_index). The OSD payload_index still takes precedence.
 const PAYLOADS_RC_PRO=Object.freeze({
   '0-77-0':{payloadIndex:'66-0-0',name:'Mavic 3E Kamera',cameraTypes:['wide','zoom']},
   '0-77-1':{payloadIndex:'67-0-0',name:'Mavic 3T Kamera',cameraTypes:['wide','zoom','ir']},

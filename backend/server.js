@@ -36,6 +36,7 @@ const {createDjiWaylineRouter,createRedisFavorites,UPLOAD_DISABLED_CODE}=require
 let pilotWaylineImport=null;
 const {createPilotWaylineImport,ImportError}=require('./pilot-wayline-import');
 const {terrainConfig,createTerrainClient,createTerrainRouter}=require('./mission-terrain');
+const {geozoneConfig,createGeozoneClient}=require('./mission-geozones');
 const {ppkConfig,createPpkRouter}=require('./ppk');
 const {createPpkStorage}=require('./ppk-storage');
 const {createSmartFarmingCatalogRouter}=require('./smart-farming-catalog');
@@ -312,7 +313,12 @@ if(wpmlStore&&missionRelease.enabled){
     if(terrainSettings.issue)console.error('[terrain] disabled:',terrainSettings.issue);
     const terrain=terrainSettings.enabled?createTerrainClient(terrainSettings):null;
     if(terrain)console.log('[terrain] height above ground check active ('+terrainSettings.dataset+(terrainSettings.public?', PUBLIC service: route coordinates leave the network':'')+')');
-    app.use('/api/wpml/release',createMissionReleaseRouter({express,store:wpmlStore,releases:releaseStore,config:missionRelease,terrain}));
+    // Optional geozone check (SKYHUB_GEOZONES_ENABLED, dipul WFS): only the route's bounding box leaves the network.
+    const geozoneSettings=geozoneConfig(process.env);
+    if(geozoneSettings.issue)console.error('[geozones] disabled:',geozoneSettings.issue);
+    const geozones=geozoneSettings.enabled?createGeozoneClient(geozoneSettings):null;
+    if(geozones)console.log('[geozones] dipul geozone check active (bounding box of the route is sent to '+geozoneSettings.url+')');
+    app.use('/api/wpml/release',createMissionReleaseRouter({express,store:wpmlStore,releases:releaseStore,config:missionRelease,terrain,geozones}));
     if(terrain)app.use('/api/terrain',createTerrainRouter({express,terrain}));
     console.log('[mission release] active ('+missionRelease.hours+' h validity)');
   }

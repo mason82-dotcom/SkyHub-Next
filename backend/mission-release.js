@@ -12,6 +12,7 @@
 const crypto=require('node:crypto');
 const {checkMission,limitsFromEnv,DEFAULT_LIMITS}=require('./mission-envelope');
 const {terrainFindings}=require('./mission-terrain');
+const {geozoneFindings}=require('./mission-geozones');
 const {waylineId}=require('./wpml-mission-store');
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -163,7 +164,7 @@ function clientAddress(req){
   return (fwd[fwd.length-1]||req.socket?.remoteAddress||'?').slice(0,64);
 }
 
-function createMissionReleaseRouter({express,store,releases,config,terrain=null,audit=e=>console.log('[mission release] '+JSON.stringify(e)),now=()=>new Date()}){
+function createMissionReleaseRouter({express,store,releases,config,terrain=null,geozones=null,audit=e=>console.log('[mission release] '+JSON.stringify(e)),now=()=>new Date()}){
   const router=express.Router();
   const send=(res,status,body)=>{res.set('Cache-Control','no-store');return res.status(status).json(body);};
   // Release/revoke: from the home LAN with same-origin proof (req.skyhubLan, set by http-auth/wpml-lan-auth; decision
@@ -190,6 +191,13 @@ function createMissionReleaseRouter({express,store,releases,config,terrain=null,
       check.errors.push(...f.errors);check.warnings.push(...f.warnings);
       check.ok=check.errors.length===0;
       check.envelope={...check.envelope,terrain:t};
+    }
+    // Optional geozone check (mission-geozones.js, dipul WFS): zones the route touches, as warnings to acknowledge.
+    if(geozones&&check.route&&check.route.points.length){
+      const g=await geozones.check(sha256,check.route.points.map(p=>({lat:p.lat,lon:p.lon,h:p.heightAboveTakeoffM})));
+      const f=geozoneFindings(g);
+      check.warnings.push(...f.warnings);
+      check.envelope={...check.envelope,geozones:g};
     }
     // Flight line for the map on the release page (what Pilot 2 will fly): [lat, lon, height above take-off].
     const track=check.route?check.route.points.slice(0,2000).map(p=>[p.lat,p.lon,p.heightAboveTakeoffM]):[];

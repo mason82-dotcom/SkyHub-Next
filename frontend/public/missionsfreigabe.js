@@ -83,6 +83,10 @@
     [/^terrain: only ([-\d.]+) m above ground near waypoint (\d+) \(below ([\d.]+) m\)/,m=>'Gelände: nur '+m[1]+' m über Grund bei Wegpunkt '+m[2]+' (unter '+m[3]+' m).'],
     [/^terrain: (\d+) route points without elevation data/,m=>'Gelände: '+m[1]+' Routenpunkte ohne Höhendaten.'],
     [/^droneSubEnumValue (\d+) \(([^)]+)\) does not match camera (\d+) of the ([^:]+): treated as/,m=>'Route nennt '+m[2]+' (Untertyp '+m[1]+'), die Kamera '+m[3]+' gehört aber zur '+m[4]+'. Wie in Pilot 2 gilt die Kamera: Route wird als '+m[4]+' behandelt. Fluggerät in Pilot 2 prüfen.'],
+    [/^geozone: (.+) \(([^,)]+)(?:, ([^)]+))?\) waypoints (\d+)-(\d+), (\d+) % of the route/,m=>'Geozone: '+m[1]+' ('+m[2]+(m[3]?', '+m[3]:'')+') – Wegpunkte '+m[4]+' bis '+m[5]+', '+m[6]+' % der Route. Genehmigung oder Auflagen in dipul prüfen.'],
+    [/^geozones not checked: dipul unavailable/,()=>'Geozonen nicht geprüft: dipul nicht erreichbar – Route selbst in dipul.de prüfen.'],
+    [/^geozones partly checked: (\d+) dipul layers unavailable \(([^)]*)\)/,m=>'Geozonen nur teilweise geprüft: '+m[1]+' dipul-Ebenen nicht erreichbar ('+m[2]+').'],
+    [/^geozones: no published dipul zone on the route/,()=>'Geozonen: keine in dipul veröffentlichte Zone auf der Route (nur dipul-Daten; vorübergehende und örtliche Beschränkungen können fehlen).'],
     [/^terrain not checked: elevation service unavailable/,()=>'Gelände nicht geprüft: Höhendienst nicht erreichbar – Höhen über Grund selbst prüfen.'],
     [/^no take-off reference point/,()=>'Kein Startbezugspunkt: Entfernung und Dauer sind ab dem ersten Wegpunkt gerechnet.'],
     [/^heights are relative to the take-off point, not to the ground.*exceed ([\d.]+) m/,m=>'Höhen gelten relativ zum Startpunkt, nicht zum Boden: Gelände entlang der Route prüfen (ansteigendes Gelände verringert den Abstand, abfallendes kann mehr als '+m[1]+' m über Grund ergeben).'],
@@ -119,6 +123,9 @@
     ['terrain','Gelände (über Grund)',t=>!t?'nicht geprüft (kein Höhendienst eingestellt)':t.status==='ok'?
       t.minAgl.aglM+' bis '+t.maxAgl.aglM+' m ('+t.dataset+(t.assumedTakeoff?', Start = 1. Wegpunkt':'')+')':
       t.status==='skipped'?(t.reason==='terrain-follow'?'Geländefolge der Route':'WGS84-Höhen, nicht umgerechnet'):'Dienst nicht erreichbar'],
+    ['geozones','Geozonen (dipul)',g=>!g?'nicht geprüft (Geozonen-Prüfung aus)':g.status==='ok'?
+      (g.zones.length?g.zones.length+' berührt: '+g.zones.slice(0,4).map(z=>z.name+' ('+(z.typeCode||z.layer)+')').join(', ')+(g.zones.length>4?' …':''):'keine veröffentlichte Zone')+
+      (g.layersFailed.length?' · '+g.layersFailed.length+' Ebenen nicht erreichbar':''):'dipul nicht erreichbar'],
     ['exitOnRCLost','Bei Verbindungsverlust',v=>({goContinue:'Route fortsetzen',executeLostAction:'Notfallaktion ausführen'}[v]||v||'–')]
   ];
   async function select(id,focus){
