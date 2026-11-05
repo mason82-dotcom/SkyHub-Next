@@ -114,20 +114,20 @@ test('no page of the web UI contains a token or password prompt',()=>{
 test('media navigation exists on all five existing workspace pages',()=>{
   for(const name of ['index.html','wpml-editor.html','wpml-route-library.html',
     'wpml-survey-preview.html','smart-farming.html']){
-    assert.match(file(name),/href="\/media-gallery\.html">Medien<\/a>/);
+    assert.match(file(name),/href="\/media-gallery\.html">Medien(<small>[^<]*<\/small>)?<\/a>/);
   }
 });
 
 test('thermal module page: no login, navigation, tools and estimate notice',()=>{
   const html=file('thermal.html'),app=file('thermal-app.js');
   new vm.Script(app);new vm.Script(file('thermal-core.js'));
-  assert.match(html,/href="\/thermal.html" aria-current="page">Thermal<\/a>/);
+  assert.match(html,/href="\/thermal.html" aria-current="page">Thermal(<small>[^<]*<\/small>)?<\/a>/);
   for(const id of ['list','thermal','palette','eps','reflected','iso-mode','measurements','histogram',
     'series-select','series-chart','export-csv','export-matrix'])assert.ok(html.includes('id="'+id+'"'),id);
   assert.match(html,/Schätzwerte/);
   assert.doesNotMatch(app,/Authorization|innerHTML|localStorage|eval\s*\(/);
   for(const name of ['index.html','wpml-editor.html','wpml-route-library.html','wpml-survey-preview.html',
-    'smart-farming.html','media-gallery.html'])assert.match(file(name),/href="\/thermal.html">Thermal<\/a>/,name);
+    'smart-farming.html','media-gallery.html'])assert.match(file(name),/href="\/thermal.html">Thermal(<small>[^<]*<\/small>)?<\/a>/,name);
 });
 
 test('Smart Farming page lists multispectral captures without login or HTML injection',()=>{

@@ -18,18 +18,50 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1] / "frontend" / "public"
 
-# (group label or None for a direct link, [(href, label)])
+# Menu order follows the operator workflow: see the situation -> plan -> fly -> evaluate -> diagnose.
+# (group label or None for a direct link, [entries]); an entry is (href, label, hint) or a section heading
+# (SECTION, title) / (LAB, title). Everything after a LAB heading in a menu is experimental and marked as such.
+SECTION, LAB = "§", "§lab"
 NAV = [
-    (None, [("/", "Übersicht")]),
-    ("Einsatz", [("/drc.html", "Live-Steuerung Matrice 4"), ("/drc.html?rc=pro", "Kamera Mavic 3 (RC Pro)"),
-                 ("/missionsfreigabe.html", "Missionsfreigabe"), ("/kartenelemente.html", "Kartenelemente")]),
-    ("Missionen", [("/wpml-editor.html", "Missionsentwurf"), ("/wpml-route-library.html", "Routenbibliothek")]),
-    ("Auswertung", [("/media-gallery.html", "Medien"), ("/thermal.html", "Thermal"), ("/ppk.html", "PPK-Geotagging"),
-                    ("/abdeckung.html", "Fotoabdeckung"), ("/ndvi.html", "Vegetationsindizes")]),
-    ("System", [("/pilot-protokolle.html", "Pilot-2-Protokolle"), ("/fh-diagnostics.html", "RTK & Flugsitzungen")]),
-    ("Labor", [("/wpml-survey-preview.html", "Survey-Vorschau"), ("/smart-farming.html", "Smart Farming"),
-               ("/smart-farming-map-lab.html", "Vegetationskarte")]),
+    (None, [("/", "Lagebild", None)]),
+    ("Planen", [
+        (SECTION, "Mission"),
+        ("/wpml-editor.html", "Missionsentwurf", "Wegpunkte setzen, KMZ importieren"),
+        ("/wpml-route-library.html", "Routenbibliothek", "Gespeicherte Routen und Revisionen"),
+        ("/missionsfreigabe.html", "Missionsfreigabe", "Revision für Pilot 2 freigeben"),
+        (SECTION, "Karte in Pilot 2"),
+        ("/kartenelemente.html", "Kartenelemente", "Punkte, Linien und Flächen"),
+        (LAB, "Labor"),
+        ("/wpml-survey-preview.html", "Survey-Vorschau", "2D-Vermessung, nur Vorschau"),
+    ]),
+    ("Fliegen", [
+        ("/drc.html", "Live-Steuerung", "Matrice 4 · RC Plus 2"),
+        ("/drc.html?rc=pro", "Kamera & Gimbal", "Mavic 3 · RC Pro"),
+    ]),
+    ("Auswerten", [
+        (SECTION, "Medien & Position"),
+        ("/media-gallery.html", "Medien", "Fotos, Videos, TIFFs, Missionsdateien"),
+        ("/ppk.html", "PPK-Geotagging", "Zentimetergenaue Kamerapositionen"),
+        ("/abdeckung.html", "Fotoabdeckung", "Lücken und Überlappung eines Flugs"),
+        (SECTION, "Sensorik"),
+        ("/thermal.html", "Thermal", "Temperaturen aus DJI R-JPEG"),
+        ("/ndvi.html", "Vegetationsindizes", "NDVI, GNDVI, NDRE · Mavic 3M"),
+        (LAB, "Labor"),
+        ("/smart-farming.html", "Smart Farming", "M3M-Indexkandidaten, nur Lesen"),
+        ("/smart-farming-map-lab.html", "Vegetationskarte", "Georeferenzierte Vorschau"),
+    ]),
+    ("Diagnose", [
+        ("/fh-diagnostics.html", "RTK & Flugsitzungen", "RTK-Status und Sitzungsverlauf"),
+        ("/pilot-protokolle.html", "Pilot-2-Protokolle", "Von der Fernsteuerung gesendet"),
+    ]),
 ]
+
+
+def links(entries):
+    """(href, label, hint) of the real links in a menu, without section headings."""
+    return [e for e in entries if e[0] not in (SECTION, LAB)]
+
+
 # page file -> (data-skyhub-page, href that is marked as current)
 PAGES = {
     "index.html": ("dashboard", "/"),
@@ -58,22 +90,33 @@ def esc(text: str) -> str:
 
 
 def appbar(current: str) -> str:
-    def link(href, label, indent):
+    def link(href, label, hint, indent, lab=False):
         cur = ' aria-current="page"' if href == current else ""
-        return f'{indent}<a href="{esc(href)}"{cur}>{esc(label)}</a>'
+        cls = ' class="is-lab"' if lab else ""
+        text = esc(label) + (f'<small>{esc(hint)}</small>' if hint else "")
+        return f'{indent}<a href="{esc(href)}"{cls}{cur}>{text}</a>'
 
     out = [START, '<header class="skyhub-appbar">',
            '  <a class="skyhub-appbar-brand" href="/"><span class="brand-symbol" aria-hidden="true">✦</span>'
            'SkyHub <span>Next</span></a>',
            '  <nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">']
-    for group, links in NAV:
+    for group, entries in NAV:
         if group is None:
-            out += [link(h, label, "    ") for h, label in links]
+            out += [link(h, label, None, "    ") for h, label, _ in entries]
             continue
-        active = any(h == current for h, _ in links)
-        cls = "skyhub-nav-group" + (" is-active" if active else "") + (" is-lab" if group == "Labor" else "")
+        active = any(h == current for h, _, _ in links(entries))
+        cls = "skyhub-nav-group" + (" is-active" if active else "")
         out.append(f'    <details class="{cls}"><summary>{esc(group)}</summary><div class="skyhub-nav-menu">')
-        out += [link(h, label, "      ") for h, label in links]
+        lab = False
+        for entry in entries:
+            if entry[0] == SECTION:
+                out.append(f'      <p class="skyhub-nav-section">{esc(entry[1])}</p>')
+            elif entry[0] == LAB:
+                lab = True
+                out.append(f'      <p class="skyhub-nav-section is-lab">{esc(entry[1])} '
+                           '<span>experimentell, nicht für den Einsatz freigegeben</span></p>')
+            else:
+                out.append(link(*entry, "      ", lab))
         out.append("    </div></details>")
     out += ["  </nav>", "</header>", END]
     return "\n".join(out)

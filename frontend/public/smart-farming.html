@@ -67,32 +67,36 @@ small{color:var(--muted)}
 <header class="skyhub-appbar">
   <a class="skyhub-appbar-brand" href="/"><span class="brand-symbol" aria-hidden="true">✦</span>SkyHub <span>Next</span></a>
   <nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
-    <a href="/">Übersicht</a>
-    <details class="skyhub-nav-group"><summary>Einsatz</summary><div class="skyhub-nav-menu">
-      <a href="/drc.html">Live-Steuerung Matrice 4</a>
-      <a href="/drc.html?rc=pro">Kamera Mavic 3 (RC Pro)</a>
-      <a href="/missionsfreigabe.html">Missionsfreigabe</a>
-      <a href="/kartenelemente.html">Kartenelemente</a>
+    <a href="/">Lagebild</a>
+    <details class="skyhub-nav-group"><summary>Planen</summary><div class="skyhub-nav-menu">
+      <p class="skyhub-nav-section">Mission</p>
+      <a href="/wpml-editor.html">Missionsentwurf<small>Wegpunkte setzen, KMZ importieren</small></a>
+      <a href="/wpml-route-library.html">Routenbibliothek<small>Gespeicherte Routen und Revisionen</small></a>
+      <a href="/missionsfreigabe.html">Missionsfreigabe<small>Revision für Pilot 2 freigeben</small></a>
+      <p class="skyhub-nav-section">Karte in Pilot 2</p>
+      <a href="/kartenelemente.html">Kartenelemente<small>Punkte, Linien und Flächen</small></a>
+      <p class="skyhub-nav-section is-lab">Labor <span>experimentell, nicht für den Einsatz freigegeben</span></p>
+      <a href="/wpml-survey-preview.html" class="is-lab">Survey-Vorschau<small>2D-Vermessung, nur Vorschau</small></a>
     </div></details>
-    <details class="skyhub-nav-group"><summary>Missionen</summary><div class="skyhub-nav-menu">
-      <a href="/wpml-editor.html">Missionsentwurf</a>
-      <a href="/wpml-route-library.html">Routenbibliothek</a>
+    <details class="skyhub-nav-group"><summary>Fliegen</summary><div class="skyhub-nav-menu">
+      <a href="/drc.html">Live-Steuerung<small>Matrice 4 · RC Plus 2</small></a>
+      <a href="/drc.html?rc=pro">Kamera &amp; Gimbal<small>Mavic 3 · RC Pro</small></a>
     </div></details>
-    <details class="skyhub-nav-group"><summary>Auswertung</summary><div class="skyhub-nav-menu">
-      <a href="/media-gallery.html">Medien</a>
-      <a href="/thermal.html">Thermal</a>
-      <a href="/ppk.html">PPK-Geotagging</a>
-      <a href="/abdeckung.html">Fotoabdeckung</a>
-      <a href="/ndvi.html">Vegetationsindizes</a>
+    <details class="skyhub-nav-group is-active"><summary>Auswerten</summary><div class="skyhub-nav-menu">
+      <p class="skyhub-nav-section">Medien &amp; Position</p>
+      <a href="/media-gallery.html">Medien<small>Fotos, Videos, TIFFs, Missionsdateien</small></a>
+      <a href="/ppk.html">PPK-Geotagging<small>Zentimetergenaue Kamerapositionen</small></a>
+      <a href="/abdeckung.html">Fotoabdeckung<small>Lücken und Überlappung eines Flugs</small></a>
+      <p class="skyhub-nav-section">Sensorik</p>
+      <a href="/thermal.html">Thermal<small>Temperaturen aus DJI R-JPEG</small></a>
+      <a href="/ndvi.html">Vegetationsindizes<small>NDVI, GNDVI, NDRE · Mavic 3M</small></a>
+      <p class="skyhub-nav-section is-lab">Labor <span>experimentell, nicht für den Einsatz freigegeben</span></p>
+      <a href="/smart-farming.html" class="is-lab" aria-current="page">Smart Farming<small>M3M-Indexkandidaten, nur Lesen</small></a>
+      <a href="/smart-farming-map-lab.html" class="is-lab">Vegetationskarte<small>Georeferenzierte Vorschau</small></a>
     </div></details>
-    <details class="skyhub-nav-group"><summary>System</summary><div class="skyhub-nav-menu">
-      <a href="/pilot-protokolle.html">Pilot-2-Protokolle</a>
-      <a href="/fh-diagnostics.html">RTK &amp; Flugsitzungen</a>
-    </div></details>
-    <details class="skyhub-nav-group is-active is-lab"><summary>Labor</summary><div class="skyhub-nav-menu">
-      <a href="/wpml-survey-preview.html">Survey-Vorschau</a>
-      <a href="/smart-farming.html" aria-current="page">Smart Farming</a>
-      <a href="/smart-farming-map-lab.html">Vegetationskarte</a>
+    <details class="skyhub-nav-group"><summary>Diagnose</summary><div class="skyhub-nav-menu">
+      <a href="/fh-diagnostics.html">RTK &amp; Flugsitzungen<small>RTK-Status und Sitzungsverlauf</small></a>
+      <a href="/pilot-protokolle.html">Pilot-2-Protokolle<small>Von der Fernsteuerung gesendet</small></a>
     </div></details>
   </nav>
 </header>

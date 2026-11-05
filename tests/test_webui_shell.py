@@ -23,7 +23,7 @@ class WebuiShellTest(unittest.TestCase):
             self.assertEqual(shell.render(src, page), src, page)
 
     def test_every_nav_target_is_a_page_and_marked_once(self):
-        hrefs = [h for _, links in shell.NAV for h, _ in links]
+        hrefs = [e[0] for _, entries in shell.NAV for e in shell.links(entries)]
         self.assertEqual(len(hrefs), len(set(hrefs)))
         for page, (_, current) in shell.PAGES.items():
             self.assertIn(current, hrefs, page)
