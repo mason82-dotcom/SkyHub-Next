@@ -17,6 +17,7 @@ const lanReadPatterns=[
   /^\/ppk\/(health|flights|jobs\/[0-9a-f]{24}(\/result\.csv)?)$/,
   /^\/live\/control\/?$/,
   /^\/map-elements\/?$/,
+  /^\/coverage\/flights$/,
   /^\/smart-farming\/captures(\/manifest)?\/?$/,
   /^\/live\/status$/,
   /^\/live\/hls\/pilot\/[A-Za-z0-9_-]{1,96}\.(m3u8|mp4)$/

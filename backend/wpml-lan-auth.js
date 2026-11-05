@@ -13,7 +13,7 @@ const DRC_COMMANDS=new Set(['auth/request','release','live/enter','live/exit','f
 const MAP_ELEMENT=/^\/map-elements\/[A-Za-z0-9_.:-]{1,128}$/;
 const DRC_PAYLOAD=/^payload\/[a-z][a-z_]{1,31}$/;
 const WRITES=Object.freeze({
-  POST:path=>path==='/wpml/missions'||path==='/thermal/export'||path==='/ppk/jobs'||path==='/ppk/jobs/storage'||path==='/terrain/profile'||/^\/live\/control\/(start|stop|quality|lens)$/.test(path)||path==='/map-elements'||RELEASE.test(path)||
+  POST:path=>path==='/wpml/missions'||path==='/thermal/export'||path==='/ppk/jobs'||path==='/ppk/jobs/storage'||path==='/terrain/profile'||path==='/coverage/run'||/^\/live\/control\/(start|stop|quality|lens)$/.test(path)||path==='/map-elements'||RELEASE.test(path)||
     (path.startsWith('/drc/')&&(c=>DRC_COMMANDS.has(c)||DRC_PAYLOAD.test(c))(path.slice(5).replace(/^rcpro\//,''))),
   PUT:path=>MAP_ELEMENT.test(path),
   DELETE:path=>RELEASE.test(path)||MAP_ELEMENT.test(path)||/^\/(thermal\/export|ppk\/jobs)\/[0-9a-f]{24}$/.test(path)

@@ -155,6 +155,27 @@ function createPpkStorage({storage,now=()=>Date.now()}){
     });
   }
 
+  // JPEG header (EXIF/XMP) of one stored photo: ranged reads until the start of scan.
+  async function headOf(p){
+    for(const size of [262144,1048576,4194304]){
+      const r=jpegHeader(await read(p.key,'bytes=0-'+(Math.min(size,p.size||size)-1)));
+      if(r.header)return r.header;
+      if(r.error||size>=(p.size||0))return null;
+    }
+    return null;
+  }
+  // Photo headers of one flight (coverage.js), eight reads in flight.
+  async function photoHeaders(id){
+    const {flights}=await scan();
+    const f=flights.find(x=>x.id===id);
+    if(!f)throw Object.assign(new Error('Flug nicht gefunden'),{status:404});
+    const out=[];
+    for(let i=0;i<f.photos.length;i+=8){
+      const batch=f.photos.slice(i,i+8),heads=await Promise.all(batch.map(headOf));
+      batch.forEach((p,k)=>out.push({name:p.name,header:heads[k]}));
+    }
+    return {flight:view(f),photos:out};
+  }
   // Writes flights/<folder>/{MRK (cleaned), rover raw data, photo headers} into a ZIP writer.
   async function pack(flights,zip,{onStep=()=>{},cancelled=()=>false}={}){
     const used=new Set();let skipped=0,done=0;
@@ -166,14 +187,6 @@ function createPpkStorage({storage,now=()=>Date.now()}){
       zip.add('flights/'+folder+'/'+f.mrk.name,Buffer.from(f.rows.map(r=>r.line).join('\r\n')+'\r\n','latin1'));
       zip.add('flights/'+folder+'/'+f.rover.name,await read(f.rover.key));
       done+=2;onStep(done,total);
-      const headOf=async p=>{
-        for(const size of [262144,1048576,4194304]){
-          const r=jpegHeader(await read(p.key,'bytes=0-'+(Math.min(size,p.size||size)-1)));
-          if(r.header)return r.header;
-          if(r.error||size>=(p.size||0))return null;
-        }
-        return null;
-      };
       // Eight range reads in flight, ZIP entries written in exposure order.
       for(let i=0;i<f.photos.length;i+=8){
         if(cancelled())throw new Error('abgebrochen');
@@ -184,7 +197,7 @@ function createPpkStorage({storage,now=()=>Date.now()}){
     }
     return {skipped};
   }
-  return {list,resolve,pack,invalidate:()=>{cache=null;}};
+  return {list,resolve,pack,photoHeaders,invalidate:()=>{cache=null;}};
 }
 
 module.exports={createPpkStorage,parseMrk,mrkSummary,matchPhotos,jpegHeader,stamp};

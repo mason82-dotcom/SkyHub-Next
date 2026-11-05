@@ -39,6 +39,7 @@ const {terrainConfig,createTerrainClient,createTerrainRouter}=require('./mission
 const {geozoneConfig,createGeozoneClient}=require('./mission-geozones');
 const {ppkConfig,createPpkRouter}=require('./ppk');
 const {createPpkStorage}=require('./ppk-storage');
+const {createCoverageRouter}=require('./coverage');
 const {createSmartFarmingCatalogRouter}=require('./smart-farming-catalog');
 const {createHttpAuth}=require('./http-auth');
 const {mapPageReferrerPolicy}=require('./map-page-referrer');
@@ -349,7 +350,10 @@ if(wpmlStore&&pilot.wayline.enabled){
 // PPK geotagging (dji-geotagger) through the internal ppk service; opt-in (SKYHUB_PPK_URL + SKYHUB_PPK_TOKEN).
 const ppk=ppkConfig(process.env);
 if(ppk.issue)console.error('[ppk] disabled:',ppk.issue);
-if(ppk.enabled){app.use('/api/ppk',createPpkRouter(ppk,{flights:mediaStorage?createPpkStorage({storage:mediaStorage}):null}));console.log('[ppk] PPK geotagging service active');}
+// Photo coverage of stored flights (coverage.js): footprints from XMP/EXIF, gaps inside the flown area. Read-only.
+const ppkFlights=mediaStorage?createPpkStorage({storage:mediaStorage}):null;
+if(ppkFlights)app.use('/api/coverage',createCoverageRouter({express,flights:ppkFlights}));
+if(ppk.enabled){app.use('/api/ppk',createPpkRouter(ppk,{flights:ppkFlights}));console.log('[ppk] PPK geotagging service active');}
 // Live flight control (DRC) for one pinned DJI RC Plus 2 + Matrice 4E/4T (DJI Cloud API 1.18 pilot live flight controls).
 // Off by default; separate token; operator lease with fail-safe hand-back to the RC (drc-session.js).
 const drc=drcConfig(process.env);
