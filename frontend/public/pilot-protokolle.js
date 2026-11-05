@@ -34,7 +34,8 @@
       $('logText').replaceChildren(frag);
       const shown=b.lines.length?(offset+1)+'–'+(offset+b.lines.length):'0';
       say(b.name+': '+b.total+' Zeilen'+(q?', '+b.matches+' Treffer':'')+' · angezeigt '+shown+
-        (b.plain?' · unverschlüsselt':'')+(b.failed?' · '+b.failed+' Zeilen nicht entschlüsselbar':'')+(b.keyChanges?' · eigener Schlüssel in Pilot 2 gesetzt: ohne privaten Schlüssel nicht lesbar':''),b.failed>0);
+        (b.plain?' · unverschlüsselt':'')+(b.failed?' · '+b.failed+' Zeilen nicht entschlüsselbar':'')+(b.keyChanges?' · eigener Schlüssel in Pilot 2 gesetzt: ohne privaten Schlüssel nicht lesbar':'')+
+        (b.redacted?' · '+b.redacted+' Passwort/Token geschwärzt':''),b.failed>0);
       $('prev').disabled=offset===0;$('next').disabled=offset+PAGE>=b.matches;
       $('download').href='/api/pilot-logs/'+current+'/text?download=1';$('download').hidden=false;$('del').disabled=false;
     }catch(err){say('Nicht lesbar: '+err.message,true);}

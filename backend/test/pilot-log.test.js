@@ -48,3 +48,34 @@ test('viewer: filter, paging, plain text fallback, download',async()=>{
     assert.equal((await fetch(base+'nope/text')).status,400);
   }finally{srv.close();}
 });
+test('secrets of platformLoadComponent lines (as Pilot 2 logs them) are redacted, also headers and URL parameters',()=>{
+  const {redactSecrets,prepareLog}=require('../pilot-log');
+  const tok='a'.repeat(64),pw='Xy7_secret-Passwort-24ch';
+  const line='[d][20:32:26.789]: start component module thing param : {"connectCallback":"cb","host":"tcp://192.168.178.63:1884","password":"'+pw+'","username":"pilot2"}';
+  assert.equal(redactSecrets('GET /ws/tsa?x-auth-token=****').count,0,'DJI-masked values are left alone');
+  const r=redactSecrets(line+'\napi param : {"host":"https://h","token":"'+tok+'"}\nAuthorization: Bearer '+tok+'\nGET /x?token='+tok+'&a=1\nX-Auth-Token='+tok);
+  assert.equal(r.count,5);assert.ok(!r.text.includes(tok)&&!r.text.includes(pw));
+  assert.match(r.text,/"username":"pilot2"/);assert.match(r.text,/"password":"\[geschwärzt\]"/);
+  assert.equal(redactSecrets(r.text).count,0,'idempotent: already redacted values are not counted again');
+  const p=prepareLog(Buffer.from([encodeLine(line),'kaputt',KEY_PREFIX+'QUJD'].join('\n')));
+  const t=p.text.toString();
+  assert.ok(!t.includes(pw));assert.equal(p.redacted,1);assert.equal(p.failed,1);
+  assert.match(t,/\[Zeile nicht entschlüsselbar\]/);assert.match(t,/\[Schlüsselwechsel/);
+});
+test('viewer: stored text form is shown as is (redacted again), old encrypted rows are redacted on display',async()=>{
+  const express=require('express');
+  const items=new Map([['33333333-3333-4333-8333-333333333333',{name:'new.log',format:'text',redacted:1,failed:0,body:Buffer.from('a "password":"[geschwärzt]"\nb')}],
+    ['44444444-4444-4444-8444-444444444444',{name:'old.log',body:Buffer.from(encodeLine('{"token":"'+'b'.repeat(64)+'"}'))}]]);
+  const store={get:async id=>items.get(id)||null};
+  const app=express();app.use('/l',createPilotLogRouter({express,store}));
+  const srv=app.listen(0);await new Promise(r=>srv.once('listening',r));
+  const base='http://127.0.0.1:'+srv.address().port+'/l/';
+  try{
+    let b=await (await fetch(base+'33333333-3333-4333-8333-333333333333/text')).json();
+    assert.equal(b.total,2);assert.equal(b.redacted,1);
+    b=await (await fetch(base+'44444444-4444-4444-8444-444444444444/text')).json();
+    assert.equal(b.redacted,1);assert.equal(b.lines[0].t,'{"token":"[geschwärzt]"}');
+    const d=await (await fetch(base+'44444444-4444-4444-8444-444444444444/text?download=1')).text();
+    assert.ok(!d.includes('bbbb'));
+  }finally{srv.close();}
+});

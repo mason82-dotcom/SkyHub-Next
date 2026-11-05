@@ -7,7 +7,9 @@
 //   key  = PBKDF2-HMAC-SHA1(password, salt 2b6c8ee4bc1a4ac48ffec65548759c8a, 1000 iterations, 128 bit),
 //   password "DJILog@PLogEncryption" by default; a line "#$*&%!!^^&1:<Base64 RSA-PKCS#1 v1.5>" switches the password
 //   (empty → default). Without the RSA private key such a switch is ignored (as in the jar) and later lines fail.
-// Uploaded logs are kept gzip-compressed in PostgreSQL (pilot_logs), 30 days.
+// Pilot 2 writes the platformLoadComponent parameters into this log in plain text (MQTT password, device token for api/ws;
+// seen on the RC Plus 2 on 05.11.2026). The upload is therefore decoded and redacted on arrival and only the redacted text is
+// kept (gzip, PostgreSQL pilot_logs, 30 days); the encrypted original is not stored. Display and download redact again.
 const crypto=require('node:crypto');
 const zlib=require('node:zlib');
 
@@ -17,6 +19,17 @@ const DEFAULT_PASSWORD='DJILog@PLogEncryption';
 const KEY_PREFIX='#$*&%!!^^&1:';
 const MAX_BYTES=32*1024*1024,KEEP_DAYS=30,NAME=/^[\w.\- ()]{1,120}$/;
 const keyFor=password=>crypto.pbkdf2Sync(password,SALT,1000,16,'sha1');
+const SECRET_FIELD=/("(?:password|passwd|pwd|token|access_?token|refresh_?token|x-auth-token|secret|client_?secret|ntrip_?password)"\s*:\s*")((?:[^"\\]|\\.)*)(")/gi;
+const SECRET_HEADER=/\b((?:x-auth-token|authorization)\s*[:=]\s*(?:bearer\s+)?)([^\s,;"']+)/gi;
+const SECRET_QUERY=/([?&](?:token|password|access_token)=)([^&\s"']+)/gi;
+// Replaces secret values (JSON fields, auth headers, URL parameters) with [geschwärzt]; returns the text and the count.
+function redactSecrets(text){
+  let count=0;
+  const mark=(m,a,v,b)=>{if(v==='[geschwärzt]'||/^\*+$/.test(v))return m;   // already redacted (by us or by DJI: ****)
+   count++;return a+'[geschwärzt]'+(typeof b==='string'?b:'');};
+  const out=String(text).replace(SECRET_FIELD,mark).replace(SECRET_HEADER,mark).replace(SECRET_QUERY,mark);
+  return {text:out,count};
+}
 
 function decodePlog(text,{privateKey=null}={}){
   let key=keyFor(DEFAULT_PASSWORD);
@@ -47,27 +60,42 @@ function encodeLine(text,password=DEFAULT_PASSWORD){
 
 const SCHEMA=`CREATE TABLE IF NOT EXISTS pilot_logs(
   id uuid PRIMARY KEY, received_at timestamptz NOT NULL DEFAULT now(), name text NOT NULL, bytes integer NOT NULL,
-  source text NOT NULL, body bytea NOT NULL)`;
+  source text NOT NULL, body bytea NOT NULL);
+  ALTER TABLE pilot_logs ADD COLUMN IF NOT EXISTS format text NOT NULL DEFAULT 'plog';
+  ALTER TABLE pilot_logs ADD COLUMN IF NOT EXISTS redacted integer NOT NULL DEFAULT 0;
+  ALTER TABLE pilot_logs ADD COLUMN IF NOT EXISTS failed integer NOT NULL DEFAULT 0`;
+// Upload → stored form: decoded (or plain) text, secrets redacted. Undecodable lines become a marker.
+function prepareLog(body,{privateKey=null}={}){
+  const {lines,failed}=decodePlog(body.toString('latin1'),{privateKey});
+  const decoded=lines.filter(l=>l.text!==null).length;
+  const raw=decoded?lines.map(l=>l.text!==null?l.text:l.keyChange?'[Schlüsselwechsel – ohne privaten Schlüssel nicht lesbar]':'[Zeile nicht entschlüsselbar]').join('\n')
+    :body.toString('utf8');
+  const {text,count}=redactSecrets(raw);
+  return {text:Buffer.from(text,'utf8'),redacted:count,failed:decoded?failed:0,plain:!decoded};
+}
 
 function createPilotLogStore(pool){
   let ready=null;
   const init=()=>ready||(ready=pool.query(SCHEMA).then(()=>pool.query("DELETE FROM pilot_logs WHERE received_at < now() - interval '"+KEEP_DAYS+" days'")));
   return {
-    async save({name,body,source}){
+    // body = original upload; only the redacted text form is stored.
+    async save({name,body,source,privateKey=null}){
       await init();
-      const id=crypto.randomUUID();
-      await pool.query('INSERT INTO pilot_logs(id,name,bytes,source,body) VALUES ($1,$2,$3,$4,$5)',[id,name,body.length,source,zlib.gzipSync(body)]);
-      return id;
+      const id=crypto.randomUUID(),p=prepareLog(body,{privateKey});
+      await pool.query('INSERT INTO pilot_logs(id,name,bytes,source,body,format,redacted,failed) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
+        [id,name,body.length,source,zlib.gzipSync(p.text),'text',p.redacted,p.failed]);
+      return {id,redacted:p.redacted,failed:p.failed,plain:p.plain};
     },
     async list(){
       await init();
-      const {rows}=await pool.query('SELECT id,received_at,name,bytes,source FROM pilot_logs ORDER BY received_at DESC LIMIT 200');
-      return rows.map(r=>({id:r.id,receivedAt:r.received_at,name:r.name,bytes:r.bytes,source:r.source}));
+      const {rows}=await pool.query('SELECT id,received_at,name,bytes,source,redacted FROM pilot_logs ORDER BY received_at DESC LIMIT 200');
+      return rows.map(r=>({id:r.id,receivedAt:r.received_at,name:r.name,bytes:r.bytes,source:r.source,redacted:r.redacted}));
     },
     async get(id){
       await init();
-      const {rows}=await pool.query('SELECT name,body FROM pilot_logs WHERE id=$1',[id]);
-      return rows[0]?{name:rows[0].name,body:zlib.gunzipSync(rows[0].body)}:null;
+      const {rows}=await pool.query('SELECT name,body,format,redacted,failed FROM pilot_logs WHERE id=$1',[id]);
+      const r=rows[0];
+      return r?{name:r.name,body:zlib.gunzipSync(r.body),format:r.format,redacted:r.redacted,failed:r.failed}:null;
     },
     async remove(id){await init();return (await pool.query('DELETE FROM pilot_logs WHERE id=$1',[id])).rowCount;}
   };
@@ -84,9 +112,9 @@ function registerPilotLogUpload(app,{express,store,authorized,log=console}){
     if(!NAME.test(name))return res.status(400).json({error:'Dateiname fehlt'});
     if(!Buffer.isBuffer(req.body)||!req.body.length)return res.status(400).json({error:'Datei leer'});
     try{
-      const id=await store.save({name,body:req.body,source:String(req.ip||'').slice(0,64)});
-      log.log('[pilot log] received '+name+' ('+Math.round(req.body.length/1024)+' KiB)');
-      res.status(201).json({id});
+      const r=await store.save({name,body:req.body,source:String(req.ip||'').slice(0,64)});
+      log.log('[pilot log] received '+name+' ('+Math.round(req.body.length/1024)+' KiB, '+r.redacted+' Geheimnis(se) geschwärzt)');
+      res.status(201).json(r);
     }catch(err){log.error('[pilot log]',err.message);res.status(503).json({error:'Speicher nicht verfügbar'});}
   });
 }
@@ -99,11 +127,14 @@ function createPilotLogRouter({express,store,privateKey=null,log=console}){
     if(!UUID.test(req.params.id))return res.status(400).json({error:'ungültig'});
     const item=await store.get(req.params.id).catch(()=>null);
     if(!item)return res.status(404).json({error:'nicht gefunden'});
-    const {lines,failed}=decodePlog(item.body.toString('latin1'),{privateKey});
-    // Plain (unencrypted) logs: if nothing decodes, show the file as text.
-    let text=lines.filter(l=>l.text!==null).map(l=>l.text);
-    let plain=false;
-    if(!text.length&&failed){text=item.body.toString('utf8').split(/\r?\n/);plain=true;}
+    let text,failed=item.failed||0,plain=false,keyChanges=0,redacted=item.redacted||0;
+    if(item.format==='text')text=item.body.toString('utf8').split('\n');
+    else{   // rows stored before 05.11.2026 (encrypted original)
+      const p=prepareLog(item.body,{privateKey});
+      text=p.text.toString('utf8').split('\n');failed=p.failed;plain=p.plain;redacted=p.redacted;
+    }
+    keyChanges=text.filter(t=>t.startsWith('[Schlüsselwechsel')).length;
+    text=text.map(t=>redactSecrets(t).text);
     if(req.query.download==='1'){
       res.set('Content-Disposition','attachment; filename="'+item.name.replace(/[^\w.-]/g,'_')+'.txt"');
       return res.type('text/plain; charset=utf-8').send(text.join('\n'));
@@ -111,8 +142,8 @@ function createPilotLogRouter({express,store,privateKey=null,log=console}){
     const q=typeof req.query.q==='string'?req.query.q.slice(0,100).toLowerCase():'';
     const filtered=q?text.map((t,i)=>({n:i+1,t})).filter(x=>x.t.toLowerCase().includes(q)):text.map((t,i)=>({n:i+1,t}));
     const offset=Math.max(0,Number(req.query.offset)||0),limit=Math.min(5000,Math.max(1,Number(req.query.limit)||2000));
-    res.json({name:item.name,total:text.length,matches:filtered.length,failed,plain,
-      keyChanges:lines.filter(l=>l.keyChange).length,offset,lines:filtered.slice(offset,offset+limit)});
+    res.json({name:item.name,total:text.length,matches:filtered.length,failed,plain,redacted,
+      keyChanges,offset,lines:filtered.slice(offset,offset+limit)});
   });
   router.delete('/:id',async(req,res)=>{
     if(!UUID.test(req.params.id))return res.status(400).json({error:'ungültig'});
@@ -121,4 +152,4 @@ function createPilotLogRouter({express,store,privateKey=null,log=console}){
   return router;
 }
 
-module.exports={decodePlog,encodeLine,createPilotLogStore,registerPilotLogUpload,createPilotLogRouter,KEY_PREFIX,DEFAULT_PASSWORD};
+module.exports={decodePlog,encodeLine,redactSecrets,prepareLog,createPilotLogStore,registerPilotLogUpload,createPilotLogRouter,KEY_PREFIX,DEFAULT_PASSWORD};

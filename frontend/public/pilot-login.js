@@ -589,7 +589,8 @@
     try{
       const r=await fetch('/api/pilot/logs',{method:'POST',cache:'no-store',headers:{'Authorization':'Bearer '+sessionToken,
         'Content-Type':'application/octet-stream','X-Log-Name':f.name.replace(/[^\w.\- ()]/g,'_').slice(0,120)},body:f});
-      el('logState').textContent=r.status===201?'Gesendet. In SkyHub unter „Pilot-Protokolle“ ansehen.':'Senden fehlgeschlagen (HTTP '+r.status+').';
+      let red=0;if(r.status===201){try{red=Number((await r.json()).redacted)||0;}catch(_){}}
+      el('logState').textContent=r.status===201?'Gesendet'+(red?' ('+red+' Passwort/Token entfernt)':'')+'. In SkyHub unter „Pilot-Protokolle“ ansehen.':'Senden fehlgeschlagen (HTTP '+r.status+').';
     }catch(_){el('logState').textContent='Senden fehlgeschlagen (Netzwerk).';}
     finally{el('logSend').disabled=!el('logFile').files.length;}
   });
