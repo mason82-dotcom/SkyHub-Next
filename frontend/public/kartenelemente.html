@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SkyHub · Kartenelemente</title>
+<link rel="stylesheet" href="/vendor/leaflet/1.9.4/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=">
+<style>
+.me-grid{display:grid;grid-template-columns:minmax(0,2fr) minmax(280px,1fr);gap:16px}
+@media(max-width:880px){.me-grid{grid-template-columns:1fr}}
+#memap{height:min(70vh,640px);border-radius:8px;border:1px solid var(--sky-border,#d0d7de)}
+#memap.drawing{cursor:crosshair}
+.me-tools{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.me-tools button[aria-pressed="true"]{outline:3px solid var(--sky-primary,#1f6feb);outline-offset:1px}
+.me-list{list-style:none;padding:0;margin:0}
+.me-list li{display:flex;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--sky-border,#d0d7de)}
+.me-list .sw{width:14px;height:14px;border-radius:3px;flex:0 0 auto;border:1px solid rgba(0,0,0,.25)}
+.me-list .nm{flex:1;min-width:0;overflow-wrap:anywhere}
+.me-list small{display:block;color:var(--sky-muted,#57606a)}
+</style>
+<link rel="stylesheet" href="/skyhub-light.css">
+<link rel="stylesheet" href="/missionsfreigabe.css">
+<script defer src="/skyhub-nav.js"></script>
+</head>
+<body class="mrel" data-skyhub-page="map-elements">
+<a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
+<!-- skyhub-appbar -->
+<header class="skyhub-appbar">
+  <a class="skyhub-appbar-brand" href="/"><span class="brand-symbol" aria-hidden="true">✦</span>SkyHub <span>Next</span></a>
+  <nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
+    <a href="/">Übersicht</a>
+    <details class="skyhub-nav-group is-active"><summary>Einsatz</summary><div class="skyhub-nav-menu">
+      <a href="/drc.html">Live-Steuerung Matrice 4</a>
+      <a href="/drc.html?rc=pro">Kamera Mavic 3 (RC Pro)</a>
+      <a href="/missionsfreigabe.html">Missionsfreigabe</a>
+      <a href="/kartenelemente.html" aria-current="page">Kartenelemente</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Missionen</summary><div class="skyhub-nav-menu">
+      <a href="/wpml-editor.html">Missionsentwurf</a>
+      <a href="/wpml-route-library.html">Routenbibliothek</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Auswertung</summary><div class="skyhub-nav-menu">
+      <a href="/media-gallery.html">Medien</a>
+      <a href="/thermal.html">Thermal</a>
+      <a href="/ppk.html">PPK-Geotagging</a>
+      <a href="/abdeckung.html">Fotoabdeckung</a>
+      <a href="/ndvi.html">Vegetationsindizes</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>System</summary><div class="skyhub-nav-menu">
+      <a href="/pilot-protokolle.html">Pilot-2-Protokolle</a>
+      <a href="/fh-diagnostics.html">RTK &amp; Flugsitzungen</a>
+    </div></details>
+    <details class="skyhub-nav-group is-lab"><summary>Labor</summary><div class="skyhub-nav-menu">
+      <a href="/wpml-survey-preview.html">Survey-Vorschau</a>
+      <a href="/smart-farming.html">Smart Farming</a>
+      <a href="/smart-farming-map-lab.html">Vegetationskarte</a>
+    </div></details>
+  </nav>
+</header>
+<!-- /skyhub-appbar -->
+<header class="skyhub-pagehead mrel-top">
+  <h1>Kartenelemente <span class="muted">Punkte, Linien und Flächen für die Karte in DJI Pilot 2</span></h1>
+</header>
+<p class="mrel-note" role="note">Elemente erscheinen sofort auf allen angemeldeten Fernsteuerungen (Pilot 2 → Karte → Ebene „SkyHub“).
+  In Pilot 2 gesetzte Elemente erscheinen hier. Nur Markierungen: keine Geozone, kein Flugbefehl, keine Hindernisprüfung.</p>
+<main id="skyhubMain" tabindex="-1" class="me-grid">
+  <section class="card" aria-labelledby="h-map">
+    <h2 id="h-map">Karte</h2>
+    <div class="me-tools" role="toolbar" aria-label="Zeichnen">
+      <button type="button" data-mode="Point" aria-pressed="false">Punkt</button>
+      <button type="button" data-mode="LineString" aria-pressed="false">Linie</button>
+      <button type="button" data-mode="Polygon" aria-pressed="false">Fläche</button>
+      <button type="button" id="finish" class="secondary" disabled>Fertig</button>
+      <button type="button" id="cancel" class="secondary" disabled>Verwerfen</button>
+    </div>
+    <div id="memap" aria-label="Karte zum Zeichnen"></div>
+    <p id="hint" class="small muted" role="status" aria-live="polite">Werkzeug wählen, dann in die Karte klicken.</p>
+  </section>
+  <section class="card" aria-labelledby="h-el">
+    <h2 id="h-el">Neues Element</h2>
+    <label>Name <input id="name" maxlength="64" value="" placeholder="z. B. Startplatz"></label>
+    <label>Farbe <select id="color"></select></label>
+    <p id="msg" role="status" aria-live="polite" class="muted"></p>
+    <h2>Vorhanden</h2>
+    <ul id="list" class="me-list"><li class="muted">Wird geladen …</li></ul>
+  </section>
+</main>
+<script src="/vendor/leaflet/1.9.4/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="></script>
+<script src="/geozones-layer.js"></script>
+<script src="/kartenelemente.js"></script>
+</body>
+</html>

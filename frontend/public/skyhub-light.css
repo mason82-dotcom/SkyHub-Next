@@ -189,12 +189,79 @@ body:not([data-skyhub-page="pilot"]) > header {
 .sidebar-heading h2 { margin: 0; text-transform: none; letter-spacing: -.035em; font-size: 22px; color: var(--sky-ink); }
 .readonly-pill { white-space: nowrap; font-size: 10px; font-weight: 800; padding: 6px 10px; background: var(--sky-success-soft); color: var(--sky-success); border-radius: 99px; }
 
-/* Operations + read-only TAK */
-body[data-skyhub-page="dashboard"] > header {
-  display: grid; grid-template-columns: auto minmax(0,1fr) auto;
-  align-items: center; gap: 16px; min-height: 84px; height: auto;
+/* Small shared helpers instead of inline style attributes. */
+.skyhub-check-row { display: flex; align-items: center; gap: 8px; }
+.skyhub-check-row input { width: auto; }
+.skyhub-subpanel { border: 1px solid var(--sky-border); padding: 12px; border-radius: 9px; }
+.skyhub-full { width: 100%; }
+.skyhub-pair { display: flex; gap: 8px; }
+.skyhub-plain-fieldset { border: 0; padding: 0; margin: 0 0 8px; }
+
+/* Shared page frame (markup written by scripts/webui-shell.py): app bar with grouped navigation + page head. */
+body > header.skyhub-appbar {
+  position: sticky; top: 0; z-index: 1000;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px 20px;
+  padding: 8px clamp(16px, 2.2vw, 32px);
+  background: var(--sky-white);
+  border-bottom: 1px solid var(--sky-border);
+  box-shadow: 0 2px 12px rgba(26, 50, 88, .05);
 }
-body[data-skyhub-page="dashboard"] .skyhub-global-nav { justify-content: center; }
+.skyhub-appbar-brand {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 40px;
+  color: var(--sky-ink); font-size: 17px; font-weight: 800; letter-spacing: -.02em;
+  text-decoration: none; white-space: nowrap;
+}
+.skyhub-appbar-brand > span:not(.brand-symbol) { color: var(--sky-primary); }
+.skyhub-appbar-brand .brand-symbol { width: 28px; height: 28px; border-radius: 9px; font-size: 15px; }
+.skyhub-appbar .skyhub-global-nav { flex: 1 1 auto; }
+.skyhub-nav-group { position: relative; }
+.skyhub-nav-group > summary {
+  display: inline-flex; align-items: center; gap: 7px;
+  min-height: 40px; padding: 9px 12px; border-radius: 10px;
+  color: var(--sky-muted); font-size: 12px; font-weight: 700; white-space: nowrap;
+  list-style: none; user-select: none;
+}
+.skyhub-nav-group > summary::-webkit-details-marker { display: none; }
+.skyhub-nav-group > summary::after {
+  content: ""; width: 6px; height: 6px; margin-top: -3px;
+  border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+  transform: rotate(45deg); transition: transform .15s ease;
+}
+.skyhub-nav-group[open] > summary::after { transform: rotate(-135deg); margin-top: 3px; }
+.skyhub-nav-group > summary:hover, .skyhub-nav-group[open] > summary { background: var(--sky-muted-bg); color: var(--sky-primary-hover); }
+.skyhub-nav-group.is-active > summary { background: var(--sky-primary-soft); color: var(--sky-primary-hover); box-shadow: inset 0 0 0 1px #dbe5ff; }
+.skyhub-nav-group.is-lab > summary { color: var(--sky-warning); }
+.skyhub-nav-menu {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 1001;
+  display: grid; gap: 2px; min-width: 240px; padding: 6px;
+  background: var(--sky-white); border: 1px solid var(--sky-border); border-radius: 12px;
+  box-shadow: var(--sky-shadow-hover);
+}
+.skyhub-nav-menu a { justify-content: flex-start; width: 100%; font-size: 13px; }
+.skyhub-nav-group.is-lab .skyhub-nav-menu::before {
+  content: "Experimentell – nicht für den Einsatz freigegeben";
+  display: block; padding: 6px 12px 8px; margin-bottom: 2px;
+  border-bottom: 1px solid var(--sky-border);
+  color: var(--sky-warning); font-size: 11px; font-weight: 700;
+}
+body > header.skyhub-pagehead {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 18px;
+  padding: 18px var(--sky-gutter, clamp(16px, 2.2vw, 32px)) 10px;
+  background: transparent; border: 0; box-shadow: none;
+}
+/* Pages whose content uses a fixed 16 px side margin: align the page head with it. */
+body.mrel { --sky-gutter: 16px; }
+/* Live control: the emergency-stop bar is the element pinned to the top, the app bar scrolls away. */
+body[data-skyhub-page="drc"] > header.skyhub-appbar { position: static; }
+.skyhub-pagehead h1 { margin: 0; font-size: 22px; line-height: 1.25; }
+.skyhub-pagehead h1 > span, .skyhub-pagehead h1 > .muted { font-size: 14px; font-weight: 500; letter-spacing: 0; color: var(--sky-muted); }
+.skyhub-pagehead small, .skyhub-pagehead .caption { display: block; color: var(--sky-muted); }
+
+/* Operations + read-only TAK */
+body[data-skyhub-page="dashboard"] > header.skyhub-pagehead {
+  display: grid; grid-template-columns: minmax(0,1fr) auto;
+  align-items: center; gap: 16px; padding-block: 12px; height: auto;
+}
 body[data-skyhub-page="dashboard"] .auth {
   background: var(--sky-soft); padding: 8px;
   border: 1px solid var(--sky-border); border-radius: 13px; gap: 8px;
@@ -284,6 +351,11 @@ body[data-skyhub-page="dashboard"] .field-age.unavailable,
 body[data-skyhub-page="dashboard"] .state.stale,
 body[data-skyhub-page="dashboard"] .track-feedback.error,
 body[data-skyhub-page="dashboard"] .warning-preview { color: var(--sky-warning); }
+body[data-skyhub-page="dashboard"] .rtk-line { border-color: var(--sky-border); }
+body[data-skyhub-page="dashboard"] .rtk-line.ok { color: var(--sky-success); background: var(--sky-success-soft); }
+body[data-skyhub-page="dashboard"] .rtk-line.info { color: var(--sky-muted); }
+body[data-skyhub-page="dashboard"] .rtk-line.warn { color: var(--sky-warning); background: var(--sky-warning-soft); border-color: var(--sky-warning); }
+body[data-skyhub-page="dashboard"] .rtk-line.alarm { color: var(--sky-danger); background: var(--sky-danger-soft); border-color: var(--sky-danger); }
 body[data-skyhub-page="dashboard"] .hms li { border-color: #9baec4; }
 body[data-skyhub-page="dashboard"] .hms li.l1 { border-color: #c68c28; }
 body[data-skyhub-page="dashboard"] .hms li.l2 { border-color: var(--sky-danger); }
@@ -347,7 +419,7 @@ body[data-skyhub-page="smart-farming"] #catalogStatus[data-kind="error"] { color
 
 /* WPML editor and photogrammetry map workspaces */
 body[data-skyhub-page="wpml-editor"] header,
-body[data-skyhub-page="survey"] header { gap: 18px; }
+body[data-skyhub-page="survey"] header.skyhub-pagehead { gap: 18px; }
 body[data-skyhub-page="wpml-editor"] header h1 span,
 body[data-skyhub-page="survey"] header h1 span { color: var(--sky-primary); }
 body[data-skyhub-page="wpml-editor"] main { grid-template-columns: minmax(320px,1fr) minmax(350px,430px); }
@@ -401,8 +473,7 @@ body[data-skyhub-page="routes"] main {
   gap: 20px; padding: 22px clamp(16px,3vw,38px);
   max-width: 1700px; margin: 0 auto;
 }
-body[data-skyhub-page="routes"] header { display: grid; grid-template-columns: minmax(0,1fr); gap: 6px; }
-body[data-skyhub-page="routes"] .skyhub-global-nav { min-width: 0; max-width: 100%; }
+body[data-skyhub-page="routes"] header.skyhub-pagehead { display: grid; grid-template-columns: minmax(0,1fr); gap: 6px; }
 body[data-skyhub-page="routes"] main > section {
   background: var(--sky-white); border: 1px solid var(--sky-border);
   box-shadow: var(--sky-shadow); border-radius: var(--sky-radius); padding: 22px;
@@ -513,12 +584,9 @@ body[data-skyhub-page="dashboard"] #fleetPanel:focus {
 
 /* Usable layouts on tablets / phones without changing map behavior. */
 @media (max-width: 1320px) {
-  body[data-skyhub-page="dashboard"] > header {
+  body[data-skyhub-page="dashboard"] > header.skyhub-pagehead {
     grid-template-columns: minmax(200px,1fr) auto;
     gap: 8px 12px;
-  }
-  body[data-skyhub-page="dashboard"] .skyhub-global-nav {
-    grid-column: 1 / -1; grid-row: 2; justify-content: flex-start;
   }
   body[data-skyhub-page="dashboard"] .auth { grid-column: 2; grid-row: 1; }
   body[data-skyhub-page="dashboard"] #operationsPanel { height: calc(100dvh - 195px); }
@@ -536,8 +604,7 @@ body[data-skyhub-page="dashboard"] #fleetPanel:focus {
     font-weight: 750;
     text-underline-offset: 3px;
   }
-  .skyhub-global-nav { flex-wrap: nowrap; width: 100%; overflow-x: auto; padding-bottom: 3px; scrollbar-width: thin; }
-  .skyhub-global-nav a { flex-shrink: 0; min-height: 44px; }
+  .skyhub-global-nav a, .skyhub-nav-group > summary { min-height: 44px; }
   button, input:not([type=checkbox]):not([type=radio]), select { min-height: 44px; }
   body[data-skyhub-page="dashboard"] #operationsPanel { display: grid; grid-template-columns: minmax(0,1fr); height: auto; }
   body[data-skyhub-page="dashboard"] .map-shell { height: min(52vh,520px); min-height: 330px; border-right: 0; border-bottom: 1px solid var(--sky-border); }
@@ -565,10 +632,16 @@ body[data-skyhub-page="dashboard"] #fleetPanel:focus {
     padding-bottom: 0;
   }
   body:not([data-skyhub-page="pilot"]) > header { padding: 12px 14px; }
-  body[data-skyhub-page="dashboard"] > header {
+  /* Phones: the app bar scrolls away (it wraps to two rows) and open menus expand inline instead of floating. */
+  body > header.skyhub-appbar { position: static; padding: 8px 12px; }
+  .skyhub-appbar .skyhub-global-nav { flex-basis: 100%; }
+  .skyhub-nav-group[open] { flex-basis: 100%; }
+  .skyhub-nav-menu { position: static; min-width: 0; margin-top: 4px; box-shadow: none; }
+  body > header.skyhub-pagehead { padding: 14px 14px 8px; }
+  .skyhub-pagehead h1 { font-size: 19px; }
+  body[data-skyhub-page="dashboard"] > header.skyhub-pagehead {
     display: flex; flex-direction: column; align-items: stretch; gap: 12px;
   }
-  body[data-skyhub-page="dashboard"] .skyhub-global-nav { order: 2; }
   body[data-skyhub-page="dashboard"] .auth { order: 3; width: 100%; }
   body[data-skyhub-page="dashboard"] .auth input { width: 100%; flex: 1 1 120px; min-width: 0; }
   body[data-skyhub-page="dashboard"] #message { max-width: none; width: 100%; }

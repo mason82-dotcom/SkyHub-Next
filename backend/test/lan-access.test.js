@@ -66,3 +66,13 @@ test('home LAN clients via a pinned Caddy peer are allowed; unrelated Docker pee
   assert.equal(lan.allows('172.19.0.1','192.168.178.70'),false);
   assert.equal(lan.allows('172.18.0.1','fe80::1'),false);
 });
+
+test('a request through the trusted proxy without X-Forwarded-For is not a LAN client (proxy IP inside the LAN)',()=>{
+  const {createLanAccess}=require('../lan-access');
+  const {parseTrustedProxyIps}=require('../proxy-trust');
+  const lan=createLanAccess('192.168.178.0/24',parseTrustedProxyIps('192.168.178.63'));
+  assert.equal(lan.allows('192.168.178.63','192.168.178.39'),true);
+  assert.equal(lan.allows('192.168.178.63',''),false);
+  assert.equal(lan.allows('192.168.178.63',undefined),false);
+  assert.equal(lan.allows('192.168.178.39',undefined),true,'direct LAN peer unchanged');
+});

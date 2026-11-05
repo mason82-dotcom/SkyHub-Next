@@ -8,12 +8,12 @@
 <title>SkyHub Next · WPML Missionsentwurf</title>
 <link rel="stylesheet" href="/vendor/leaflet/1.9.4/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=">
 <style>
-:root{color-scheme:light;--bg:#081321;--panel:#102338;--edge:#2f4a63;--accent:#44c6e5;--ink:#f0f7ff;--muted:#a8bdd0;--danger:#ffcb7d}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px system-ui,"Segoe UI",sans-serif}
-header{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 18px;border-bottom:1px solid var(--edge);flex-wrap:wrap}
+
+*{box-sizing:border-box}body{margin:0}
+header.skyhub-pagehead{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 18px;border-bottom:1px solid var(--edge);flex-wrap:wrap}
 h1{font-size:19px;margin:0}h1 span{color:var(--accent)}h2{font-size:14px;margin:6px 0 12px}h3{font-size:13px;margin:16px 0 8px}
 p{line-height:1.45}.muted,small{color:var(--muted)}.warning{color:var(--danger)}
-a{color:#a7e8fb}header a{text-decoration:none}
+a{color:#a7e8fb}header.skyhub-pagehead a{text-decoration:none}
 main{display:grid;grid-template-columns:minmax(320px,1fr) 380px;min-height:calc(100vh - 60px)}
 #map{height:100%;min-height:400px;width:100%;background:#183149}
 .map-wrap{position:relative;min-height:400px}
@@ -38,27 +38,55 @@ hr{border:0;border-top:1px solid var(--edge);margin:16px 0}
 .store-item{border:1px solid var(--edge);padding:8px 10px;border-radius:8px;margin:6px 0;background:#132c42}
 .store-item small{display:block;margin:3px 0 6px}
 @media(max-width:880px){main{grid-template-columns:1fr}.map-wrap{height:43vh;min-height:280px}#map{min-height:280px}aside{max-height:none;border-left:0;border-top:1px solid var(--edge)}}
+.caption.bad{color:#b3261e;font-weight:600}
 </style>
 <link rel="stylesheet" href="/skyhub-light.css">
+<link rel="stylesheet" href="/elevation-profile.css">
+<script defer src="/skyhub-nav.js"></script>
 </head>
 <body data-skyhub-page="wpml-editor">
 <a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
-<header>
-  <div><h1>SkyHub <span>WPML Missionsentwurf</span></h1><small>DJI Cloud API 1.18 · lokaler Entwurf, optional validierte MinIO-Bibliothek · kein Flugauftrag</small></div>
+<!-- skyhub-appbar -->
+<header class="skyhub-appbar">
+  <a class="skyhub-appbar-brand" href="/"><span class="brand-symbol" aria-hidden="true">✦</span>SkyHub <span>Next</span></a>
   <nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
-  <a href="/">Übersicht</a>
-  <a href="/wpml-editor.html" aria-current="page">Missionen</a>
-  <a href="/wpml-route-library.html">Routen</a>
-  <a href="/wpml-survey-preview.html">Survey</a>
-  <a href="/smart-farming.html">Smart Farming</a>
-  <a href="/media-gallery.html">Medien</a>
-  <a href="/thermal.html">Thermal</a>
-</nav>
+    <a href="/">Übersicht</a>
+    <details class="skyhub-nav-group"><summary>Einsatz</summary><div class="skyhub-nav-menu">
+      <a href="/drc.html">Live-Steuerung Matrice 4</a>
+      <a href="/drc.html?rc=pro">Kamera Mavic 3 (RC Pro)</a>
+      <a href="/missionsfreigabe.html">Missionsfreigabe</a>
+      <a href="/kartenelemente.html">Kartenelemente</a>
+    </div></details>
+    <details class="skyhub-nav-group is-active"><summary>Missionen</summary><div class="skyhub-nav-menu">
+      <a href="/wpml-editor.html" aria-current="page">Missionsentwurf</a>
+      <a href="/wpml-route-library.html">Routenbibliothek</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Auswertung</summary><div class="skyhub-nav-menu">
+      <a href="/media-gallery.html">Medien</a>
+      <a href="/thermal.html">Thermal</a>
+      <a href="/ppk.html">PPK-Geotagging</a>
+      <a href="/abdeckung.html">Fotoabdeckung</a>
+      <a href="/ndvi.html">Vegetationsindizes</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>System</summary><div class="skyhub-nav-menu">
+      <a href="/pilot-protokolle.html">Pilot-2-Protokolle</a>
+      <a href="/fh-diagnostics.html">RTK &amp; Flugsitzungen</a>
+    </div></details>
+    <details class="skyhub-nav-group is-lab"><summary>Labor</summary><div class="skyhub-nav-menu">
+      <a href="/wpml-survey-preview.html">Survey-Vorschau</a>
+      <a href="/smart-farming.html">Smart Farming</a>
+      <a href="/smart-farming-map-lab.html">Vegetationskarte</a>
+    </div></details>
+  </nav>
+</header>
+<!-- /skyhub-appbar -->
+<header class="skyhub-pagehead">
+  <div><h1>SkyHub <span>WPML Missionsentwurf</span></h1><small>DJI Cloud API 1.18 · lokaler Entwurf, optional validierte MinIO-Bibliothek · kein Flugauftrag</small></div>
 </header>
 <main id="skyhubMain" tabindex="-1">
  <section class="map-wrap" aria-label="Wegpunktkarte">
   <div id="map" aria-label="Kartenausschnitt"></div>
-  <div class="map-overlay">Klicken Sie auf die Karte, um Wegpunkte zu setzen. Die Route ist nur eine geometrische Vorschau. Keine Hindernis-, Geländehöhen- oder Flugfreigabeprüfung.</div>
+  <div class="map-overlay">Klicken Sie auf die Karte, um Wegpunkte zu setzen. Höhenprofil und eingetragene Hindernisse lassen sich prüfen; keine automatische Hinderniserkennung und keine Flugfreigabe.</div>
  </section>
  <aside>
   <h2>Mission konfigurieren</h2>
@@ -111,6 +139,59 @@ hr{border:0;border-top:1px solid var(--edge);margin:16px 0}
    <div class="tools"><button type="button" id="add">Koordinate hinzufügen</button><button type="button" id="undo" disabled title="Letzte Wegpunktänderung rückgängig machen">Rückgängig</button><button type="button" id="reverse">Richtung umkehren</button><button type="button" id="clear">Route leeren</button><button type="button" id="fit">Route einpassen</button></div>
    <div id="waypoints" role="list" aria-label="Wegpunktliste"></div>
    <hr>
+   <h2>Orbit um ein Objekt</h2>
+   <p class="caption">Kreisflug um einen Punkt (z. B. Mast, Gebäude): Nase zum Objekt (DJI <code>towardPOI</code>), Gimbal-Neigung aus Abstand und Höhe berechnet, weiche Kurven. Ersetzt die aktuellen Wegpunkte. Idee: hdrpano/map-creator und fcsonline/droneroute (MIT).</p>
+   <div class="rows">
+    <div><label for="orbit-lat">Objekt Breitengrad (°)</label><input id="orbit-lat" type="number" step="any" min="-90" max="90"></div>
+    <div><label for="orbit-lon">Objekt Längengrad (°)</label><input id="orbit-lon" type="number" step="any" min="-180" max="180"></div>
+   </div>
+   <div class="tools"><button type="button" id="orbit-pick" aria-pressed="false">Objekt in der Karte wählen</button></div>
+   <div class="rows">
+    <div><label for="orbit-radius">Radius (m)</label><input id="orbit-radius" type="number" min="5" max="500" step="1" value="30"></div>
+    <div><label for="orbit-points">Wegpunkte auf dem Kreis</label><input id="orbit-points" type="number" min="4" max="72" step="1" value="12"></div>
+    <div><label for="orbit-height">Flughöhe über Start (m)</label><input id="orbit-height" type="number" min="2" max="120" step="1" value="40"></div>
+    <div><label for="orbit-poi-height">Höhe des Objektpunkts über Start (m)</label><input id="orbit-poi-height" type="number" min="0" max="120" step="1" value="10"></div>
+    <div><label for="orbit-start">Startrichtung vom Objekt (°, 0 = Nord)</label><input id="orbit-start" type="number" min="0" max="359" step="1" value="0"></div>
+    <div><label for="orbit-direction">Richtung</label><select id="orbit-direction"><option value="cw">im Uhrzeigersinn</option><option value="ccw">gegen den Uhrzeigersinn</option></select></div>
+   </div>
+   <label class="photo"><input type="checkbox" id="orbit-photo" checked> Foto an jedem Kreispunkt</label>
+   <div class="tools"><button type="button" id="orbit-create">Orbit erzeugen</button></div>
+   <p id="orbit-status" class="caption" role="status" aria-live="polite"></p>
+   <hr>
+   <h2>Fassadenscan</h2>
+   <p class="caption">Bahnen parallel zur Fassade (A → B) im festen Abstand, von unten nach oben, jede zweite Bahn um eine halbe Spalte versetzt. Nase senkrecht zur Fassade (<code>towardPOI</code> je Wegpunkt), Foto an jedem Punkt, Halt an jedem Punkt. Ersetzt die aktuellen Wegpunkte.</p>
+   <div class="tools">
+     <button type="button" id="facade-pick-a" aria-pressed="false">Fassade Punkt A wählen</button>
+     <button type="button" id="facade-pick-b" aria-pressed="false">Fassade Punkt B wählen</button>
+   </div>
+   <p id="facade-ab" class="caption">A und B: Ecken der Fassade (Grundlinie) in der Karte anklicken.</p>
+   <div class="rows">
+    <div><label for="facade-side">Flugseite (Blick von A nach B)</label><select id="facade-side"><option value="left">links der Fassade</option><option value="right">rechts der Fassade</option></select></div>
+    <div><label for="facade-distance">Abstand zur Fassade (m)</label><input id="facade-distance" type="number" min="3" max="100" step="0.5" value="12"></div>
+    <div><label for="facade-min">Unterste Bahn über Start (m)</label><input id="facade-min" type="number" min="2" max="120" step="0.5" value="5"></div>
+    <div><label for="facade-max">Oberste Bahn über Start (m)</label><input id="facade-max" type="number" min="2" max="120" step="0.5" value="20"></div>
+    <div><label for="facade-overlap">Überlappung (%)</label><input id="facade-overlap" type="number" min="30" max="95" step="5" value="75"></div>
+    <div><label for="facade-pitch">Gimbal-Neigung (°, 0 = waagrecht)</label><input id="facade-pitch" type="number" min="-90" max="35" step="1" value="0"></div>
+    <div><label for="facade-row">Bahnabstand (m)</label><input id="facade-row" type="number" min="0.5" max="50" step="0.1"></div>
+    <div><label for="facade-col">Fotoabstand entlang (m)</label><input id="facade-col" type="number" min="0.5" max="100" step="0.1"></div>
+    <div><label for="facade-ellipsoid">Ellipsoidhöhe des Startpunkts (m, WGS84)</label><input id="facade-ellipsoid" type="number" step="0.01" placeholder="z. B. aus RTK-Messung"></div>
+   </div>
+   <p class="caption">Abstände: Vorschlag aus Abstand und Überlappung (Sichtfeld ca. 73° × 53°, Weitwinkel); anpassbar. Die <strong>Ellipsoidhöhe des Startpunkts</strong> muss bekannt sein (z. B. RTK-Anzeige in Pilot 2): DJI verlangt bei verschiedenen Höhen je Wegpunkt die Ellipsoidhöhe; SkyHub addiert nur die Höhe über Start und schätzt nichts.</p>
+   <div class="tools"><button type="button" id="facade-suggest" class="secondary">Abstände vorschlagen</button><button type="button" id="facade-create">Fassadenscan erzeugen</button></div>
+   <p id="facade-status" class="caption" role="status" aria-live="polite"></p>
+   <hr>
+   <h2>Hindernisse</h2>
+   <p class="caption">Masten, Kräne, Bäume oder Gebäude als Zylinder (Mittelpunkt, Radius, Höhe über Start). Die Route wird in 3D mit Sicherheitsabstand dagegen geprüft. Bleibt nur in diesem Browser gespeichert. Keine Hinderniserkennung: nicht eingetragene Hindernisse werden nicht erkannt.</p>
+   <div class="rows">
+    <div><label for="obst-name">Bezeichnung</label><input id="obst-name" maxlength="40" placeholder="z. B. Mast"></div>
+    <div><label for="obst-radius">Radius (m)</label><input id="obst-radius" type="number" min="0" max="500" step="0.5" value="3"></div>
+    <div><label for="obst-height">Höhe über Start (m)</label><input id="obst-height" type="number" min="0" max="1000" step="0.5" value="30"></div>
+    <div><label for="obst-buffer">Sicherheitsabstand (m)</label><input id="obst-buffer" type="number" min="0" max="100" step="1" value="10"></div>
+   </div>
+   <div class="tools"><button type="button" id="obst-pick" aria-pressed="false">Hindernis in der Karte setzen</button></div>
+   <ul id="obst-list" class="notes"></ul>
+   <p id="obst-status" class="caption" role="status" aria-live="polite"></p>
+   <hr>
    <h2>Intervall-Fotoaktion (experimenteller WPML-Entwurf)</h2>
    <label for="photo-trigger">Aufnahmemodus</label>
    <select id="photo-trigger">
@@ -132,6 +213,14 @@ hr{border:0;border-top:1px solid var(--edge);margin:16px 0}
      <h2>Missionsprüfung · nur Entwurf</h2>
      <p class="caption">Ausschließlich lokale, ungefähre 2D-Geometrie und Eingabeprüfung. Keine DJI-Geräteprüfung, Flugzeitschätzung, Terrain-, Luftraum- oder Kollisionsprüfung.</p>
      <div id="mission-review" class="waypoint" role="status" aria-live="polite">Lokale Prüfung noch nicht verfügbar. Kein Flugbereitschaftsnachweis.</div>
+   </section>
+   <hr>
+   <section aria-labelledby="h-profile">
+     <h2 id="h-profile">Höhenprofil (Gelände)</h2>
+     <p class="caption">Sendet die Wegpunkte einmalig an den SkyHub-Höhendienst im Heimnetz (Copernicus-Geländemodell, nur Landkreis Karlsruhe geladen); nichts wird gespeichert. Startpunkt = erster Wegpunkt. Gebäude, Bäume und Masten sind im Modell nicht zuverlässig enthalten.</p>
+     <div class="tools"><button type="button" id="profile-run" disabled>Höhenprofil berechnen</button></div>
+     <p id="profile-status" class="caption" role="status" aria-live="polite"></p>
+     <div id="profile-chart"></div>
    </section>
    <hr>
    <button type="submit" id="export">WPML-KMZ lokal exportieren</button>
@@ -176,6 +265,10 @@ hr{border:0;border-top:1px solid var(--edge);margin:16px 0}
 <script src="/wpml-mission-version-compare.js"></script>
 <script src="/wpml-waylines-reference.js"></script>
 <script src="/wpml-mission-review.js"></script>
+<script src="/geozones-layer.js"></script>
+<script src="/elevation-profile.js"></script>
+<script src="/wpml-terrain-client.js"></script>
+<script src="/wpml-obstacle-store.js"></script>
 <script src="/wpml-editor.js"></script>
 </body>
 </html>

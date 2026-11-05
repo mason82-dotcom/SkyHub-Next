@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SkyHub · NDVI/GNDVI/NDRE Mavic 3M</title>
+<style>
+.nd-grid{display:grid;grid-template-columns:minmax(260px,1fr) minmax(0,2fr);gap:16px}
+@media(max-width:880px){.nd-grid{grid-template-columns:1fr}}
+.nd-list{list-style:none;padding:0;margin:0}.nd-list li{border-top:1px solid var(--sky-border,#d0d7de);padding:6px 0}
+.nd-list button{width:100%;text-align:left}
+#preview{max-width:100%;border-radius:6px;border:1px solid var(--sky-border,#d0d7de);background:repeating-conic-gradient(#eee 0 25%,#fff 0 50%) 0/16px 16px}
+.nd-scale{height:12px;border-radius:3px;background:linear-gradient(90deg,#8c510a,#d8b365,#f6e8c3,#a6dba0,#5aae61,#1b7837)}
+.nd-scale-l{display:flex;justify-content:space-between;font-size:12px;color:var(--sky-muted,#57606a)}
+.nd-stats dt{font-weight:600}.nd-stats dd{margin:0 0 6px}
+</style>
+<link rel="stylesheet" href="/skyhub-light.css">
+<link rel="stylesheet" href="/missionsfreigabe.css">
+<script defer src="/skyhub-nav.js"></script>
+</head>
+<body class="mrel" data-skyhub-page="ndvi">
+<a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
+<!-- skyhub-appbar -->
+<header class="skyhub-appbar">
+  <a class="skyhub-appbar-brand" href="/"><span class="brand-symbol" aria-hidden="true">✦</span>SkyHub <span>Next</span></a>
+  <nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
+    <a href="/">Übersicht</a>
+    <details class="skyhub-nav-group"><summary>Einsatz</summary><div class="skyhub-nav-menu">
+      <a href="/drc.html">Live-Steuerung Matrice 4</a>
+      <a href="/drc.html?rc=pro">Kamera Mavic 3 (RC Pro)</a>
+      <a href="/missionsfreigabe.html">Missionsfreigabe</a>
+      <a href="/kartenelemente.html">Kartenelemente</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Missionen</summary><div class="skyhub-nav-menu">
+      <a href="/wpml-editor.html">Missionsentwurf</a>
+      <a href="/wpml-route-library.html">Routenbibliothek</a>
+    </div></details>
+    <details class="skyhub-nav-group is-active"><summary>Auswertung</summary><div class="skyhub-nav-menu">
+      <a href="/media-gallery.html">Medien</a>
+      <a href="/thermal.html">Thermal</a>
+      <a href="/ppk.html">PPK-Geotagging</a>
+      <a href="/abdeckung.html">Fotoabdeckung</a>
+      <a href="/ndvi.html" aria-current="page">Vegetationsindizes</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>System</summary><div class="skyhub-nav-menu">
+      <a href="/pilot-protokolle.html">Pilot-2-Protokolle</a>
+      <a href="/fh-diagnostics.html">RTK &amp; Flugsitzungen</a>
+    </div></details>
+    <details class="skyhub-nav-group is-lab"><summary>Labor</summary><div class="skyhub-nav-menu">
+      <a href="/wpml-survey-preview.html">Survey-Vorschau</a>
+      <a href="/smart-farming.html">Smart Farming</a>
+      <a href="/smart-farming-map-lab.html">Vegetationskarte</a>
+    </div></details>
+  </nav>
+</header>
+<!-- /skyhub-appbar -->
+<header class="skyhub-pagehead mrel-top">
+  <h1>Vegetationsindizes <span class="muted">NDVI, GNDVI, NDRE · Mavic 3M Multispektral, je Aufnahme</span></h1>
+</header>
+<p class="mrel-note" role="note">NDVI = (NIR − Rot)/(NIR + Rot) aus einer Aufnahme (Rot- und NIR-Band), kalibriert nach DJI-Leitfaden: Schwarzwert, Vignettierung,
+  Verstärkung/Belichtung und Sonnenlichtsensor; Bänder über die DJI-Ausrichtungsmatrix und Kantenabgleich deckungsgleich.
+  „Kalibriert“ nur mit gültigem Sonnenlichtsensor und sicherer Ausrichtung, sonst „relativ“ (nur innerhalb des Bildes vergleichbar).
+  Einzelbild – kein Orthomosaik.</p>
+<main id="skyhubMain" tabindex="-1" class="nd-grid">
+  <section class="card" aria-labelledby="h-c"><h2 id="h-c">Aufnahmen im Speicher</h2>
+    <fieldset class="skyhub-plain-fieldset"><legend>Index</legend>
+      <label class="check"><input type="radio" name="index" value="ndvi" checked> NDVI (NIR/Rot) – Biomasse, Vitalität</label>
+      <label class="check"><input type="radio" name="index" value="gndvi"> GNDVI (NIR/Grün) – Chlorophyll, dichte Bestände</label>
+      <label class="check"><input type="radio" name="index" value="ndre"> NDRE (NIR/RedEdge) – Stickstoff, späte Stadien</label>
+    </fieldset><ul id="list" class="nd-list"><li class="muted">Wird geladen …</li></ul></section>
+  <section class="card" aria-labelledby="h-r">
+    <h2 id="h-r">Ergebnis</h2>
+    <p id="state" class="muted" role="status" aria-live="polite">Aufnahme links wählen.</p>
+    <img id="preview" alt="" hidden>
+    <div id="scale" hidden><div class="nd-scale" aria-hidden="true"></div><div class="nd-scale-l"><span>−0,2</span><span>0,1</span><span>0,3</span><span>0,5</span><span>0,7</span><span>0,9</span></div></div>
+    <dl id="stats" class="nd-stats"></dl>
+    <ul id="notes"></ul>
+    <a id="dl" href="#" hidden>Index als Float32-GeoTIFF herunterladen</a>
+  </section>
+</main>
+<script src="/ndvi.js"></script>
+</body>
+</html>

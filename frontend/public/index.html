@@ -5,9 +5,9 @@
 <title>SkyHub Next · DJI Operations</title>
 <link rel="stylesheet" href="/vendor/leaflet/1.9.4/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=">
 <style>
-:root{color-scheme:light;--bg:#07111e;--panel:#101f30;--edge:#2c4054;--muted:#94abc1;--blue:#47c3e7}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#edf6ff;font:14px system-ui,sans-serif}
-header{height:66px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 18px;border-bottom:1px solid var(--edge)}
+
+*{box-sizing:border-box}body{margin:0}
+header.skyhub-pagehead{height:66px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 18px;border-bottom:1px solid var(--edge)}
 h1{margin:0;font-size:20px;letter-spacing:.04em}h1 span{color:var(--blue)}small,.muted{color:var(--muted)}
 .auth{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.auth input{min-width:205px}
 [hidden]{display:none!important}
@@ -33,6 +33,7 @@ aside{background:var(--panel);border-left:1px solid var(--edge);padding:14px;ove
 .device details[open] summary{margin-bottom:8px}
 .device .meta{display:block;margin-top:10px;line-height:1.5;overflow-wrap:anywhere}
 .warning-preview{margin:8px 0 0;color:#ffd6ad;font-size:12px;line-height:1.4}
+.rtk-line{margin:8px 0 0;font-size:12px;line-height:1.4;padding:3px 7px;border-radius:6px;border:1px solid var(--edge)}.rtk-line.alarm{font-weight:700}
 .finder{display:grid;gap:6px;margin:8px 0}.finder label{font-size:12px;color:var(--muted)}
 .finder-search{display:flex;gap:6px}.finder-search input{flex:1;min-width:0;width:100%}.finder-search button{background:#203c50}
 .finder-search input::-webkit-search-cancel-button{display:none}
@@ -86,6 +87,12 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;margin:14px 0 8p
 .live-panel[data-live="true"] .live-badge{display:inline-block}
 .live-panel video{display:block;width:100%;aspect-ratio:16/9;margin-top:8px;border-radius:6px;background:#000}
 .live-status{margin:6px 0 0;font-size:11px;color:var(--muted)}
+.live-status.bad{color:#b3261e}
+.live-control{margin-top:8px;border-top:1px solid var(--edge);padding-top:6px}
+.live-control h3{margin:0 0 4px;font-size:13px}
+.live-gw{margin:6px 0}
+.live-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.live-row select,.live-row button{min-height:32px}
 .hms-history-tools{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
 .hms-history-tools select{min-width:0;flex:1 1 160px;font-size:11px;padding:3px 6px}
 .hms-history-tools button,.events-panel #hmsHistoryMore{margin-top:0}
@@ -123,26 +130,51 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;margin:14px 0 8p
 </style>
 <link rel="stylesheet" href="/skyhub-light.css">
 <link rel="stylesheet" href="/skyhub-cockpit.css">
+<script defer src="/skyhub-nav.js"></script>
 </head>
 <body data-skyhub-page="dashboard">
 <a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
-<header>
-  <h1 class="skyhub-brand"><span class="brand-symbol" aria-hidden="true">✦</span>SkyHub <span>Next</span><small>READ ONLY</small></h1>
+<!-- skyhub-appbar -->
+<header class="skyhub-appbar">
+  <a class="skyhub-appbar-brand" href="/"><span class="brand-symbol" aria-hidden="true">✦</span>SkyHub <span>Next</span></a>
   <nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
-  <a href="/" aria-current="page">Übersicht</a>
-  <a href="/wpml-editor.html">Missionen</a>
-  <a href="/wpml-route-library.html">Routen</a>
-  <a href="/wpml-survey-preview.html">Survey</a>
-  <a href="/smart-farming.html">Smart Farming</a>
-  <a href="/media-gallery.html">Medien</a>
-  <a href="/thermal.html">Thermal</a>
-</nav>
+    <a href="/" aria-current="page">Übersicht</a>
+    <details class="skyhub-nav-group"><summary>Einsatz</summary><div class="skyhub-nav-menu">
+      <a href="/drc.html">Live-Steuerung Matrice 4</a>
+      <a href="/drc.html?rc=pro">Kamera Mavic 3 (RC Pro)</a>
+      <a href="/missionsfreigabe.html">Missionsfreigabe</a>
+      <a href="/kartenelemente.html">Kartenelemente</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Missionen</summary><div class="skyhub-nav-menu">
+      <a href="/wpml-editor.html">Missionsentwurf</a>
+      <a href="/wpml-route-library.html">Routenbibliothek</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Auswertung</summary><div class="skyhub-nav-menu">
+      <a href="/media-gallery.html">Medien</a>
+      <a href="/thermal.html">Thermal</a>
+      <a href="/ppk.html">PPK-Geotagging</a>
+      <a href="/abdeckung.html">Fotoabdeckung</a>
+      <a href="/ndvi.html">Vegetationsindizes</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>System</summary><div class="skyhub-nav-menu">
+      <a href="/pilot-protokolle.html">Pilot-2-Protokolle</a>
+      <a href="/fh-diagnostics.html">RTK &amp; Flugsitzungen</a>
+    </div></details>
+    <details class="skyhub-nav-group is-lab"><summary>Labor</summary><div class="skyhub-nav-menu">
+      <a href="/wpml-survey-preview.html">Survey-Vorschau</a>
+      <a href="/smart-farming.html">Smart Farming</a>
+      <a href="/smart-farming-map-lab.html">Vegetationskarte</a>
+    </div></details>
+  </nav>
+</header>
+<!-- /skyhub-appbar -->
+<header class="skyhub-pagehead">
+  <h1>Lagebild <span>Flotte, Karte und Telemetrie · nur Lesen, keine Flugsteuerung</span></h1>
   <div class="auth">
     <button id="connect" type="button" disabled>Neu verbinden</button>
     <span id="message" role="status">Nicht verbunden</span>
   </div>
 </header>
-<p class="fh-diagnostics-link"><a href="/fh-diagnostics.html">RTK- &amp; Flugsitzungsdiagnose (FC0, nur Lesen)</a></p>
 <nav class="workspace-tabs" role="tablist" aria-label="SkyHub Hauptbereiche">
   <button id="tabOperations" class="workspace-tab" type="button" role="tab" aria-controls="operationsPanel" aria-selected="true" tabindex="0">01 · Operations</button>
   <button id="tabTak" class="workspace-tab" type="button" role="tab" aria-controls="takPanel" aria-selected="false" tabindex="-1">02 · TAK / CoT</button>
@@ -170,6 +202,11 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;margin:14px 0 8p
     <div class="live-head"><h2 id="liveTitle">Livestream · DJI Pilot 2</h2><span class="live-badge" aria-hidden="true">LIVE</span></div>
     <video id="liveVideo" muted playsinline controls hidden aria-label="Livebild der Drohnenkamera"></video>
     <p id="liveStatus" class="live-status" role="status">Livestream-Status wird geprüft …</p>
+    <div id="liveControl" class="live-control" hidden>
+      <h3>Stream anfordern</h3>
+      <div id="liveControlList"></div>
+      <p id="liveControlMsg" class="live-status" role="status" aria-live="polite"></p>
+    </div>
   </section>
   <section id="cockpit" class="cockpit" aria-labelledby="cockpitTitle">
     <div class="cockpit-top"><div><span class="cockpit-overline">OSD / Instrumente</span><h2 id="cockpitTitle">Fluginstrumente</h2></div><span class="cockpit-badge">Nur lesend</span></div>
@@ -291,7 +328,9 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;margin:14px 0 8p
 <script src="/socket.io/socket.io.js"></script>
 <script src="/hms-history-panel.js"></script>
 <script src="/live-panel.js"></script>
+<script src="/live-control-panel.js"></script>
 <script src="/telemetry-freshness.js"></script>
+<script src="/rtk-status.js"></script>
 <script src="/telemetry-cockpit.js"></script>
 <script src="/workspace-tabs.js"></script>
 <script>
@@ -342,6 +381,15 @@ window.SkyHubWorkspaceTabs.init({
   }
 });
 const records=new Map(),markers=new Map(),tracks=new Map();
+// Keine Dock-Hardware vor Ort (04.11.2026): Docks (DJI-Domäne 3) und die nur am Dock fliegenden Matrice 3D/3TD/4D/4TD
+// (Fluggerät-Typ 91/100) erscheinen nicht in der Oberfläche. Das Backend unterstützt sie unverändert.
+const DOCK_AIRCRAFT_TYPES=new Set([91,100]);
+function shownDevice(d){
+  const m=d&&d.model;
+  if(!m)return Boolean(d);
+  return String(m.domain)!=='3'&&!(String(m.domain)==='0'&&DOCK_AIRCRAFT_TYPES.has(Number(m.type)));
+}
+function putDevice(d){if(d&&shownDevice(d))records.set(d.sn,d);else if(d&&d.sn)records.delete(d.sn);}
 let socket=null,centered=false,authToken=null,selectedSn=null,connectAttempt=0;
 let trackLoadId=0,trackController=null;
 let healthController=null;
@@ -351,6 +399,8 @@ let eventsController=null,eventsLoadId=0;
 const livePanel=window.SkyHubLivePanel?window.SkyHubLivePanel.createLivePanel({
   document,fetchImpl:(...args)=>fetch(...args),getToken:()=>authToken,
   loadScript:window.SkyHubLivePanel.loadScriptOnce(document)}):null;
+const liveControlPanel=window.SkyHubLiveControlPanel?window.SkyHubLiveControlPanel.createLiveControlPanel({
+  document,fetchImpl:(...args)=>fetch(...args),getToken:()=>authToken,storage:(()=>{try{return sessionStorage;}catch(_){return null;}})()}):null;
 const hmsHistoryPanel=window.SkyHubHmsHistory?window.SkyHubHmsHistory.createPanel({
   document,fetchImpl:(...args)=>fetch(...args),getToken:()=>authToken,getDevices:()=>records.values()}):null;
 const recentEvents=[];
@@ -499,6 +549,14 @@ function update(){
         (first.text&&(first.text.de||first.text.en)||'Unbekannter HMS-Code')+
         (important.length>1?' · '+(important.length-1)+' weitere':'');
       card.append(preview);
+    }
+    // RTK state (rtk-status.js): FIX / searching / failed, stronger while flying.
+    const rtk=window.SkyHubRtkStatus&&window.SkyHubRtkStatus.rtkStatus(d,{freshness:fieldFreshness.evaluateField(d,'rtkFixState')});
+    if(rtk){
+      const line=document.createElement('p');
+      line.className='rtk-line '+rtk.level;line.dataset.rtk=rtk.level;
+      if(rtk.level==='alarm'||rtk.level==='warn')line.setAttribute('role','status');
+      line.textContent=rtk.text;card.append(line);
     }
     // AirSense (ADS-B) summary: counts and distance only, never identity or position of other aircraft.
     const air=d.airsense;
@@ -663,6 +721,7 @@ async function connect(token=null,quiet=false){
   resetEvents('Verbindung wird hergestellt.');
   if(hmsHistoryPanel)hmsHistoryPanel.reset();
   if(livePanel)livePanel.stop();
+  if(liveControlPanel)liveControlPanel.stop();
   cancelTrackLoad();
   setTrackStatus('Warte auf Verbindung.');
   if(socket){const previous=socket;socket=null;previous.disconnect();}
@@ -678,13 +737,14 @@ async function connect(token=null,quiet=false){
       res.status===403?'Zugriff verweigert':'Geräte konnten nicht geladen werden (HTTP '+res.status+')');
     const devices=await res.json();
     if(attempt!==connectAttempt)return false;
-    records.clear();for(const d of devices)records.set(d.sn,d);
+    records.clear();for(const d of devices)putDevice(d);
     listState='ready';
     update();
     authToken=token;
     loadEvents();
     if(hmsHistoryPanel){hmsHistoryPanel.syncDevices();hmsHistoryPanel.reset();}
     if(livePanel)livePanel.start();
+    if(liveControlPanel)liveControlPanel.start();
     loadTracks();
     const label=token?'Live verbunden':'Live verbunden (Heimnetz)';
     const current=io({auth:token?{token}:{},reconnectionDelayMax:5000});
@@ -692,8 +752,8 @@ async function connect(token=null,quiet=false){
     current.on('connect',()=>{if(socket===current)el('message').textContent=label;});
     current.on('connect_error',()=>{if(socket===current)el('message').textContent='WebSocket nicht verbunden';});
     current.on('disconnect',()=>{if(socket===current)el('message').textContent='Verbindung getrennt';});
-    current.on('snapshot',list=>{if(socket!==current)return;records.clear();for(const d of list)records.set(d.sn,d);update();});
-    current.on('device_update',d=>{if(socket!==current)return;records.set(d.sn,d);update();});
+    current.on('snapshot',list=>{if(socket!==current)return;records.clear();for(const d of list)putDevice(d);update();});
+    current.on('device_update',d=>{if(socket!==current)return;putDevice(d);update();});
     current.on('device_event',event=>{if(socket!==current)return;addRecentEvent(event);
       if(hmsHistoryPanel&&event&&event.method==='hms')hmsHistoryPanel.changed();});
     return true;

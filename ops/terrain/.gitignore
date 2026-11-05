@@ -1,0 +1,3 @@
+# Elevation tiles are downloaded per installation (scripts/terrain-dem-fetch.sh), never committed.
+data/
+config.yaml

@@ -426,9 +426,11 @@ function seriesOptions(){
     if(!groups.has(id))groups.set(id,{id,items:[],label:dayLabel(item.day)+' · '+(item.folder||'/')+' ('+item.bucket+')'});
     groups.get(id).items.push(item);
   }
-  const select=el('series-select');select.replaceChildren();
-  for(const g of groups.values()){
-    const o=node('option',null,g.label+' – '+g.items.length+' Bilder');o.value=g.id;select.append(o);
+  for(const id of ['series-select','export-series']){
+    const select=el(id);if(!select)continue;select.replaceChildren();
+    for(const g of groups.values()){
+      const o=node('option',null,g.label+' – '+g.items.length+' Bilder');o.value=g.id;select.append(o);
+    }
   }
   state.groups=groups;
 }
@@ -475,10 +477,10 @@ function renderSeries(){
   const x=i=>L+(ok.length===1?0.5:i/(ok.length-1))*(W-L-R),y=t=>Tp+(1-(t-lo)/((hi-lo)||1))*(H-Tp-B);
   const add=(tag,attrs,text)=>{const n=document.createElementNS(NS,tag);for(const [k,v] of Object.entries(attrs))n.setAttribute(k,v);if(text!==undefined)n.textContent=text;svg.append(n);return n;};
   for(let t=lo;t<=hi;t+=Math.max(1,Math.round((hi-lo)/5))){
-    add('line',{x1:L,x2:W-R,y1:y(t),y2:y(t),stroke:'#284056'});
+    add('line',{x1:L,x2:W-R,y1:y(t),y2:y(t),stroke:'#d8e2ee'});
     add('text',{x:L-6,y:y(t)+4,'text-anchor':'end'},t+' °C');
   }
-  const series=[['max','#ff6b5a'],['median','#e9c382'],['min','#53c9e7']];
+  const series=[['max','#b42328'],['median','#855510'],['min','#2458d3']];   // --sky-danger / -warning / -primary (light theme)
   for(const [k,color] of series){
     add('polyline',{points:ok.map((r,i)=>x(i)+','+y(r.meta.stats[k])).join(' '),fill:'none',stroke:color,'stroke-width':2.5});
     ok.forEach((r,i)=>add('circle',{cx:x(i),cy:y(r.meta.stats[k]),r:3.5,fill:color}));
@@ -499,9 +501,48 @@ function seriesCsv(){
   download('thermal_serie.csv',new Blob([T.csv(rows)],{type:'text/csv;charset=utf-8'}));
 }
 function selectTab(name){
-  for(const [tab,panel] of [['image','panel-image'],['series','panel-series']]){
+  for(const [tab,panel] of [['image','panel-image'],['series','panel-series'],['export','panel-export']]){
     el('tab-'+tab).setAttribute('aria-selected',String(tab===name));el(panel).hidden=tab!==name;
   }
+}
+
+// ---------- export for photogrammetry (backend/thermal-export.js) ----------
+let exportJob=null,exportTimer=null;
+async function exportRun(){
+  const group=state.groups&&state.groups.get(el('export-series').value);
+  if(!group){el('export-status').textContent='Keine Serie gewählt.';return;}
+  const parameters={emissivity:el('export-eps').value,distance:el('export-distance').value,humidity:el('export-humidity').value,
+    ambient:el('export-ambient').value,reflection:el('export-reflection').value};
+  el('export-download').hidden=true;el('export-errors').replaceChildren();
+  try{
+    const r=await fetch('/api/thermal/export',{method:'POST',cache:'no-store',credentials:'same-origin',
+      headers:{'Content-Type':'application/json',Accept:'application/json'},
+      body:JSON.stringify({items:group.items.map(i=>({bucket:i.bucket,key:i.key})),parameters})});
+    const data=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(data.error||('HTTP '+r.status));
+    exportJob=data.id;el('export-run').disabled=true;el('export-cancel').disabled=false;exportPoll();
+  }catch(error){el('export-status').textContent='Export nicht gestartet: '+error.message;}
+}
+async function exportPoll(){
+  clearTimeout(exportTimer);
+  if(!exportJob)return;
+  try{
+    const s=await getJson('/api/thermal/export/'+exportJob);
+    el('export-status').textContent=({queued:'wartet',running:'läuft',done:'fertig',cancelled:'abgebrochen',failed:'fehlgeschlagen'}[s.status]||s.status)+
+      ': '+s.done+' von '+s.total+' Bildern'+(s.failed?', '+s.failed+' Fehler':'')+(s.bytes?' · '+(s.bytes/1048576).toFixed(1)+' MB':'');
+    el('export-errors').replaceChildren(...(s.errors||[]).map(e=>node('li',null,(e.key||'Export')+': '+e.error)));
+    if(['done','cancelled','failed'].includes(s.status)){
+      el('export-run').disabled=false;el('export-cancel').disabled=true;
+      if(s.status==='done'){const a=el('export-download');a.href='/api/thermal/export/'+exportJob+'/zip';a.hidden=false;}
+      return;
+    }
+  }catch(error){el('export-status').textContent='Status nicht abrufbar ('+error.message+').';}
+  exportTimer=setTimeout(exportPoll,1500);
+}
+async function exportCancel(){
+  if(!exportJob)return;
+  await fetch('/api/thermal/export/'+exportJob,{method:'DELETE',credentials:'same-origin'}).catch(()=>{});
+  exportPoll();
 }
 
 // ---------- start ----------
@@ -528,6 +569,9 @@ async function start(){
   el('list-search').addEventListener('input',renderList);
   el('tab-image').addEventListener('click',()=>selectTab('image'));
   el('tab-series').addEventListener('click',()=>selectTab('series'));
+  el('tab-export').addEventListener('click',()=>selectTab('export'));
+  el('export-run').addEventListener('click',exportRun);
+  el('export-cancel').addEventListener('click',exportCancel);
   el('series-run').addEventListener('click',runSeries);
   el('series-csv').addEventListener('click',seriesCsv);
   wireCanvas();

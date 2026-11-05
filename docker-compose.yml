@@ -106,6 +106,35 @@ services:
       SKYHUB_WPML_S3_SECRET_KEY: ${SKYHUB_WPML_S3_SECRET_KEY:-}
       SKYHUB_WPML_S3_PUBLIC_ENDPOINT: ${SKYHUB_WPML_S3_PUBLIC_ENDPOINT:-}
       SKYHUB_PILOT_WAYLINE_ENABLED: ${SKYHUB_PILOT_WAYLINE_ENABLED:-false}
+      SKYHUB_MISSION_RELEASE_ENABLED: ${SKYHUB_MISSION_RELEASE_ENABLED:-false}
+      SKYHUB_MISSION_RELEASE_TOKEN: ${SKYHUB_MISSION_RELEASE_TOKEN:-}
+      SKYHUB_MISSION_RELEASE_HOURS: ${SKYHUB_MISSION_RELEASE_HOURS:-72}
+      SKYHUB_MISSION_MAX_HEIGHT_M: ${SKYHUB_MISSION_MAX_HEIGHT_M:-}
+      SKYHUB_MISSION_MAX_RTH_HEIGHT_M: ${SKYHUB_MISSION_MAX_RTH_HEIGHT_M:-}
+      SKYHUB_MISSION_MAX_SPEED_MS: ${SKYHUB_MISSION_MAX_SPEED_MS:-}
+      SKYHUB_MISSION_MAX_DURATION_MIN: ${SKYHUB_MISSION_MAX_DURATION_MIN:-}
+      SKYHUB_MISSION_MAX_DISTANCE_M: ${SKYHUB_MISSION_MAX_DISTANCE_M:-}
+      SKYHUB_TERRAIN_URL: ${SKYHUB_TERRAIN_URL:-}
+      SKYHUB_PPK_URL: ${SKYHUB_PPK_URL:-}
+      SKYHUB_PPK_TOKEN: ${SKYHUB_PPK_TOKEN:-}
+      SKYHUB_TERRAIN_DATASET: ${SKYHUB_TERRAIN_DATASET:-}
+      SKYHUB_TERRAIN_MIN_AGL_M: ${SKYHUB_TERRAIN_MIN_AGL_M:-}
+      SKYHUB_DRC_ENABLED: ${SKYHUB_DRC_ENABLED:-false}
+      SKYHUB_DRC_TOKEN: ${SKYHUB_DRC_TOKEN:-}
+      SKYHUB_DRC_GATEWAY_SN: ${SKYHUB_DRC_GATEWAY_SN:-}
+      SKYHUB_DRC_RCPRO_GATEWAY_SN: ${SKYHUB_DRC_RCPRO_GATEWAY_SN:-}
+      SKYHUB_DRC_MQTT_URL: ${SKYHUB_DRC_MQTT_URL:-}
+      SKYHUB_DRC_MQTT_USERNAME: ${SKYHUB_DRC_MQTT_USERNAME:-}
+      SKYHUB_DRC_MQTT_PASSWORD: ${SKYHUB_DRC_MQTT_PASSWORD:-}
+      SKYHUB_DRC_BROKER_ADDRESS: ${SKYHUB_DRC_BROKER_ADDRESS:-}
+      SKYHUB_DRC_BROKER_USERNAME: ${SKYHUB_DRC_BROKER_USERNAME:-}
+      SKYHUB_DRC_BROKER_PASSWORD: ${SKYHUB_DRC_BROKER_PASSWORD:-}
+      SKYHUB_DRC_BROKER_TLS: ${SKYHUB_DRC_BROKER_TLS:-false}
+      SKYHUB_DRC_MAX_SPEED_MS: ${SKYHUB_DRC_MAX_SPEED_MS:-}
+      SKYHUB_DRC_MAX_HEIGHT_M: ${SKYHUB_DRC_MAX_HEIGHT_M:-}
+      SKYHUB_DRC_MAX_DISTANCE_M: ${SKYHUB_DRC_MAX_DISTANCE_M:-}
+      SKYHUB_DRC_STICK_SCALE: ${SKYHUB_DRC_STICK_SCALE:-}
+      SKYHUB_DRC_CALLSIGN: ${SKYHUB_DRC_CALLSIGN:-}
       # Optional DJI Thermal SDK service (profile "thermal-sdk"); empty = thermal estimate only.
       SKYHUB_THERMAL_SDK_URL: ${SKYHUB_THERMAL_SDK_URL:-}
       SKYHUB_THERMAL_SDK_TOKEN: ${SKYHUB_THERMAL_SDK_TOKEN:-}
@@ -130,6 +159,7 @@ services:
       MQTT_USER: ${MQTT_USER:-}
       MQTT_PASSWORD: ${MQTT_PASSWORD:-}
       SKYHUB_PILOT_ENABLED: ${SKYHUB_PILOT_ENABLED:-false}
+      SKYHUB_PILOT_DIAGNOSTICS_ENABLED: ${SKYHUB_PILOT_DIAGNOSTICS_ENABLED:-false}
       SKYHUB_PILOT_ACCESS_TOKEN: ${SKYHUB_PILOT_ACCESS_TOKEN:-}
       SKYHUB_DJI_APP_ID: ${SKYHUB_DJI_APP_ID:-}
       SKYHUB_DJI_APP_KEY: ${SKYHUB_DJI_APP_KEY:-}
@@ -140,6 +170,7 @@ services:
       SKYHUB_PILOT_WORKSPACE_ID: ${SKYHUB_PILOT_WORKSPACE_ID:-}
       # DJI map-group GET route (Pilot 2 api module); OFF by default.
       SKYHUB_DJI_MAP_ELEMENTS_ENABLED: ${SKYHUB_DJI_MAP_ELEMENTS_ENABLED:-false}
+      SKYHUB_DJI_MAP_WRITES_ENABLED: ${SKYHUB_DJI_MAP_WRITES_ENABLED:-false}
       # DJI Pilot 2 situation awareness (WebSocket /ws/tsa + topology list); OFF by default.
       # Needs the public https origin the RC uses for /pilot-login, e.g. https://rpi5.fritz.box
       SKYHUB_DJI_TSA_ENABLED: ${SKYHUB_DJI_TSA_ENABLED:-false}
@@ -165,6 +196,18 @@ services:
       SKYHUB_LIVE_RTMP_URL: ${SKYHUB_LIVE_RTMP_URL:-}
       SKYHUB_LIVE_PUBLISH_PASS: ${SKYHUB_LIVE_PUBLISH_PASS:-}
       SKYHUB_LIVE_READ_PASS: ${SKYHUB_LIVE_READ_PASS:-}
+      SKYHUB_LIVE_CONTROL_ENABLED: ${SKYHUB_LIVE_CONTROL_ENABLED:-false}
+      SKYHUB_GEOZONES_ENABLED: ${SKYHUB_GEOZONES_ENABLED:-false}
+      SKYHUB_TAK_ENABLED: ${SKYHUB_TAK_ENABLED:-false}
+      SKYHUB_TAK_SERVER: ${SKYHUB_TAK_SERVER:-}
+      SKYHUB_TAK_CERT: ${SKYHUB_TAK_CERT:-}
+      SKYHUB_TAK_KEY: ${SKYHUB_TAK_KEY:-}
+      SKYHUB_TAK_CA: ${SKYHUB_TAK_CA:-}
+      SKYHUB_TAK_KEY_PASSPHRASE: ${SKYHUB_TAK_KEY_PASSPHRASE:-}
+      SKYHUB_TAK_MULTICAST_ENABLED: ${SKYHUB_TAK_MULTICAST_ENABLED:-false}
+      SKYHUB_TAK_INCLUDE_RC: ${SKYHUB_TAK_INCLUDE_RC:-false}
+      SKYHUB_TAK_AIRCRAFT_TYPE: ${SKYHUB_TAK_AIRCRAFT_TYPE:-}
+      SKYHUB_TAK_TEAM: ${SKYHUB_TAK_TEAM:-}
       # Retention applies only while recording is enabled.
       SKYHUB_TRACK_RETENTION_DAYS: ${SKYHUB_TRACK_RETENTION_DAYS:-30}
       # Map tiles: OFF = redirect to tile.openstreetmap.org (as before); ON = on-demand disk cache that
@@ -183,6 +226,8 @@ services:
       - default
       - thermal_sdk
       - live
+      - terrain
+      - ppk
   # DJI Thermal SDK (dji_irp, x86-64) via box64 on the Pi 5. Opt-in: compose profile "thermal-sdk".
   # Internal network only (no host port, no internet); the SDK directory is mounted read-only and is
   # never part of the image (DJI license). The backend talks to it with SKYHUB_THERMAL_SDK_TOKEN.
@@ -211,12 +256,82 @@ services:
         read_only: true
     networks:
       - thermal_sdk
+  # Own elevation service for the terrain check of the mission release (backend/mission-terrain.js). Opt-in: compose
+  # profile "terrain". Open Topo Data (ajnisbet/opentopodata, MIT) built from a pinned upstream commit (v1.10.0);
+  # data and config from ops/terrain (scripts/terrain-dem-fetch.sh). Internal network only: no host port, no internet,
+  # route coordinates never leave the stack. Backend: SKYHUB_TERRAIN_URL=http://opentopodata:5000.
+  opentopodata:
+    profiles: ["terrain"]
+    build:
+      context: https://github.com/ajnisbet/opentopodata.git#b6d115663076476ef5ee795a5bff2e87e1a3c68f
+      dockerfile: docker/Dockerfile
+    image: skyhub-opentopodata:1.10.0
+    restart: unless-stopped
+    logging: *default-logging
+    labels: *no-watchtower
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETUID, SETGID, DAC_OVERRIDE]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 768m
+    cpus: 1.0
+    pids_limit: 128
+    volumes:
+      - type: bind
+        source: ${SKYHUB_TERRAIN_DIR:-./ops/terrain}/config.yaml
+        target: /app/config.yaml
+        read_only: true
+      - type: bind
+        source: ${SKYHUB_TERRAIN_DIR:-./ops/terrain}/data
+        target: /app/data
+        read_only: true
+    networks:
+      - terrain
+  # PPK geotagging (dji-geotagger, BSD-2 + RTKLIB 2.4.3, BSD-2), opt-in: compose profile "ppk". Offline: internal network,
+  # SAPOS RINEX as base, broadcast ephemeris (no CSRS-PPP, no IGS download). Jobs and results in the ppk_jobs volume (24 h).
+  ppk:
+    profiles: ["ppk"]
+    build:
+      context: docker/ppk
+    image: skyhub-ppk:3.1.1
+    restart: unless-stopped
+    # /health needs no token; python is in the image (no curl).
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8090/health',timeout=5).status==200 else 1)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    logging: *default-logging
+    labels: *no-watchtower
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=512m
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 3g
+    cpus: 2.0
+    pids_limit: 128
+    environment:
+      SKYHUB_PPK_TOKEN: ${SKYHUB_PPK_TOKEN:-}
+      MPLCONFIGDIR: /tmp
+      HOME: /tmp
+    volumes:
+      - ppk_jobs:/jobs
+    networks:
+      - ppk
 volumes:
+  ppk_jobs:
   pgdata:
   redis_data:
   minio_data:
   tile_cache:
 networks:
+  # Backend <-> ppk only; internal: no route to the outside.
+  ppk:
+    internal: true
+  # Backend <-> opentopodata only; internal: no route to the outside.
+  terrain:
+    internal: true
   # Backend <-> thermal-sdk only; internal: no route to the outside.
   thermal_sdk:
     internal: true

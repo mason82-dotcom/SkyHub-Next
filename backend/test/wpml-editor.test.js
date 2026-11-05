@@ -146,3 +146,38 @@ test('offline JSON CLI writes a valid KMZ without contacting any live service',(
     assert.doesNotMatch(duplicate.stderr,/49.124|8.612|route\.json/);
   }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
+
+test('facade scan: rows at distance d, staggered, nose to the facade, exact ellipsoid heights, accepted by the release check',()=>{
+  const {checkMission}=require('../mission-envelope');
+  const A={lat:49.15,lon:8.6},B={lat:49.15,lon:8.6006};            // ~43.6 m east-west facade
+  const f=planner.facade({a:A,b:B,side:'left',distanceM:10,minHeightM:5,maxHeightM:20,rowSpacingM:5,columnSpacingM:8,takeoffEllipsoidM:160.25});
+  assert.equal(f.rows,4);assert.equal(f.columns,7);assert.equal(f.waypoints.length,28);
+  // left of A→B (eastward) is north: every waypoint 10 m north of its facade point, which is its POI
+  for(const w of f.waypoints){
+    assert.ok(Math.abs((w.lat-w.poi.lat)*111195-10)<0.05);assert.equal(w.lon,w.poi.lon);
+    assert.equal(w.ellipsoidHeight,Math.round((160.25+w.height)*100)/100);assert.equal(w.photo,true);assert.equal(w.gimbalPitch,0);
+  }
+  assert.deepEqual([...new Set(f.waypoints.map(w=>w.height))],[5,10,15,20]);
+  for(let i=1;i<f.waypoints.length;i++)assert.ok(f.waypoints[i].lat!==f.waypoints[i-1].lat||f.waypoints[i].lon!==f.waypoints[i-1].lon,'no 2D duplicate');
+  const right=planner.facade({a:A,b:B,side:'right',distanceM:10,minHeightM:5,maxHeightM:5,rowSpacingM:5,columnSpacingM:8,takeoffEllipsoidM:160});
+  assert.ok(right.waypoints[0].lat<A.lat,'right of an eastward facade is south');
+  assert.throws(()=>planner.facade({a:A,b:B,distanceM:10,minHeightM:5,maxHeightM:120,rowSpacingM:0.5,columnSpacingM:0.5,takeoffEllipsoidM:160}),/max 500/);
+  assert.throws(()=>planner.facade({a:A,b:A,distanceM:10,minHeightM:5,maxHeightM:6,rowSpacingM:1,columnSpacingM:1,takeoffEllipsoidM:160}),/shorter than 2 m/);
+  assert.throws(()=>planner.facade({a:A,b:B,distanceM:10,minHeightM:5,maxHeightM:20,rowSpacingM:5,columnSpacingM:8}),/ellipsoid/);
+  const sp=planner.facadeSpacing({distanceM:10,overlap:0.7});
+  assert.ok(sp.columnSpacingM>4&&sp.columnSpacingM<5);
+  const out=planner.build({name:'Fassade',model:'mavic3e',waypoints:f.waypoints,globalHeight:5,speed:3,takeoffHeight:20,rthHeight:60,
+    finishAction:'goHome',useLocalHeights:true});
+  assert.equal((out.waylinesXml.match(/<wpml:waypointHeadingMode>towardPOI</g)||[]).length,28);
+  const check=checkMission(Buffer.from(out.kmz));
+  assert.equal(check.ok,true,JSON.stringify(check.errors));
+});
+
+test('obstacles: 3D cylinder with buffer; route above or beside is clear',()=>{
+  const route=[{lat:49.15,lon:8.6,height:40},{lat:49.15,lon:8.603,height:40}];      // ~218 m eastward at 40 m
+  const mast={lat:49.15,lon:8.6015,radiusM:2,heightM:35,name:'Mast'};
+  assert.deepEqual(planner.obstacleConflicts(route,[mast],{bufferM:10}).map(c=>[c.name,c.segment,c.distanceM]),[['Mast',1,0]]);
+  assert.equal(planner.obstacleConflicts(route,[{...mast,heightM:25}],{bufferM:10}).length,0,'40 m is above 25 + 10');
+  assert.equal(planner.obstacleConflicts(route,[{...mast,lat:49.1503}],{bufferM:10}).length,0,'33 m beside > 12 m');
+  assert.equal(planner.obstacleConflicts(route,[],{}).length,0);
+});

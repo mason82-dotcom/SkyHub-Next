@@ -23,7 +23,7 @@ test('map element store reads one workspace and returns only normalized DJI fiel
   assert.deepEqual(response,{code:0,message:'success',data:[{
     id:'shared',name:'App Shared',type:2,is_lock:false,create_time:1637158501230,
     elements:[{id:'point',name:'Meldepunkt',create_time:1637158501231,
-      resource:{type:0,content:{type:'Feature',properties:{
+      resource:{type:0,user_name:'Pilot 2',content:{type:'Feature',properties:{
         color:'#0091FF',clampToGround:false,is3d:false
       },geometry:{type:'Point',coordinates:[8.4,49.1]}}}}]
   }]});

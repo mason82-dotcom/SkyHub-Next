@@ -8,7 +8,8 @@
 //   POST   /workspaces/{workspace_id}/favorites?id=…           favourite
 //   DELETE /workspaces/{workspace_id}/favorites?id=…           unfavourite
 // Read/download only towards the RC: SkyHub never creates a flight task here.
-// Pilot 2 uploads into the store are refused until the STS policy covers waylines.
+// Pilot 2 uploads: accepted only with an importUpload function (pilot-wayline-import.js: STS scope + HEAD evidence + full
+// WPML validation, write-once store, never auto-released); without it they are refused with UPLOAD_DISABLED_CODE.
 const express=require('express');
 
 const PREFIX='/wayline/api/v1/workspaces/:workspaceId';
@@ -41,7 +42,7 @@ function createRedisFavorites(redis,prefix='skyhub:wpml:favorites:'){
   };
 }
 
-function createDjiWaylineRouter({workspace,authorize,store,favorites,log=m=>console.log(m)}){
+function createDjiWaylineRouter({workspace,authorize,store,favorites,importUpload=null,log=m=>console.log(m)}){
   if(typeof workspace!=='string'||!UUID.test(workspace)||typeof authorize!=='function'||
      !store||typeof store.all!=='function'||typeof store.downloadUrl!=='function'||
      !favorites||typeof favorites.list!=='function')
@@ -60,6 +61,7 @@ function createDjiWaylineRouter({workspace,authorize,store,favorites,log=m=>cons
     if(!principal||principal.role!=='pilot'||principal.workspaceId!==workspace){
       error(res,403,'Forbidden');return false;
     }
+    req.pilotPrincipal=principal;
     return true;
   }
   const handle=fn=>async(req,res)=>{
@@ -86,6 +88,9 @@ function createDjiWaylineRouter({workspace,authorize,store,favorites,log=m=>cons
     const key=typeof q.key==='string'?q.key.slice(0,64):undefined;
     const favoriteFilter=q.favorited===undefined?null:q.favorited==='true'?true:q.favorited==='false'?false:undefined;
     if(favoriteFilter===undefined)return error(res,400,'Invalid favorited');
+    // action_type 1 = AI spot-check waylines (obtain-waypointfile-list); SkyHub has none, every route is action_type 0.
+    if(q.action_type!==undefined&&!/^[01]$/.test(String(q.action_type)))return error(res,400,'Invalid action_type');
+    if(String(q.action_type)==='1')return ok(res,{list:[],pagination:{page,page_size:pageSize,total:0}});
     const favored=await favorites.list(workspace);
     // Filter and sort over the full (bounded, cached) library, then paginate.
     const collected=(await store.all())
@@ -110,6 +115,10 @@ function createDjiWaylineRouter({workspace,authorize,store,favorites,log=m=>cons
       favorited:favored.has(w.id),
       object_key:w.objectKey,
       user_name:w.username||'SkyHub',
+      action_type:0,
+      // DJI spells the field start_lontitude (sic).
+      ...(w.startPoint&&Number.isFinite(w.startPoint.lat)&&Number.isFinite(w.startPoint.lon)?
+        {start_wayline_point:{start_latitude:w.startPoint.lat,start_lontitude:w.startPoint.lon}}:{}),
       // Wayline files are write-once: update time equals creation time.
       update_time:w.createTime,
       create_time:w.createTime
@@ -131,11 +140,19 @@ function createDjiWaylineRouter({workspace,authorize,store,favorites,log=m=>cons
   }));
 
   router.post(PREFIX+'/upload-callback',handle(async(req,res)=>{
-    // DJI: Pilot 2 uploads the KMZ via STS and reports it here. The SkyHub STS
-    // policy is limited to media; accepting this report would register an object
-    // SkyHub has not validated. Refuse explicitly instead of pretending success.
-    return envelope(res,200,UPLOAD_DISABLED_CODE,
-      'Wayline upload from Pilot 2 is not enabled; upload via the SkyHub mission editor',{});
+    // DJI: Pilot 2 uploads the KMZ via STS and reports it here.
+    if(typeof importUpload!=='function')
+      return envelope(res,200,UPLOAD_DISABLED_CODE,
+        'Wayline upload from Pilot 2 is not enabled; upload via the SkyHub mission editor',{});
+    try{
+      const r=await importUpload(req.pilotPrincipal,req.body);
+      log('[pilot wayline] imported '+r.id+(r.created?'':' (already stored)')+'; not visible in Pilot 2 until released');
+      return ok(res,{});
+    }catch(err){
+      // Only import errors (pilotCode) are returned to Pilot 2; everything else goes to the generic handler.
+      if(err&&Number.isSafeInteger(err.pilotCode)&&err.pilotCode!==0)return envelope(res,200,err.pilotCode,String(err.message).slice(0,200),{});
+      throw err;
+    }
   }));
 
   async function favoriteIds(req,res){

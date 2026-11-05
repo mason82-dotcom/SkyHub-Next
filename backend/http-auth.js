@@ -13,6 +13,14 @@ const lanReadPatterns=[
   /^\/media\/(status|buckets|objects|summary|index|file|thumb|mission|m3m\/inventory)$/,
   /^\/smart-farming\/candidates(\/[^/]+)*\/?$/,
   /^\/thermal\/(list|meta|raw|measure)$/,
+  /^\/thermal\/export\/[0-9a-f]{24}(\/zip)?$/,
+  /^\/ppk\/(health|flights|jobs\/[0-9a-f]{24}(\/result\.csv)?)$/,
+  /^\/live\/control\/?$/,
+  /^\/map-elements\/?$/,
+  /^\/coverage\/flights$/,
+  /^\/tak\/status$/,
+  /^\/ndvi\/(captures|results\/[0-9a-f]{16}\.(png|tif))$/,
+  /^\/pilot-logs(\/[0-9a-f-]{36}\/text)?\/?$/,
   /^\/smart-farming\/captures(\/manifest)?\/?$/,
   /^\/live\/status$/,
   /^\/live\/hls\/pilot\/[A-Za-z0-9_-]{1,96}\.(m3u8|mp4)$/
@@ -33,7 +41,8 @@ function createHttpAuth({secret,lanAccess,wpmlLanAuth}){
   function auth(req,res,next){
     const hdr=req.headers.authorization||'';
     if(lanView(req))return next();
-    if(!hdr && allowWpmlLan(req))return next();
+    // Token-free home-LAN access (reads and same-origin writes); downstream routers see req.skyhubLan.
+    if(!hdr && allowWpmlLan(req)){req.skyhubLan=true;return next();}
     if(!authorized(hdr.startsWith('Bearer ')?hdr.slice(7):'')){
       return res.status(401).json({error:'Unauthorized'});
     }
@@ -44,6 +53,6 @@ function createHttpAuth({secret,lanAccess,wpmlLanAuth}){
       lanAccess.allows(socket.request.socket.remoteAddress,socket.handshake.headers['x-forwarded-for'])
       ?next():next(new Error('Unauthorized'));
   }
-  return {authorized,auth,socketAuth};
+  return {authorized,auth,socketAuth,lanSocket:allowWpmlLan.socket};
 }
 module.exports={createHttpAuth};

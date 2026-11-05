@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SkyHub · Fotoabdeckung</title>
+<link rel="stylesheet" href="/vendor/leaflet/1.9.4/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=">
+<style>
+.cov-grid{display:grid;grid-template-columns:minmax(0,2fr) minmax(280px,1fr);gap:16px}
+@media(max-width:880px){.cov-grid{grid-template-columns:1fr}}
+#covmap{height:min(70vh,640px);border-radius:8px;border:1px solid var(--sky-border,#d0d7de)}
+.cov-legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;margin:8px 0}
+.cov-legend span::before{content:"";display:inline-block;width:14px;height:10px;margin-right:5px;vertical-align:middle;border-radius:2px;background:var(--c)}
+.cov-none{--c:#d1242f}.cov-low{--c:#f0883e}.cov-ok{--c:#2da44e}.cov-area{--c:transparent;outline:2px dashed #1f6feb}
+.cov-stats dt{font-weight:600}.cov-stats dd{margin:0 0 6px}
+</style>
+<link rel="stylesheet" href="/skyhub-light.css">
+<link rel="stylesheet" href="/missionsfreigabe.css">
+<script defer src="/skyhub-nav.js"></script>
+</head>
+<body class="mrel" data-skyhub-page="coverage">
+<a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
+<!-- skyhub-appbar -->
+<header class="skyhub-appbar">
+  <a class="skyhub-appbar-brand" href="/"><span class="brand-symbol" aria-hidden="true">✦</span>SkyHub <span>Next</span></a>
+  <nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
+    <a href="/">Übersicht</a>
+    <details class="skyhub-nav-group"><summary>Einsatz</summary><div class="skyhub-nav-menu">
+      <a href="/drc.html">Live-Steuerung Matrice 4</a>
+      <a href="/drc.html?rc=pro">Kamera Mavic 3 (RC Pro)</a>
+      <a href="/missionsfreigabe.html">Missionsfreigabe</a>
+      <a href="/kartenelemente.html">Kartenelemente</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Missionen</summary><div class="skyhub-nav-menu">
+      <a href="/wpml-editor.html">Missionsentwurf</a>
+      <a href="/wpml-route-library.html">Routenbibliothek</a>
+    </div></details>
+    <details class="skyhub-nav-group is-active"><summary>Auswertung</summary><div class="skyhub-nav-menu">
+      <a href="/media-gallery.html">Medien</a>
+      <a href="/thermal.html">Thermal</a>
+      <a href="/ppk.html">PPK-Geotagging</a>
+      <a href="/abdeckung.html" aria-current="page">Fotoabdeckung</a>
+      <a href="/ndvi.html">Vegetationsindizes</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>System</summary><div class="skyhub-nav-menu">
+      <a href="/pilot-protokolle.html">Pilot-2-Protokolle</a>
+      <a href="/fh-diagnostics.html">RTK &amp; Flugsitzungen</a>
+    </div></details>
+    <details class="skyhub-nav-group is-lab"><summary>Labor</summary><div class="skyhub-nav-menu">
+      <a href="/wpml-survey-preview.html">Survey-Vorschau</a>
+      <a href="/smart-farming.html">Smart Farming</a>
+      <a href="/smart-farming-map-lab.html">Vegetationskarte</a>
+    </div></details>
+  </nav>
+</header>
+<!-- /skyhub-appbar -->
+<header class="skyhub-pagehead mrel-top">
+  <h1>Fotoabdeckung <span class="muted">Lücken und Überlappung eines Flugs</span></h1>
+</header>
+<p class="mrel-note" role="note">Aus Position, Höhe, Gimbal-Winkeln (DJI-XMP) und Brennweite (EXIF) jedes Fotos wird die Bodenfläche berechnet –
+  auch für Schrägaufnahmen. Höhe = Höhe über Start, Gelände nicht berücksichtigt (am Hang ist die Fläche talwärts größer, bergwärts kleiner).
+  Planungshilfe, keine photogrammetrische Qualitätsprüfung. Liest nur Fotoköpfe aus dem Speicher.</p>
+<main id="skyhubMain" tabindex="-1" class="cov-grid">
+  <section class="card" aria-labelledby="h-map">
+    <h2 id="h-map">Karte</h2>
+    <div id="covmap" aria-label="Karte der Fotoabdeckung"></div>
+    <p class="cov-legend" aria-label="Legende">
+      <span class="cov-sw cov-none">keine Abdeckung</span><span class="cov-sw cov-low">unter Mindestanzahl</span><span class="cov-sw cov-ok">ausreichend</span>
+      <span class="cov-sw cov-area">beflogene Fläche</span></p>
+  </section>
+  <section class="card" aria-labelledby="h-run">
+    <h2 id="h-run">Flug</h2>
+    <label>Flug aus dem Speicher <select id="flight"><option value="">wird geladen …</option></select></label>
+    <label>Mindestanzahl Fotos je Bodenpunkt <input id="min" type="number" min="1" max="20" step="1" value="5"></label>
+    <button id="run" type="button" disabled>Abdeckung berechnen</button>
+    <p id="status" class="muted" role="status" aria-live="polite"></p>
+    <dl id="stats" class="cov-stats"></dl>
+    <h3>Größte Lücken</h3>
+    <ol id="gaps"></ol>
+  </section>
+</main>
+<script src="/vendor/leaflet/1.9.4/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="></script>
+<script src="/abdeckung.js"></script>
+</body>
+</html>

@@ -5,9 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>RTK & Flugsitzungen | SkyHub Next</title>
-<link rel="stylesheet" href="/skyhub-light.css">
 <style>
-body{margin:0;padding:1.25rem;max-width:1000px;font:16px system-ui,sans-serif}
+body{margin:0;font:16px system-ui,sans-serif}body>:not(.skyhub-appbar):not(.skyhub-skip-link):not(script){max-width:1000px;margin-left:1.25rem;margin-right:1.25rem}
 header,form{display:flex;gap:1rem;align-items:center;flex-wrap:wrap}
 a{color:inherit}main{display:grid;gap:1rem;padding:1rem 0}
 section{border:1px solid #8894a6;border-radius:12px;padding:1rem}
@@ -15,8 +14,45 @@ table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:.5rem;bo
 input,button{padding:.6rem;border-radius:8px}small{color:#5c6270}
 @media(max-width:600px){table{font-size:.78rem}td,th{padding:.25rem}}
 </style>
-</head><body>
-<header><a href="/">← SkyHub Next</a><h1>RTK &amp; Flugsitzungen</h1><strong>FC0 · Nur Lesen</strong></header>
+<link rel="stylesheet" href="/skyhub-light.css">
+<script defer src="/skyhub-nav.js"></script>
+</head><body data-skyhub-page="fh-diagnostics">
+<a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
+<!-- skyhub-appbar -->
+<header class="skyhub-appbar">
+  <a class="skyhub-appbar-brand" href="/"><span class="brand-symbol" aria-hidden="true">✦</span>SkyHub <span>Next</span></a>
+  <nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
+    <a href="/">Übersicht</a>
+    <details class="skyhub-nav-group"><summary>Einsatz</summary><div class="skyhub-nav-menu">
+      <a href="/drc.html">Live-Steuerung Matrice 4</a>
+      <a href="/drc.html?rc=pro">Kamera Mavic 3 (RC Pro)</a>
+      <a href="/missionsfreigabe.html">Missionsfreigabe</a>
+      <a href="/kartenelemente.html">Kartenelemente</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Missionen</summary><div class="skyhub-nav-menu">
+      <a href="/wpml-editor.html">Missionsentwurf</a>
+      <a href="/wpml-route-library.html">Routenbibliothek</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Auswertung</summary><div class="skyhub-nav-menu">
+      <a href="/media-gallery.html">Medien</a>
+      <a href="/thermal.html">Thermal</a>
+      <a href="/ppk.html">PPK-Geotagging</a>
+      <a href="/abdeckung.html">Fotoabdeckung</a>
+      <a href="/ndvi.html">Vegetationsindizes</a>
+    </div></details>
+    <details class="skyhub-nav-group is-active"><summary>System</summary><div class="skyhub-nav-menu">
+      <a href="/pilot-protokolle.html">Pilot-2-Protokolle</a>
+      <a href="/fh-diagnostics.html" aria-current="page">RTK &amp; Flugsitzungen</a>
+    </div></details>
+    <details class="skyhub-nav-group is-lab"><summary>Labor</summary><div class="skyhub-nav-menu">
+      <a href="/wpml-survey-preview.html">Survey-Vorschau</a>
+      <a href="/smart-farming.html">Smart Farming</a>
+      <a href="/smart-farming-map-lab.html">Vegetationskarte</a>
+    </div></details>
+  </nav>
+</header>
+<!-- /skyhub-appbar -->
+<header class="skyhub-pagehead"><h1>RTK &amp; Flugsitzungen</h1><strong>FC0 · Nur Lesen</strong></header>
 <p>Diagnose aus akzeptierten DJI-Meldungen. Ein RTK-Fix ist keine Freigabe für einen Flug. Die Sitzungen sind nur flüchtige Beobachtungen.</p>
 <form id="authForm">
 <label for="token">View-Token (nur Arbeitsspeicher)</label>
@@ -25,7 +61,7 @@ input,button{padding:.6rem;border-radius:8px}small{color:#5c6270}
 <button id="clear" type="button">Zugang löschen</button>
 </form>
 <p id="status" role="status" aria-live="polite">Noch keine Daten geladen.</p>
-<main>
+<main id="skyhubMain" tabindex="-1">
 <section><h2>RTK-Status</h2><div id="rtk">Keine Daten.</div></section>
 <section><h2>Aktive Flugsitzungen</h2><div id="flights">Keine Daten.</div></section>
 <section><h2>Letzte Übergänge</h2><div id="events">Keine Daten.</div></section>

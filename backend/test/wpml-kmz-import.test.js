@@ -189,3 +189,58 @@ test('editor wires KMZ upload and MinIO library without DJI dispatch paths',()=>
   for(const code of [editor,client])
     assert.doesNotMatch(code,/localStorage|sessionStorage|document\.cookie/,'the access token is never persisted');
 });
+
+// Synthetic mapping route as DJI Pilot 2 (RC Plus 2, Matrice 4T, WPML 1.0.6) writes it; coordinates are invented.
+const MAPPING_TEMPLATE=`<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:wpml="http://www.dji.com/wpmz/1.0.6">
+  <Document>
+    <wpml:missionConfig>
+      <wpml:flyToWaylineMode>safely</wpml:flyToWaylineMode><wpml:finishAction>goHome</wpml:finishAction>
+      <wpml:exitOnRCLost>executeLostAction</wpml:exitOnRCLost><wpml:executeRCLostAction>goBack</wpml:executeRCLostAction>
+      <wpml:takeOffSecurityHeight>40</wpml:takeOffSecurityHeight><wpml:globalTransitionalSpeed>15</wpml:globalTransitionalSpeed>
+      <wpml:droneInfo><wpml:droneEnumValue>99</wpml:droneEnumValue><wpml:droneSubEnumValue>1</wpml:droneSubEnumValue></wpml:droneInfo>
+      <wpml:payloadInfo><wpml:payloadEnumValue>89</wpml:payloadEnumValue><wpml:payloadSubEnumValue>0</wpml:payloadSubEnumValue><wpml:payloadPositionIndex>0</wpml:payloadPositionIndex></wpml:payloadInfo>
+    </wpml:missionConfig>
+    <Folder>
+      <wpml:templateType>mapping2d</wpml:templateType><wpml:templateId>0</wpml:templateId>
+      <wpml:waylineCoordinateSysParam><wpml:coordinateMode>WGS84</wpml:coordinateMode><wpml:heightMode>relativeToStartPoint</wpml:heightMode>
+        <wpml:globalShootHeight>70</wpml:globalShootHeight><wpml:surfaceFollowModeEnable>1</wpml:surfaceFollowModeEnable></wpml:waylineCoordinateSysParam>
+      <wpml:autoFlightSpeed>10</wpml:autoFlightSpeed>
+      <Placemark>
+        <wpml:smartObliqueEnable>1</wpml:smartObliqueEnable><wpml:shootType>time</wpml:shootType><wpml:direction>112</wpml:direction>
+        <wpml:overlap><wpml:orthoCameraOverlapH>80</wpml:orthoCameraOverlapH><wpml:orthoCameraOverlapW>70</wpml:orthoCameraOverlapW></wpml:overlap>
+        <Polygon><outerBoundaryIs><LinearRing><coordinates>
+          8.600000,49.100000,0 8.601000,49.100000,0 8.601000,49.101000,0 8.600000,49.101000,0 8.600000,49.100000,0
+        </coordinates></LinearRing></outerBoundaryIs></Polygon>
+        <wpml:height>70</wpml:height>
+      </Placemark>
+    </Folder>
+  </Document>
+</kml>`;
+const MAPPING_WAYLINES=`<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:wpml="http://www.dji.com/wpmz/1.0.6">
+  <Document><Folder>
+    <Placemark><Point><coordinates>8.600100,49.100100</coordinates></Point><wpml:index>0</wpml:index></Placemark>
+    <Placemark><Point><coordinates>8.600900,49.100100</coordinates></Point><wpml:index>1</wpml:index></Placemark>
+    <Placemark><Point><coordinates>8.600900,49.100900</coordinates></Point><wpml:index>2</wpml:index></Placemark>
+  </Folder></Document>
+</kml>`;
+
+test('mapping routes: import refuses with templateType, preview shows area, flight lines and figures read-only',async()=>{
+  const bytes=zip([['wpmz/template.kml',MAPPING_TEMPLATE],['wpmz/waylines.wpml',MAPPING_WAYLINES]]);
+  await assert.rejects(importer.importKmz(bytes,{fileName:'x.kmz',models}),e=>e.templateType==='mapping2d'&&/keine Wegpunktmission/.test(e.message));
+  const p=await importer.previewKmz(bytes,{fileName:'Michaels_berg.v2.kmz',models});
+  assert.equal(p.kind,'mapping');assert.equal(p.label,'Flächenkartierung (2D)');assert.equal(p.wpmlVersion,'1.0.6');
+  assert.equal(p.flightReady,false);
+  assert.equal(p.name,'Michaels berg v2','DJI name rule (no _ .)');
+  assert.equal(p.area.length,4,'closing point removed');assert.equal(p.path.length,3);
+  // 0.001° x 0.001° at 49.1° N ≈ 72.9 m x 111.2 m ≈ 0.81 ha
+  assert.ok(Math.abs(p.stats.areaM2-8100)<150,String(p.stats.areaM2));
+  assert.ok(Math.abs(p.stats.lengthM-(58+89))<5,String(p.stats.lengthM));
+  assert.deepEqual([p.stats.shootHeightM,p.stats.terrainFollow,p.stats.overlapH,p.stats.overlapW,p.stats.direction,p.stats.smartOblique,p.stats.speedMs],
+    [70,true,80,70,112,true,10]);
+  assert.match(p.aircraft,/Matrice 4T|drone 99\/1/);
+  // Waypoint routes are not previewed as mapping; broken coordinates fail clearly.
+  await assert.rejects(importer.previewKmz(zip([['wpmz/template.kml',MAPPING_TEMPLATE.replace('mapping2d','waypoint')]]),{models}),/keine Kartierungs/);
+  await assert.rejects(importer.previewKmz(zip([['wpmz/template.kml',MAPPING_TEMPLATE.replace('8.601000,49.100000,0','8.601,99,0')]]),{models}),/außerhalb/);
+});

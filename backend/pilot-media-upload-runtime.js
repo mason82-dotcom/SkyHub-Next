@@ -68,7 +68,9 @@ function createPilotMediaUploadRuntime({env,pool,redis,authorize,storage,pilot,t
     endpoint:issuer.config.endpoint,
     start(){if(!server)server=proxy.listen(proxyPort);return server;},
     stop(){if(server){server.close();server=null;}},
-    stats:()=>({...stats,proxy:proxy.stats()})
+    stats:()=>({...stats,proxy:proxy.stats()}),
+    // STS scope + HEAD evidence check, shared with the Pilot 2 wayline import (pilot-wayline-import.js).
+    grants:Object.freeze({verifyGrantedObject:args=>store.verifyGrantedObject(args)})
   };
 }
 

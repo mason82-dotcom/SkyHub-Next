@@ -1,7 +1,7 @@
 'use strict';
 // DJI Pilot 2 livestream relay (opt-in). Expects H.264 (+AAC) from Pilot 2; browsers play it via hls.js/MSE. Pilot 2's liveshare module publishes RTMP to a local
 // MediaMTX (Compose profile "live"); the pilot starts and stops the stream on the RC
-// ("video-by-manual"). SkyHub never sends a live_start_push or any other MQTT service.
+// ("video-by-manual"); with SKYHUB_LIVE_CONTROL_ENABLED SkyHub may also request it (live-control.js, live_start_push).
 // The dashboard reads HLS through this backend: MediaMTX stays on the internal Docker network,
 // its read credentials never reach the browser, and only the single path "pilot" is exposed.
 const express=require('express');
@@ -46,10 +46,12 @@ function liveStreamSettings(env){
 }
 
 // Handed to Pilot 2 only inside the authenticated HTTPS bootstrap (like the MQTT credentials).
-function pilotLiveConfig(settings){
+// onDemand (live-control.js active): video-demand-aux-manual = SkyHub may request the stream (live_start_push), the pilot can
+// still change or stop it on the RC (jsbridge liveshare videoPublishType).
+function pilotLiveConfig(settings,{onDemand=false}={}){
   if(!settings.enabled)return null;
   return {rtmpUrl:settings.rtmpOrigin+'/'+PATH+'?user='+PUBLISH_USER+'&pass='+settings.publishPass,
-    publishType:'video-by-manual'};
+    publishType:onDemand?'video-demand-aux-manual':'video-by-manual'};
 }
 
 function createLiveStreamRouter({settings,fetchImpl=globalThis.fetch,timeoutMs=8000}){

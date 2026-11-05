@@ -102,6 +102,8 @@ function summarize(validation){
     // Integrated cameras: payloadSubEnumValue defaults to 0 as in the DJI sample.
     payloadModelKeys:payloadType===null?[]:['1-'+payloadType+'-0'],
     templateTypes,
+    // Template names as written (e.g. Pilot 2's mappingCylinder, which has no number in DJI's wayline list enum 0–3).
+    templateNames:[...new Set((validation.templates||[]).map(t=>String(t.templateType||'')).filter(n=>/^[A-Za-z0-9]{1,32}$/.test(n)))],
     waylineCount:(validation.waylines||[]).length,
     waypointCount:(validation.waylines||[]).reduce((n,w)=>n+(Number(w.waypointCount)||0),0),
     warningCount:(validation.warnings||[]).length,
@@ -122,6 +124,7 @@ function fromMetadata(id,head){
     templateTypes:(m['template-types']||'').split(',').filter(t=>/^[0-3]$/.test(t)).map(Number),
     aircraft:dec(m.aircraft),
     username:dec(m['user-name']),
+    origin:m.origin==='pilot2'?'pilot2':null,
     wpmlVersion:/^1\.0\.\d$/.test(m['wpml-version']||'')?m['wpml-version']:null,
     waypointCount:n(m['waypoint-count']),
     createTime:n(m['create-time'])??(head.LastModified?.getTime?.()||null),
@@ -240,7 +243,7 @@ function createWpmlMissionStore({env=process.env,client,now=()=>new Date(),cache
     const wanted=new Set(names.map(n=>String(n)));
     return [...new Set((await catalog({fresh:true})).map(w=>w.name).filter(n=>wanted.has(n)))];
   }
-  function put(buffer,{name,username,parentId}={}){
+  function put(buffer,{name,username,parentId,origin}={}){
     if(!Buffer.isBuffer(buffer)||buffer.length<22)return Promise.reject(httpError(400,'KMZ body required'));
     if(buffer.length>MAX_KMZ)return Promise.reject(httpError(413,'KMZ exceeds 12 MiB'));
     let missionName;
@@ -250,7 +253,7 @@ function createWpmlMissionStore({env=process.env,client,now=()=>new Date(),cache
       return Promise.reject(httpError(400,'Invalid parent wayline id'));
     return serialized(async()=>{
       let validation;
-      try{validation=inspectKmz(buffer);}
+      try{validation=inspectKmz(buffer,{cameraDecides:origin==='pilot2'});}
       catch(err){throw httpError(422,'KMZ archive rejected',{errors:[{path:'kmz',
         message:String(err.message||'invalid archive').slice(0,160)}]});}
       if(!validation.valid){
@@ -260,7 +263,8 @@ function createWpmlMissionStore({env=process.env,client,now=()=>new Date(),cache
         });
       }
       const summary=summarize(validation);
-      if(!summary.droneModelKey||!summary.payloadModelKeys.length||!summary.templateTypes.length)
+      // A template is required; its number only where DJI defines one (template_types then stays empty for e.g. mappingCylinder).
+      if(!summary.droneModelKey||!summary.payloadModelKeys.length||!summary.templateNames.length)
         throw httpError(422,'KMZ lacks DJI drone, payload or template type information');
       const sha256=crypto.createHash('sha256').update(buffer).digest('hex');
       const id=waylineId(sha256);
@@ -287,6 +291,7 @@ function createWpmlMissionStore({env=process.env,client,now=()=>new Date(),cache
         'drone-model-key':summary.droneModelKey,
         'payload-model-keys':summary.payloadModelKeys.join(','),
         'template-types':summary.templateTypes.join(','),
+        'template-names':summary.templateNames.join(','),
         aircraft:summary.aircraft?enc(summary.aircraft):'',
         'user-name':typeof username==='string'&&username?enc(username.slice(0,64)):'',
         'wpml-version':summary.wpmlVersion||'',
@@ -295,7 +300,8 @@ function createWpmlMissionStore({env=process.env,client,now=()=>new Date(),cache
         // Immutable, S3-native ancestry. Root is inherited only from a validated parent.
         ...(parent?{'parent-id':parent.id,'root-id':parent.rootId,
           generation:String(parent.generation+1)}:{}),
-        'flight-ready':'false'
+        'flight-ready':'false',
+        ...(origin==='pilot2'?{origin:'pilot2'}:{})
       };
       let created=true;
       try{

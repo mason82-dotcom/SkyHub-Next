@@ -269,7 +269,12 @@
     if(folders.length!==1)fail('genau ein Template-Folder erwartet, gefunden: '+folders.length+'.');
     const folder=folders[0];
     const type=text(folder,'templateType');
-    if(type!=='waypoint')fail('Template-Typ „'+(type||'?')+'“ ist keine Wegpunktmission (Mapping/Korridor nicht editierbar).');
+    if(type!=='waypoint'){
+      // Mapping/corridor routes cannot be edited; the editor offers a read-only preview (previewMapping) instead.
+      const error=new TypeError('KMZ-Import: Template-Typ „'+(type||'?')+'“ ist keine Wegpunktmission (Mapping/Korridor nicht editierbar).');
+      error.templateType=type||null;
+      throw error;
+    }
     const coord=one(folder,'wpml:waylineCoordinateSysParam');
     const heightMode=coord?text(coord,'heightMode'):'';
     if(heightMode!=='relativeToStartPoint')
@@ -387,6 +392,91 @@
       notes:Object.freeze(notes),flightReady:false
     });
   }
+  // --- Read-only preview of mapping / oblique / corridor routes (DJI WPML template.kml + waylines.wpml) -----------------
+  // Shows what Pilot 2 will fly; nothing is converted, edited or exported. Coordinates in KML order lon,lat[,alt].
+  const MAPPING=Object.freeze({mapping2d:'Flächenkartierung (2D)',mapping3d:'Schrägaufnahme (3D)',mappingStrip:'Korridor'});
+  function coordList(raw,label,max=20000){
+    const tokens=String(raw||'').trim().split(/\s+/).filter(Boolean);
+    if(tokens.length>max)fail(label+': zu viele Koordinaten.');
+    return tokens.map((t,i)=>{
+      const parts=t.split(',');
+      if(parts.length<2||parts.length>3)fail(label+' '+(i+1)+': Koordinate ungültig.');
+      const lon=number(parts[0],label+' Längengrad'),lat=number(parts[1],label+' Breitengrad');
+      if(lat<-90||lat>90||lon<-180||lon>180)fail(label+': Koordinate außerhalb WGS84.');
+      return {lat:round7(lat),lon:round7(lon)};
+    });
+  }
+  const RAD=Math.PI/180,R=6371008.8;
+  function haversine(a,b){
+    const dLat=(b.lat-a.lat)*RAD,dLon=(b.lon-a.lon)*RAD;
+    const h=Math.sin(dLat/2)**2+Math.cos(a.lat*RAD)*Math.cos(b.lat*RAD)*Math.sin(dLon/2)**2;
+    return 2*R*Math.asin(Math.min(1,Math.sqrt(h)));
+  }
+  const pathLength=list=>list.slice(1).reduce((sum,p,i)=>sum+haversine(list[i],p),0);
+  // Polygon area on a local equirectangular projection (accurate enough for fields of a few km).
+  function polygonArea(ring){
+    if(ring.length<3)return 0;
+    const lat0=ring.reduce((s,p)=>s+p.lat,0)/ring.length*RAD;
+    const xy=ring.map(p=>[p.lon*RAD*R*Math.cos(lat0),p.lat*RAD*R]);
+    let a=0;for(let i=0;i<xy.length;i++){const [x1,y1]=xy[i],[x2,y2]=xy[(i+1)%xy.length];a+=x1*y2-x2*y1;}
+    return Math.abs(a)/2;
+  }
+  function previewMapping({template,waylines=null,fileName='',models}={}){
+    const parsed=parseXml(template);
+    const documentNode=one(parsed.root,'Document');
+    if(!documentNode)fail('KML-Document fehlt.');
+    const config=one(documentNode,'wpml:missionConfig');
+    if(!config)fail('missionConfig fehlt.');
+    const folders=kids(documentNode,'Folder');
+    if(folders.length!==1)fail('genau ein Template-Folder erwartet, gefunden: '+folders.length+'.');
+    const folder=folders[0],type=text(folder,'templateType');
+    if(!Object.hasOwn(MAPPING,type))fail('Template-Typ „'+(type||'?')+'“ ist keine Kartierungs- oder Korridormission.');
+    const drone=one(config,'wpml:droneInfo'),payload=one(config,'wpml:payloadInfo');
+    const droneEnum=drone?text(drone,'droneEnumValue'):'',droneSub=drone?text(drone,'droneSubEnumValue')||'0':'';
+    const payloadEnum=payload?text(payload,'payloadEnumValue'):'';
+    const modelKey=models&&Object.keys(models).find(k=>String(models[k].drone)===droneEnum&&String(models[k].subtype)===droneSub);
+    const placemark=one(folder,'Placemark');
+    const polygon=placemark?one(one(one(one(placemark,'Polygon'),'outerBoundaryIs'),'LinearRing'),'coordinates'):null;
+    const lineString=placemark?one(one(placemark,'LineString'),'coordinates'):null;
+    let area=polygon?coordList(polygon.text,'Fläche'):[];
+    if(area.length>1&&area[0].lat===area.at(-1).lat&&area[0].lon===area.at(-1).lon)area=area.slice(0,-1);
+    const corridor=lineString?coordList(lineString.text,'Korridor'):[];
+    const coord=one(folder,'wpml:waylineCoordinateSysParam');
+    const overlap=placemark?one(placemark,'wpml:overlap'):null;
+    const optional=(node,name)=>{if(!node)return null;const raw=text(node,name);return raw===''?null:number(raw,name);};
+    // Flown path: the executable waylines.wpml (all Folders, waypoints in order).
+    const path=[];
+    if(waylines){
+      const wdoc=one(parseXml(waylines).root,'Document');
+      for(const wfolder of kids(wdoc,'Folder'))for(const pm of kids(wfolder,'Placemark'))path.push(coordinates(pm,'Fluglinie'));
+    }
+    const speed=optional(folder,'autoFlightSpeed');
+    const lengthM=Math.round(pathLength(path));
+    const shootHeight=optional(coord,'globalShootHeight')??optional(placemark,'height')??optional(coord,'surfaceRelativeHeight');
+    return Object.freeze({
+      // DJI wayline names allow no . _ : etc. (store rule); clean the file name so "Original ablegen" works as is.
+      kind:'mapping',templateType:type,label:MAPPING[type],wpmlVersion:parsed.version,
+      name:sanitizeName(fileName).replace(/[<>:"/|?*._\\]+/g,' ').replace(/\s+/g,' ').trim().slice(0,64).trim()||'Kartierungsroute',
+      aircraft:modelKey?models[modelKey].name:'drone '+(droneEnum||'?')+'/'+(droneSub||'?'),payloadEnum:payloadEnum||null,
+      area:Object.freeze(area),corridor:Object.freeze(corridor),path:Object.freeze(path),
+      stats:Object.freeze({
+        areaM2:Math.round(polygonArea(area)),corridorM:Math.round(pathLength(corridor)),
+        waypoints:path.length,lengthM,speedMs:speed,
+        durationMin:speed&&lengthM?Math.round(lengthM/speed/6)/10:null,
+        shootHeightM:shootHeight,heightMode:coord?text(coord,'heightMode')||null:null,
+        terrainFollow:optional(coord,'surfaceFollowModeEnable')===1,
+        overlapH:optional(overlap,'orthoCameraOverlapH'),overlapW:optional(overlap,'orthoCameraOverlapW'),
+        direction:optional(placemark,'direction'),smartOblique:optional(placemark,'smartObliqueEnable')===1,
+        shootType:placemark?text(placemark,'shootType')||null:null,
+        finishAction:text(config,'finishAction')||null,rcLost:text(config,'executeRCLostAction')||text(config,'exitOnRCLost')||null
+      }),
+      flightReady:false
+    });
+  }
+  async function previewKmz(bytes,{fileName,models}={}){
+    const docs=await readKmz(bytes);
+    return previewMapping({template:docs.template,waylines:docs.waylines,fileName,models});
+  }
   async function importKmz(bytes,{fileName,models}={}){
     const docs=await readKmz(bytes);
     const result=convert({template:docs.template,waylines:docs.waylines,fileName,models});
@@ -395,5 +485,5 @@
         docs.resourceCount+' Ressourcendatei(en) unter wpmz/res/ werden nicht übernommen.'])});
     return result;
   }
-  return Object.freeze({readKmz,parseXml,convert,importKmz,crc32});
+  return Object.freeze({readKmz,parseXml,convert,importKmz,previewMapping,previewKmz,MAPPING,crc32});
 });

@@ -55,10 +55,26 @@ test('tokenfree GET only accesses exact mission-store paths',()=>{
   // Existing read-only LAN exemptions (e.g. drone telemetry) remain intact.
   assert.deepEqual(request(handler,{method:'GET',path:'/drone/a/telemetry'}),{granted:true,status:0});
   for(const path of ['/wpml/missions','/wpml/missions/','/wpml/missions/status',
-    '/wpml/missions/'+UUID,'/wpml/missions/'+UUID+'/kmz'])
+    '/wpml/missions/'+UUID,'/wpml/missions/'+UUID+'/kmz','/wpml/release','/wpml/release/config','/wpml/release/'+UUID])
     assert.deepEqual(request(handler,{method:'GET',path}),{granted:true,status:0},path);
+  // Decision 04.11.2026: release/revoke and live-control commands work token-free from the home LAN, but only with the
+  // browser same-origin proof; without it (or cross-site, wrong host, outside the LAN) they stay closed.
+  for(const [method,path] of [['POST','/wpml/release/'+UUID+'/release'],['DELETE','/wpml/release/'+UUID+'/release'],
+    ['POST','/drc/auth/request'],['POST','/drc/payload/zoom'],['POST','/drc/payload/photo_take'],['POST','/drc/payload/ir_metering_mode'],
+    ['POST','/drc/payload/look-at'],['POST','/drc/emergency-stop'],['POST','/drc/return-home/cancel'],['GET','/drc/status']]){
+    assert.deepEqual(request(handler,{method,path}),{granted:true,status:0},method+' '+path);
+    if(method!=='GET'){
+      assert.deepEqual(request(handler,{method,path,headers:{origin:undefined}}),{granted:false,status:401},'no origin '+path);
+      assert.deepEqual(request(handler,{method,path,headers:{'sec-fetch-site':'cross-site'}}),{granted:false,status:401},'cross-site '+path);
+      assert.deepEqual(request(handler,{method,path,headers:{'x-forwarded-for':'100.64.0.7'}}),{granted:false,status:401},'tailscale '+path);
+    }
+  }
+  for(const [method,path] of [['PUT','/wpml/release/'+UUID+'/release'],['DELETE','/wpml/missions'],['POST','/drc/../pilot-admin'],
+    ['POST','/pilot-admin/pairings'],['POST','/wpml/release/'+UUID],['DELETE','/drc/release'],['POST','/drc/config/reset'],
+    ['POST','/drc/payload/Photo'],['POST','/drc/payload/a/b']])
+    assert.deepEqual(request(handler,{method,path}),{granted:false,status:401},method+' '+path);
   for(const path of ['/drone/a/not-allowed','/wpml/missions/a/../b',
-    '/wpml/missions/x/extra','/wpml/missions/status/more','/pilot-admin/pairings'])
+    '/wpml/missions/x/extra','/wpml/missions/status/more','/pilot-admin/pairings','/wpml/release/x','/wpml/release/'+UUID+'/release'])
     assert.deepEqual(request(handler,{method:'GET',path}),{granted:false,status:401},path);
 });
 test('explicit valid token is accepted irrespective of the LAN no-token flag',()=>{
