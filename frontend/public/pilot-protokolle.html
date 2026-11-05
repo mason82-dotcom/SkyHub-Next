@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SkyHub · Pilot-2-Protokolle</title>
+<link rel="stylesheet" href="/skyhub-light.css">
+<link rel="stylesheet" href="/missionsfreigabe.css">
+<style>
+.log-grid{display:grid;grid-template-columns:minmax(240px,1fr) minmax(0,3fr);gap:16px}
+@media(max-width:880px){.log-grid{grid-template-columns:1fr}}
+.log-list{list-style:none;padding:0;margin:0}
+.log-list li{border-top:1px solid var(--sky-border,#d0d7de);padding:6px 0}
+.log-list button{width:100%;text-align:left}
+.log-list button[aria-current="true"]{outline:3px solid var(--sky-primary,#1f6feb)}
+#logText{font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;overflow-wrap:anywhere;max-height:70vh;overflow:auto;
+  background:var(--sky-muted-bg,#f6f8fa);border:1px solid var(--sky-border,#d0d7de);border-radius:6px;padding:8px;margin:8px 0}
+#logText .n{color:var(--sky-muted,#57606a);user-select:none;display:inline-block;min-width:5ch;text-align:right;margin-right:1ch}
+#logText .e{color:#b3261e}#logText .w{color:#9a6700}
+.log-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:end}
+</style>
+</head>
+<body class="mrel">
+<header class="mrel-top">
+  <h1>Pilot-2-Protokolle <span class="muted">von der Fernsteuerung gesendet, in SkyHub entschlüsselt</span></h1>
+  <nav><a href="/">Übersicht</a></nav>
+</header>
+<p class="mrel-note" role="note">Senden: in Pilot 2 auf der SkyHub-Seite „Pilot-2-Protokoll an SkyHub senden“. Entschlüsselung nach DJIs Verfahren
+  (PlogDecoder). Protokolle bleiben 30 Tage gespeichert.</p>
+<main class="log-grid">
+  <section class="card" aria-labelledby="h-list"><h2 id="h-list">Eingegangen</h2><ul id="list" class="log-list"><li class="muted">Wird geladen …</li></ul></section>
+  <section class="card" aria-labelledby="h-view">
+    <h2 id="h-view">Inhalt</h2>
+    <div class="log-tools">
+      <label>Suchen <input id="q" type="search" placeholder="z. B. error, 310013, mqtt"></label>
+      <button id="prev" type="button" class="secondary" disabled>Zurück</button>
+      <button id="next" type="button" class="secondary" disabled>Weiter</button>
+      <a id="download" href="#" hidden>Als Text herunterladen</a>
+      <button id="del" type="button" class="secondary" disabled>Löschen</button>
+    </div>
+    <p id="state" class="muted" role="status" aria-live="polite">Protokoll links wählen.</p>
+    <div id="logText" tabindex="0" aria-label="Protokollinhalt"></div>
+  </section>
+</main>
+<script src="/pilot-protokolle.js"></script>
+</body>
+</html>

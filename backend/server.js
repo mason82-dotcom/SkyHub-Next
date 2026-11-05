@@ -32,6 +32,7 @@ const {releaseConfig,createReleaseStore,pilotLibrary,createMissionReleaseRouter}
 const {drcConfig,createDrcRuntime}=require('./drc-runtime');
 const {liveControlConfig,createLiveControl}=require('./live-control');
 const {createMapElementWriter,createMapElementRouter}=require('./map-element-write');
+const {createPilotLogStore,createPilotLogRouter}=require('./pilot-log');
 const {createDjiWaylineRouter,createRedisFavorites,UPLOAD_DISABLED_CODE}=require('./dji-wayline-http');
 let pilotWaylineImport=null;
 const {createPilotWaylineImport,ImportError}=require('./pilot-wayline-import');
@@ -198,10 +199,11 @@ let mapWriter=null;
 if(process.env.SKYHUB_DJI_MAP_ELEMENTS_ENABLED==='true'&&process.env.SKYHUB_DJI_MAP_WRITES_ENABLED==='true'&&pool&&pilot.ready){
   mapWriter=createMapElementWriter({pool,workspaceId:pilot.workspaceId,publish:msg=>{if(tsaHub)tsaHub.publish(msg);}});
   mapWriter.ensureGroup().catch(err=>console.error('[map elements] shared group:',err.message));
-  app.use('/api/map-elements',createMapElementRouter({express,writer:mapWriter}));
   console.log('[map elements] write path active (SkyHub page + Pilot 2)');
 }
-registerPilotRoutes(app,{pilot:pilotWithLive,pairing,redis,registry,pool,ack,pilotAuth,mapWriter});
+// Pilot 2 logs (pull-pilot-log): upload from the RC, viewer in the home LAN; PostgreSQL, 30 days.
+const pilotLogs=pool?createPilotLogStore(pool):null;
+registerPilotRoutes(app,{pilot:pilotWithLive,pairing,redis,registry,pool,ack,pilotAuth,mapWriter,pilotLogs});
 if(tsaHub){
   app.get('/manage/api/v1/workspaces/:workspaceId/devices/topologies',createTopologyListHandler({
     registry,workspaceId:pilot.workspaceId,authorize:pilotAuth.principal,
@@ -235,6 +237,9 @@ app.post('/api/adapters/msdk/observe',createFhMsdkObserve({
  token:process.env.SKYHUB_FH_MSDK_OBSERVER_TOKEN||''
 }));
 app.use('/api',auth);
+// Mounted AFTER the SkyHub access check (home-LAN rules or token); only Pilot 2's own endpoints sit before it.
+if(mapWriter)app.use('/api/map-elements',createMapElementRouter({express,writer:mapWriter}));
+if(pilotLogs)app.use('/api/pilot-logs',createPilotLogRouter({express,store:pilotLogs}));
 
 // Disabled by default; authenticated bounded M3M candidate metadata only.
 // No public LAN exception, no pixel delivery, no GIS tiles and no DJI actions.

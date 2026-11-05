@@ -18,6 +18,7 @@ const lanReadPatterns=[
   /^\/live\/control\/?$/,
   /^\/map-elements\/?$/,
   /^\/coverage\/flights$/,
+  /^\/pilot-logs(\/[0-9a-f-]{36}\/text)?\/?$/,
   /^\/smart-farming\/captures(\/manifest)?\/?$/,
   /^\/live\/status$/,
   /^\/live\/hls\/pilot\/[A-Za-z0-9_-]{1,96}\.(m3u8|mp4)$/

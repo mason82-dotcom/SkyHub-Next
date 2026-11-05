@@ -426,6 +426,7 @@
     const config=await response.json();
     sessionToken=token;
     lastConfig=config;
+    showLogPanel();
     if(bridgeBoolean('platformIsVerified')!==true){
       status('Prüfe DJI Cloud API Lizenz ...');
       invoke('platformVerifyLicense',config.appId,config.appKey,config.license);
@@ -550,6 +551,27 @@
       else await startPairing();
     }catch(e){el('headline').textContent='Backend nicht bereit';status(e.message);}
   }
+  // Pilot 2 log (pull-pilot-log): show where Pilot 2 keeps its logs, upload one file with the device token.
+  // SkyHub sets no own encryption key (platformSetLogEncryptKey): the logs keep DJI's default key and SkyHub decrypts them.
+  function showLogPanel(){
+    if(!el('logPanel')||!sessionToken)return;
+    el('logPanel').hidden=false;
+    let p='';try{p=String(window.djiBridge.platformGetLogPath()||'');}catch(_){p='';}
+    el('logPath').textContent=p?'Protokollordner in Pilot 2: '+p.slice(0,200):'Protokollordner von Pilot 2 nicht verfügbar.';
+  }
+  if(el('logFile'))el('logFile').addEventListener('change',()=>{el('logSend').disabled=!el('logFile').files.length;});
+  if(el('logSend'))el('logSend').addEventListener('click',async()=>{
+    const f=el('logFile').files[0];
+    if(!f||!sessionToken)return;
+    if(f.size>32*1024*1024){el('logState').textContent='Datei größer als 32 MB.';return;}
+    el('logSend').disabled=true;el('logState').textContent='Wird gesendet …';
+    try{
+      const r=await fetch('/api/pilot/logs',{method:'POST',cache:'no-store',headers:{'Authorization':'Bearer '+sessionToken,
+        'Content-Type':'application/octet-stream','X-Log-Name':f.name.replace(/[^\w.\- ()]/g,'_').slice(0,120)},body:f});
+      el('logState').textContent=r.status===201?'Gesendet. In SkyHub unter „Pilot-Protokolle“ ansehen.':'Senden fehlgeschlagen (HTTP '+r.status+').';
+    }catch(_){el('logState').textContent='Senden fehlgeschlagen (Netzwerk).';}
+    finally{el('logSend').disabled=!el('logFile').files.length;}
+  });
   el('retry').addEventListener('click',retryMqtt);
   if(el('liveStart'))el('liveStart').addEventListener('click',startLive);
   if(el('liveStop'))el('liveStop').addEventListener('click',stopLive);
