@@ -12,10 +12,8 @@ body{font:15px/1.55 system-ui,-apple-system,sans-serif;margin:0;color:#ecf5fd;ba
 a{color:#a3ebff}
 :focus-visible{outline:2px solid #a3ebff;outline-offset:3px}
 [hidden]{display:none!important}
-header{border-bottom:1px solid var(--line);padding:18px clamp(16px,4vw,44px);display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
-header h1{font-size:clamp(21px,3vw,29px);margin:0}
-nav{display:flex;gap:16px;flex-wrap:wrap}
-nav a{font-weight:600}
+header.skyhub-pagehead{border-bottom:1px solid var(--line);padding:18px clamp(16px,4vw,44px);display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+header.skyhub-pagehead h1{font-size:clamp(21px,3vw,29px);margin:0}
 main{max-width:1220px;margin:0 auto;padding:22px clamp(16px,4vw,44px) 80px}
 .intro{max-width:75ch;color:var(--muted)}
 .tag{display:inline-block;color:#fde2a9;border:1px solid #735c37;border-radius:100px;padding:3px 10px;font-size:12px;margin-bottom:8px}
@@ -58,26 +56,52 @@ small{color:var(--muted)}
 .capture-table{width:100%;border-collapse:collapse;font-size:13px}
 .capture-table th,.capture-table td{text-align:left;padding:4px 6px;border-bottom:1px solid var(--sky-border,#334c63)}
 .capture-issues{margin:0;padding-left:18px;font-size:13px;color:var(--sky-warning,#ffbeae)}
-@media(max-width:800px){.layout{grid-template-columns:1fr}.metric-grid{grid-template-columns:1fr}header{align-items:flex-start}}
+@media(max-width:800px){.layout{grid-template-columns:1fr}.metric-grid{grid-template-columns:1fr}header.skyhub-pagehead{align-items:flex-start}}
 </style>
 <link rel="stylesheet" href="/skyhub-light.css">
+<script defer src="/skyhub-nav.js"></script>
 </head>
 <body data-skyhub-page="smart-farming">
 <a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
-<header>
+<!-- skyhub-appbar -->
+<header class="skyhub-appbar">
+  <a class="skyhub-appbar-brand" href="/"><span class="brand-symbol" aria-hidden="true">✦</span>SkyHub <span>Next</span></a>
+  <nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
+    <a href="/">Übersicht</a>
+    <details class="skyhub-nav-group"><summary>Einsatz</summary><div class="skyhub-nav-menu">
+      <a href="/drc.html">Live-Steuerung Matrice 4</a>
+      <a href="/drc.html?rc=pro">Kamera Mavic 3 (RC Pro)</a>
+      <a href="/missionsfreigabe.html">Missionsfreigabe</a>
+      <a href="/kartenelemente.html">Kartenelemente</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Missionen</summary><div class="skyhub-nav-menu">
+      <a href="/wpml-editor.html">Missionsentwurf</a>
+      <a href="/wpml-route-library.html">Routenbibliothek</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Auswertung</summary><div class="skyhub-nav-menu">
+      <a href="/media-gallery.html">Medien</a>
+      <a href="/thermal.html">Thermal</a>
+      <a href="/ppk.html">PPK-Geotagging</a>
+      <a href="/abdeckung.html">Fotoabdeckung</a>
+      <a href="/ndvi.html">Vegetationsindizes</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>System</summary><div class="skyhub-nav-menu">
+      <a href="/pilot-protokolle.html">Pilot-2-Protokolle</a>
+      <a href="/fh-diagnostics.html">RTK &amp; Flugsitzungen</a>
+    </div></details>
+    <details class="skyhub-nav-group is-active is-lab"><summary>Labor</summary><div class="skyhub-nav-menu">
+      <a href="/wpml-survey-preview.html">Survey-Vorschau</a>
+      <a href="/smart-farming.html" aria-current="page">Smart Farming</a>
+      <a href="/smart-farming-map-lab.html">Vegetationskarte</a>
+    </div></details>
+  </nav>
+</header>
+<!-- /skyhub-appbar -->
+<header class="skyhub-pagehead">
   <div>
     <span class="tag">Experimentell · Nicht kalibriert</span>
     <h1>SkyHub-Next · Smart Farming</h1>
   </div>
-  <nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
-  <a href="/">Übersicht</a>
-  <a href="/wpml-editor.html">Missionen</a>
-  <a href="/wpml-route-library.html">Routen</a>
-  <a href="/wpml-survey-preview.html">Survey</a>
-  <a href="/smart-farming.html" aria-current="page">Smart Farming</a>
-  <a href="/media-gallery.html">Medien</a>
-  <a href="/thermal.html">Thermal</a>
-</nav>
 </header>
 <main id="skyhubMain" tabindex="-1">
   <p class="intro">Read-only-Übersicht für geprüfte, aber wissenschaftlich noch nicht freigegebene Mavic-3M-Indexkandidaten. Die Katalogschnittstelle ist standardmäßig deaktiviert.</p>

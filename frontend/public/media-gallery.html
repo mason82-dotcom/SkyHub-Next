@@ -6,24 +6,48 @@
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex,nofollow">
 <title>SkyHub Next · Mediengalerie</title>
+<link rel="stylesheet" href="/skyhub-light.css">
 <link rel="stylesheet" href="/media-gallery.css">
 <script defer src="/media-library-model.js"></script>
 <script defer src="/media-gallery-app.js"></script>
+<script defer src="/skyhub-nav.js"></script>
 </head>
 <body data-skyhub-page="media-gallery">
-<a class="skip" href="#skyhubMain">Zum Inhalt springen</a>
-<header class="topbar">
-  <a class="brand" href="/" aria-label="SkyHub Next – Übersicht"><span class="brand-mark">✦</span> SkyHub <span>Next</span></a>
-  <nav class="skyhub-global-nav global-nav" aria-label="SkyHub-Bereiche">
+<a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
+<!-- skyhub-appbar -->
+<header class="skyhub-appbar">
+  <a class="skyhub-appbar-brand" href="/"><span class="brand-symbol" aria-hidden="true">✦</span>SkyHub <span>Next</span></a>
+  <nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
     <a href="/">Übersicht</a>
-    <a href="/wpml-editor.html">Missionen</a>
-    <a href="/wpml-route-library.html">Routen</a>
-    <a href="/wpml-survey-preview.html">Survey</a>
-    <a href="/smart-farming.html">Smart Farming</a>
-    <a href="/media-gallery.html" aria-current="page">Medien</a>
-    <a href="/thermal.html">Thermal</a>
+    <details class="skyhub-nav-group"><summary>Einsatz</summary><div class="skyhub-nav-menu">
+      <a href="/drc.html">Live-Steuerung Matrice 4</a>
+      <a href="/drc.html?rc=pro">Kamera Mavic 3 (RC Pro)</a>
+      <a href="/missionsfreigabe.html">Missionsfreigabe</a>
+      <a href="/kartenelemente.html">Kartenelemente</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Missionen</summary><div class="skyhub-nav-menu">
+      <a href="/wpml-editor.html">Missionsentwurf</a>
+      <a href="/wpml-route-library.html">Routenbibliothek</a>
+    </div></details>
+    <details class="skyhub-nav-group is-active"><summary>Auswertung</summary><div class="skyhub-nav-menu">
+      <a href="/media-gallery.html" aria-current="page">Medien</a>
+      <a href="/thermal.html">Thermal</a>
+      <a href="/ppk.html">PPK-Geotagging</a>
+      <a href="/abdeckung.html">Fotoabdeckung</a>
+      <a href="/ndvi.html">Vegetationsindizes</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>System</summary><div class="skyhub-nav-menu">
+      <a href="/pilot-protokolle.html">Pilot-2-Protokolle</a>
+      <a href="/fh-diagnostics.html">RTK &amp; Flugsitzungen</a>
+    </div></details>
+    <details class="skyhub-nav-group is-lab"><summary>Labor</summary><div class="skyhub-nav-menu">
+      <a href="/wpml-survey-preview.html">Survey-Vorschau</a>
+      <a href="/smart-farming.html">Smart Farming</a>
+      <a href="/smart-farming-map-lab.html">Vegetationskarte</a>
+    </div></details>
   </nav>
 </header>
+<!-- /skyhub-appbar -->
 <main id="skyhubMain" tabindex="-1">
   <div class="hero">
     <div>

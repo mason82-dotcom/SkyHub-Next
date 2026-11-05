@@ -8,7 +8,7 @@
 <title>SkyHub Next · Offline-Routenbibliothek</title>
 <style>
 :root{color-scheme:light;font:14px system-ui;background:#071525;color:#e4f4ff}
-*{box-sizing:border-box}body{margin:0}header{padding:14px 20px;border-bottom:1px solid #38546b}
+*{box-sizing:border-box}body{margin:0}header.skyhub-pagehead{padding:14px 20px;border-bottom:1px solid #38546b}
 h1{font-size:19px;margin:0 0 6px}h2{font-size:16px}h3{font-size:14px}
 main{display:grid;grid-template-columns:minmax(270px,340px) minmax(330px,1fr);gap:16px;padding:16px}
 section{background:#12293e;border:1px solid #36556c;border-radius:12px;padding:16px}
@@ -25,20 +25,46 @@ code{font-size:12px}a{color:#9de5fb}hr{border:0;border-top:1px solid #375b72;mar
 @media(max-width:850px){main{grid-template-columns:1fr}}
 </style>
 <link rel="stylesheet" href="/skyhub-light.css">
+<script defer src="/skyhub-nav.js"></script>
 </head><body data-skyhub-page="routes">
 <a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
-<header>
+<!-- skyhub-appbar -->
+<header class="skyhub-appbar">
+  <a class="skyhub-appbar-brand" href="/"><span class="brand-symbol" aria-hidden="true">✦</span>SkyHub <span>Next</span></a>
+  <nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
+    <a href="/">Übersicht</a>
+    <details class="skyhub-nav-group"><summary>Einsatz</summary><div class="skyhub-nav-menu">
+      <a href="/drc.html">Live-Steuerung Matrice 4</a>
+      <a href="/drc.html?rc=pro">Kamera Mavic 3 (RC Pro)</a>
+      <a href="/missionsfreigabe.html">Missionsfreigabe</a>
+      <a href="/kartenelemente.html">Kartenelemente</a>
+    </div></details>
+    <details class="skyhub-nav-group is-active"><summary>Missionen</summary><div class="skyhub-nav-menu">
+      <a href="/wpml-editor.html">Missionsentwurf</a>
+      <a href="/wpml-route-library.html" aria-current="page">Routenbibliothek</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Auswertung</summary><div class="skyhub-nav-menu">
+      <a href="/media-gallery.html">Medien</a>
+      <a href="/thermal.html">Thermal</a>
+      <a href="/ppk.html">PPK-Geotagging</a>
+      <a href="/abdeckung.html">Fotoabdeckung</a>
+      <a href="/ndvi.html">Vegetationsindizes</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>System</summary><div class="skyhub-nav-menu">
+      <a href="/pilot-protokolle.html">Pilot-2-Protokolle</a>
+      <a href="/fh-diagnostics.html">RTK &amp; Flugsitzungen</a>
+    </div></details>
+    <details class="skyhub-nav-group is-lab"><summary>Labor</summary><div class="skyhub-nav-menu">
+      <a href="/wpml-survey-preview.html">Survey-Vorschau</a>
+      <a href="/smart-farming.html">Smart Farming</a>
+      <a href="/smart-farming-map-lab.html">Vegetationskarte</a>
+    </div></details>
+  </nav>
+</header>
+<!-- /skyhub-appbar -->
+<header class="skyhub-pagehead">
 <h1>SkyHub Next · Lokale Routenbibliothek</h1>
 <div class="caption">P0 Missionsrevisionen · P1 geordnete Wegpunktaktionen · Kein DJI-Flugauftrag</div>
-<nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
-  <a href="/">Übersicht</a>
-  <a href="/wpml-editor.html">Missionen</a>
-  <a href="/wpml-route-library.html" aria-current="page">Routen</a>
-  <a href="/wpml-survey-preview.html">Survey</a>
-  <a href="/smart-farming.html">Smart Farming</a>
-  <a href="/media-gallery.html">Medien</a>
-  <a href="/thermal.html">Thermal</a>
-</nav>
 </header>
 <nav class="skyhub-route-jumps" aria-label="Routen-Schnellzugriff">
   <a href="#routeLibrarySection">Bibliothek</a>

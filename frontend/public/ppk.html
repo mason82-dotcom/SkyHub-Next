@@ -4,8 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SkyHub · PPK-Geotagging</title>
-<link rel="stylesheet" href="/skyhub-light.css">
-<link rel="stylesheet" href="/missionsfreigabe.css">
 <style>
 .ppk-source{border:0;padding:0;margin:0 0 8px}.ppk-source legend{font-weight:600;margin-bottom:4px}
 .ppk-flights label{display:flex;flex-direction:row;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line,#d0d7de)}
@@ -14,18 +12,55 @@
 .ppk-flights small{display:block;color:var(--muted,#57606a)}
 .ppk-flights .bad small{color:#b3261e}
 </style>
+<link rel="stylesheet" href="/skyhub-light.css">
+<link rel="stylesheet" href="/missionsfreigabe.css">
+<script defer src="/skyhub-nav.js"></script>
 </head>
-<body class="mrel">
-<header class="mrel-top">
+<body class="mrel" data-skyhub-page="ppk">
+<a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
+<!-- skyhub-appbar -->
+<header class="skyhub-appbar">
+  <a class="skyhub-appbar-brand" href="/"><span class="brand-symbol" aria-hidden="true">✦</span>SkyHub <span>Next</span></a>
+  <nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
+    <a href="/">Übersicht</a>
+    <details class="skyhub-nav-group"><summary>Einsatz</summary><div class="skyhub-nav-menu">
+      <a href="/drc.html">Live-Steuerung Matrice 4</a>
+      <a href="/drc.html?rc=pro">Kamera Mavic 3 (RC Pro)</a>
+      <a href="/missionsfreigabe.html">Missionsfreigabe</a>
+      <a href="/kartenelemente.html">Kartenelemente</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Missionen</summary><div class="skyhub-nav-menu">
+      <a href="/wpml-editor.html">Missionsentwurf</a>
+      <a href="/wpml-route-library.html">Routenbibliothek</a>
+    </div></details>
+    <details class="skyhub-nav-group is-active"><summary>Auswertung</summary><div class="skyhub-nav-menu">
+      <a href="/media-gallery.html">Medien</a>
+      <a href="/thermal.html">Thermal</a>
+      <a href="/ppk.html" aria-current="page">PPK-Geotagging</a>
+      <a href="/abdeckung.html">Fotoabdeckung</a>
+      <a href="/ndvi.html">Vegetationsindizes</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>System</summary><div class="skyhub-nav-menu">
+      <a href="/pilot-protokolle.html">Pilot-2-Protokolle</a>
+      <a href="/fh-diagnostics.html">RTK &amp; Flugsitzungen</a>
+    </div></details>
+    <details class="skyhub-nav-group is-lab"><summary>Labor</summary><div class="skyhub-nav-menu">
+      <a href="/wpml-survey-preview.html">Survey-Vorschau</a>
+      <a href="/smart-farming.html">Smart Farming</a>
+      <a href="/smart-farming-map-lab.html">Vegetationskarte</a>
+    </div></details>
+  </nav>
+</header>
+<!-- /skyhub-appbar -->
+<header class="skyhub-pagehead mrel-top">
   <h1>PPK-Geotagging <span class="muted">zentimetergenaue Kamerapositionen für DJI-RTK-Flüge</span></h1>
-  <nav><a href="/thermal.html">Thermal</a> · <a href="/">Übersicht</a></nav>
 </header>
 <p class="mrel-note" role="note">
   Rechnet aus den GNSS-Rohdaten der Drohne (<code>*_PPKRAW.bin</code>, <code>*.MRK</code>) und einer SAPOS-Referenzstation die
   Kamerapositionen jedes Fotos mit Genauigkeitsangabe – als CSV für Metashape, Pix4D oder ODM. Läuft vollständig im Heimnetz
   (dji-geotagger + RTKLIB, beide BSD-2). Von den Fotos wird nur der Bildkopf (EXIF/XMP) hochgeladen.
 </p>
-<main class="mrel-grid">
+<main id="skyhubMain" tabindex="-1" class="mrel-grid">
   <section class="card" aria-labelledby="h-flight">
     <h2 id="h-flight">1 · Flug wählen</h2>
     <fieldset class="ppk-source">

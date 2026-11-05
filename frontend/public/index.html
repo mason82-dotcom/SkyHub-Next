@@ -7,7 +7,7 @@
 <style>
 :root{color-scheme:light;--bg:#07111e;--panel:#101f30;--edge:#2c4054;--muted:#94abc1;--blue:#47c3e7}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:#edf6ff;font:14px system-ui,sans-serif}
-header{height:66px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 18px;border-bottom:1px solid var(--edge)}
+header.skyhub-pagehead{height:66px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 18px;border-bottom:1px solid var(--edge)}
 h1{margin:0;font-size:20px;letter-spacing:.04em}h1 span{color:var(--blue)}small,.muted{color:var(--muted)}
 .auth{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.auth input{min-width:205px}
 [hidden]{display:none!important}
@@ -129,26 +129,51 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;margin:14px 0 8p
 </style>
 <link rel="stylesheet" href="/skyhub-light.css">
 <link rel="stylesheet" href="/skyhub-cockpit.css">
+<script defer src="/skyhub-nav.js"></script>
 </head>
 <body data-skyhub-page="dashboard">
 <a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
-<header>
-  <h1 class="skyhub-brand"><span class="brand-symbol" aria-hidden="true">✦</span>SkyHub <span>Next</span><small>READ ONLY</small></h1>
+<!-- skyhub-appbar -->
+<header class="skyhub-appbar">
+  <a class="skyhub-appbar-brand" href="/"><span class="brand-symbol" aria-hidden="true">✦</span>SkyHub <span>Next</span></a>
   <nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
-  <a href="/" aria-current="page">Übersicht</a>
-  <a href="/wpml-editor.html">Missionen</a>
-  <a href="/wpml-route-library.html">Routen</a>
-  <a href="/wpml-survey-preview.html">Survey</a>
-  <a href="/smart-farming.html">Smart Farming</a>
-  <a href="/media-gallery.html">Medien</a>
-  <a href="/thermal.html">Thermal</a>
-</nav>
+    <a href="/" aria-current="page">Übersicht</a>
+    <details class="skyhub-nav-group"><summary>Einsatz</summary><div class="skyhub-nav-menu">
+      <a href="/drc.html">Live-Steuerung Matrice 4</a>
+      <a href="/drc.html?rc=pro">Kamera Mavic 3 (RC Pro)</a>
+      <a href="/missionsfreigabe.html">Missionsfreigabe</a>
+      <a href="/kartenelemente.html">Kartenelemente</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Missionen</summary><div class="skyhub-nav-menu">
+      <a href="/wpml-editor.html">Missionsentwurf</a>
+      <a href="/wpml-route-library.html">Routenbibliothek</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Auswertung</summary><div class="skyhub-nav-menu">
+      <a href="/media-gallery.html">Medien</a>
+      <a href="/thermal.html">Thermal</a>
+      <a href="/ppk.html">PPK-Geotagging</a>
+      <a href="/abdeckung.html">Fotoabdeckung</a>
+      <a href="/ndvi.html">Vegetationsindizes</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>System</summary><div class="skyhub-nav-menu">
+      <a href="/pilot-protokolle.html">Pilot-2-Protokolle</a>
+      <a href="/fh-diagnostics.html">RTK &amp; Flugsitzungen</a>
+    </div></details>
+    <details class="skyhub-nav-group is-lab"><summary>Labor</summary><div class="skyhub-nav-menu">
+      <a href="/wpml-survey-preview.html">Survey-Vorschau</a>
+      <a href="/smart-farming.html">Smart Farming</a>
+      <a href="/smart-farming-map-lab.html">Vegetationskarte</a>
+    </div></details>
+  </nav>
+</header>
+<!-- /skyhub-appbar -->
+<header class="skyhub-pagehead">
+  <h1>Lagebild <span>Flotte, Karte und Telemetrie · nur Lesen, keine Flugsteuerung</span></h1>
   <div class="auth">
     <button id="connect" type="button" disabled>Neu verbinden</button>
     <span id="message" role="status">Nicht verbunden</span>
   </div>
 </header>
-<p class="fh-diagnostics-link"><a href="/fh-diagnostics.html">RTK- &amp; Flugsitzungsdiagnose (FC0, nur Lesen)</a> · <a href="/drc.html">Live-Steuerung Matrice 4</a> · <a href="/drc.html?rc=pro">Kamera Mavic 3 (RC Pro)</a> · <a href="/missionsfreigabe.html">Missionsfreigabe für Pilot 2</a> · <a href="/ppk.html">PPK-Geotagging</a> · <a href="/kartenelemente.html">Kartenelemente für Pilot 2</a> · <a href="/abdeckung.html">Fotoabdeckung</a> · <a href="/pilot-protokolle.html">Pilot-2-Protokolle</a> · <a href="/ndvi.html">NDVI (Mavic 3M)</a></p>
 <nav class="workspace-tabs" role="tablist" aria-label="SkyHub Hauptbereiche">
   <button id="tabOperations" class="workspace-tab" type="button" role="tab" aria-controls="operationsPanel" aria-selected="true" tabindex="0">01 · Operations</button>
   <button id="tabTak" class="workspace-tab" type="button" role="tab" aria-controls="takPanel" aria-selected="false" tabindex="-1">02 · TAK / CoT</button>

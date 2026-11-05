@@ -8,11 +8,46 @@
 <link rel="stylesheet" href="/skyhub-light.css">
 <link rel="stylesheet" href="/missionsfreigabe.css">
 <link rel="stylesheet" href="/elevation-profile.css">
+<script defer src="/skyhub-nav.js"></script>
 </head>
-<body class="mrel">
-<header class="mrel-top">
+<body class="mrel" data-skyhub-page="mission-release">
+<a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
+<!-- skyhub-appbar -->
+<header class="skyhub-appbar">
+  <a class="skyhub-appbar-brand" href="/"><span class="brand-symbol" aria-hidden="true">✦</span>SkyHub <span>Next</span></a>
+  <nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
+    <a href="/">Übersicht</a>
+    <details class="skyhub-nav-group is-active"><summary>Einsatz</summary><div class="skyhub-nav-menu">
+      <a href="/drc.html">Live-Steuerung Matrice 4</a>
+      <a href="/drc.html?rc=pro">Kamera Mavic 3 (RC Pro)</a>
+      <a href="/missionsfreigabe.html" aria-current="page">Missionsfreigabe</a>
+      <a href="/kartenelemente.html">Kartenelemente</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Missionen</summary><div class="skyhub-nav-menu">
+      <a href="/wpml-editor.html">Missionsentwurf</a>
+      <a href="/wpml-route-library.html">Routenbibliothek</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Auswertung</summary><div class="skyhub-nav-menu">
+      <a href="/media-gallery.html">Medien</a>
+      <a href="/thermal.html">Thermal</a>
+      <a href="/ppk.html">PPK-Geotagging</a>
+      <a href="/abdeckung.html">Fotoabdeckung</a>
+      <a href="/ndvi.html">Vegetationsindizes</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>System</summary><div class="skyhub-nav-menu">
+      <a href="/pilot-protokolle.html">Pilot-2-Protokolle</a>
+      <a href="/fh-diagnostics.html">RTK &amp; Flugsitzungen</a>
+    </div></details>
+    <details class="skyhub-nav-group is-lab"><summary>Labor</summary><div class="skyhub-nav-menu">
+      <a href="/wpml-survey-preview.html">Survey-Vorschau</a>
+      <a href="/smart-farming.html">Smart Farming</a>
+      <a href="/smart-farming-map-lab.html">Vegetationskarte</a>
+    </div></details>
+  </nav>
+</header>
+<!-- /skyhub-appbar -->
+<header class="skyhub-pagehead mrel-top">
   <h1>Missionsfreigabe <span class="muted">für die Routenbibliothek in DJI Pilot 2</span></h1>
-  <nav><a href="/wpml-route-library.html">Routenverwaltung</a> · <a href="/">Übersicht</a></nav>
 </header>
 
 <p class="mrel-note" role="note">
@@ -20,7 +55,7 @@
   Gestartet wird die Route immer vom Piloten an der Fernsteuerung. Freigeben geht nur im Heimnetz über diese Seite.
 </p>
 
-<main class="mrel-grid">
+<main id="skyhubMain" tabindex="-1" class="mrel-grid">
   <section class="card wide" aria-labelledby="h-list">
     <h2 id="h-list">Routen auf dem Server</h2>
     <div class="row-inline"><button id="reload" type="button" class="secondary">Neu laden</button>

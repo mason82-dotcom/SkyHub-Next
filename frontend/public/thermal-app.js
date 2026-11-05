@@ -477,10 +477,10 @@ function renderSeries(){
   const x=i=>L+(ok.length===1?0.5:i/(ok.length-1))*(W-L-R),y=t=>Tp+(1-(t-lo)/((hi-lo)||1))*(H-Tp-B);
   const add=(tag,attrs,text)=>{const n=document.createElementNS(NS,tag);for(const [k,v] of Object.entries(attrs))n.setAttribute(k,v);if(text!==undefined)n.textContent=text;svg.append(n);return n;};
   for(let t=lo;t<=hi;t+=Math.max(1,Math.round((hi-lo)/5))){
-    add('line',{x1:L,x2:W-R,y1:y(t),y2:y(t),stroke:'#284056'});
+    add('line',{x1:L,x2:W-R,y1:y(t),y2:y(t),stroke:'#d8e2ee'});
     add('text',{x:L-6,y:y(t)+4,'text-anchor':'end'},t+' °C');
   }
-  const series=[['max','#ff6b5a'],['median','#e9c382'],['min','#53c9e7']];
+  const series=[['max','#b42328'],['median','#855510'],['min','#2458d3']];   // --sky-danger / -warning / -primary (light theme)
   for(const [k,color] of series){
     add('polyline',{points:ok.map((r,i)=>x(i)+','+y(r.meta.stats[k])).join(' '),fill:'none',stroke:color,'stroke-width':2.5});
     ok.forEach((r,i)=>add('circle',{cx:x(i),cy:y(r.meta.stats[k]),r:3.5,fill:color}));

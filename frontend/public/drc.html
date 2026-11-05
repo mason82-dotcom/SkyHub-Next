@@ -7,9 +7,45 @@
 <link rel="stylesheet" href="/vendor/leaflet/1.9.4/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=">
 <link rel="stylesheet" href="/skyhub-light.css">
 <link rel="stylesheet" href="/drc.css">
+<script defer src="/skyhub-nav.js"></script>
 </head>
-<body class="drc">
-<header class="drc-top">
+<body class="drc" data-skyhub-page="drc">
+<a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
+<!-- skyhub-appbar -->
+<header class="skyhub-appbar">
+  <a class="skyhub-appbar-brand" href="/"><span class="brand-symbol" aria-hidden="true">✦</span>SkyHub <span>Next</span></a>
+  <nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
+    <a href="/">Übersicht</a>
+    <details class="skyhub-nav-group is-active"><summary>Einsatz</summary><div class="skyhub-nav-menu">
+      <a href="/drc.html" aria-current="page">Live-Steuerung Matrice 4</a>
+      <a href="/drc.html?rc=pro">Kamera Mavic 3 (RC Pro)</a>
+      <a href="/missionsfreigabe.html">Missionsfreigabe</a>
+      <a href="/kartenelemente.html">Kartenelemente</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Missionen</summary><div class="skyhub-nav-menu">
+      <a href="/wpml-editor.html">Missionsentwurf</a>
+      <a href="/wpml-route-library.html">Routenbibliothek</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Auswertung</summary><div class="skyhub-nav-menu">
+      <a href="/media-gallery.html">Medien</a>
+      <a href="/thermal.html">Thermal</a>
+      <a href="/ppk.html">PPK-Geotagging</a>
+      <a href="/abdeckung.html">Fotoabdeckung</a>
+      <a href="/ndvi.html">Vegetationsindizes</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>System</summary><div class="skyhub-nav-menu">
+      <a href="/pilot-protokolle.html">Pilot-2-Protokolle</a>
+      <a href="/fh-diagnostics.html">RTK &amp; Flugsitzungen</a>
+    </div></details>
+    <details class="skyhub-nav-group is-lab"><summary>Labor</summary><div class="skyhub-nav-menu">
+      <a href="/wpml-survey-preview.html">Survey-Vorschau</a>
+      <a href="/smart-farming.html">Smart Farming</a>
+      <a href="/smart-farming-map-lab.html">Vegetationskarte</a>
+    </div></details>
+  </nav>
+</header>
+<!-- /skyhub-appbar -->
+<header class="skyhub-pagehead drc-top">
   <div class="drc-title"><strong>Live-Steuerung</strong> <span id="aircraft">kein Fluggerät</span></div>
   <button id="estop" class="estop" type="button" title="DRC drone_emergency_stop: Fluggerät bremst und schwebt (Taste Leertaste)">NOT-STOPP</button>
 </header>
@@ -20,7 +56,7 @@
   gestoppt, und nach 3 s bekommt die Fernsteuerung die Kontrolle zurück.
 </section>
 
-<main class="drc-grid">
+<main id="skyhubMain" tabindex="-1" class="drc-grid">
   <section class="card" id="access">
     <h2>Verbindung</h2>
     <p class="small muted">Nur im Heimnetz über https://rpi5.fritz.box:4443 – ohne Token.</p>

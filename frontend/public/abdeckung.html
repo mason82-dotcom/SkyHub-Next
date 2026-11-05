@@ -5,8 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SkyHub · Fotoabdeckung</title>
 <link rel="stylesheet" href="/vendor/leaflet/1.9.4/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=">
-<link rel="stylesheet" href="/skyhub-light.css">
-<link rel="stylesheet" href="/missionsfreigabe.css">
 <style>
 .cov-grid{display:grid;grid-template-columns:minmax(0,2fr) minmax(280px,1fr);gap:16px}
 @media(max-width:880px){.cov-grid{grid-template-columns:1fr}}
@@ -15,16 +13,53 @@
 .cov-legend span::before{content:"";display:inline-block;width:14px;height:10px;margin-right:5px;vertical-align:middle;border-radius:2px;background:var(--c)}
 .cov-stats dt{font-weight:600}.cov-stats dd{margin:0 0 6px}
 </style>
+<link rel="stylesheet" href="/skyhub-light.css">
+<link rel="stylesheet" href="/missionsfreigabe.css">
+<script defer src="/skyhub-nav.js"></script>
 </head>
-<body class="mrel">
-<header class="mrel-top">
+<body class="mrel" data-skyhub-page="coverage">
+<a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
+<!-- skyhub-appbar -->
+<header class="skyhub-appbar">
+  <a class="skyhub-appbar-brand" href="/"><span class="brand-symbol" aria-hidden="true">✦</span>SkyHub <span>Next</span></a>
+  <nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
+    <a href="/">Übersicht</a>
+    <details class="skyhub-nav-group"><summary>Einsatz</summary><div class="skyhub-nav-menu">
+      <a href="/drc.html">Live-Steuerung Matrice 4</a>
+      <a href="/drc.html?rc=pro">Kamera Mavic 3 (RC Pro)</a>
+      <a href="/missionsfreigabe.html">Missionsfreigabe</a>
+      <a href="/kartenelemente.html">Kartenelemente</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Missionen</summary><div class="skyhub-nav-menu">
+      <a href="/wpml-editor.html">Missionsentwurf</a>
+      <a href="/wpml-route-library.html">Routenbibliothek</a>
+    </div></details>
+    <details class="skyhub-nav-group is-active"><summary>Auswertung</summary><div class="skyhub-nav-menu">
+      <a href="/media-gallery.html">Medien</a>
+      <a href="/thermal.html">Thermal</a>
+      <a href="/ppk.html">PPK-Geotagging</a>
+      <a href="/abdeckung.html" aria-current="page">Fotoabdeckung</a>
+      <a href="/ndvi.html">Vegetationsindizes</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>System</summary><div class="skyhub-nav-menu">
+      <a href="/pilot-protokolle.html">Pilot-2-Protokolle</a>
+      <a href="/fh-diagnostics.html">RTK &amp; Flugsitzungen</a>
+    </div></details>
+    <details class="skyhub-nav-group is-lab"><summary>Labor</summary><div class="skyhub-nav-menu">
+      <a href="/wpml-survey-preview.html">Survey-Vorschau</a>
+      <a href="/smart-farming.html">Smart Farming</a>
+      <a href="/smart-farming-map-lab.html">Vegetationskarte</a>
+    </div></details>
+  </nav>
+</header>
+<!-- /skyhub-appbar -->
+<header class="skyhub-pagehead mrel-top">
   <h1>Fotoabdeckung <span class="muted">Lücken und Überlappung eines Flugs</span></h1>
-  <nav><a href="/ppk.html">PPK</a> · <a href="/">Übersicht</a></nav>
 </header>
 <p class="mrel-note" role="note">Aus Position, Höhe, Gimbal-Winkeln (DJI-XMP) und Brennweite (EXIF) jedes Fotos wird die Bodenfläche berechnet –
   auch für Schrägaufnahmen. Höhe = Höhe über Start, Gelände nicht berücksichtigt (am Hang ist die Fläche talwärts größer, bergwärts kleiner).
   Planungshilfe, keine photogrammetrische Qualitätsprüfung. Liest nur Fotoköpfe aus dem Speicher.</p>
-<main class="cov-grid">
+<main id="skyhubMain" tabindex="-1" class="cov-grid">
   <section class="card" aria-labelledby="h-map">
     <h2 id="h-map">Karte</h2>
     <div id="covmap" aria-label="Karte der Fotoabdeckung"></div>

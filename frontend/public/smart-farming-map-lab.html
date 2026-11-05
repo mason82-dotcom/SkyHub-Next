@@ -5,17 +5,15 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <meta http-equiv="Content-Security-Policy"
-  content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src blob:; connect-src 'none'; form-action 'none'; object-src 'none'; base-uri 'none'">
+  content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src blob:; connect-src 'none'; form-action 'none'; object-src 'none'; base-uri 'none'">
 <title>SkyHub Next · Privates Vegetationskartenlabor</title>
 <style>
 :root{color-scheme:light;--bg:#f4f7f8;--surface:#fff;--text:#182f32;--muted:#567072;--line:#d8e5e2;--green:#176653;--light:#e7f3ed;--shadow:0 10px 35px #21423910}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:15px/1.55 system-ui,-apple-system,Segoe UI,sans-serif}
 a{color:var(--green)}
-header{background:#fff;border-bottom:1px solid var(--line);padding:18px clamp(16px,3.6vw,44px);display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap}
-header h1{font-size:clamp(20px,2.5vw,28px);margin:0;letter-spacing:-.025em}
-nav{display:flex;gap:20px;flex-wrap:wrap}
-nav a{font-size:14px;font-weight:600}
+header.skyhub-pagehead{background:#fff;border-bottom:1px solid var(--line);padding:18px clamp(16px,3.6vw,44px);display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap}
+header.skyhub-pagehead h1{font-size:clamp(20px,2.5vw,28px);margin:0;letter-spacing:-.025em}
 main{width:min(1380px,100%);padding:25px clamp(16px,3.6vw,44px) 80px;margin:auto}
 .topline{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .tag{background:#fff4da;color:#78521d;padding:4px 12px;border-radius:99px;font-size:12px;font-weight:700;border:1px solid #f3d79c}
@@ -49,19 +47,52 @@ button[aria-pressed=true]{background:#153d36;color:#fff}
 .foot{color:var(--muted);margin-top:14px;font-size:12px}
 @media(max-width:980px){.cards{grid-template-columns:1fr}.card{padding:16px}}
 </style>
+<link rel="stylesheet" href="/skyhub-light.css">
+<script defer src="/skyhub-nav.js"></script>
 </head>
-<body>
-<header>
+<body data-skyhub-page="map-lab">
+<a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
+<!-- skyhub-appbar -->
+<header class="skyhub-appbar">
+  <a class="skyhub-appbar-brand" href="/"><span class="brand-symbol" aria-hidden="true">✦</span>SkyHub <span>Next</span></a>
+  <nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
+    <a href="/">Übersicht</a>
+    <details class="skyhub-nav-group"><summary>Einsatz</summary><div class="skyhub-nav-menu">
+      <a href="/drc.html">Live-Steuerung Matrice 4</a>
+      <a href="/drc.html?rc=pro">Kamera Mavic 3 (RC Pro)</a>
+      <a href="/missionsfreigabe.html">Missionsfreigabe</a>
+      <a href="/kartenelemente.html">Kartenelemente</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Missionen</summary><div class="skyhub-nav-menu">
+      <a href="/wpml-editor.html">Missionsentwurf</a>
+      <a href="/wpml-route-library.html">Routenbibliothek</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Auswertung</summary><div class="skyhub-nav-menu">
+      <a href="/media-gallery.html">Medien</a>
+      <a href="/thermal.html">Thermal</a>
+      <a href="/ppk.html">PPK-Geotagging</a>
+      <a href="/abdeckung.html">Fotoabdeckung</a>
+      <a href="/ndvi.html">Vegetationsindizes</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>System</summary><div class="skyhub-nav-menu">
+      <a href="/pilot-protokolle.html">Pilot-2-Protokolle</a>
+      <a href="/fh-diagnostics.html">RTK &amp; Flugsitzungen</a>
+    </div></details>
+    <details class="skyhub-nav-group is-active is-lab"><summary>Labor</summary><div class="skyhub-nav-menu">
+      <a href="/wpml-survey-preview.html">Survey-Vorschau</a>
+      <a href="/smart-farming.html">Smart Farming</a>
+      <a href="/smart-farming-map-lab.html" aria-current="page">Vegetationskarte</a>
+    </div></details>
+  </nav>
+</header>
+<!-- /skyhub-appbar -->
+<header class="skyhub-pagehead">
   <div class="topline">
     <span class="tag">Privates Offline-Labor</span>
     <h1>SkyHub Next · Vegetationskarte</h1>
   </div>
-  <nav aria-label="SkyHub-Modulnavigation">
-    <a href="/">Dashboard</a>
-    <a href="/smart-farming.html">Smart Farming</a>
-  </nav>
 </header>
-<main>
+<main id="skyhubMain" tabindex="-1">
   <p class="intro">Experimentelle georeferenzierte Vegetationsvorschau für die Mavic 3 Multispectral. Die Karten werden lokal aus fünf privaten Dateien geladen. Es gibt keinen Bild-Upload, keine externen Kacheln und keine automatisch ausgeführte Rasterabfrage.</p>
   <p class="notice"><strong>Nicht kalibriert / nicht für Agronomie freigegeben:</strong> NDVI-, NDRE-, GNDVI- und OSAVI-Farben dienen nur der visuellen Orientierung. Das abgeleitete GeoJSON ist eine lokale Auswahlgeometrie, kein Messwert. Öffentliche Links, Dünge- und Missionsbefehle sind nicht verfügbar. <strong>Die Dateien einschließlich der Georeferenzierung enthalten vertrauliche Feldinformationen.</strong></p>
   <div class="cards">

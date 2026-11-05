@@ -4,8 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SkyHub · Pilot-2-Protokolle</title>
-<link rel="stylesheet" href="/skyhub-light.css">
-<link rel="stylesheet" href="/missionsfreigabe.css">
 <style>
 .log-grid{display:grid;grid-template-columns:minmax(240px,1fr) minmax(0,3fr);gap:16px}
 @media(max-width:880px){.log-grid{grid-template-columns:1fr}}
@@ -19,15 +17,52 @@
 #logText .e{color:#b3261e}#logText .w{color:#9a6700}
 .log-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:end}
 </style>
+<link rel="stylesheet" href="/skyhub-light.css">
+<link rel="stylesheet" href="/missionsfreigabe.css">
+<script defer src="/skyhub-nav.js"></script>
 </head>
-<body class="mrel">
-<header class="mrel-top">
+<body class="mrel" data-skyhub-page="pilot-logs">
+<a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
+<!-- skyhub-appbar -->
+<header class="skyhub-appbar">
+  <a class="skyhub-appbar-brand" href="/"><span class="brand-symbol" aria-hidden="true">✦</span>SkyHub <span>Next</span></a>
+  <nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
+    <a href="/">Übersicht</a>
+    <details class="skyhub-nav-group"><summary>Einsatz</summary><div class="skyhub-nav-menu">
+      <a href="/drc.html">Live-Steuerung Matrice 4</a>
+      <a href="/drc.html?rc=pro">Kamera Mavic 3 (RC Pro)</a>
+      <a href="/missionsfreigabe.html">Missionsfreigabe</a>
+      <a href="/kartenelemente.html">Kartenelemente</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Missionen</summary><div class="skyhub-nav-menu">
+      <a href="/wpml-editor.html">Missionsentwurf</a>
+      <a href="/wpml-route-library.html">Routenbibliothek</a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Auswertung</summary><div class="skyhub-nav-menu">
+      <a href="/media-gallery.html">Medien</a>
+      <a href="/thermal.html">Thermal</a>
+      <a href="/ppk.html">PPK-Geotagging</a>
+      <a href="/abdeckung.html">Fotoabdeckung</a>
+      <a href="/ndvi.html">Vegetationsindizes</a>
+    </div></details>
+    <details class="skyhub-nav-group is-active"><summary>System</summary><div class="skyhub-nav-menu">
+      <a href="/pilot-protokolle.html" aria-current="page">Pilot-2-Protokolle</a>
+      <a href="/fh-diagnostics.html">RTK &amp; Flugsitzungen</a>
+    </div></details>
+    <details class="skyhub-nav-group is-lab"><summary>Labor</summary><div class="skyhub-nav-menu">
+      <a href="/wpml-survey-preview.html">Survey-Vorschau</a>
+      <a href="/smart-farming.html">Smart Farming</a>
+      <a href="/smart-farming-map-lab.html">Vegetationskarte</a>
+    </div></details>
+  </nav>
+</header>
+<!-- /skyhub-appbar -->
+<header class="skyhub-pagehead mrel-top">
   <h1>Pilot-2-Protokolle <span class="muted">von der Fernsteuerung gesendet, in SkyHub entschlüsselt</span></h1>
-  <nav><a href="/">Übersicht</a></nav>
 </header>
 <p class="mrel-note" role="note">Senden: in Pilot 2 auf der SkyHub-Seite „Pilot-2-Protokoll an SkyHub senden“. Entschlüsselung nach DJIs Verfahren
   (PlogDecoder). Protokolle bleiben 30 Tage gespeichert.</p>
-<main class="log-grid">
+<main id="skyhubMain" tabindex="-1" class="log-grid">
   <section class="card" aria-labelledby="h-list"><h2 id="h-list">Eingegangen</h2><ul id="list" class="log-list"><li class="muted">Wird geladen …</li></ul></section>
   <section class="card" aria-labelledby="h-view">
     <h2 id="h-view">Inhalt</h2>
