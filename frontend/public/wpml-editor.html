@@ -236,11 +236,6 @@ hr{border:0;border-top:1px solid var(--edge);margin:16px 0}
    <section aria-label="MinIO-Missionsbibliothek">
      <h2>Missionsbibliothek (MinIO S3)</h2>
      <p class="caption">Validierte KMZ-Dateien werden im Bucket <code>skyhub-wpml</code> unveränderlich abgelegt. Nach ausdrücklicher Übernahme einer gespeicherten Mission kann eine neue KMZ mit eigenständigem Namen als Nachfolgeversion gespeichert werden. Bestehende Missionen ohne belegte Vorgänger-ID bleiben eigenständige Einträge. Im ausdrücklich freigegebenen HTTPS-Heimnetz (Dashboard-Port 4443) ist kein Token nötig. Außerhalb dieses Zugangs bleibt ein Token erforderlich. Kein DJI-Flugauftrag.</p>
-     <details>
-       <summary>Erweiterter Zugriff: Zugangstoken optional</summary>
-       <label for="store-token">SkyHub-Zugangstoken</label>
-       <input id="store-token" type="password" autocomplete="off" spellcheck="false" placeholder="Nur nötig, wenn die Heimnetzfreigabe nicht aktiv ist">
-     </details>
      <div class="tools">
        <button type="button" id="store-save" data-disabled-reason="">In Bibliothek speichern</button>
        <button type="button" id="store-refresh">Bibliothek laden</button>

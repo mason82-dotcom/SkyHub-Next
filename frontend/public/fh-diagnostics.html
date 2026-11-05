@@ -58,13 +58,7 @@ input,button{padding:.6rem;border-radius:8px}small{color:#5c6270}
 <!-- /skyhub-appbar -->
 <header class="skyhub-pagehead"><h1>RTK &amp; Flugsitzungen <span class="muted">RTK-Status und Sitzungsverlauf</span></h1><strong>FC0 · Nur Lesen</strong></header>
 <p>Diagnose aus akzeptierten DJI-Meldungen. Ein RTK-Fix ist keine Freigabe für einen Flug. Die Sitzungen sind nur flüchtige Beobachtungen.</p>
-<form id="authForm">
-<label for="token">Zugangs-Token (nur im Arbeitsspeicher)</label>
-<input id="token" type="password" autocomplete="off" required>
-<button type="submit">Diagnose laden</button>
-<button id="clear" type="button">Zugang löschen</button>
-</form>
-<p id="status" role="status" aria-live="polite">Noch keine Daten geladen.</p>
+<p id="status" role="status" aria-live="polite">Wird geladen …</p>
 <main id="skyhubMain" tabindex="-1">
 <section><h2>RTK-Status</h2><div id="rtk">Keine Daten.</div></section>
 <section><h2>Aktive Flugsitzungen</h2><div id="flights">Keine Daten.</div></section>

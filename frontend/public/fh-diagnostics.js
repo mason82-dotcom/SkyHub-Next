@@ -1,7 +1,8 @@
 'use strict';
 (function(){
  const el=id=>document.getElementById(id);
- let token='',sequence=0;
+ // Home network: readable without a token (backend/http-auth.js); no token field on this page.
+ let sequence=0;
  const show=(id,rows,columns)=>{
   const root=el(id);root.replaceChildren();
   if(!Array.isArray(rows)||!rows.length){root.textContent='Keine Beobachtungen.';return;}
@@ -24,36 +25,30 @@
  const iso=n=>Number.isFinite(n)?new Date(n).toLocaleString('de-DE'):'—';
  async function refresh(){
   const current=++sequence;
-  if(!token)return;
   try{
    const paths=['rtk','flights','events'];
    const values=await Promise.all(paths.map(async p=>{
-    const response=await fetch('/api/diagnostics/fh/'+p,{
-     headers:{authorization:'Bearer '+token},cache:'no-store',credentials:'same-origin'
-    });
-    if(!response.ok)throw new Error('HTTP '+response.status);
+    const response=await fetch('/api/diagnostics/fh/'+p,{cache:'no-store',credentials:'same-origin'});
+    if(!response.ok)throw Object.assign(new Error('HTTP '+response.status),{status:response.status});
     return response.json();
    }));
    if(current!==sequence)return;
    show('rtk',values[0].devices.map(x=>({...x,
     fixState:x.stale?'Veraltet':x.fixState,
     sampledAt:iso(x.sampledAt)})),
-    [['Aircraft','deviceSn'],['Fix','fixState'],['RTK-Sat.','rtkSatellites'],
+    [['Fluggerät','deviceSn'],['Fix','fixState'],['RTK-Sat.','rtkSatellites'],
     ['GPS-Sat.','gpsSatellites'],['Zeit','sampledAt']]);
    show('flights',values[1].active.map(x=>({...x,startedAt:iso(x.startedAt)})),
-    [['Aircraft','deviceSn'],['Modus','modeCode'],['Start','startedAt']]);
+    [['Fluggerät','deviceSn'],['Modus','modeCode'],['Start','startedAt']]);
    show('events',values[2].events.map(x=>({...x,at:iso(x.at)})),
-    [['Ereignis','type'],['Aircraft','deviceSn'],['Zeit','at']]);
+    [['Ereignis','type'],['Fluggerät','deviceSn'],['Zeit','at']]);
    el('status').textContent='Aktualisiert: '+new Date().toLocaleTimeString('de-DE');
-  }catch(_err){if(current===sequence)el('status').textContent='Zugriff fehlgeschlagen oder Backend nicht erreichbar.';}
+  }catch(err){
+   if(current!==sequence)return;
+   el('status').textContent=err&&err.status===401?'Nur aus dem Heimnetz abrufbar (192.168.178.0/24 oder über den Pi).':
+    'Backend nicht erreichbar – neuer Versuch in 5 s.';
+  }
  }
- el('authForm').addEventListener('submit',event=>{
-  event.preventDefault();token=el('token').value;el('token').value='';refresh();
- });
- el('clear').addEventListener('click',()=>{
-  token='';sequence++;el('token').value='';
-  for(const id of ['rtk','flights','events'])el(id).textContent='Keine Daten.';
-  el('status').textContent='Zugang gelöscht.';
- });
- setInterval(()=>{if(token&&!document.hidden)refresh();},5000);
+ refresh();
+ setInterval(()=>{if(!document.hidden)refresh();},5000);
 })();

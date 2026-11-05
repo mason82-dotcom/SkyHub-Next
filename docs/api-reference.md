@@ -22,6 +22,7 @@ Die Trennung ist im Code implementiert; produktive Proxy-/ACL- und Gerätefreiga
 | GET | `/vendor/leaflet/1.9.4/*` | Ohne Token; selbst ausgeliefertes Leaflet, `immutable` gecacht |
 | GET | `/pilot-login` | Statische Pilot-2-Webview, mit CSP |
 | GET | `/api/health` | Ohne Token; aggregierte Status-/MQTT-/Topologie-/Track-Zähler, `online`/`degraded` beschreibt zunächst Broker+Subscription, keine Flugsicherheit; `deviceCacheSkipped` zählt bei nicht bereitem Redis ausgelassene Geräte-Cache-Schreibvorgänge. Dient zugleich als Docker-Liveness-Check |
+| GET | `/api/diagnostics/fh/rtk`, `/flights`, `/events` | View-Token **oder** Heimnetz (`SKYHUB_LAN_VIEW_CIDR`), nur GET; RTK-Status, aktive Flugsitzungen und letzte Übergänge für die Seite „RTK & Flugsitzungen“. `/api/diagnostics/fh/sources/:sn`, `/ugcs/:section` und `/metrics` bleiben View-Token-pflichtig |
 | GET | `/api/pilot/status` | Ohne Token; begrenzte Pilot-Konfigurationsbereitschaft, fehlende **Schlüsselnamen**, keine Secret-Werte |
 | GET | `/api/devices` | View oder freigegebene LAN-GET-Ausnahme; Live-Registry-Snapshot |
 | GET | `/api/topology` | View oder LAN-GET-Ausnahme; begrenzte Rollen-/Gateway-Topologie |

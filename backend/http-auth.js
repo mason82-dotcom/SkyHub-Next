@@ -6,7 +6,8 @@ const {createWpmlLanAuth}=require('./wpml-lan-auth');
 // Token-free viewing from the configured home LAN is read-only, never pairing administration.
 // The web UI asks for no token or password: inside the home LAN every read (GET) of the
 // dashboard, the media gallery (MinIO), the thermal module and the Smart Farming catalog works without one.
-// Pairing administration, DR reports and other diagnostics still need the view token.
+// The RTK/flight-session diagnosis (three read-only lists, no serial-specific sources) is readable as well.
+// Pairing administration, DR reports, per-device FH sources, UgCS and metric dumps still need the view token.
 const lanReadPaths=new Set(['/devices','/topology','/events','/diagnostics/mqtt-shapes','/diagnostics/hms-history']);
 const lanReadPatterns=[
   /^\/drone\/[^/]+\/(track|telemetry)$/,
@@ -23,7 +24,8 @@ const lanReadPatterns=[
   /^\/pilot-logs(\/[0-9a-f-]{36}\/text)?\/?$/,
   /^\/smart-farming\/captures(\/manifest)?\/?$/,
   /^\/live\/status$/,
-  /^\/live\/hls\/pilot\/[A-Za-z0-9_-]{1,96}\.(m3u8|mp4)$/
+  /^\/live\/hls\/pilot\/[A-Za-z0-9_-]{1,96}\.(m3u8|mp4)$/,
+  /^\/diagnostics\/fh\/(rtk|flights|events)$/
 ];
 
 function createHttpAuth({secret,lanAccess,wpmlLanAuth}){

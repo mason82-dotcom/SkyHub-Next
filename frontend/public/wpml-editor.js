@@ -777,12 +777,12 @@
 
   // ---- MinIO mission library (authenticated SkyHub API, explicit actions only) ---
   // The token lives only in this input field and this closure; it is never persisted.
-  const token=()=>$('store-token').value.trim();
+  // Home network: the mission library is used without a token (no token field, decision 04.11.2026).
+  const token=()=>'';
   const storeStatus=(message,error=false)=>{
     $('store-status').textContent=message;
     $('store-status').style.color=error?'var(--sky-warning)':'var(--sky-muted)';
   };
-  $('store-token').addEventListener('keydown',event=>{if(event.key==='Enter')event.preventDefault();});
   function missionName(){
     const name=$('name').value.trim();
     if(!name||name.length>64||!DJI_NAME.test(name))
