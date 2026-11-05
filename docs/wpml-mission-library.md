@@ -79,6 +79,16 @@ Weitere Editorfunktionen: Rückgängig (50 Schritte), Richtung umkehren, Wegpunk
    2. In `.env` `SKYHUB_PILOT_WAYLINE_ENABLED=true` setzen (genau einmal) und `bash scripts/pi-update-backend.sh --apply`. Der vorsignierte Download läuft über den bestehenden S3-Proxy (`:4002`) der Medien-Synchronisation; er erlaubt dann zusätzlich nur `GET/HEAD` signierter Links auf genau `skyhub-wpml/missions/<uuid>.kmz`. Ohne `SKYHUB_PILOT_MEDIA_UPLOAD_ENABLED=true` gibt es diesen Proxy nicht.
    3. Auf der RC Pro Enterprise Pilot 2 neu mit SkyHub verbinden. Die Diagnose zeigt „Wayline-Bibliothek“ und „Mission-Modul geladen“; in der Pilot-2-Routenbibliothek erscheinen die gespeicherten Missionen.
 
+**Download-Adresse über IPv4 (05.11.2026, brix-node):** Pilot 2 meldete beim Öffnen einer Route „Netzwerkfehler. Später erneut
+versuchen (100)“, die Liste lud. Ursache: Die Route wird auf `SKYHUB_WPML_S3_PUBLIC_ENDPOINT` vorsigniert, leer = Medien-Adresse
+`https://rpi5.fritz.box:9446`. Der Name hat auch IPv6-Adressen (`2a02:…`, `fd1a:…`), Android nimmt IPv6, und der Caddy-Block auf `:9446`
+lässt nur `192.168.178.0/24` durch, also 403 `Forbidden` von Caddy. Gemessen mit einer echten Route: über IPv6 403, über IPv4 200 mit
+gültiger KMZ. Abhilfe ohne Änderung der Caddy-Sperre: `SKYHUB_WPML_S3_PUBLIC_ENDPOINT=https://192.168.178.63:9446`. Caddy liefert für die
+IP-Adresse ein Zertifikat derselben lokalen CA (SAN `IP Address:192.168.178.63`), die Signatur deckt genau diesen Host (`X-Amz-SignedHeaders=host`),
+der `:4002`-Proxy reicht ihn unverändert an MinIO. Eine Ausnahme für IPv6 in Caddy wurde verworfen: das öffentliche Präfix vergibt der
+Anbieter dynamisch. **Gleiches gilt für Medien-Uploads** (`PUT /dji-cloud/*` auf `:9446`, `SKYHUB_PILOT_MEDIA_S3_PUBLIC_ENDPOINT`), dort noch
+nicht umgestellt.
+
 **Rückweg:** Pilot 2: `SKYHUB_PILOT_WAYLINE_ENABLED=false` + Backend-Update, optional `sudo bash scripts/pi-caddy-pilot-wayline.sh rollback`. Bibliothek: `bash scripts/pi-minio-wpml-store.sh rollback` (stellt die gesicherte Policy wieder her und setzt `SKYHUB_WPML_STORE_ENABLED=false`) bzw. `SKYHUB_PILOT_WAYLINE_ENABLED=false`; danach Backend über denselben Weg neu erzeugen. Bucket und Objekte bleiben erhalten.
 
 ## Prüfungen

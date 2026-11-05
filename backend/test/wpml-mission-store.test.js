@@ -203,6 +203,19 @@ test('presigned GET follows AWS SigV4 query signing (AWS documentation example)'
     secretAccessKey:'s',expiresIn:7200}),/expiresIn/);
 });
 
+test('Pilot 2 download endpoint may be an IPv4 literal with port (RC must not pick IPv6, 05.11.2026)',()=>{
+  const base={SKYHUB_S3_ENDPOINT:'http://skyhub-minio:9000',
+    SKYHUB_S3_ACCESS_KEY:'backend-reader',SKYHUB_S3_SECRET_KEY:'x'.repeat(40)};
+  const cfg=storeConfiguration({...base,SKYHUB_PILOT_MEDIA_S3_PUBLIC_ENDPOINT:'https://rpi5.fritz.box:9446',
+    SKYHUB_WPML_S3_PUBLIC_ENDPOINT:'https://192.168.178.63:9446'});
+  assert.equal(cfg.publicEndpoint,'https://192.168.178.63:9446');   // WPML wins over the media endpoint
+  const u=new URL(presignGetUrl({endpoint:cfg.publicEndpoint,bucket:'skyhub-wpml',key:'missions/a.kmz',
+    accessKeyId:'a',secretAccessKey:'s',expiresIn:600,now:new Date('2026-11-05T21:00:00Z')}));
+  assert.equal(u.host,'192.168.178.63:9446');                       // the RC connects to exactly this host (IPv4)
+  assert.equal(u.pathname,'/skyhub-wpml/missions/a.kmz');
+  assert.equal(u.searchParams.get('X-Amz-SignedHeaders'),'host');   // signature covers that host, the :4002 proxy keeps it
+});
+
 test('HTTP router: upload, list, download; errors never leak storage details',async()=>{
   const s3=fakeS3();
   const store=createWpmlMissionStore({client:s3,env:{}});
