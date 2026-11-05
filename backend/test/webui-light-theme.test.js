@@ -47,16 +47,17 @@ for (const [filename, page] of pages) {
     assert.match(source, /<script\b/);
   });
 }
-// Navigation order of the app bar: Übersicht, Einsatz, Missionen, Auswertung, System, Labor.
-const globalLinks = ['/', '/drc.html', '/drc.html?rc=pro', '/missionsfreigabe.html', '/kartenelemente.html',
-  '/wpml-editor.html', '/wpml-route-library.html',
-  '/media-gallery.html', '/thermal.html', '/ppk.html', '/abdeckung.html', '/ndvi.html',
-  '/pilot-protokolle.html', '/fh-diagnostics.html',
-  '/wpml-survey-preview.html', '/smart-farming.html', '/smart-farming-map-lab.html'];
+// Navigation order of the app bar follows the workflow: Lagebild, Planen, Fliegen, Auswerten, Diagnose.
+const globalLinks = ['/',
+  '/wpml-editor.html', '/wpml-route-library.html', '/missionsfreigabe.html', '/kartenelemente.html', '/wpml-survey-preview.html',
+  '/drc.html', '/drc.html?rc=pro',
+  '/media-gallery.html', '/ppk.html', '/abdeckung.html', '/thermal.html', '/ndvi.html',
+  '/smart-farming.html', '/smart-farming-map-lab.html',
+  '/fh-diagnostics.html', '/pilot-protokolle.html'];
 const currentOf = new Map([['index.html','/']].concat(pages.filter(([n])=>n!=='index.html'&&n!=='pilot-login.html')
   .map(([n])=>[n,'/'+n])));
 for (const [filename] of pages.filter(([, page]) => page !== 'pilot')) {
-  test(`${filename} has shared navigation to the six operator modules`, () => {
+  test(`${filename} has the shared workflow navigation`, () => {
     const source = html(filename);
     assert.match(source, /<nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">/);
     for (const href of globalLinks)
@@ -282,7 +283,15 @@ test('app bar is identical on every page except the current marker, and every ta
   });
   for (const f of frames) assert.equal(f, frames[0]);
   for (const href of globalLinks) assert.ok(fs.existsSync(path.join(root, href === '/' ? 'index.html' : href.split('?')[0])), href);
-  assert.match(frames[0], /<details class="skyhub-nav-group is-lab"><summary>Labor<\/summary>/);
+  // Top level in workflow order; links in menu order exactly as listed in globalLinks.
+  assert.deepEqual([...frames[0].matchAll(/<summary>([^<]+)<\/summary>/g)].map(m => m[1]), ['Planen', 'Fliegen', 'Auswerten', 'Diagnose']);
+  assert.match(frames[0], /<nav class="skyhub-global-nav"[^>]*>\s*<a href="\/">Lagebild<\/a>/);
+  assert.deepEqual([...frames[0].matchAll(/<a href="([^"]+)"/g)].map(m => m[1]), globalLinks);
+  // Experimental pages: each one carries the text marker and sits after a "Labor" heading in its menu.
+  for (const href of ['/wpml-survey-preview.html', '/smart-farming.html', '/smart-farming-map-lab.html'])
+    assert.match(frames[0], new RegExp('<a href="' + href.replace(/[.?]/g, '\\$&') + '" class="is-lab"'), href);
+  assert.equal((frames[0].match(/class="skyhub-nav-section is-lab">Labor <span>experimentell/g) || []).length, 2);
+  assert.equal((frames[0].match(/class="is-lab"/g) || []).length, 3, 'only the three lab pages are marked experimental');
 });
 test('page-local styles never restyle the shared app bar (bare header/nav selectors)', () => {
   for (const [name, page] of pages) {

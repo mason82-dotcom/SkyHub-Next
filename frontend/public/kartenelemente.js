@@ -1,9 +1,11 @@
 'use strict';
 // Map elements page (backend/map-element-write.js → /api/map-elements; pushed to Pilot 2 as map_element_*).
 (function(){
+  // Start view of all SkyHub maps: skyhub-map-home.js (76694 Forst); Germany if that file is missing.
+  const HOME=typeof window!=='undefined'&&window.SkyHubMapHome||{lat:51.1657,lon:10.4515,zoom:6};
   const $=id=>document.getElementById(id);
   let mode=null,draft=[],draftLayer=null,elements=[],colors={};
-  const map=L.map('memap').setView([49.155,8.6],13);
+  const map=L.map('memap').setView([HOME.lat,HOME.lon],HOME.zoom);
   L.tileLayer('/tiles/osm/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap-Mitwirkende',referrerPolicy:'strict-origin-when-cross-origin'}).addTo(map);
   if(window.SkyHubGeozones)window.SkyHubGeozones.attach(map);
   const layer=L.layerGroup().addTo(map);

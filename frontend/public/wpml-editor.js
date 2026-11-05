@@ -1,6 +1,8 @@
 'use strict';
 // Client-only waypoint editor; never calls DJI/MQTT/SkyHub write endpoints.
 (function () {
+  // Start view of all SkyHub maps: skyhub-map-home.js (76694 Forst); Germany if that file is missing.
+  const HOME=typeof window!=='undefined'&&window.SkyHubMapHome||{lat:51.1657,lon:10.4515,zoom:6};
   const core=window.SkyHubWpmlPlanner;
   const reference=window.SkyHubWpmlWaylinesReference;
   const reviewCore=window.SkyHubWpmlMissionReview;
@@ -8,6 +10,8 @@
   const kmzImport=window.SkyHubWpmlKmzImport;
   const store=window.SkyHubWpmlMissionStore;
   const $=id=>document.getElementById(id);
+  // Reason shown next to a disabled action (skyhub-disabled-reason.js); tolerant of elements without dataset.
+  const setDisabledReason=(el,text)=>{if(el&&el.dataset)el.dataset.disabledReason=text;};
   if(!core){$('message').textContent='WPML-Modul nicht geladen – kein Export möglich.';return;}
   const points=[];
   let map=null,markers=[],line=null,hasFit=false;
@@ -32,7 +36,7 @@
     $('message').style.color=error?'var(--sky-warning)':'var(--sky-ink)';
   };
   if(typeof window.L==='object'&&typeof window.L.map==='function'){
-    map=L.map('map',{zoomControl:true}).setView([50.5,10.4],6);
+    map=L.map('map',{zoomControl:true}).setView([HOME.lat,HOME.lon],HOME.zoom);
     // Keep document referrer private, but identify the page origin to OSM tiles.
     // OSMF explicitly requires an HTTP Referer; Leaflet 1.9.4 supports this option.
     L.tileLayer('/tiles/osm/{z}/{x}/{y}.png',{
@@ -406,7 +410,7 @@
     return points.map(p=>({lat:p.lat,lon:p.lon,h:local&&Number.isFinite(p.height)?p.height:global}));
   };
   function profileStale(){
-    $('profile-run').disabled=points.length<2;
+    $('profile-run').disabled=points.length<2;setDisabledReason($('profile-run'),'Erst mindestens zwei Wegpunkte auf der Karte setzen.');
     if(profileFor&&profileFor!==JSON.stringify(profileInput())){
       $('profile-status').textContent='Route geändert – Profil neu berechnen.';$('profile-chart').replaceChildren();profileFor=null;
     }
@@ -414,7 +418,7 @@
   $('profile-run').addEventListener('click',async()=>{
     const input=profileInput();
     if(input.length<2||input.some(p=>!Number.isFinite(p.h)))return;
-    $('profile-run').disabled=true;$('profile-status').textContent='Geländehöhen werden abgefragt …';
+    setDisabledReason($('profile-run'),'');$('profile-run').disabled=true;$('profile-status').textContent='Geländehöhen werden abgefragt …';
     try{
       const b=await window.SkyHubTerrainClient.profile(input);
       profileFor=JSON.stringify(input);
@@ -422,15 +426,16 @@
       $('profile-status').textContent=b.status==='ok'?(b.maxAgl.aglM>120?'Achtung: über 120 m über Grund bei Wegpunkt '+b.maxAgl.waypoint+'.':
         b.minAgl.aglM<(b.minAglM||15)?'Achtung: nur '+b.minAgl.aglM+' m über Grund bei Wegpunkt '+b.minAgl.waypoint+'.':'Profil berechnet.'):'';
     }catch(err){$('profile-status').textContent='Höhenprofil nicht verfügbar: '+err.message;$('profile-chart').replaceChildren();}
-    finally{$('profile-run').disabled=points.length<2;}
+    finally{$('profile-run').disabled=points.length<2;setDisabledReason($('profile-run'),'Erst mindestens zwei Wegpunkte auf der Karte setzen.');}
   });
   function render(){
     renderList();renderMap();updateReview();profileStale();renderObstacles();
     updateSaveState();
-    $('export').disabled=points.length<2;
+    $('export').disabled=points.length<2;setDisabledReason($('export'),'Erst mindestens zwei Wegpunkte auf der Karte setzen.');
     $('undo').disabled=history.length===0;
     $('reverse').disabled=points.length<2;
-    if($('store-save'))$('store-save').disabled=points.length<2||!store||storeBusy;
+    if($('store-save')){$('store-save').disabled=points.length<2||!store||storeBusy;
+      setDisabledReason($('store-save'),storeBusy?'Wird gespeichert …':!store?'Bibliotheksanbindung nicht geladen.':'Erst mindestens zwei Wegpunkte auf der Karte setzen.');}
     if(points.length<2)renderMessage('Mindestens zwei unterschiedliche Wegpunkte setzen.');
     else renderMessage(points.length+' Wegpunkte vorgemerkt. Der KMZ-Export erfolgt lokal.');
   }
@@ -772,12 +777,12 @@
 
   // ---- MinIO mission library (authenticated SkyHub API, explicit actions only) ---
   // The token lives only in this input field and this closure; it is never persisted.
-  const token=()=>$('store-token').value.trim();
+  // Home network: the mission library is used without a token (no token field, decision 04.11.2026).
+  const token=()=>'';
   const storeStatus=(message,error=false)=>{
     $('store-status').textContent=message;
     $('store-status').style.color=error?'var(--sky-warning)':'var(--sky-muted)';
   };
-  $('store-token').addEventListener('keydown',event=>{if(event.key==='Enter')event.preventDefault();});
   function missionName(){
     const name=$('name').value.trim();
     if(!name||name.length>64||!DJI_NAME.test(name))
@@ -814,7 +819,7 @@
       return;
     }
     storeBusy=true;
-    $('store-save').disabled=true;
+    setDisabledReason($('store-save'),'Wird gespeichert …');$('store-save').disabled=true;
     updateSaveState();
     try{
       const name=missionName();
@@ -824,6 +829,7 @@
     }catch(error){storeStatus(error instanceof Error?error.message:'Speichern fehlgeschlagen.',true);}
     finally{
       storeBusy=false;
+      setDisabledReason($('store-save'),!store?'Bibliotheksanbindung nicht geladen.':'Erst mindestens zwei Wegpunkte auf der Karte setzen.');
       $('store-save').disabled=points.length<2||!store;
       updateSaveState();
     }

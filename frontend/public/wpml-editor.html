@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="robots" content="noindex,nofollow">
-<title>SkyHub Next · WPML Missionsentwurf</title>
+<title>Missionsentwurf · SkyHub</title>
 <link rel="stylesheet" href="/vendor/leaflet/1.9.4/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=">
 <style>
 
 *{box-sizing:border-box}body{margin:0}
 header.skyhub-pagehead{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 18px;border-bottom:1px solid var(--edge);flex-wrap:wrap}
-h1{font-size:19px;margin:0}h1 span{color:var(--accent)}h2{font-size:14px;margin:6px 0 12px}h3{font-size:13px;margin:16px 0 8px}
+h1{font-size:19px;margin:0}h1 span:not(.muted){color:var(--accent)}h2{font-size:14px;margin:6px 0 12px}h3{font-size:13px;margin:16px 0 8px}
 p{line-height:1.45}.muted,small{color:var(--muted)}.warning{color:var(--danger)}
 a{color:#a7e8fb}header.skyhub-pagehead a{text-decoration:none}
 main{display:grid;grid-template-columns:minmax(320px,1fr) 380px;min-height:calc(100vh - 60px)}
@@ -22,7 +22,7 @@ aside{border-left:1px solid var(--edge);padding:16px;overflow:auto;max-height:ca
 label{display:block;color:var(--muted);font-size:12px;margin:11px 0 5px}
 input,select,button{font:inherit;border:1px solid #45637c;border-radius:8px;padding:8px 10px;background:#19344d;color:#f4fbff;min-width:0}
 input,select{width:100%}button{background:#116a83;font-weight:650;cursor:pointer}
-button:hover:not(:disabled){background:#16869e}button:disabled{opacity:.42;cursor:not-allowed}
+button:hover:not(:disabled){background:#16869e}button:disabled{background:#e6ebf2;border-color:#d7e0ed;color:#556579;opacity:1;box-shadow:none;cursor:not-allowed}
 button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid #72d7ef;outline-offset:2px}
 .rows{display:grid;grid-template-columns:1fr 1fr;gap:10px}.tools{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
 .waypoint{border:1px solid var(--edge);padding:10px;border-radius:10px;margin:8px 0;background:#132c42}
@@ -43,6 +43,7 @@ hr{border:0;border-top:1px solid var(--edge);margin:16px 0}
 <link rel="stylesheet" href="/skyhub-light.css">
 <link rel="stylesheet" href="/elevation-profile.css">
 <script defer src="/skyhub-nav.js"></script>
+<script defer src="/skyhub-disabled-reason.js"></script>
 </head>
 <body data-skyhub-page="wpml-editor">
 <a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
@@ -50,38 +51,42 @@ hr{border:0;border-top:1px solid var(--edge);margin:16px 0}
 <header class="skyhub-appbar">
   <a class="skyhub-appbar-brand" href="/"><span class="brand-symbol" aria-hidden="true">✦</span>SkyHub <span>Next</span></a>
   <nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
-    <a href="/">Übersicht</a>
-    <details class="skyhub-nav-group"><summary>Einsatz</summary><div class="skyhub-nav-menu">
-      <a href="/drc.html">Live-Steuerung Matrice 4</a>
-      <a href="/drc.html?rc=pro">Kamera Mavic 3 (RC Pro)</a>
-      <a href="/missionsfreigabe.html">Missionsfreigabe</a>
-      <a href="/kartenelemente.html">Kartenelemente</a>
+    <a href="/">Lagebild</a>
+    <details class="skyhub-nav-group is-active"><summary>Planen</summary><div class="skyhub-nav-menu">
+      <p class="skyhub-nav-section">Mission</p>
+      <a href="/wpml-editor.html" aria-current="page">Missionsentwurf<small>Wegpunkte setzen, KMZ importieren</small></a>
+      <a href="/wpml-route-library.html">Routenbibliothek<small>Gespeicherte Routen und Revisionen</small></a>
+      <a href="/missionsfreigabe.html">Missionsfreigabe<small>Revision für Pilot 2 freigeben</small></a>
+      <p class="skyhub-nav-section">Karte in Pilot 2</p>
+      <a href="/kartenelemente.html">Kartenelemente<small>Punkte, Linien und Flächen</small></a>
+      <p class="skyhub-nav-section is-lab">Labor <span>experimentell, nicht für den Einsatz freigegeben</span></p>
+      <a href="/wpml-survey-preview.html" class="is-lab">Vermessungsvorschau<small>2D-Flächenvermessung, nur Vorschau</small></a>
     </div></details>
-    <details class="skyhub-nav-group is-active"><summary>Missionen</summary><div class="skyhub-nav-menu">
-      <a href="/wpml-editor.html" aria-current="page">Missionsentwurf</a>
-      <a href="/wpml-route-library.html">Routenbibliothek</a>
+    <details class="skyhub-nav-group"><summary>Fliegen</summary><div class="skyhub-nav-menu">
+      <a href="/drc.html">Live-Steuerung<small>Matrice 4 · RC Plus 2</small></a>
+      <a href="/drc.html?rc=pro">Kamera &amp; Gimbal<small>Mavic 3 · RC Pro</small></a>
     </div></details>
-    <details class="skyhub-nav-group"><summary>Auswertung</summary><div class="skyhub-nav-menu">
-      <a href="/media-gallery.html">Medien</a>
-      <a href="/thermal.html">Thermal</a>
-      <a href="/ppk.html">PPK-Geotagging</a>
-      <a href="/abdeckung.html">Fotoabdeckung</a>
-      <a href="/ndvi.html">Vegetationsindizes</a>
+    <details class="skyhub-nav-group"><summary>Auswerten</summary><div class="skyhub-nav-menu">
+      <p class="skyhub-nav-section">Medien &amp; Position</p>
+      <a href="/media-gallery.html">Medien<small>Fotos, Videos, TIFFs, Missionsdateien</small></a>
+      <a href="/ppk.html">PPK-Geotagging<small>Zentimetergenaue Kamerapositionen</small></a>
+      <a href="/abdeckung.html">Fotoabdeckung<small>Lücken und Überlappung eines Flugs</small></a>
+      <p class="skyhub-nav-section">Sensorik</p>
+      <a href="/thermal.html">Thermal<small>Temperaturen aus DJI R-JPEG</small></a>
+      <a href="/ndvi.html">Vegetationsindizes<small>NDVI, GNDVI, NDRE · Mavic 3M</small></a>
+      <p class="skyhub-nav-section is-lab">Labor <span>experimentell, nicht für den Einsatz freigegeben</span></p>
+      <a href="/smart-farming.html" class="is-lab">Smart Farming<small>M3M-Indexkandidaten, nur Lesen</small></a>
+      <a href="/smart-farming-map-lab.html" class="is-lab">Vegetationskarte<small>Georeferenzierte Vorschau</small></a>
     </div></details>
-    <details class="skyhub-nav-group"><summary>System</summary><div class="skyhub-nav-menu">
-      <a href="/pilot-protokolle.html">Pilot-2-Protokolle</a>
-      <a href="/fh-diagnostics.html">RTK &amp; Flugsitzungen</a>
-    </div></details>
-    <details class="skyhub-nav-group is-lab"><summary>Labor</summary><div class="skyhub-nav-menu">
-      <a href="/wpml-survey-preview.html">Survey-Vorschau</a>
-      <a href="/smart-farming.html">Smart Farming</a>
-      <a href="/smart-farming-map-lab.html">Vegetationskarte</a>
+    <details class="skyhub-nav-group"><summary>Diagnose</summary><div class="skyhub-nav-menu">
+      <a href="/fh-diagnostics.html">RTK &amp; Flugsitzungen<small>RTK-Status und Sitzungsverlauf</small></a>
+      <a href="/pilot-protokolle.html">Pilot-2-Protokolle<small>Von der Fernsteuerung gesendet</small></a>
     </div></details>
   </nav>
 </header>
 <!-- /skyhub-appbar -->
 <header class="skyhub-pagehead">
-  <div><h1>SkyHub <span>WPML Missionsentwurf</span></h1><small>DJI Cloud API 1.18 · lokaler Entwurf, optional validierte MinIO-Bibliothek · kein Flugauftrag</small></div>
+  <div><h1>Missionsentwurf <span class="muted">Wegpunkte setzen, KMZ importieren</span></h1><small>DJI Cloud API 1.18 · lokaler Entwurf, optional validierte MinIO-Bibliothek · kein Flugauftrag</small></div>
 </header>
 <main id="skyhubMain" tabindex="-1">
  <section class="map-wrap" aria-label="Wegpunktkarte">
@@ -218,12 +223,12 @@ hr{border:0;border-top:1px solid var(--edge);margin:16px 0}
    <section aria-labelledby="h-profile">
      <h2 id="h-profile">Höhenprofil (Gelände)</h2>
      <p class="caption">Sendet die Wegpunkte einmalig an den SkyHub-Höhendienst im Heimnetz (Copernicus-Geländemodell, nur Landkreis Karlsruhe geladen); nichts wird gespeichert. Startpunkt = erster Wegpunkt. Gebäude, Bäume und Masten sind im Modell nicht zuverlässig enthalten.</p>
-     <div class="tools"><button type="button" id="profile-run" disabled>Höhenprofil berechnen</button></div>
+     <div class="tools"><button type="button" id="profile-run" data-disabled-reason="" disabled>Höhenprofil berechnen</button></div>
      <p id="profile-status" class="caption" role="status" aria-live="polite"></p>
      <div id="profile-chart"></div>
    </section>
    <hr>
-   <button type="submit" id="export">WPML-KMZ lokal exportieren</button>
+   <button type="submit" id="export" data-disabled-reason="">WPML-KMZ lokal exportieren</button>
    <p class="caption">Ausgegeben werden template.kml und waylines.wpml im KMZ-Archiv. Wegpunkte, relative und WGS84-Ellipsoidhöhen sowie experimentelle, noch nicht in DJI Pilot 2 geprüfte Intervall-Fotoaktionen. Mapping2D/3D, Korridore, Terrain-Referenzen und Multispektralaktionen werden hier noch nicht zu Missionswegen berechnet.</p>
    <div id="message" role="status" aria-live="polite">Mindestens zwei unterschiedliche Wegpunkte setzen.</div>
    <p class="warning">Keine Flugfreigabe. DJI Pilot 2 muss die Mission prüfen. Keine Geofencing-, Terrain-, Kollisions- oder Kamerakompatibilitätsgarantie.</p>
@@ -231,13 +236,8 @@ hr{border:0;border-top:1px solid var(--edge);margin:16px 0}
    <section aria-label="MinIO-Missionsbibliothek">
      <h2>Missionsbibliothek (MinIO S3)</h2>
      <p class="caption">Validierte KMZ-Dateien werden im Bucket <code>skyhub-wpml</code> unveränderlich abgelegt. Nach ausdrücklicher Übernahme einer gespeicherten Mission kann eine neue KMZ mit eigenständigem Namen als Nachfolgeversion gespeichert werden. Bestehende Missionen ohne belegte Vorgänger-ID bleiben eigenständige Einträge. Im ausdrücklich freigegebenen HTTPS-Heimnetz (Dashboard-Port 4443) ist kein Token nötig. Außerhalb dieses Zugangs bleibt ein Token erforderlich. Kein DJI-Flugauftrag.</p>
-     <details>
-       <summary>Erweiterter Zugriff: Zugangstoken optional</summary>
-       <label for="store-token">SkyHub-Zugangstoken</label>
-       <input id="store-token" type="password" autocomplete="off" spellcheck="false" placeholder="Nur nötig, wenn die Heimnetzfreigabe nicht aktiv ist">
-     </details>
      <div class="tools">
-       <button type="button" id="store-save">In Bibliothek speichern</button>
+       <button type="button" id="store-save" data-disabled-reason="">In Bibliothek speichern</button>
        <button type="button" id="store-refresh">Bibliothek laden</button>
      </div>
      <div id="store-draft-state" role="status" aria-live="polite" class="caption">Entwurf noch nicht zentral gespeichert.</div>
@@ -269,6 +269,7 @@ hr{border:0;border-top:1px solid var(--edge);margin:16px 0}
 <script src="/elevation-profile.js"></script>
 <script src="/wpml-terrain-client.js"></script>
 <script src="/wpml-obstacle-store.js"></script>
+<script src="/skyhub-map-home.js"></script>
 <script src="/wpml-editor.js"></script>
 </body>
 </html>

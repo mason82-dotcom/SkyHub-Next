@@ -15,7 +15,7 @@ button,.button{cursor:pointer;font-weight:700;text-decoration:none;display:inlin
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 main{max-width:1680px;margin:auto;padding:22px clamp(16px,3vw,46px) 64px}
 .hero{display:flex;justify-content:space-between;gap:20px;align-items:flex-end;margin-bottom:18px}
-.hero h1{font-size:clamp(26px,3.4vw,42px);margin:2px 0 8px;letter-spacing:-.025em}.hero h1 span{color:var(--accent)}
+.hero h1{font-size:clamp(26px,3.4vw,42px);margin:2px 0 8px;letter-spacing:-.025em}.hero h1 span:not(.muted){color:var(--accent)}.hero h1 .muted{display:block;margin-top:4px;font-size:15px;font-weight:500;letter-spacing:0;color:var(--muted)}
 .hero p:not(.eyebrow){max-width:80ch;color:var(--muted);margin:0}
 .eyebrow{font-size:11px;font-weight:750;letter-spacing:.16em;color:var(--sky-primary);margin:0 0 4px}
 

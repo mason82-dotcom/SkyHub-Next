@@ -20,7 +20,7 @@
   async function problem(response){
     let body=null;
     try{body=await response.json();}catch(_e){}
-    if(response.status===401)return new Error('Zugriff verweigert (401): Heimnetzfreigabe aktivieren oder unter „Erweiterter Zugriff“ einen gültigen Zugangstoken eingeben.');
+    if(response.status===401)return new Error('Zugriff verweigert (401): Die Missionsbibliothek ist nur aus dem Heimnetz über https://…:4443 erreichbar.');
     if(response.status===403)return new Error('Zugriff durch HTTPS-Proxy verweigert (403): Heimnetz und Port 4443 prüfen.');
     if(response.status===404&&!body?.error)return new Error('Missionsbibliothek ist auf diesem Server nicht aktiviert.');
     if(response.status===413)return new Error('KMZ ist größer als 12 MiB.');

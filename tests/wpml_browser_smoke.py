@@ -90,7 +90,7 @@ def assert_light_theme(page, active_href: str, name: str) -> None:
         scrollWidth: document.documentElement.scrollWidth,
         viewportWidth: window.innerWidth,
         // Shared frame (scripts/webui-shell.py): module links sit in group menus; the top level is
-        // "Übersicht" plus five group buttons, which must stay fully visible on every viewport.
+        // "Lagebild" plus four workflow menus (Planen, Fliegen, Auswerten, Diagnose), fully visible on every viewport.
         navigation: [...document.querySelectorAll('.skyhub-global-nav a')].map(a => ({
             href: a.getAttribute('href'),
             current: a.getAttribute('aria-current'),
@@ -128,8 +128,8 @@ def assert_light_theme(page, active_href: str, name: str) -> None:
     hrefs = [a["href"] for a in state["navigation"]]
     check(len(hrefs) == 17 and "/thermal.html" in hrefs,
           name + ": expected 17 operator module links in the shared navigation (incl. Thermal)")
-    check(len(state["topLevel"]) == 6 and all(state["topLevel"]),
-          name + ": top-level navigation (overview + five groups) clipped on this viewport")
+    check(len(state["topLevel"]) == 5 and all(state["topLevel"]),
+          name + ": top-level navigation (Lagebild + four menus) clipped on this viewport")
     current = [a for a in state["navigation"] if a["current"] == "page"]
     check([a["href"] for a in current] == [active_href], name + ": active module mismatch")
     check(current[0]["groupActive"] in (None, True), name + ": group of the active module is not marked active")

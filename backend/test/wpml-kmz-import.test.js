@@ -174,7 +174,7 @@ test('editor wires KMZ upload and MinIO library without DJI dispatch paths',()=>
   assert.match(html,/wpml-mission-store-client\.js/);
   assert.match(html,/id="kmz-import-file"/);
   assert.match(html,/id="kmz-import-apply"/);
-  assert.match(html,/id="store-token"[^>]*type="password"|type="password"[^>]*id="store-token"/);
+  assert.doesNotMatch(html,/id="store-token"|type="password"/,'no token field in the home network');
   assert.match(editor,/kmzImport\.importKmz\(/);
   assert.match(editor,/core\.normalize\(result\.plan\)/);
   // The editor and the importer never open network connections themselves.

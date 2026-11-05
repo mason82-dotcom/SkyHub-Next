@@ -1,8 +1,12 @@
 'use strict';
 // Photo coverage page (backend/coverage.js): overlap counts as an image overlay, flown area, largest gaps.
 (function(){
+  // Start view of all SkyHub maps: skyhub-map-home.js (76694 Forst); Germany if that file is missing.
+  const HOME=typeof window!=='undefined'&&window.SkyHubMapHome||{lat:51.1657,lon:10.4515,zoom:6};
   const $=id=>document.getElementById(id);
-  const map=L.map('covmap').setView([49.155,8.6],13);
+  // Reason shown next to a disabled action (skyhub-disabled-reason.js); tolerant of elements without dataset.
+  const setDisabledReason=(el,text)=>{if(el&&el.dataset)el.dataset.disabledReason=text;};
+  const map=L.map('covmap').setView([HOME.lat,HOME.lon],HOME.zoom);
   L.tileLayer('/tiles/osm/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap-Mitwirkende',referrerPolicy:'strict-origin-when-cross-origin'}).addTo(map);
   let layer=null;
   const say=(t,bad)=>{$('status').textContent=t;$('status').className=bad?'bad':'muted';};
@@ -17,7 +21,8 @@
         o.textContent=f.name+' · '+f.photos+' Fotos'+(f.startUtc?' · '+new Date(f.startUtc).toLocaleDateString('de-DE'):'');return o;}));
       if(!(b.flights||[]).length){const o=document.createElement('option');o.value='';o.textContent='keine Flüge mit Fotos im Speicher';$('flight').append(o);}
       $('run').disabled=!(b.flights||[]).length;
-    }catch(err){say('Flüge nicht lesbar: '+err.message,true);}
+      setDisabledReason($('run'),'Im Speicher liegen keine Flüge mit Fotos.');
+    }catch(err){setDisabledReason($('run'),'Flugliste nicht lesbar – siehe Meldung.');say('Flüge nicht lesbar: '+err.message,true);}
   }
   function overlay(r){
     const counts=new Uint16Array(Uint8Array.from(atob(r.counts),c=>c.charCodeAt(0)).buffer);
@@ -37,7 +42,7 @@
     return L.imageOverlay(cv.toDataURL(),[[r.bounds.south,r.bounds.west],[r.bounds.north,r.bounds.east]],{opacity:1,interactive:false});
   }
   $('run').addEventListener('click',async()=>{
-    $('run').disabled=true;say('Fotoköpfe werden gelesen und ausgewertet …');
+    setDisabledReason($('run'),'Berechnung läuft …');$('run').disabled=true;say('Fotoköpfe werden gelesen und ausgewertet …');
     try{
       const r=await fetch('/api/coverage/run',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({flight:$('flight').value,minOverlap:Number($('min').value)})});

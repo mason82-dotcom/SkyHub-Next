@@ -104,6 +104,16 @@ test('LAN view is read-only; pairing administration still needs the view token',
   // The Smart Farming UI requests the catalog with a trailing slash.
   assert.equal((await request('/api/smart-farming/candidates/',{lan:'192.168.178.70'})).status,404);
   assert.equal((await request('/api/smart-farming/candidates/',{lan:'203.0.113.9'})).status,401);
+  // RTK & flight-session diagnosis page: its three read-only lists open from the home LAN without a token;
+  // per-device sources, UgCS sections and metric dumps stay behind the view token, as does every other network.
+  for(const p of ['rtk','flights','events']){
+    assert.equal((await request('/api/diagnostics/fh/'+p,{lan:'192.168.178.70'})).status,200,p);
+    assert.equal((await request('/api/diagnostics/fh/'+p,{lan:'203.0.113.9'})).status,401,p);
+    assert.equal((await request('/api/diagnostics/fh/'+p,{method:'POST',lan:'192.168.178.70'})).status,401,p);
+  }
+  assert.equal((await request('/api/diagnostics/fh/metrics',{lan:'192.168.178.70'})).status,401);
+  assert.equal((await request('/api/diagnostics/fh/sources/AIR01',{lan:'192.168.178.70'})).status,401);
+  assert.equal((await request('/api/diagnostics/fh/ugcs/flights',{lan:'192.168.178.70'})).status,401);
   assert.equal((await request('/api/pilot-admin/pairings',{lan:'192.168.178.70'})).status,401);
   assert.equal((await request('/api/unknown-future-route',{lan:'192.168.178.70'})).status,401);
   assert.equal((await request('/api/mission/create',{method:'POST',lan:'192.168.178.70'})).status,401);

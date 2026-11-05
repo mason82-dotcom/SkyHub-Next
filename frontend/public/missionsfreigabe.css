@@ -15,7 +15,7 @@ body.mrel{margin:0;background:var(--sky-bg);color:var(--sky-ink);font:14px/1.45 
   background:var(--sky-primary);color:#fff;font:inherit;font-weight:600;cursor:pointer}
 .card button.secondary{background:var(--sky-white);color:var(--sky-primary)}
 .card button.danger{background:#fff;color:#b3261e;border-color:#b3261e}
-.card button:disabled{opacity:.45;cursor:not-allowed}
+.card button:disabled,.card button.secondary:disabled,.card button.danger:disabled{background:#e6ebf2;border-color:#d7e0ed;color:#556579;opacity:1;box-shadow:none;cursor:not-allowed}
 .card button:focus-visible,.card input:focus-visible,.check input:focus-visible{outline:3px solid #ffb703;outline-offset:2px}
 .row-inline{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px}
 .row-inline p{margin:0}

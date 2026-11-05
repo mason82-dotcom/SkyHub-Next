@@ -72,16 +72,15 @@ Fachquelle: `backend/wpml-mission-store.js`, `backend/dji-wayline-http.js`,
   andere Schreib-APIs oder Pilot 2. KMZ enthalten GPS-Routen; das LAN muss
   daher als vertrauenswürdig gelten. DJI Pilot 2 authentifiziert sich weiterhin
   getrennt mit `x-auth-token` (`wayline/api/v1`, nur Liste/Download).
-- **Tokenfeld:** Optionales `#store-token` unter „Erweiterter Zugriff“ im
-  Abschnitt „Missionsbibliothek“ von `wpml-editor.html`. Im ausdrücklich
-  freigegebenen Heimnetz ist kein Token einzugeben; andernfalls ist er Pflicht.
-  Ein eingegebener Token bleibt im Seitenspeicher: kein Local-/Session-Storage,
-  Cookie, URL oder Log. Der lokale KMZ-Editor ist auch ohne Server vollständig nutzbar.
+- **Kein Tokenfeld:** Im Heimnetz fragt keine Seite nach einem Token oder Passwort
+  (Entscheidung 04.11.2026, bekräftigt 05.11.2026). Die Missionsbibliothek arbeitet über
+  die Heimnetzfreigabe; außerhalb des Heimnetzes meldet sie 401 mit Hinweis auf den
+  Heimnetzzugang. Der lokale KMZ-Editor ist auch ohne Server vollständig nutzbar.
 - **Bestätigung:** Jeder Upload ist eine ausdrückliche Schaltflächenaktion mit
   Bestätigungsdialog (Name, Ziel-Bucket, „kein Flugauftrag“). Es gibt keinen
   automatischen oder impliziten Upload, kein Überschreiben (write-once) und kein
   Löschen über SkyHub. Gleicher Inhalt = gleiche ID (idempotent).
-- **Fehler:** 400 ungültiger DJI-Name, 401 Token abgelehnt, 404 Bibliothek nicht
+- **Fehler:** 400 ungültiger DJI-Name, 401 außerhalb des Heimnetzes, 404 Bibliothek nicht
   aktiviert, 409 Name bereits vergeben (DJI verlangt eindeutige Namen), 413 > 12 MiB,
   422 Server-Validierung mit höchstens drei Pfaden, 503 Speicher nicht erreichbar –
   ohne Endpunkt-, Schlüssel- oder Stackdetails. Fehler ändern den lokalen Entwurf nie.
