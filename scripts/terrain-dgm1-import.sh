@@ -13,11 +13,15 @@ set -Eeuo pipefail
 cd "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 DIR=${SKYHUB_TERRAIN_DIR:-ops/terrain}; IN=$DIR/dgm1-zips
 shopt -s nullglob; zips=("$IN"/*.zip); shopt -u nullglob
-(( ${#zips[@]} )) || { echo "Keine ZIPs in $IN (DGM1-Kacheln aus https://opengeodata.lgl-bw.de dorthin kopieren)" >&2; exit 2; }
+if (( ! ${#zips[@]} )) && ! compgen -G "$DIR/data/dgm1/*.tif" >/dev/null; then
+  echo "Keine ZIPs in $IN und keine Kacheln in $DIR/data/dgm1 (Portal-Download oder scripts/terrain-dgm1-wcs.sh)" >&2; exit 2
+fi
+mkdir -p "$IN"
 [[ -d "$DIR/data/cop30vrt" ]] || { echo "Copernicus-Datensatz fehlt (zuerst scripts/terrain-dem-fetch.sh)" >&2; exit 2; }
 mkdir -p "$DIR/data/dgm1" "$DIR/data/dgm1vrt"
+DIRABS=$(cd "$DIR" && pwd)   # absolute: docker bind mounts need it (SKYHUB_TERRAIN_DIR may be absolute)
 IMAGE=${SKYHUB_TERRAIN_IMAGE:-skyhub-opentopodata:1.10.0}
-docker run -i --rm --network none -v "$PWD/$IN:/in:ro" -v "$PWD/$DIR/data:/d" "$IMAGE" python3 - <<'PY'
+docker run -i --rm --network none -v "$DIRABS/dgm1-zips:/in:ro" -v "$DIRABS/data:/d" "$IMAGE" python3 - <<'PY'
 import glob,io,os,re,zipfile
 import numpy as np,rasterio
 from rasterio.transform import from_origin
@@ -69,10 +73,12 @@ out=['<VRTDataset rasterXSize="%d" rasterYSize="%d">'%(W,H),'<SRS>EPSG:25832</SR
      '<GeoTransform>%.3f, 1, 0, %.3f, 0, -1</GeoTransform>'%(left,top),
      '<VRTRasterBand dataType="Float32" band="1"><NoDataValue>%g</NoDataValue>'%NODATA]
 for f,s in zip(files,srcs):
-    if abs(s.res[0]-1)>1e-9 or abs(s.res[1]-1)>1e-9: raise SystemExit('Rasterweite nicht 1 m: '+f)
-    out.append('<SimpleSource><SourceFilename relativeToVRT="1">../dgm1/%s</SourceFilename><SourceBand>1</SourceBand>'
-      '<SrcRect xOff="0" yOff="0" xSize="%d" ySize="%d"/><DstRect xOff="%d" yOff="%d" xSize="%d" ySize="%d"/></SimpleSource>'
-      %(os.path.basename(f),s.width,s.height,int(round(s.bounds.left-left)),int(round(top-s.bounds.top)),s.width,s.height))
+    # LGL WCS tiles come as 999 px per 1000 m (≈1.001 m): placed by their bounds on the 1 m grid (the VRT resamples).
+    if abs(s.res[0]-1)>0.01 or abs(s.res[1]-1)>0.01: raise SystemExit('Rasterweite nicht ~1 m: '+f)
+    dw=int(round(s.bounds.right-s.bounds.left));dh=int(round(s.bounds.top-s.bounds.bottom))
+    out.append('<ComplexSource><SourceFilename relativeToVRT="1">../dgm1/%s</SourceFilename><SourceBand>1</SourceBand>'
+      '<SrcRect xOff="0" yOff="0" xSize="%d" ySize="%d"/><DstRect xOff="%d" yOff="%d" xSize="%d" ySize="%d"/><NODATA>%g</NODATA></ComplexSource>'
+      %(os.path.basename(f),s.width,s.height,int(round(s.bounds.left-left)),int(round(top-s.bounds.top)),dw,dh,NODATA))
 out+=['</VRTRasterBand>','</VRTDataset>']
 open('/d/dgm1vrt/dgm1.vrt','w').write('\n'.join(out)+'\n')
 print('DGM1: %d Kacheln (%d übersprungen), Mosaik %d x %d m'%(len(files),skipped,W,H))

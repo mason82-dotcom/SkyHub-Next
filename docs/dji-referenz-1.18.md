@@ -72,8 +72,12 @@ umgebende Box der Route das Heimnetz). Treffer sind Warnungen mit Name, `type_co
 
 Gelände (nicht DJI): LGL-DGM1 (Open GeoData BW, dl-de/by-2-0 „Datenquelle: LGL, www.lgl-bw.de“), Kacheln 2 × 2 km
 `dgm1_32_<E>_<N>_2_bw.zip` (ETRS89/UTM 32, NHN/DHHN2016, ±15 cm, XYZ bzw. ab 03/2026 GeoTIFF) → `scripts/terrain-dgm1-import.sh`,
-Abfrage `dgm1,cop30` (Open-Topo-Data-Rückfall auf Copernicus). Die LGL-Dienste WMS/WCS `WCS_INSP_BW_Hoehe_Coverage_DGM1`
-antworteten am 05.11.2026 mit HTTP 500; Download daher über das Portal.
+Abfrage `dgm1,cop30` (Open-Topo-Data-Rückfall auf Copernicus). Ohne Portal: INSPIRE-WCS
+`https://owsproxy.lgl-bw.de/owsproxy/wcs/WCS_INSP_BW_Hoehe_Coverage_DGM1` (Metadaten e54f2396-1ce0-4f73-b47a-56d2b3c55c27, ohne Login,
+dl-de/by-2-0, Quellenvermerk „LGL-BW (Jahr) Datenlizenz Deutschland – Namensnennung – Version 2.0, www.lgl-bw.de“) →
+`scripts/terrain-dgm1-wcs.sh <Breite von> <bis> <Länge von> <bis>`; liefert ganze Meter (uint16) und 999 px je 1000 m (Mosaik
+gleicht aus); Skalierung (`SCALESIZE`) trotz Ankündigung 404. LGL OGC API Features (`https://ogcapi.lgl-bw.de/beta/…`): ALKIS-Gebäude
+nur Grundriss/Nutzung, keine Höhen.
 
 Ebenfalls nur ergänzend (abgeglichen 04.11.2026):
 - [dji-sdk/FlightHub-2-Plugin](https://github.com/dji-sdk/FlightHub-2-Plugin) 1.0.0 (27.10.2026, Apache-2.0): Plugins **innerhalb** von
