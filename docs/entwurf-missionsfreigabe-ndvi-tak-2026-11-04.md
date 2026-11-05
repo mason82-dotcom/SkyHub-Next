@@ -110,6 +110,10 @@ Abgelaufene Freigaben bleiben als Audit stehen.
 
 ## 4. NDVI (Phase 2)
 
+> **Stand 05.11.2026, umgesetzt (abweichend):** `backend/ndvi.js` im Backend statt Python-Worker (Eingänge sind unkomprimierte
+> 16-bit-TIFFs, ~2 s je Aufnahme); NDVI, GNDVI, NDRE je Aufnahme, Bänder über XMP `CaptureUUID` gruppiert, Ergebnisse im
+> Speicher (letzte 5) statt MinIO, keine Auftragstabelle. Seite `ndvi.html`. Orthomosaik-Indizes weiter offen.
+
 - **Worker** `backend/workers/m3m_ndvi.py` in eigenem Container (`skyhub-ndvi-worker`, Speicherlimit), Bibliotheken wie die
   bestehenden M3M-Werkzeuge (`m3m_requirements.txt`: NumPy, rasterio, tifffile, defusedxml).
 - **Kalibrierkette je Band** (DJI-Multispektral-Leitfaden für M3M):
@@ -123,6 +127,9 @@ Abgelaufene Freigaben bleiben als Audit stehen.
 - **Aufträge:** Tabelle `ndvi_job` (Status queued/running/done/failed); Worker holt per `SELECT … FOR UPDATE SKIP LOCKED`.
 
 ## 5. TAK/CloudTAK (Phase 3)
+
+> **Stand 05.11.2026, umgesetzt:** `backend/tak.js` (CoT-Erzeugung und Transporte in einer Datei), Status `/api/tak/status`,
+> Anleitung `docs/tak.md`. Standardmäßig aus; mit einem echten TAK Server noch nicht getestet.
 
 - **CoT-Erzeugung** `backend/tak-cot.js`: je Gerät mit frischer, gültiger Position ein `<event version="2.0">` mit
   `uid="SKYHUB-<sn>"`, `type="a-f-A-M-H-Q"` (befreundet, Luft, militär. Drehflügler-UAV, übliche UAS-Kennung in ATAK; konfigurierbar),
