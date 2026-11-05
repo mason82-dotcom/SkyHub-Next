@@ -60,3 +60,9 @@ Thumbs.db
 /ops/cloud-api-demo/.env
 /ops/cloud-api-demo/runtime/
 /third_party/
+
+# brix-node: Mosquitto-Zugangsdaten (nur lokal, 600)
+ops/brix/mosquitto/passwd
+ops/brix/mosquitto/acl
+ops/brix/mosquitto/*.bak-*
+*.bak-terrain
