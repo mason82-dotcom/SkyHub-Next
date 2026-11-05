@@ -70,6 +70,11 @@ Geozonen (nicht DJI): dipul-WFS `https://uas-betrieb.de/geoservices/dipul/wfs` (
 Anfrage, GeoJSON in EPSG:4326 → `mission-geozones.js` (Freigabeprüfung, opt-in `SKYHUB_GEOZONES_ENABLED`; es verlässt nur die
 umgebende Box der Route das Heimnetz). Treffer sind Warnungen mit Name, `type_code` und `legal_ref` (§ 21h LuftVO).
 
+Gelände (nicht DJI): LGL-DGM1 (Open GeoData BW, dl-de/by-2-0 „Datenquelle: LGL, www.lgl-bw.de“), Kacheln 2 × 2 km
+`dgm1_32_<E>_<N>_2_bw.zip` (ETRS89/UTM 32, NHN/DHHN2016, ±15 cm, XYZ bzw. ab 03/2026 GeoTIFF) → `scripts/terrain-dgm1-import.sh`,
+Abfrage `dgm1,cop30` (Open-Topo-Data-Rückfall auf Copernicus). Die LGL-Dienste WMS/WCS `WCS_INSP_BW_Hoehe_Coverage_DGM1`
+antworteten am 05.11.2026 mit HTTP 500; Download daher über das Portal.
+
 Ebenfalls nur ergänzend (abgeglichen 04.11.2026):
 - [dji-sdk/FlightHub-2-Plugin](https://github.com/dji-sdk/FlightHub-2-Plugin) 1.0.0 (27.10.2026, Apache-2.0): Plugins **innerhalb** von
   FlightHub 2, kein Cloud-API-Protokoll. Für SkyHub nur als Vergleich: das FH2-Cockpit bietet Plugins beim Gimbal nur `reset` und `lookAt`,

@@ -60,6 +60,9 @@ open('/d/cop30vrt/cop30.vrt','w').write('\n'.join(out)+'\n')
 print('VRT: %d Kacheln, %dx%d Pixel, %.4f..%.4f N, %.4f..%.4f O'%(len(files),W,H,bottom,top,left,right))
 PY
 [[ -s "$DIR/data/cop30vrt/cop30.vrt" ]] || { echo "VRT-Mosaik fehlt" >&2; exit 4; }
+if [[ -s "$DIR/data/dgm1vrt/dgm1.vrt" ]]; then
+  echo "DGM1 vorhanden: Konfiguration mit dgm1 + cop30 (scripts/terrain-dgm1-import.sh) bleibt erhalten."
+else
 cat > "$DIR/config.yaml" <<'YAML'
 # Written by scripts/terrain-dem-fetch.sh. Open Topo Data configuration for SkyHub (terrain check of the release).
 max_locations_per_request: 100
@@ -68,5 +71,6 @@ datasets:
 - name: cop30
   path: data/cop30vrt/
 YAML
+fi
 echo "Fertig: $count Kachel(n) in $OUT, Konfiguration $DIR/config.yaml (Datensatz cop30)."
 echo "Backend: SKYHUB_TERRAIN_URL=http://opentopodata:5000  SKYHUB_TERRAIN_DATASET=cop30"

@@ -28,7 +28,8 @@ function terrainConfig(env=process.env){
   if(!['http:','https:'].includes(u.protocol)||u.username||u.password||u.search||u.hash)
     return {enabled:false,issue:'SKYHUB_TERRAIN_URL: nur http(s)://host[:port][/pfad] ohne Zugangsdaten'};
   const dataset=env.SKYHUB_TERRAIN_DATASET||'eudem25m';
-  if(!/^[a-z0-9_-]{2,40}$/i.test(dataset))return {enabled:false,issue:'SKYHUB_TERRAIN_DATASET ungültig'};
+  // One dataset or an Open Topo Data fallback list, e.g. "dgm1,cop30" (LGL DGM1 where present, Copernicus elsewhere).
+  if(!/^[a-z0-9_-]{2,40}(,[a-z0-9_-]{2,40}){0,3}$/i.test(dataset))return {enabled:false,issue:'SKYHUB_TERRAIN_DATASET ungültig'};
   const minAgl=env.SKYHUB_TERRAIN_MIN_AGL_M===undefined||env.SKYHUB_TERRAIN_MIN_AGL_M===''?15:Number(env.SKYHUB_TERRAIN_MIN_AGL_M);
   if(!Number.isFinite(minAgl)||minAgl<0||minAgl>100)return {enabled:false,issue:'SKYHUB_TERRAIN_MIN_AGL_M 0..100'};
   return {enabled:true,base:u.origin+u.pathname.replace(/\/+$/,''),dataset,minAglM:minAgl,
@@ -128,7 +129,7 @@ function terrainFindings(t,{maxHeightM=120,minAglM=15}={}){
     return {errors,warnings};
   }
   if(t.status!=='ok')return {errors,warnings};
-  warnings.push('terrain from '+t.dataset+' (25-30 m grid, buildings, trees and masts not reliably included): highest '+t.maxAgl.aglM+' m and lowest '+
+  warnings.push('terrain from '+t.dataset+(/^dgm1/.test(t.dataset)?' (LGL DGM1 1 m bare earth where available, otherwise 30 m; buildings, trees and masts not included)':' (25-30 m grid, buildings, trees and masts not reliably included)')+': highest '+t.maxAgl.aglM+' m and lowest '+
     t.minAgl.aglM+' m above ground; obstacles must still be checked on site');
   if(t.assumedTakeoff)warnings.push('terrain: take-off point assumed at the first waypoint (ground '+t.takeoffGroundM+' m); a different take-off point shifts all heights above ground');
   if(t.maxAgl.aglM>maxHeightM)errors.push('terrain: '+t.maxAgl.aglM+' m above ground near waypoint '+t.maxAgl.waypoint+' exceeds '+maxHeightM+' m');

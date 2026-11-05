@@ -4,8 +4,9 @@
 // CC BY-ND 4.0, © DFS). Only the bounding box of the route (+ buffer) is sent, never the route itself. Opt-in
 // (SKYHUB_GEOZONES_ENABLED=true). The result is a hint for the pilot: it does not replace the check in dipul / the
 // authorisation, and zones that dipul does not publish are not covered.
+// The 31 feature types of the WFS GetCapabilities (05.11.2026); modellflugplaetze and haengegleiter exist only in the WMS.
 const LAYERS=Object.freeze(['flughaefen','flugplaetze','kontrollzonen','flugbeschraenkungsgebiete','temporaere_betriebseinschraenkungen',
-  'modellflugplaetze','haengegleiter','militaerische_anlagen','behoerden','diplomatische_vertretungen','internationale_organisationen',
+  'militaerische_anlagen','behoerden','diplomatische_vertretungen','internationale_organisationen',
   'polizei','sicherheitsbehoerden','justizvollzugsanstalten','labore','krankenhaeuser','industrieanlagen','kraftwerke',
   'umspannwerke','stromleitungen','windkraftanlagen','bundesautobahnen','bundesstrassen','bahnanlagen','binnenwasserstrassen',
   'seewasserstrassen','schifffahrtsanlagen','naturschutzgebiete','nationalparks','vogelschutzgebiete','ffh-gebiete',
