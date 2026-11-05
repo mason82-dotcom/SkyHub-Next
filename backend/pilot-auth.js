@@ -28,6 +28,13 @@ function createPilotAuth({pilot,pairing,redis}){
     return device&&device.workspaceId===pilot.workspaceId?
       mapPrincipal('pilot',device.workspaceId):null;
   }
-  return {authorizedToken,principal};
+  // Bootstrap decision. 'repair': a device paired before the workspace binding. Its bootstrap used to succeed, but every
+  // DJI API call afterwards (map, waylines, situation awareness) answered 401, and Pilot 2 then closed the page and dropped
+  // the whole cloud login ("Fehler beim Anmelden", RC Pro Enterprise on 05.11.2026). It has to pair again.
+  async function bootstrapAccess(token){
+    if(!await authorizedToken(token))return 'denied';
+    return await principal(token)?'ok':'repair';
+  }
+  return {authorizedToken,principal,bootstrapAccess};
 }
 module.exports={createPilotAuth,tokenMatches};

@@ -32,7 +32,7 @@ Die Trennung ist im Code implementiert; produktive Proxy-/ACL- und Gerätefreiga
 | GET | `/api/diagnostics/dji-fields?model=…` | **View-Token erforderlich**, keine LAN-Ausnahme; bekannte 1.18-Schemafelder; **Regex-Fehler mit [PR #61](https://github.com/mason82-dotcom/SkyHub-Next/pull/61) behoben und HTTP-getestet**; sechs bekannte Modelle, unbekannte Schlüssel 404, ungültige Syntax 400 |
 | GET | `/api/drone/:sn/telemetry` | View oder LAN-GET-Ausnahme; konkreter zuletzt bekannter Geräte-Snapshot |
 | GET | `/api/drone/:sn/track?minutes=60` | View oder LAN-GET-Ausnahme; historische PostGIS-Punkte, `minutes` 1–1440, Default 60 |
-| POST | `/api/pilot/bootstrap` | Pilot-Konfiguration + HTTPS + Pilot-/Pairing-Bearer-Token, sonst 503/403/401 |
+| POST | `/api/pilot/bootstrap` | Pilot-Konfiguration + HTTPS + Pilot-/Pairing-Bearer-Token, sonst 503/403/401; **409 `repair_required`** für eine Kopplung ohne Arbeitsbereich-Bindung (vor dieser Bindung gekoppelt): die Seite verwirft das Token und startet eine Neukopplung |
 | POST | `/api/pilot/pair` | Pilot-Konfiguration + HTTPS + Redis; begrenztes Pairing starten, mögliches 429 |
 | GET | `/api/pilot/pair/:id` | Pilot-Konfiguration + HTTPS + Redis; Pairing-Abfrage ohne Administrator-Freigabe |
 | GET | `/api/pilot/session` | Pilot-Konfiguration + HTTPS + Pilot-/Pairing-Bearer-Token; begrenzte Topologie-Ack-/Telemetriezeiten |

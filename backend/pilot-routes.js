@@ -62,7 +62,11 @@ function registerPilotRoutes(app,{pilot,pairing,redis,registry,pool,ack,pilotAut
   app.post('/api/pilot/bootstrap',async(req,res)=>{
     if(!guard(req,res))return;
     try{
-      if(!await pilotAuthorized(req))return res.status(401).json({error:'Unauthorized'});
+      const hdr=req.headers.authorization||'';
+      const access=await pilotAuth.bootstrapAccess(hdr.startsWith('Bearer ')?hdr.slice(7):'');
+      if(access==='denied')return res.status(401).json({error:'Unauthorized'});
+      // Legacy pairing without workspace binding: no config, so Pilot 2 never loads modules that would fail with 401.
+      if(access==='repair')return res.status(409).json({error:'Re-pairing required',code:'repair_required'});
       res.json(pilot.bootstrap());
     }catch(_err){res.status(503).json({error:'Pilot authorization unavailable'});}
   });

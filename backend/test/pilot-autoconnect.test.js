@@ -23,7 +23,7 @@ function storage(initial={}){
     setItem:(k,v)=>data.set(k,String(v)),removeItem:k=>data.delete(k)};
 }
 async function openPage({store=storage(),loaded=false,connected=false,verified=true,
-  session={topologyReplyEnabled:true,topologyAckAt:null},bootstrapStatus=200,pairStatus='pending'}={}){
+  session={topologyReplyEnabled:true,topologyAckAt:null},bootstrapStatus=200,bootstrapBody=null,pairStatus='pending'}={}){
   const elements=new Map(),timers=[],requests=[];
   const calls={load:[],unload:0,verify:0,connect:0};
   function el(id){
@@ -54,7 +54,7 @@ async function openPage({store=storage(),loaded=false,connected=false,verified=t
     fetch:async(url,options={})=>{
       requests.push({url,auth:options.headers?.Authorization||null});
       if(url==='/api/pilot/status')return json(200,{configured:true,missing:[]});
-      if(url==='/api/pilot/bootstrap')return json(bootstrapStatus,bootstrapStatus===200?bootstrap:{});
+      if(url==='/api/pilot/bootstrap')return json(bootstrapStatus,bootstrapStatus===200?bootstrap:(bootstrapBody||{}));
       if(url==='/api/pilot/pair')return json(200,{pairingId:'b'.repeat(32),code:'123456',expiresAt:Date.now()+300000});
       if(url.startsWith('/api/pilot/pair/'))return json(200,pairStatus==='approved'?
         {status:'approved',deviceToken:DEVICE_TOKEN}:{status:pairStatus});
@@ -123,6 +123,27 @@ test('revoked device token is discarded and a new pairing starts',async()=>{
   assert.equal(store.data.has('skyhub.pilot.deviceToken'),false);
   assert.equal(page.requests.some(r=>r.url==='/api/pilot/pair'),true);
   assert.equal(page.el('pairCode').textContent,'123 456');
+});
+
+test('legacy pairing without workspace binding: no modules, token dropped, re-pairing with a hint (05.11.2026)',async()=>{
+  // RC Pro Enterprise: bootstrap used to succeed, then every DJI API call got 401 and Pilot 2 closed the page.
+  const store=storage({'skyhub.pilot.deviceToken':DEVICE_TOKEN});
+  const page=await openPage({store,bootstrapStatus:409,bootstrapBody:{error:'Re-pairing required',code:'repair_required'}});
+  assert.equal(page.calls.load.length,0);                                   // nothing that could fail with 401
+  assert.equal(page.calls.verify,0);
+  assert.equal(store.data.has('skyhub.pilot.deviceToken'),false);
+  assert.equal(page.requests.some(r=>r.url==='/api/pilot/pair'),true);
+  assert.equal(page.el('pairCode').textContent,'123 456');
+  assert.match(page.el('result').textContent,/vor der Arbeitsbereich-Bindung/);
+  assert.match(page.el('result').textContent,/Code auf dem Pi bestätigen/);
+});
+
+test('a 409 without repair_required is an ordinary bootstrap error, the token stays',async()=>{
+  const store=storage({'skyhub.pilot.deviceToken':DEVICE_TOKEN});
+  const page=await openPage({store,bootstrapStatus:409,bootstrapBody:{error:'Conflict'}});
+  assert.equal(store.data.get('skyhub.pilot.deviceToken'),DEVICE_TOKEN);
+  assert.equal(page.requests.some(r=>r.url==='/api/pilot/pair'),false);
+  assert.match(page.el('result').textContent,/HTTP 409/);
 });
 
 test('unpaired RC shows a code and connects after approval with the new device token',async()=>{

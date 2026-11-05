@@ -9,6 +9,9 @@
   let ready=false,connecting=false;
   let mqttLogin=null; // Kept only in WebView memory for an explicit retry.
   let lastConfig=null,sessionToken=null,pairingTimer=null;
+  // Shown above the new pairing code when the old pairing predates the workspace binding (bootstrap answers 409).
+  const REPAIR_NOTE='Diese Kopplung stammt aus der Zeit vor der Arbeitsbereich-Bindung und erlaubt keinen Datenzugriff mehr.';
+  let repairNote='';
   let tsaState=null; // null: not requested, otherwise a short German status for the diagnostics
   let mediaState=null; // same for the media synchronisation
   let waylineState=null; // same for the DJI wayline library (mission module)
@@ -421,6 +424,11 @@
       body:'{}'
     });
     if(response.status===401)return 'unauthorized';
+    // Paired before SkyHub bound devices to the workspace: valid token, but no data access. Pair again.
+    if(response.status===409){
+      let code='';try{code=(await response.json()).code;}catch(_){code='';}
+      if(code==='repair_required')return 'repair';
+    }
     // Do not echo backend exception text or any potential credentials.
     if(!response.ok)throw new Error('Bootstrap fehlgeschlagen (HTTP '+response.status+').');
     const config=await response.json();
@@ -484,7 +492,7 @@
       if(!/^\d{6}$/.test(pairing.code||''))throw new Error('ungültige Antwort');
       el('pairCode').textContent=pairing.code.slice(0,3)+' '+pairing.code.slice(3);
       show('pairing',true);
-      status('Gerät noch nicht gekoppelt. Code auf dem Pi bestätigen: node scripts/pi-pilot-pair.js '+pairing.code);
+      status((repairNote?repairNote+' ':'')+'Gerät noch nicht gekoppelt. Code auf dem Pi bestätigen: node scripts/pi-pilot-pair.js '+pairing.code);
       pollPairing(pairing.pairingId);
     }catch(e){
       show('pairNew',true);
@@ -519,10 +527,12 @@
     connecting=true;
     try{
       const outcome=await handshake(token);
-      if(outcome==='unauthorized'){
+      if(outcome==='unauthorized'||outcome==='repair'){
         storageDelete(TOKEN_KEY);
         show('unpair',false);
-        status('Kopplung ungültig oder widerrufen. Neue Kopplung wird gestartet ...');
+        repairNote=outcome==='repair'?REPAIR_NOTE:'';
+        status(outcome==='repair'?REPAIR_NOTE+' Neue Kopplung wird gestartet ...':
+          'Kopplung ungültig oder widerrufen. Neue Kopplung wird gestartet ...');
         connecting=false;
         return startPairing();
       }
