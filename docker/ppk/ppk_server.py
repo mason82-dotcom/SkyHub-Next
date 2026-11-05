@@ -14,6 +14,10 @@ GET  /jobs/<id>/result.csv
 DELETE /jobs/<id>        cancel / remove
 GET  /health
 
+Logging: one stdout line per job state change (id prefix, state, short message; no coordinates).
+The package's own log (may contain positions) goes only to the job's log.txt, not to stdout.
+Job state lives in memory: on start, job folders left over from a previous run are removed.
+
 Offline by design: no CSRS-PPP (no e-mail, no upload abroad), broadcast ephemeris from the SAPOS nav file unless the
 upload contains precise SP3/CLK products. One job at a time; results are removed after 24 h. Only stdlib + the package.
 """
@@ -42,6 +46,35 @@ JOB_ID = re.compile(r"^[0-9a-f]{24}$")
 JOBS: dict[str, dict] = {}
 LOCK = threading.Lock()
 RUNNING = threading.Semaphore(1)
+
+
+LOG = logging.getLogger("ppk")
+_logged: dict[str, str] = {}
+
+
+def note(job: dict) -> None:
+    """stdout line when a job's state changes (docker logs); message cut, no paths or coordinates in our messages."""
+    state = str(job.get("state"))
+    if _logged.get(job["id"]) == state:
+        return
+    _logged[job["id"]] = state
+    extra = ""
+    if state == "done":
+        extra = " rows=%s flights=%s failed=%s" % (job.get("rows"), job.get("flights"), len(job.get("failed") or []))
+    elif state in ("failed", "cancelled"):
+        extra = " – " + str(job.get("message") or "")[:160]
+    LOG.info("job %s %s%s", job["id"][:8], state, extra)
+
+
+def sweep_orphans(root: Path) -> int:
+    """Removes job folders of an earlier process (state is in memory only, so nobody would ever clean them)."""
+    n = 0
+    if root.is_dir():
+        for d in root.iterdir():
+            if d.is_dir() and JOB_ID.match(d.name) and d.name not in JOBS:
+                shutil.rmtree(d, ignore_errors=True)
+                n += 1
+    return n
 
 
 class Problem(Exception):
@@ -134,21 +167,27 @@ def header_xyz(obs: Path):
     raise Problem(400, "RINEX-Kopf ohne APPROX POSITION XYZ – Koordinaten von Hand eingeben")
 
 
-def run_job(job: dict) -> None:
-    import dji_geotagger as dgt
-    from dji_geotagger.config import default_ppk_dict
-    from dji_geotagger.ppk import ppk_solver
-    from dji_geotagger.ppk.base_position import build_base_position
-    from dji_geotagger.tools.progress import Progress, OperationCancelled
+class OperationCancelled(Exception):  # replaced by the package's class once it is imported
+    pass
 
+
+def run_job(job: dict) -> None:
+    global OperationCancelled
     jdir: Path = job["dir"]
     log = logging.getLogger("dji_geotagger")
     handler = logging.FileHandler(jdir / "log.txt")
     handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
     log.addHandler(handler)
     try:
+        # Inside the try: an import error must end the job as "failed", not leave it waiting forever.
+        import dji_geotagger as dgt
+        from dji_geotagger.config import default_ppk_dict
+        from dji_geotagger.ppk import ppk_solver
+        from dji_geotagger.ppk.base_position import build_base_position
+        from dji_geotagger.tools.progress import Progress, OperationCancelled
         with RUNNING:
             job.update(state="running", message="entpacke")
+            note(job)
             work = jdir / "work"
             for part in ("upload.zip", "part-base.zip", "part-flights.zip"):
                 if (jdir / part).exists():
@@ -198,6 +237,7 @@ def run_job(job: dict) -> None:
     finally:
         log.removeHandler(handler)
         job["finished"] = time.time()
+        note(job)
         shutil.rmtree(jdir / "work", ignore_errors=True)
         shutil.rmtree(jdir / "DGT_output", ignore_errors=True)
 
@@ -208,11 +248,13 @@ def cleanup():
         for jid, j in list(JOBS.items()):
             if j.get("state") == "staged" and now - j["created"] > STAGED_S:
                 j.update(state="failed", message="Flugdaten aus dem Speicher kamen nicht an", finished=now)
+                note(j)
                 for part in ("part-base.zip", "part-flights.zip"):
                     (j["dir"] / part).unlink(missing_ok=True)
             if j.get("finished") and now - j["finished"] > KEEP_S:
                 shutil.rmtree(j["dir"], ignore_errors=True)
                 del JOBS[jid]
+                _logged.pop(jid, None)
 
 
 def view(j):
@@ -273,6 +315,7 @@ class Handler(BaseHTTPRequestHandler):
             j["cancel"] = True
             if j.get("state") == "staged":
                 j.update(state="cancelled", message="abgebrochen", finished=time.time())
+                note(j)
                 for part in ("part-base.zip", "part-flights.zip"):
                     (j["dir"] / part).unlink(missing_ok=True)
             self.reply(200, {"ok": True})
@@ -313,6 +356,7 @@ class Handler(BaseHTTPRequestHandler):
                     job = {"id": jid, "dir": jdir, "params": params, "state": "receiving", "message": "Upload",
                            "created": time.time()}
                     JOBS[jid] = job
+                note(job)
                 target = jdir / ("part-base.zip" if part == "base" else "upload.zip")
             left = length
             with open(target, "wb") as out:
@@ -324,17 +368,21 @@ class Handler(BaseHTTPRequestHandler):
                     left -= len(chunk)
             if part == "base":
                 job.update(state="staged", message="Flugdaten werden aus dem Speicher geholt")
+                note(job)
                 return self.reply(202, view(job))
             if job.get("cancel"):
                 job.update(state="cancelled", message="abgebrochen", finished=time.time())
+                note(job)
                 return self.reply(409, {"error": "abgebrochen"})
             job.update(state="queued", message="wartet")
+            note(job)
             threading.Thread(target=run_job, args=(job,), daemon=True).start()
             self.reply(202, view(job))
         except Problem as e:
             j = JOBS.get(locals().get("jid", ""))
             if j and j.get("state") == "receiving":
                 j.update(state="failed", message=str(e), finished=time.time())
+                note(j)
                 shutil.rmtree(j["dir"] / "work", ignore_errors=True)
                 for name in ("upload.zip", "part-base.zip", "part-flights.zip"):
                     (j["dir"] / name).unlink(missing_ok=True)
@@ -345,7 +393,10 @@ def main():
     if len(TOKEN) < 32:
         raise SystemExit("SKYHUB_PPK_TOKEN (min. 32 Zeichen) fehlt")
     ROOT.mkdir(parents=True, exist_ok=True)
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    logging.getLogger("dji_geotagger").propagate = False   # details stay in log.txt of the job
+    removed = sweep_orphans(ROOT)
+    LOG.info("PPK service ready on :8090%s", " – %d verwaiste Auftragsordner entfernt" % removed if removed else "")
     ThreadingHTTPServer(("0.0.0.0", 8090), Handler).serve_forever()
 
 

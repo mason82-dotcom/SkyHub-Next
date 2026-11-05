@@ -5,7 +5,7 @@
 (function(){
   const $=id=>document.getElementById(id);
   const flights=new Map();   // folder -> [{name, file}]
-  let baseFiles=[],job=null,timer=null,stored=[];
+  let baseFiles=[],job=null,timer=null,stored=[],baseHead=null,baseHeadFor=null;
   const source=()=>document.querySelector('input[name=source]:checked').value;
   const chosen=()=>[...document.querySelectorAll('#storageFlights input:checked')].map(x=>x.value);
   const KEEP=/\.(mrk|rtk|jpe?g|tif)$|_ppkraw\.bin$/i;
@@ -23,9 +23,33 @@
     $('baseList').replaceChildren(...baseFiles.map(f=>{const li=document.createElement('li');li.textContent=f.name+' ('+fmt(f.size)+')';return li;}));
     const flightsOk=source()==='storage'?chosen().length>0:
       flights.size>0&&[...flights.values()].every(fs=>fs.some(f=>/\.mrk$/i.test(f.name))&&fs.some(f=>/_ppkraw\.bin$|\.rtk$/i.test(f.name)));
-    const ok=flightsOk&&
-      baseFiles.some(f=>/(_[A-Z]O\.rnx|\.obs|\.\d\do)$/i.test(f.name))&&baseFiles.some(f=>/(_[A-Z]N\.rnx|\.nav|\.\d\d[nglpfhq])$/i.test(f.name));
+    const obs=baseFiles.filter(f=>OBS.test(f.name));
+    const check=baseCheck(obs);
+    const ok=flightsOk&&obs.length===1&&!check.block&&baseFiles.some(f=>NAV.test(f.name));
     $('run').disabled=!ok||Boolean(job);
+  }
+  // --- base check before upload (rinex-head.js): drone file, missing position, distance to the flight -----------------
+  const OBS=/(_[A-Z]O\.rnx|\.obs|\.\d\do)$/i,NAV=/(_[A-Z]N\.rnx|\.nav|\.\d\d[nglpfhq])$/i;
+  function baseCheck(obs){
+    const el=$('baseCheck');
+    const show=(text,cls)=>{el.hidden=!text;el.textContent=text||'';el.className='small '+(cls||'muted');};
+    if(!baseFiles.length){show('');return {block:true};}
+    if(obs.length!==1){show(obs.length?'Genau eine Beobachtungsdatei der Basis wählen ('+obs.length+' gewählt).':
+      'Beobachtungsdatei der Basis fehlt (…_MO.rnx, .obs oder .26o).','bad');return {block:true};}
+    if(!baseFiles.some(f=>NAV.test(f.name))){show('Navigationsdatei fehlt (…_MN.rnx, .nav oder .26n).','bad');return {block:true};}
+    if(baseHeadFor!==obs[0]){show('RINEX-Kopf wird gelesen …');return {block:true};}
+    const pos=source()==='storage'?stored.filter(f=>chosen().includes(f.id)).map(f=>f.position).filter(Boolean):[];
+    const r=window.SkyHubRinex.assess(baseHead,{mode:mode(),flights:pos});
+    show(r.text,r.block?'bad':r.warn?'bad':'ok');
+    return r;
+  }
+  async function readBaseHead(){
+    const obs=baseFiles.filter(f=>OBS.test(f.name));
+    if(obs.length!==1){baseHead=null;baseHeadFor=null;return renderLists();}
+    const f=obs[0];
+    let text='';try{text=await f.slice(0,65536).text();}catch(_){}
+    if(baseFiles.filter(x=>OBS.test(x.name))[0]!==f)return;   // selection changed meanwhile
+    baseHead=window.SkyHubRinex.parseHeader(text);baseHeadFor=f;renderLists();
   }
   // --- flights already imported into MinIO --------------------------------------------------------------------------
   const when=iso=>iso?new Date(iso).toLocaleString('de-DE',{dateStyle:'medium',timeStyle:'short'}):'?';
@@ -69,8 +93,8 @@
     e.target.value='';renderLists();
   });
   $('flightsClear').addEventListener('click',()=>{flights.clear();renderLists();});
-  $('base').addEventListener('change',e=>{baseFiles=[...e.target.files].filter(f=>f.size>0);renderLists();});
-  for(const r of document.querySelectorAll('input[name=mode]'))r.addEventListener('change',()=>{$('manual').hidden=mode()!=='manual';});
+  $('base').addEventListener('change',e=>{baseFiles=[...e.target.files].filter(f=>f.size>0);renderLists();readBaseHead();});
+  for(const r of document.querySelectorAll('input[name=mode]'))r.addEventListener('change',()=>{$('manual').hidden=mode()!=='manual';renderLists();});
   const mode=()=>document.querySelector('input[name=mode]:checked').value;
 
   // --- JPEG header stub: SOI + all segments before SOS + EOI (XMP/EXIF kept, image data dropped) ---------------------
