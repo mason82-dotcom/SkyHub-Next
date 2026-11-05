@@ -329,6 +329,7 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;margin:14px 0 8p
 </section>
 </main>
 <script src="/vendor/leaflet/1.9.4/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="></script>
+<script src="/skyhub-map-home.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script src="/hms-history-panel.js"></script>
 <script src="/live-panel.js"></script>
@@ -374,15 +375,9 @@ function refreshFieldAges(){
     if(d)node.textContent=positionLabel(d);
   }
 }
-// Start view: the last map view in this browser (centre and zoom only, local convenience, never sent anywhere);
-// without one, Germany. Device positions take over as soon as they arrive (see renderDevices).
-const VIEW_KEY='skyhub.lagebild.view';
-const savedView=(()=>{try{const v=JSON.parse(localStorage.getItem(VIEW_KEY)||'null');
-  return v&&Number.isFinite(v.lat)&&Number.isFinite(v.lon)&&Number.isInteger(v.zoom)&&Math.abs(v.lat)<=90&&Math.abs(v.lon)<=180&&
-    v.zoom>=3&&v.zoom<=19?v:null;}catch(_){return null;}})();
-const map=window.L?L.map('map').setView(savedView?[savedView.lat,savedView.lon]:[51.1657,10.4515],savedView?savedView.zoom:6):null;
-if(map)map.on('moveend',()=>{try{const c=map.getCenter();
-  localStorage.setItem(VIEW_KEY,JSON.stringify({lat:+c.lat.toFixed(5),lon:+c.lng.toFixed(5),zoom:map.getZoom()}));}catch(_){}});
+// Start view of all SkyHub maps: skyhub-map-home.js (76694 Forst); Germany if that file is missing.
+const HOME=window.SkyHubMapHome||{lat:51.1657,lon:10.4515,zoom:6};
+const map=window.L?L.map('map').setView([HOME.lat,HOME.lon],HOME.zoom):null;
 // Tiles via the SkyHub offline cache (or a redirect to OSM, which requires an origin Referer).
 if(map)L.tileLayer('/tiles/osm/{z}/{x}/{y}.png',
   {attribution:'© OpenStreetMap',maxZoom:19,referrerPolicy:'strict-origin-when-cross-origin'}).addTo(map);
@@ -402,7 +397,7 @@ function shownDevice(d){
   return String(m.domain)!=='3'&&!(String(m.domain)==='0'&&DOCK_AIRCRAFT_TYPES.has(Number(m.type)));
 }
 function putDevice(d){if(d&&shownDevice(d))records.set(d.sn,d);else if(d&&d.sn)records.delete(d.sn);}
-let socket=null,centered=false,overviewFitted=false,authToken=null,selectedSn=null,connectAttempt=0;
+let socket=null,centered=false,authToken=null,selectedSn=null,connectAttempt=0;
 let trackLoadId=0,trackController=null;
 let healthController=null;
 let eventsController=null,eventsLoadId=0;
@@ -711,11 +706,6 @@ function update(){
   const currentPositions=positioned.filter(d=>positionFresh(d)&&d.positionTimeVerified===true).length;
   const unverifiedPositions=positioned.filter(d=>positionFresh(d)&&d.positionTimeVerified!==true).length;
   const olderPositions=count-currentPositions-unverifiedPositions;
-  // No current fix yet: show the last known positions (already drawn as grey markers) once instead of the default view.
-  if(map&&!centered&&!overviewFitted&&count&&!currentPositions){
-    map.fitBounds(L.latLngBounds(positioned.map(d=>[d.telemetry.latitude,d.telemetry.longitude])),{maxZoom:13,padding:[44,44]});
-    overviewFitted=true;
-  }
   el('fitDevices').disabled=!map||!count;
   const trackSummary=tracks.size?tracks.size+' '+(tracks.size===1?'Flugspur':'Flugspuren')+' sichtbar':'';
   const mapMessage=!map?'Karte konnte nicht geladen werden. Gerätedaten bleiben in der Liste verfügbar.':
@@ -744,7 +734,7 @@ async function connect(token=null,quiet=false){
   if(socket){const previous=socket;socket=null;previous.disconnect();}
   records.clear();
   for(const line of tracks.values())line.remove();tracks.clear();
-  selectedSn=null;centered=false;overviewFitted=false;
+  selectedSn=null;centered=false;
   listState='loading';update();
   if(!quiet)el('message').textContent='Verbinde…';
   try{

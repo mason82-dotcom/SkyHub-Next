@@ -3,6 +3,8 @@
 // Backend: /api/wpml/missions (Liste), /api/wpml/release (Prüfung, Freigabe; mission-release.js). Alle Regeln prüft der Server;
 // diese Seite zeigt sie nur an. Texte vom Server (Namen, Prüfmeldungen) werden nur als Text eingesetzt, nie als HTML.
 (function(){
+  // Start view of all SkyHub maps: skyhub-map-home.js (76694 Forst); Germany if that file is missing.
+  const HOME=typeof window!=='undefined'&&window.SkyHubMapHome||{lat:51.1657,lon:10.4515,zoom:6};
   const $=id=>document.getElementById(id);
   const el=(tag,props={},...children)=>{
     const n=document.createElement(tag);
@@ -149,7 +151,7 @@
   function renderMap(d){
     if(!window.L)return;
     if(!rmap){
-      rmap=L.map('rmap',{zoomControl:true,scrollWheelZoom:false}).setView([51.1657,10.4515],6);
+      rmap=L.map('rmap',{zoomControl:true,scrollWheelZoom:false}).setView([HOME.lat,HOME.lon],HOME.zoom);
       L.tileLayer('/tiles/osm/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap-Mitwirkende',
         referrerPolicy:'strict-origin-when-cross-origin'}).addTo(rmap);
       if(window.SkyHubGeozones)window.SkyHubGeozones.attach(rmap);

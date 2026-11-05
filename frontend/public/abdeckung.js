@@ -1,10 +1,12 @@
 'use strict';
 // Photo coverage page (backend/coverage.js): overlap counts as an image overlay, flown area, largest gaps.
 (function(){
+  // Start view of all SkyHub maps: skyhub-map-home.js (76694 Forst); Germany if that file is missing.
+  const HOME=typeof window!=='undefined'&&window.SkyHubMapHome||{lat:51.1657,lon:10.4515,zoom:6};
   const $=id=>document.getElementById(id);
   // Reason shown next to a disabled action (skyhub-disabled-reason.js); tolerant of elements without dataset.
   const setDisabledReason=(el,text)=>{if(el&&el.dataset)el.dataset.disabledReason=text;};
-  const map=L.map('covmap').setView([49.155,8.6],13);
+  const map=L.map('covmap').setView([HOME.lat,HOME.lon],HOME.zoom);
   L.tileLayer('/tiles/osm/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap-Mitwirkende',referrerPolicy:'strict-origin-when-cross-origin'}).addTo(map);
   let layer=null;
   const say=(t,bad)=>{$('status').textContent=t;$('status').className=bad?'bad':'muted';};

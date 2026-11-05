@@ -2,6 +2,8 @@
 // Live-Steuerung (DRC) für DJI RC Plus 2 + Matrice 4E/4T. Die Sicherheitslogik liegt im Server (drc-session.js);
 // diese Seite hält nur das Bediener-Lebenszeichen, schickt Knüppel und zeigt den Zustand.
 (function(){
+  // Start view of all SkyHub maps: skyhub-map-home.js (76694 Forst); Germany if that file is missing.
+  const HOME=typeof window!=='undefined'&&window.SkyHubMapHome||{lat:51.1657,lon:10.4515,zoom:6};
   const $=id=>document.getElementById(id);
   // ?rc=pro: RC Pro + Mavic 3E/3T/3M – camera and gimbal only (DJI mqtt/rc-pro/drc has no flight methods).
   const RCPRO=new URLSearchParams(location.search).get('rc')==='pro';
@@ -74,7 +76,7 @@
   $('estop').addEventListener('click',emergencyStop);
 
   // --- Karte ----------------------------------------------------------------------------------------------------------------
-  const map=window.L?L.map('map').setView([51.1657,10.4515],6):null;
+  const map=window.L?L.map('map').setView([HOME.lat,HOME.lon],HOME.zoom):null;
   if(map){
     L.tileLayer('/tiles/osm/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap-Mitwirkende'}).addTo(map);
     if(window.SkyHubGeozones)window.SkyHubGeozones.attach(map);

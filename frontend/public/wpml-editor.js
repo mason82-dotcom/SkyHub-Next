@@ -1,6 +1,8 @@
 'use strict';
 // Client-only waypoint editor; never calls DJI/MQTT/SkyHub write endpoints.
 (function () {
+  // Start view of all SkyHub maps: skyhub-map-home.js (76694 Forst); Germany if that file is missing.
+  const HOME=typeof window!=='undefined'&&window.SkyHubMapHome||{lat:51.1657,lon:10.4515,zoom:6};
   const core=window.SkyHubWpmlPlanner;
   const reference=window.SkyHubWpmlWaylinesReference;
   const reviewCore=window.SkyHubWpmlMissionReview;
@@ -34,7 +36,7 @@
     $('message').style.color=error?'var(--sky-warning)':'var(--sky-ink)';
   };
   if(typeof window.L==='object'&&typeof window.L.map==='function'){
-    map=L.map('map',{zoomControl:true}).setView([50.5,10.4],6);
+    map=L.map('map',{zoomControl:true}).setView([HOME.lat,HOME.lon],HOME.zoom);
     // Keep document referrer private, but identify the page origin to OSM tiles.
     // OSMF explicitly requires an HTTP Referer; Leaflet 1.9.4 supports this option.
     L.tileLayer('/tiles/osm/{z}/{x}/{y}.png',{
