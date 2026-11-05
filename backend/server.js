@@ -33,6 +33,7 @@ const {drcConfig,createDrcRuntime}=require('./drc-runtime');
 const {liveControlConfig,createLiveControl}=require('./live-control');
 const {createMapElementWriter,createMapElementRouter}=require('./map-element-write');
 const {createPilotLogStore,createPilotLogRouter}=require('./pilot-log');
+const {createNdviRouter}=require('./ndvi');
 const {createDjiWaylineRouter,createRedisFavorites,UPLOAD_DISABLED_CODE}=require('./dji-wayline-http');
 let pilotWaylineImport=null;
 const {createPilotWaylineImport,ImportError}=require('./pilot-wayline-import');
@@ -288,6 +289,8 @@ if(mediaStorage){
       console.log('[thermal sdk] DJI Thermal SDK service configured');
     }catch(err){console.error('[thermal sdk] disabled:',err.message);}
   }
+  // NDVI of Mavic 3M captures (ndvi.js): read-only on the media storage.
+  app.use('/api/ndvi',createNdviRouter({express,storage:mediaStorage}));
   app.use('/api/thermal',createThermalRouter({storage:mediaStorage,
     bucketIndex:mediaRouter.bucketIndex,buckets:()=>mediaStorage.buckets(),sdk:thermalSdk}));
   // Smart Farming: Mavic 3M multispectral captures grouped by CaptureUUID (read-only).
