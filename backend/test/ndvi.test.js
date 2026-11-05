@@ -51,3 +51,13 @@ test('known vegetation reflectance gives NDVI ≈ 0.818, NIR band shifted by 3 p
   const png=previewPng(res.ndvi,W,H);assert.equal(png.subarray(1,4).toString('latin1'),'PNG');
   assert.throws(()=>computeNdvi(n,r),/Rot und NIR/);
 });
+
+test('GNDVI and NDRE use the green / red-edge band with the same chain; wrong band refused',()=>{
+  const W=320,H=240,toDn=v=>Math.round(3200+v*2*1000*1e-3*0.8*20000);
+  const g=tiff(W,H,(x,y)=>toDn(0.1*scene(x,y)),xmp('Green',{ImageSource:'MS_G_CAMERA'}));
+  const n=tiff(W,H,(x,y)=>toDn(0.5*scene(x,y)),xmp('NIR'));
+  const r=computeNdvi(g,n,{index:'gndvi'});
+  assert.equal(r.summary.index,'gndvi');assert.ok(Math.abs(r.summary.median-0.667)<0.02,String(r.summary.median));
+  assert.throws(()=>computeNdvi(g,n,{index:'ndre'}),/RedEdge und NIR/);
+  assert.throws(()=>computeNdvi(g,n,{index:'evi'}),/unbekannter Index/);
+});

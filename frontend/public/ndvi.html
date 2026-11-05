@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SkyHub · NDVI Mavic 3M</title>
+<title>SkyHub · NDVI/GNDVI/NDRE Mavic 3M</title>
 <link rel="stylesheet" href="/skyhub-light.css">
 <link rel="stylesheet" href="/missionsfreigabe.css">
 <style>
@@ -19,7 +19,7 @@
 </head>
 <body class="mrel">
 <header class="mrel-top">
-  <h1>NDVI <span class="muted">Mavic 3M Multispektral, je Aufnahme</span></h1>
+  <h1>Vegetationsindizes <span class="muted">NDVI, GNDVI, NDRE · Mavic 3M Multispektral, je Aufnahme</span></h1>
   <nav><a href="/abdeckung.html">Fotoabdeckung</a> · <a href="/">Übersicht</a></nav>
 </header>
 <p class="mrel-note" role="note">NDVI = (NIR − Rot)/(NIR + Rot) aus einer Aufnahme (Rot- und NIR-Band), kalibriert nach DJI-Leitfaden: Schwarzwert, Vignettierung,
@@ -27,7 +27,12 @@
   „Kalibriert“ nur mit gültigem Sonnenlichtsensor und sicherer Ausrichtung, sonst „relativ“ (nur innerhalb des Bildes vergleichbar).
   Einzelbild – kein Orthomosaik.</p>
 <main class="nd-grid">
-  <section class="card" aria-labelledby="h-c"><h2 id="h-c">Aufnahmen im Speicher</h2><ul id="list" class="nd-list"><li class="muted">Wird geladen …</li></ul></section>
+  <section class="card" aria-labelledby="h-c"><h2 id="h-c">Aufnahmen im Speicher</h2>
+    <fieldset style="border:0;padding:0;margin:0 0 8px"><legend>Index</legend>
+      <label class="check"><input type="radio" name="index" value="ndvi" checked> NDVI (NIR/Rot) – Biomasse, Vitalität</label>
+      <label class="check"><input type="radio" name="index" value="gndvi"> GNDVI (NIR/Grün) – Chlorophyll, dichte Bestände</label>
+      <label class="check"><input type="radio" name="index" value="ndre"> NDRE (NIR/RedEdge) – Stickstoff, späte Stadien</label>
+    </fieldset><ul id="list" class="nd-list"><li class="muted">Wird geladen …</li></ul></section>
   <section class="card" aria-labelledby="h-r">
     <h2 id="h-r">Ergebnis</h2>
     <p id="state" class="muted" role="status" aria-live="polite">Aufnahme links wählen.</p>
@@ -35,7 +40,7 @@
     <div id="scale" hidden><div class="nd-scale" aria-hidden="true"></div><div class="nd-scale-l"><span>−0,2</span><span>0,1</span><span>0,3</span><span>0,5</span><span>0,7</span><span>0,9</span></div></div>
     <dl id="stats" class="nd-stats"></dl>
     <ul id="notes"></ul>
-    <a id="dl" href="#" hidden>NDVI als Float32-GeoTIFF herunterladen</a>
+    <a id="dl" href="#" hidden>Index als Float32-GeoTIFF herunterladen</a>
   </section>
 </main>
 <script src="/ndvi.js"></script>

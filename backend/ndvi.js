@@ -133,13 +133,18 @@ function residualShift(a,b,W,H){
 }
 
 // --- NDVI ------------------------------------------------------------------------------------------------------------
-function computeNdvi(rBuf,nirBuf,{minCorrelation=0.3}={}){
+// Indices: NDVI (NIR/Red), GNDVI (NIR/Green), NDRE (NIR/RedEdge) – all (NIR − X)/(NIR + X) with the same calibration.
+const INDICES=Object.freeze({ndvi:{band:'Red',source:'MS_R_CAMERA',label:'Rot'},gndvi:{band:'Green',source:'MS_G_CAMERA',label:'Grün'},
+  ndre:{band:'RedEdge',source:'MS_RE_CAMERA',label:'RedEdge'}});
+function computeNdvi(rBuf,nirBuf,{minCorrelation=0.3,index='ndvi'}={}){
+  const spec=INDICES[index];
+  if(!spec)throw new Error('unbekannter Index');
   const R=readMsTiff(rBuf),N=readMsTiff(nirBuf);
   if(R.width!==N.width||R.height!==N.height)throw new Error('Bänder unterschiedlich groß');
   const xr=msXmp(R.xmp),xn=msXmp(N.xmp);
   // M3M writes BandName "Red" / "NIR" (ImageSource MS_R_CAMERA / MS_NIR_CAMERA).
-  const isRed=x=>x.band==='Red'||x.band==='R'||x.source==='MS_R_CAMERA',isNir=x=>x.band==='NIR'||x.source==='MS_NIR_CAMERA';
-  if(!isRed(xr)||!isNir(xn))throw new Error('Bänder vertauscht oder falsch (Rot und NIR erwartet)');
+  const isBand=x=>x.band===spec.band||(index==='ndvi'&&x.band==='R')||x.source===spec.source,isNir=x=>x.band==='NIR'||x.source==='MS_NIR_CAMERA';
+  if(!isBand(xr)||!isNir(xn))throw new Error('Bänder vertauscht oder falsch ('+spec.label+' und NIR erwartet)');
   const W=R.width,H=R.height;
   const cr=calibrateBand(R,xr),cn=calibrateBand(N,xn);
   const wr=warp(cr.values,W,H,xr.hMatrix),wn0=warp(cn.values,W,H,xn.hMatrix);
@@ -157,7 +162,7 @@ function computeNdvi(rBuf,nirBuf,{minCorrelation=0.3}={}){
   if(shift.correlation<minCorrelation)notes.push('Bandausrichtung unsicher (Korrelation '+shift.correlation+')');
   if(xn.pitch!==null&&xn.pitch>-60)notes.push('Kamera nicht senkrecht (Gimbal '+xn.pitch+'°): NDVI eines Schrägbilds');
   return {width:W,height:H,ndvi,
-    summary:{status:cr.calibrated&&cn.calibrated&&shift.correlation>=minCorrelation?'calibrated':'relative',notes,
+    summary:{index,status:cr.calibrated&&cn.calibrated&&shift.correlation>=minCorrelation?'calibrated':'relative',notes,
       validPct:Math.round(valid/ndvi.length*1000)/10,p5:pct(0.05),median:pct(0.5),p95:pct(0.95),
       alignment:shift,model:xn.model,position:Number.isFinite(xn.lat)&&Number.isFinite(xn.lon)&&(Math.abs(xn.lat)>0.01||Math.abs(xn.lon)>0.01)?{lat:xn.lat,lon:xn.lon}:null,
       relAlt:xn.relAlt,utc:xn.utc}};
@@ -183,7 +188,7 @@ function ndviTiff(result){
     meta:{model:result.summary.model,latitude:p?p.lat:null,longitude:p?p.lon:null,datetime:null}});
 }
 
-module.exports={readMsTiff,msXmp,calibrateBand,invert3,warp,residualShift,computeNdvi,previewPng,ndviTiff};
+module.exports={INDICES,readMsTiff,msXmp,calibrateBand,invert3,warp,residualShift,computeNdvi,previewPng,ndviTiff};
 
 // --- HTTP: captures in the media storage (read-only), one NDVI run per request, last 5 results in memory --------------
 function createNdviRouter({express,storage,bucket='dji-cloud',log=console}){
@@ -222,7 +227,7 @@ function createNdviRouter({express,storage,bucket='dji-cloud',log=console}){
     if(heads.size>2000)heads.clear();
     return [...by].filter(([,c])=>c.bands.r&&c.bands.nir).map(([uuid,c])=>({id:uuid.slice(0,16).toLowerCase(),
       name:(c.utc&&!c.utc.startsWith('1980')?c.utc.slice(0,19).replace('T',' ')+' UTC':'ohne Zeit')+' · '+(c.model||'?'),
-      utc:c.utc,sun:c.sun,bandsPresent:Object.keys(c.bands).sort(),r:c.bands.r,nir:c.bands.nir}))
+      utc:c.utc,sun:c.sun,bandsPresent:Object.keys(c.bands).sort(),r:c.bands.r,nir:c.bands.nir,g:c.bands.g||null,re:c.bands.re||null}))
       .sort((a,b)=>String(b.utc).localeCompare(String(a.utc)));
   }
   const read=async(key,range)=>{const o=await storage.getObject(bucket,key,range?{range}:{});const c=[];for await(const x of o.body)c.push(Buffer.from(x));return Buffer.concat(c);};
@@ -231,17 +236,20 @@ function createNdviRouter({express,storage,bucket='dji-cloud',log=console}){
     catch(err){log.error('[ndvi]',err.message);res.status(502).json({error:'Speicher nicht lesbar'});}
   });
   router.post('/run',async(req,res)=>{
-    const id=req.body&&req.body.capture;
+    const id=req.body&&req.body.capture,index=req.body&&req.body.index||'ndvi';
+    if(!Object.hasOwn(INDICES,index))return res.status(400).json({error:'Index ndvi, gndvi oder ndre'});
     if(typeof id!=='string'||!/^[0-9a-f]{16}$/.test(id))return res.status(400).json({error:'Aufnahme fehlt'});
     if(busy)return res.status(429).json({error:'Eine Berechnung läuft schon'});
     busy=true;
     try{
       const c=(await captures()).find(x=>x.id===id);
       if(!c)return res.status(404).json({error:'Aufnahme nicht gefunden'});
-      if(c.r.size>40*1024*1024||c.nir.size>40*1024*1024)return res.status(413).json({error:'Band zu groß'});
-      const result=computeNdvi(await read(c.r.key),await read(c.nir.key));
+      const other=index==='ndvi'?c.r:index==='gndvi'?c.g:c.re;
+      if(!other)return res.status(404).json({error:'Band für '+index.toUpperCase()+' fehlt in dieser Aufnahme'});
+      if(other.size>40*1024*1024||c.nir.size>40*1024*1024)return res.status(413).json({error:'Band zu groß'});
+      const result=computeNdvi(await read(other.key),await read(c.nir.key),{index});
       const rid=crypto.randomBytes(8).toString('hex');
-      results.set(rid,{name:c.name,summary:result.summary,png:previewPng(result.ndvi,result.width,result.height),tif:ndviTiff(result)});
+      results.set(rid,{name:c.name+'_'+index.toUpperCase(),summary:result.summary,png:previewPng(result.ndvi,result.width,result.height),tif:ndviTiff(result)});
       while(results.size>5)results.delete(results.keys().next().value);
       res.json({id:rid,name:c.name,width:result.width,height:result.height,...result.summary});
     }catch(err){
@@ -253,7 +261,7 @@ function createNdviRouter({express,storage,bucket='dji-cloud',log=console}){
     const r=m?results.get(m[1]):null;
     if(!r)return res.status(404).json({error:'nicht (mehr) vorhanden'});
     if(m[2]==='png')return res.type('image/png').send(r.png);
-    res.set('Content-Disposition','attachment; filename="'+r.name.replace(/[^\w.-]/g,'_')+'_NDVI.tif"').type('image/tiff').send(r.tif);
+    res.set('Content-Disposition','attachment; filename="'+r.name.replace(/[^\w.-]/g,'_')+'.tif"').type('image/tiff').send(r.tif);
   });
   return router;
 }

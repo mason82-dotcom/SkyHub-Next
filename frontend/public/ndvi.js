@@ -15,18 +15,19 @@
   async function run(c){
     say('Wird berechnet (einige Sekunden) …');$('preview').hidden=true;$('scale').hidden=true;$('dl').hidden=true;
     try{
-      const r=await fetch('/api/ndvi/run',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({capture:c.id})});
+      const index=document.querySelector('input[name=index]:checked').value;
+      const r=await fetch('/api/ndvi/run',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({capture:c.id,index})});
       const b=await r.json().catch(()=>({}));if(!r.ok)throw new Error(b.error||('HTTP '+r.status));
       $('preview').src='/api/ndvi/results/'+b.id+'.png';$('preview').alt='NDVI-Vorschau '+c.name;$('preview').hidden=false;$('scale').hidden=false;
       $('dl').href='/api/ndvi/results/'+b.id+'.tif';$('dl').hidden=false;
       const dl=$('stats');dl.replaceChildren();
       const add=(t,v)=>{const a=document.createElement('dt');a.textContent=t;const d=document.createElement('dd');d.textContent=v;dl.append(a,d);};
       add('Status',b.status==='calibrated'?'kalibriert (Sonnenlichtsensor gültig, Bänder deckungsgleich)':'relativ – nur innerhalb dieses Bildes vergleichbar');
-      add('NDVI',b.validPct+' % der Pixel auswertbar · Median '+b.median+' (5 %: '+b.p5+', 95 %: '+b.p95+')');
+      add((b.index||'ndvi').toUpperCase(),b.validPct+' % der Pixel auswertbar · Median '+b.median+' (5 %: '+b.p5+', 95 %: '+b.p95+')');
       add('Bandausrichtung','Restversatz '+b.alignment.dx+' / '+b.alignment.dy+' px, Korrelation '+b.alignment.correlation);
       add('Bild',b.width+' × '+b.height+' px'+(b.position?' · '+b.position.lat.toFixed(5)+' N, '+b.position.lon.toFixed(5)+' E':' · ohne GPS'));
       $('notes').replaceChildren(...(b.notes||[]).map(n=>Object.assign(document.createElement('li'),{textContent:n})));
-      say('Fertig: '+c.name);
+      say('Fertig: '+(b.index||'ndvi').toUpperCase()+' · '+c.name);
     }catch(err){say('Berechnung fehlgeschlagen: '+err.message,true);}
   }
   load();
