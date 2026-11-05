@@ -95,4 +95,4 @@ datasets:
 - name: cop30
   path: data/cop30vrt/
 YAML
-echo "Fertig. In .env: SKYHUB_TERRAIN_DATASET=dgm1,cop30 – danach: bash scripts/brix-compose.sh up -d --no-deps opentopodata backend"
+echo "Fertig. In .env: SKYHUB_TERRAIN_DATASET=dgm1,cop30 – danach: docker restart skyhub-next-opentopodata-1 (liest die Konfiguration nur beim Start) und bash scripts/brix-compose.sh up -d --no-deps backend"
