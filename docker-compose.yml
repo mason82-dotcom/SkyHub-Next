@@ -237,6 +237,8 @@ services:
       context: docker/dji-tsdk-box64
     image: skyhub-dji-box64:trixie
     restart: unless-stopped
+    # Init-Prozess als PID 1: reicht SIGTERM weiter und sammelt Zombie-Prozesse von dji_irp ein.
+    init: true
     logging: *default-logging
     labels: *no-watchtower
     read_only: true
@@ -270,8 +272,16 @@ services:
     logging: *default-logging
     labels: *no-watchtower
     cap_drop: [ALL]
-    cap_add: [CHOWN, SETUID, SETGID, DAC_OVERRIDE]
+    # KILL: supervisord (root) must be able to signal the uwsgi/nginx workers that run as another user;
+    # without it every stop ends in "PermissionError: Operation not permitted" and a hard kill after the timeout.
+    cap_add: [CHOWN, SETUID, SETGID, DAC_OVERRIDE, KILL]
     security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:5000/health', timeout=4)"]
+      interval: 60s
+      timeout: 6s
+      retries: 3
+      start_period: 60s
     mem_limit: 768m
     cpus: 1.0
     pids_limit: 128

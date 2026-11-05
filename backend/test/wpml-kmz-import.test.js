@@ -134,6 +134,40 @@ test('compressed Pilot 2 style 1.0.6 KMZ imports with every lossy change listed'
   planner.normalize(result.plan);
 });
 
+// DJI Product Support (Enumeration Values, updated 14.10.2026): 99-0 "Matrice 4 Series (M4E Camera)", 99-1 "(M4T Camera)";
+// camera 88-0-0 = Matrice 4E, 89-0-0 = Matrice 4T. DJI Pilot 2 itself wrote Matrice 4T routes as 99/0 with camera 89.
+function aircraft(xml,drone,sub,payload){
+  return xml.replace('<wpml:droneEnumValue>77</wpml:droneEnumValue><wpml:droneSubEnumValue>2</wpml:droneSubEnumValue>',
+    '<wpml:droneEnumValue>'+drone+'</wpml:droneEnumValue><wpml:droneSubEnumValue>'+sub+'</wpml:droneSubEnumValue>')
+    .replace('<wpml:payloadEnumValue>68</wpml:payloadEnumValue>','<wpml:payloadEnumValue>'+payload+'</wpml:payloadEnumValue>');
+}
+
+test('Matrice 4: the camera decides the subtype within the family, with a visible note',async()=>{
+  assert.notEqual(aircraft(PILOT2_TEMPLATE,99,0,89),PILOT2_TEMPLATE,'fixture replacement applied');
+  const t=await importer.importKmz(zip([['wpmz/template.kml',aircraft(PILOT2_TEMPLATE,99,0,89)]]),{models});
+  assert.equal(t.plan.model,'matrice4t');
+  assert.equal(t.review.aircraft,'DJI Matrice 4T');
+  assert.ok(t.notes.some(n=>/droneSubEnumValue 0 \(DJI Matrice 4E\) passt nicht zur Kamera 89/.test(n)&&/droneSubEnumValue 1 im Export/.test(n)),t.notes.join('\n'));
+  // The re-export carries the subtype that matches the camera.
+  const built=planner.build(t.plan);
+  for(const xml of [built.templateXml,built.waylinesXml])
+    assert.match(xml,/<wpml:droneEnumValue>99<\/wpml:droneEnumValue>\s*<wpml:droneSubEnumValue>1</);
+  const e=await importer.importKmz(zip([['wpmz/template.kml',aircraft(PILOT2_TEMPLATE,99,1,88)]]),{models});
+  assert.equal(e.plan.model,'matrice4e');
+  // Exact matches stay silent about the aircraft.
+  const exact=await importer.importKmz(zip([['wpmz/template.kml',aircraft(PILOT2_TEMPLATE,99,1,89)]]),{models});
+  assert.equal(exact.plan.model,'matrice4t');
+  assert.equal(exact.notes.some(n=>/droneSubEnumValue/.test(n)),false);
+});
+
+test('a camera from another aircraft family or an unknown subtype is still refused',async()=>{
+  for(const [drone,sub,payload] of [[77,0,89],[99,0,68],[99,5,89],[100,0,98]]){
+    await assert.rejects(importer.importKmz(zip([['wpmz/template.kml',aircraft(PILOT2_TEMPLATE,drone,sub,payload)]]),{models}),
+      /Fluggerät\/Nutzlast .* wird vom Editor nicht unterstützt/,drone+'/'+sub+'/'+payload);
+  }
+});
+
+
 test('unsupported mission semantics fail closed with a clear reason',async()=>{
   const cases=[
     [PILOT2_TEMPLATE.replace('<wpml:templateType>waypoint','<wpml:templateType>mapping2d'),/keine Wegpunktmission/],
@@ -243,4 +277,10 @@ test('mapping routes: import refuses with templateType, preview shows area, flig
   // Waypoint routes are not previewed as mapping; broken coordinates fail clearly.
   await assert.rejects(importer.previewKmz(zip([['wpmz/template.kml',MAPPING_TEMPLATE.replace('mapping2d','waypoint')]]),{models}),/keine Kartierungs/);
   await assert.rejects(importer.previewKmz(zip([['wpmz/template.kml',MAPPING_TEMPLATE.replace('8.601000,49.100000,0','8.601,99,0')]]),{models}),/außerhalb/);
+});
+
+test('mapping preview names the aircraft by its camera as well',async()=>{
+  const xml=MAPPING_TEMPLATE.replace(/<wpml:droneSubEnumValue>1</,'<wpml:droneSubEnumValue>0<');
+  const p=await importer.previewKmz(zip([['wpmz/template.kml',xml],['wpmz/waylines.wpml',MAPPING_WAYLINES]]),{models});
+  assert.equal(p.aircraft,'DJI Matrice 4T');
 });

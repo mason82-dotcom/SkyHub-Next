@@ -9,6 +9,7 @@ const {serial}=require('./dji');
 const {fieldDefinitions}=require('./dji-properties');
 const {validateBrokerConfig}=require('./mqtt-config');
 const {createMqttMetrics}=require('./mqtt-metrics');
+const {renderHealthMetrics}=require('./health-metrics');
 const {createShapeCatalog,createModelShapeCatalog}=require('./mqtt-shape');
 const {createRegistry}=require('./registry');
 const {pilotConfiguration}=require('./pilot-config');
@@ -219,7 +220,7 @@ if(tsaHub){
   });
 }
 
-app.get('/api/health',(req,res)=>res.json({
+const healthSnapshot=()=>({
   status:mqttState.connected&&mqttState.subscribed?'online':'degraded',mqtt:mqttState.connected,
   subscribed:mqttState.subscribed,redis:redis.status==='ready',devices:registry.count(),readOnly:true,
   mqttBrokerPort:broker.port,topologyReplyEnabled:ack.enabled,
@@ -231,7 +232,10 @@ app.get('/api/health',(req,res)=>res.json({
   tileCache:tiles.stats(),liveStream:liveStream.stats(),
   ...(tsaHub?{tsa:tsaHub.stats()}:{}),
   ...(mediaUpload?{pilotMediaUpload:mediaUpload.stats()}:{})
-}));
+});
+app.get('/api/health',(req,res)=>res.json(healthSnapshot()));
+// Same data as /api/health in Prometheus text format (no serials, no tokens), for brix-node monitoring.
+app.get('/api/health/metrics',(req,res)=>res.type('text/plain; version=0.0.4').send(renderHealthMetrics(healthSnapshot())));
 // Separate opt-in MSDK observation credential, NEVER a control channel.
 // Registered before the view-token middleware; its own HTTPS/token guard is mandatory.
 app.post('/api/adapters/msdk/observe',createFhMsdkObserve({
