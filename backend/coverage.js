@@ -3,7 +3,7 @@
 // every photo from DJI XMP (GPS, RelativeAltitude, gimbal yaw/pitch/roll) and EXIF (35 mm equivalent focal length, pixel
 // size), projected onto a level ground plane through the four image corners (nadir and oblique). Height: RelativeAltitude,
 // i.e. above the TAKE-OFF point – a photo does not say where that was, so terrain is not corrected (stated in the result).
-// Counts per grid cell → coverage statistics and gap clusters inside the area flown over (convex hull of the photo centres).
+// Counts per grid cell → coverage statistics and gap clusters inside the area flown over (hull of the photo positions).
 // A planning aid, not a photogrammetric quality check (no image overlap matching, no blur/exposure assessment).
 const RAD=Math.PI/180,R=6371008.8;
 
@@ -111,8 +111,10 @@ function computeCoverage(photos,{cellM=2,maxCells=2_000_000,minOverlap=5}={}){
   const lat0=usable.reduce((s,p)=>s+p.info.lat,0)/usable.length,lon0=usable.reduce((s,p)=>s+p.info.lon,0)/usable.length;
   const kx=Math.cos(lat0*RAD)*RAD*R,ky=RAD*R;
   const toXY=(lat,lon)=>[(lon-lon0)*kx,(lat-lat0)*ky],toLL=(x,y)=>[lat0+y/ky,lon0+x/kx];
-  const prints=[],skipped=[];
+  const prints=[],skipped=[],level=[];
   for(const p of usable){
+    // Photos less than 30° below the horizon (e.g. a level test shot) are not survey photos: not counted.
+    if(p.info.pitch>-30){level.push(p.name);continue;}
     const c=toXY(p.info.lat,p.info.lon),agl=p.info.relAlt-(p.groundM||0);
     const fp=footprint(p.info,{aglM:agl});
     if(!fp){skipped.push(p.name);continue;}
@@ -132,8 +134,12 @@ function computeCoverage(photos,{cellM=2,maxCells=2_000_000,minOverlap=5}={}){
     const j0=Math.max(0,Math.floor((b-minY)/cell)),j1=Math.min(H-1,Math.floor((d-minY)/cell));
     for(let j=j0;j<=j1;j++){const y=minY+(j+0.5)*cell;for(let i=i0;i<=i1;i++){if(inPoly(minX+(i+0.5)*cell,y,f.poly)&&counts[j*W+i]<65535)counts[j*W+i]++;}}
   }
-  // area of interest: convex hull of the photo centres (where the aircraft actually flew)
-  const aoi=hull(prints.map(f=>f.center));
+  // Area of interest: convex hull of the photo positions (so a missing flight line between two strips IS a gap), without
+  // isolated positions – e.g. a test shot at the take-off point – which would add a sliver as a false gap.
+  const nn=prints.map((f,i)=>{let m=Infinity;for(let k=0;k<prints.length;k++)if(k!==i)m=Math.min(m,Math.hypot(f.center[0]-prints[k].center[0],f.center[1]-prints[k].center[1]));return m;});
+  const nnMed=[...nn].sort((a,b)=>a-b)[Math.floor(nn.length/2)];
+  const core=prints.filter((f,i)=>nn[i]<=Math.max(10*nnMed,30));
+  const aoi=hull((core.length>=3?core:prints).map(f=>f.center));
   const inside=new Uint8Array(W*H);let aoiCells=0;
   for(let j=0;j<H;j++)for(let i=0;i<W;i++){if(aoi.length>=3&&inPoly(minX+(i+0.5)*cell,minY+(j+0.5)*cell,aoi)){inside[j*W+i]=1;aoiCells++;}}
   const hist={zero:0,low:0,ok:0};
@@ -152,7 +158,7 @@ function computeCoverage(photos,{cellM=2,maxCells=2_000_000,minOverlap=5}={}){
   const pct=v=>aoiCells?Math.round(v/aoiCells*1000)/10:0;
   const [south,west]=toLL(minX,minY),[north,east]=toLL(maxX,maxY);
   return {status:'ok',photos:photos.length,used:prints.length,oblique:prints.filter(f=>f.oblique).length,skipped:skipped.length,
-    cellM:Math.round(cell*100)/100,minOverlap,bounds:{south,west,north,east},width:W,height:H,
+    level:level.length,isolated:prints.length-core.length,cellM:Math.round(cell*100)/100,minOverlap,bounds:{south,west,north,east},width:W,height:H,
     counts:Buffer.from(counts.buffer).toString('base64'),
     aoi:aoi.map(([x,y])=>toLL(x,y).map(v=>+v.toFixed(6))),
     stats:{aoiM2:Math.round(aoiCells*cell*cell),uncoveredPct:pct(hist.zero),belowPct:pct(hist.low),okPct:pct(hist.ok)},

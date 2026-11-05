@@ -49,3 +49,12 @@ test('two strips with a gap between them: gap found inside the flown area, outsi
   assert.equal(Buffer.from(r.counts,'base64').length,r.width*r.height*2);
   assert.equal(computeCoverage([{name:'a',info:null}]).status,'skipped');
 });
+
+test('a level test shot far from the survey is neither counted nor stretches the flown area',()=>{
+  const photos=[];const dLat=1/111195,dLon=1/(111195*Math.cos(49.1*Math.PI/180));
+  for(let r=0;r<6;r++)for(let k=0;k<10;k++)photos.push({name:'p'+r+k,info:{lat:49.1+k*25*dLat,lon:8.6+r*50*dLon,relAlt:80,yaw:0,pitch:-90,roll:0,focal35:24,width:4000,height:3000}});
+  const base=computeCoverage(photos,{minOverlap:1});
+  photos.push({name:'test0001',info:{lat:49.1-270*dLat,lon:8.6+100*dLon,relAlt:2,yaw:0,pitch:0,roll:0,focal35:24,width:4000,height:3000}});
+  const r=computeCoverage(photos,{minOverlap:1});
+  assert.equal(r.level,1);assert.equal(r.stats.aoiM2,base.stats.aoiM2);assert.equal(r.stats.uncoveredPct,0);
+});

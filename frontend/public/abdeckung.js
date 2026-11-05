@@ -50,7 +50,7 @@
       map.fitBounds([[b.bounds.south,b.bounds.west],[b.bounds.north,b.bounds.east]],{maxZoom:18});
       const dl=$('stats');dl.replaceChildren();
       const add=(t,v)=>{const a=document.createElement('dt');a.textContent=t;const d=document.createElement('dd');d.textContent=v;dl.append(a,d);};
-      add('Fotos',b.used+' von '+b.photos+' ausgewertet'+(b.oblique?' ('+b.oblique+' schräg)':''));
+      add('Fotos',b.used+' von '+b.photos+' ausgewertet'+(b.oblique?' ('+b.oblique+' schräg)':'')+(b.level?' · '+b.level+' fast waagrecht, nicht gezählt':'')+(b.isolated?' · '+b.isolated+' abseits, nicht in der Fläche':''));
       add('Beflogene Fläche',fmt(b.stats.aoiM2)+' m² (Hülle der Aufnahmepositionen)');
       add('Ohne Abdeckung',b.stats.uncoveredPct+' %');
       add('Unter '+b.minOverlap+' Fotos',b.stats.belowPct+' %');
