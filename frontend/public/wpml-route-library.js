@@ -243,7 +243,7 @@
     message('Nur Offline-Prüfung: '+output.summary.waypointCount+' Wegpunkte, '+
       output.summary.actionGroupCount+' Action Groups, '+
       output.summary.orderedActionCount+' geordnete Aktionen. '+
-      'flightReady=false; DJI Pilot 2 und Kameraaktionen NICHT hardwaregeprüft.');
+      'Nicht flugbereit: DJI Pilot 2 und Kameraaktionen NICHT hardwaregeprüft.');
     return output;
   }
   function applyRevision(version){
@@ -316,7 +316,7 @@
       groups=next.groups;
       dirty=true;renderGroups();
       message('Aktionsvorlage auf '+indices.length+
-        ' Wegpunkte angewendet. Flugroute und Kameraaktionen erneut prüfen; flightReady=false.');
+        ' Wegpunkte angewendet. Flugroute und Kameraaktionen erneut prüfen; nicht flugbereit.');
     }catch{message('Batch-Aktion abgelehnt: Auswahl, Grenze oder Aufnahmesequenz ungültig.',true);}
   });
   $('reverse').addEventListener('click',()=>{
@@ -330,7 +330,7 @@
         index:g.index,actions:g.actions.map(a=>({...a}))
       }));
       dirty=true;renderEditor();
-      message('Flugroute umgekehrt. NEUE Sicht-, Heading-, Gelände- und RTH-Prüfung zwingend; flightReady=false.');
+      message('Flugroute umgekehrt. NEUE Sicht-, Kurs-, Gelände- und RTH-Prüfung zwingend; nicht flugbereit.');
     }catch{message('Routenumkehr blockiert. Video-/Intervallaktionen oder Wegpunkte nicht sicher umkehrbar.',true);}
   });
   $('review').addEventListener('click',()=>{try{review();}catch{
@@ -509,7 +509,7 @@
       link.download='skyhub-offline-route-'+Date.now()+'.kmz';
       document.body.appendChild(link);link.click();link.remove();
       setTimeout(()=>URL.revokeObjectURL(url),30000);
-      message('Offline-KMZ erzeugt. Kein Upload, kein DJI-Pilot-2-Test, flightReady=false.');
+      message('Offline-KMZ erzeugt. Kein Hochladen, kein DJI-Pilot-2-Test, nicht flugbereit.');
     }catch{message('KMZ-Export blockiert: ungültiger oder nicht unterstützter Entwurf.',true);}
   });
   for(const id of ['route-name','route-folder','model','speed','height','takeoff','finish'])

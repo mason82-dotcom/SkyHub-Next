@@ -32,7 +32,7 @@ NAV = [
         (SECTION, "Karte in Pilot 2"),
         ("/kartenelemente.html", "Kartenelemente", "Punkte, Linien und Flächen"),
         (LAB, "Labor"),
-        ("/wpml-survey-preview.html", "Survey-Vorschau", "2D-Vermessung, nur Vorschau"),
+        ("/wpml-survey-preview.html", "Vermessungsvorschau", "2D-Flächenvermessung, nur Vorschau"),
     ]),
     ("Fliegen", [
         ("/drc.html", "Live-Steuerung", "Matrice 4 · RC Plus 2"),

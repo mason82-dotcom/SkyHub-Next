@@ -34,7 +34,7 @@ components:
 
 ## Geltungsbereich und Stand
 
-Dieses Dokument beschreibt den **Entwicklungsbranch** `feature/webui-light-redesign-20261024`, nicht die automatisch produktiv eingesetzte Version. Die ausgelieferten sechs HTML-Ansichten sind: Operations inklusive des getrennten TAK-/CoT-Tabs, Smart Farming, WPML-Wegpunkteditor, lokale Routenbibliothek, 2D-Survey und DJI-Pilot-2-Kopplung. Alle beziehen `frontend/public/skyhub-light.css` **nach** ihren bisherigen Inline-Styles.
+Dieses Dokument beschreibt den **Entwicklungsbranch** `feature/webui-light-redesign-20261024`, nicht die automatisch produktiv eingesetzte Version. Die ausgelieferten sechs HTML-Ansichten sind: Lagebild inklusive des getrennten Tabs „TAK-Ausgabe“, Smart Farming, WPML-Wegpunkteditor, lokale Routenbibliothek, 2D-Vermessungsvorschau und DJI-Pilot-2-Kopplung. Alle beziehen `frontend/public/skyhub-light.css` **nach** ihren bisherigen Inline-Styles.
 
 Die echte Quelle der Farben, Abstände, Zustände und Breakpoints ist `frontend/public/skyhub-light.css`. Alte Inline-Styles dienen vorerst ausschließlich als strukturelle Kompatibilitätsschicht. Neue Farben und Komponenten sollen nicht mehr pro Seite fest verdrahtet werden. Für funktionale und sicherheitsrelevante Aussagen gilt weiterhin `UX-CONTRACT.md` und die jeweilige Fachdokumentation.
 
@@ -51,7 +51,7 @@ Statusfarben sind nie die einzige Statusdarstellung. Experimentell, Offline-Entw
 
 ## Layout und Navigation
 
-Auf großen Displays belegt die Operations-Karte den Hauptraum; die rechte Geräteleiste nutzt etwa 360–415 Pixel. Die beiden internen Tabs „Operations“ und „TAK / CoT“ sind getrennt. Die Leiste besitzt eigene Statuskarten, Filter, HMS-, Datenpfad- und Geräteblöcke; sie darf unabhängig von der Karte scrollen.
+Auf großen Displays belegt die Lagebild-Karte den Hauptraum; die rechte Geräteleiste nutzt etwa 360–415 Pixel. Die beiden internen Tabs „Lagebild“ und „TAK-Ausgabe“ sind getrennt. Die Leiste besitzt eigene Statuskarten, Filter, HMS-, Datenpfad- und Geräteblöcke; sie darf unabhängig von der Karte scrollen.
 
 Alle Operator-Seiten teilen eine App-Leiste (`scripts/webui-shell.py`), geordnet nach dem Arbeitsablauf: **Lagebild** (direkter Link) → **Planen** (Missionsentwurf, Routenbibliothek, Missionsfreigabe; Kartenelemente) → **Fliegen** (Live-Steuerung Matrice 4, Kamera & Gimbal Mavic 3) → **Auswerten** (Medien, PPK-Geotagging, Fotoabdeckung; Thermal, Vegetationsindizes) → **Diagnose** (RTK & Flugsitzungen, Pilot-2-Protokolle). Jeder Menüpunkt trägt eine Kurzbeschreibung. Experimentelle Seiten stehen bei ihrem Fachbereich unter einer Überschrift „Labor – experimentell, nicht für den Einsatz freigegeben“ und tragen zusätzlich das Textkennzeichen „Labor“ (nie nur Farbe). `aria-current="page"` bezeichnet genau die aktuelle Seite. Die Pilot-2-Webview bleibt bewusst ohne zusätzliche Operatornavigation und mit eigener kompakter Kopplung.
 
@@ -69,11 +69,11 @@ Karten sind weiß mit feinem Rand, 13–16-Pixel-Radius und zurückhaltendem Sch
 
 Leaflet nutzt weiterhin das bestehende externe Kartenmaterial. Falls Kartenkacheln fehlen, bleibt die textbasierte Geräteliste als Tastaturalternative. Das Map-Overlay darf weder Klicks noch Dragging blockieren. Zuletzt gemeldete Positionen dürfen nicht als aktuelle Live-Orte interpretiert werden.
 
-Wegpunkteditor und Survey sind Offline-Vorschauen, keine Flugfreigabe. Die Routenbibliothek speichert nur nach expliziter Bestätigung lokale Daten. Smart Farming stellt ausschließlich experimentelle M3M-Metadaten ohne kalibrierte Vegetationskarten oder Ausbringempfehlungen dar. TAK bleibt ein nicht integrierter, schreibgeschützter Platzhalter.
+Wegpunkteditor und Vermessungsvorschau sind Offline-Vorschauen, keine Flugfreigabe. Die Routenbibliothek speichert nur nach expliziter Bestätigung lokale Daten. Smart Farming stellt ausschließlich experimentelle M3M-Metadaten ohne kalibrierte Vegetationskarten oder Ausbringempfehlungen dar. TAK bleibt ein nicht integrierter, schreibgeschützter Platzhalter.
 
 ## Direkte Tastaturnavigation
 
-Alle sechs ausgelieferten Ansichten besitzen als **erstes fokussierbares Element** einen nur bei Tastaturfokus eingeblendeten Link „Zum Inhalt springen“. Er verweist auf das eindeutige `main#skyhubMain` mit `tabindex="-1"`. Das ermöglicht die direkte Bedienung ohne wiederholtes Tabben durch die fünf globalen Modul-Links, die Operations-Tabs oder die kompakten Pilot-2-Header-Elemente. Der Link nutzt den kontrastreichen gemeinsamen Light-Stil und benötigt weder JavaScript noch zusätzliche API-Rechte. Chromium testet Fokus, Sichtbarkeit und tatsächliche Ziel-Fokussierung.
+Alle sechs ausgelieferten Ansichten besitzen als **erstes fokussierbares Element** einen nur bei Tastaturfokus eingeblendeten Link „Zum Inhalt springen“. Er verweist auf das eindeutige `main#skyhubMain` mit `tabindex="-1"`. Das ermöglicht die direkte Bedienung ohne wiederholtes Tabben durch die fünf globalen Modul-Links, die Lagebild-Tabs oder die kompakten Pilot-2-Header-Elemente. Der Link nutzt den kontrastreichen gemeinsamen Light-Stil und benötigt weder JavaScript noch zusätzliche API-Rechte. Chromium testet Fokus, Sichtbarkeit und tatsächliche Ziel-Fokussierung.
 
 ## System-Kontrastmodus und reduzierte Bewegung
 
@@ -85,7 +85,7 @@ Die gemeinsamen Formularfelder erhalten erst **nach einer ungültigen Benutzerin
 
 ## Mobiler Schnellzugriff auf den Gerätestatus
 
-In der Operations-Ansicht steht bei Viewports bis 900px zwischen Tabs und Karte ein 44px hoher Link **„Direkt zum Gerätestatus ↓“**. Dadurch lassen sich die Flotten-/Telemetriekennzahlen direkt erreichen, ohne durch die Kartenansicht zu scrollen. Das Sprungziel ist `aside#fleetPanel` mit `tabindex="-1"` und `aria-labelledby="fleetHeading"`; die Zielregion wird nach Tastatur- oder Touchaktivierung fokussiert. Im Desktoplayout ist der Zusatzlink vollständig ausgeblendet. Für den Link ist keine JavaScript-, API- oder DJI-Funktion erforderlich. Der echte Chromium-Test prüft Sichtbarkeit, Touch-Zielhöhe, URI-Fragment, fokussierte Region und unveränderten Gerätesnapshot.
+Im Lagebild steht bei Viewports bis 900px zwischen Tabs und Karte ein 44px hoher Link **„Direkt zum Gerätestatus ↓“**. Dadurch lassen sich die Flotten-/Telemetriekennzahlen direkt erreichen, ohne durch die Kartenansicht zu scrollen. Das Sprungziel ist `aside#fleetPanel` mit `tabindex="-1"` und `aria-labelledby="fleetHeading"`; die Zielregion wird nach Tastatur- oder Touchaktivierung fokussiert. Im Desktoplayout ist der Zusatzlink vollständig ausgeblendet. Für den Link ist keine JavaScript-, API- oder DJI-Funktion erforderlich. Der echte Chromium-Test prüft Sichtbarkeit, Touch-Zielhöhe, URI-Fragment, fokussierte Region und unveränderten Gerätesnapshot.
 
 ## Barrierefreiheit und technische Überprüfung
 
@@ -103,7 +103,7 @@ CI: `backend/test/webui-light-theme.test.js`, `scripts/tak-ui-browser-ci.js`, `t
 
 ### Mobile Karte und Sicherheitsinformationen
 
-Im WPML-Missionseditor und in der Survey-Vorschau werden die erklärenden Sicherheitskarten bei Bildschirmbreiten bis einschließlich 660px **nicht mehr über der Leaflet-Karte** gerendert. Sie stehen stattdessen vollständig lesbar unter der Karte. Mindestens 300px nutzbare Kartenhöhe, die Zoom-Steuerung und alle Hinweise zur fehlenden DJI-Flugfreigabe bleiben erhalten. Desktop-/Tablet-Layouts bleiben unverändert.
+Im WPML-Missionseditor und in der Vermessungsvorschau werden die erklärenden Sicherheitskarten bei Bildschirmbreiten bis einschließlich 660px **nicht mehr über der Leaflet-Karte** gerendert. Sie stehen stattdessen vollständig lesbar unter der Karte. Mindestens 300px nutzbare Kartenhöhe, die Zoom-Steuerung und alle Hinweise zur fehlenden DJI-Flugfreigabe bleiben erhalten. Desktop-/Tablet-Layouts bleiben unverändert.
 
 ## Thermal: verlässlicher Bild- und Exportzustand
 

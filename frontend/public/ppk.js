@@ -180,7 +180,7 @@
       for(const f of baseFiles)entries.push({name:'base/'+f.name.replace(/[^\w.-]/g,'_'),data:f});
       status('ZIP wird vorbereitet (Prüfsummen) …');
       const zip=await buildZip(entries,(i,n)=>{prog.value=i/n*0.3;});
-      status('Upload '+fmt(zip.size)+(skipped?' ('+skipped+' Fotos ohne lesbaren Kopf übersprungen)':'')+' …');
+      status('Hochladen '+fmt(zip.size)+(skipped?' ('+skipped+' Fotos ohne lesbaren Kopf übersprungen)':'')+' …');
       const res=await new Promise((resolve,reject)=>{
         const x=new XMLHttpRequest();
         x.open('POST',fromStorage?'/api/ppk/jobs/storage':'/api/ppk/jobs');

@@ -147,7 +147,7 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;margin:14px 0 8p
       <p class="skyhub-nav-section">Karte in Pilot 2</p>
       <a href="/kartenelemente.html">Kartenelemente<small>Punkte, Linien und Flächen</small></a>
       <p class="skyhub-nav-section is-lab">Labor <span>experimentell, nicht für den Einsatz freigegeben</span></p>
-      <a href="/wpml-survey-preview.html" class="is-lab">Survey-Vorschau<small>2D-Vermessung, nur Vorschau</small></a>
+      <a href="/wpml-survey-preview.html" class="is-lab">Vermessungsvorschau<small>2D-Flächenvermessung, nur Vorschau</small></a>
     </div></details>
     <details class="skyhub-nav-group"><summary>Fliegen</summary><div class="skyhub-nav-menu">
       <a href="/drc.html">Live-Steuerung<small>Matrice 4 · RC Plus 2</small></a>
@@ -180,8 +180,8 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;margin:14px 0 8p
   </div>
 </header>
 <nav class="workspace-tabs" role="tablist" aria-label="SkyHub Hauptbereiche">
-  <button id="tabOperations" class="workspace-tab" type="button" role="tab" aria-controls="operationsPanel" aria-selected="true" tabindex="0">01 · Operations</button>
-  <button id="tabTak" class="workspace-tab" type="button" role="tab" aria-controls="takPanel" aria-selected="false" tabindex="-1">02 · TAK / CoT</button>
+  <button id="tabOperations" class="workspace-tab" type="button" role="tab" aria-controls="operationsPanel" aria-selected="true" tabindex="0">Lagebild</button>
+  <button id="tabTak" class="workspace-tab" type="button" role="tab" aria-controls="takPanel" aria-selected="false" tabindex="-1">TAK-Ausgabe</button>
 </nav>
 <main id="skyhubMain" tabindex="-1">
 <div id="operationsPanel" role="tabpanel" aria-labelledby="tabOperations">
@@ -233,7 +233,7 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;margin:14px 0 8p
       <div class="cockpit-dial"><span class="cockpit-name">Akku</span><strong id="cockpitBattery" class="cockpit-value">—</strong><small id="cockpitBatteryAge" class="cockpit-age" data-kind="missing">Nicht empfangen</small><div class="cockpit-meter" aria-hidden="true"><span id="cockpitBatteryMeter"></span></div></div>
       <div class="cockpit-dial"><span class="cockpit-name">Höhe relativ</span><strong id="cockpitAltitude" class="cockpit-value">—</strong><small id="cockpitAltitudeAge" class="cockpit-age" data-kind="missing">Nicht empfangen</small></div>
       <div class="cockpit-dial"><span class="cockpit-name">Horizontaltempo</span><strong id="cockpitSpeed" class="cockpit-value">—</strong><small id="cockpitSpeedAge" class="cockpit-age" data-kind="missing">Nicht empfangen</small></div>
-      <div class="cockpit-dial"><span class="cockpit-name">Kurs / Heading</span><div class="cockpit-heading"><strong id="cockpitHeading" class="cockpit-value">—</strong><span id="cockpitCompass" class="cockpit-compass" aria-hidden="true" hidden><span id="cockpitNeedle" class="cockpit-needle"></span></span></div><small id="cockpitHeadingAge" class="cockpit-age" data-kind="missing">Nicht empfangen</small></div>
+      <div class="cockpit-dial"><span class="cockpit-name">Kurs</span><div class="cockpit-heading"><strong id="cockpitHeading" class="cockpit-value">—</strong><span id="cockpitCompass" class="cockpit-compass" aria-hidden="true" hidden><span id="cockpitNeedle" class="cockpit-needle"></span></span></div><small id="cockpitHeadingAge" class="cockpit-age" data-kind="missing">Nicht empfangen</small></div>
       <div class="cockpit-dial"><span class="cockpit-name">Vertikaltempo</span><strong id="cockpitClimb" class="cockpit-value">—</strong><small id="cockpitClimbAge" class="cockpit-age" data-kind="missing">Nicht empfangen</small></div>
       <div class="cockpit-dial"><span class="cockpit-name">SDR-Funkqualität</span><strong id="cockpitLink" class="cockpit-value">—</strong><small id="cockpitLinkAge" class="cockpit-age" data-kind="missing">Nicht empfangen</small><div class="cockpit-meter" aria-hidden="true"><span id="cockpitLinkMeter"></span></div></div>
       <div class="cockpit-dial cockpit-attitude-dial">
@@ -593,7 +593,7 @@ function update(){
       maybe('RTK-Satelliten','rtkSatellites',show(t.rtkSatellites)),
       maybe('RTK-Fix-Code','rtkFixState',show(t.rtkFixState)),
       maybe('Positionsqualitätscode','positionQuality',show(t.positionQuality)),
-      maybe('Kurs / Heading','heading',show(t.heading,' °')),
+      maybe('Kurs','heading',show(t.heading,' °')),
       maybe('Vertikalgeschwindigkeit','verticalSpeed',show(t.verticalSpeed,' m/s')),
       maybe('Nickwinkel','attitudePitch',show(t.attitudePitch,' °')),
       maybe('Rollwinkel','attitudeRoll',show(t.attitudeRoll,' °')),
