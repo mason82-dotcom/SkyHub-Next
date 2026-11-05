@@ -34,6 +34,7 @@ const {liveControlConfig,createLiveControl}=require('./live-control');
 const {createMapElementWriter,createMapElementRouter}=require('./map-element-write');
 const {createPilotLogStore,createPilotLogRouter}=require('./pilot-log');
 const {createNdviRouter}=require('./ndvi');
+const {takConfig,createTakOutput}=require('./tak');
 const {createDjiWaylineRouter,createRedisFavorites,UPLOAD_DISABLED_CODE}=require('./dji-wayline-http');
 let pilotWaylineImport=null;
 const {createPilotWaylineImport,ImportError}=require('./pilot-wayline-import');
@@ -416,6 +417,12 @@ if(mediaUpload){
 }
 
 app.get('/api/devices',(req,res)=>res.json(registry.snapshot()));
+// TAK / CloudTAK output (tak.js): outbound CoT, off by default (SKYHUB_TAK_ENABLED). Certificate paths never in the status.
+const takSettings=takConfig(process.env);
+if(takSettings.issue)console.error('[tak] disabled:',takSettings.issue);
+const takOutput=takSettings.enabled?createTakOutput({config:takSettings,registry}):null;
+if(takOutput)console.log('[tak] CoT output active'+(takSettings.server?' → '+takSettings.server.host+':'+takSettings.server.port:'')+(takSettings.multicast?' + multicast 239.2.3.1:6969':''));
+app.get('/api/tak/status',(req,res)=>res.set('Cache-Control','no-store').json(takOutput?{enabled:true,...takOutput.status()}:{enabled:false,issue:takSettings.issue||null}));
 app.get('/api/topology',(req,res)=>res.json(registry.snapshot().map(d=>({sn:d.sn,role:d.role,gatewaySn:d.gatewaySn,model:d.model,topologyOnline:d.topologyOnline,online:d.online,
   lastTopologyAt:d.lastTopologyAt,topologyTimeVerified:d.topologyTimeVerified,children:d.children}))));
 app.get('/api/events',(req,res)=>res.json(registry.events()));
@@ -490,6 +497,7 @@ function stop(){
   if(drcRuntime)drcRuntime.shutdown().catch(err=>console.error('[drc] shutdown:',err.message));
   if(drcRcPro)drcRcPro.shutdown().catch(err=>console.error('[drc] rc pro shutdown:',err.message));
   if(liveControl)liveControl.shutdown();
+  if(takOutput)takOutput.close();
   ingest.stop();
   if(tsaHub)tsaHub.close();
   if(mediaUpload)mediaUpload.stop();

@@ -18,6 +18,7 @@ const lanReadPatterns=[
   /^\/live\/control\/?$/,
   /^\/map-elements\/?$/,
   /^\/coverage\/flights$/,
+  /^\/tak\/status$/,
   /^\/ndvi\/(captures|results\/[0-9a-f]{16}\.(png|tif))$/,
   /^\/pilot-logs(\/[0-9a-f-]{36}\/text)?\/?$/,
   /^\/smart-farming\/captures(\/manifest)?\/?$/,
