@@ -39,7 +39,8 @@
     if(!baseFiles.some(f=>NAV.test(f.name))){show('Navigationsdatei fehlt (…_MN.rnx, .nav oder .26n).','bad');return {block:true};}
     if(baseHeadFor!==obs[0]){show('RINEX-Kopf wird gelesen …');return {block:true};}
     const pos=source()==='storage'?stored.filter(f=>chosen().includes(f.id)).map(f=>f.position).filter(Boolean):[];
-    const r=window.SkyHubRinex.assess(baseHead,{mode:mode(),flights:pos});
+    const num=id=>{const v=$(id).value.trim();return v===''?NaN:Number(v);};
+    const r=window.SkyHubRinex.assess(baseHead,{mode:mode(),flights:pos,manual:{lat:num('lat'),lon:num('lon'),h:num('height')}});
     show(r.text,r.block?'bad':r.warn?'bad':'ok');
     return r;
   }
@@ -95,6 +96,7 @@
   $('flightsClear').addEventListener('click',()=>{flights.clear();renderLists();});
   $('base').addEventListener('change',e=>{baseFiles=[...e.target.files].filter(f=>f.size>0);renderLists();readBaseHead();});
   for(const r of document.querySelectorAll('input[name=mode]'))r.addEventListener('change',()=>{$('manual').hidden=mode()!=='manual';renderLists();});
+  for(const id of ['lat','lon','height'])$(id).addEventListener('input',renderLists);   // distance check uses the hand-entered base
   const mode=()=>document.querySelector('input[name=mode]:checked').value;
 
   // --- JPEG header stub: SOI + all segments before SOS + EOI (XMP/EXIF kept, image data dropped) ---------------------

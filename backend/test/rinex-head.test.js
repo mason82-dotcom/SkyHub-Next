@@ -16,10 +16,21 @@ const sapos=head([L('     3.04           OBSERVATION DATA    M (MIXED)','RINEX V
   L('0000                VRS                 GNSMART','REC # / TYPE / VERS'),L('0000                LEIAR25.R4      NONE','ANT # / TYPE'),
   L(xyz.map(v=>v.toFixed(4).padStart(14)).join(''),'APPROX POSITION XYZ'),L('','END OF HEADER')]);
 
-test('drone file is recognised and blocks the run in both modes',()=>{
+test('drone file: header mode blocks, manual mode only warns (own base converted with empty REC/ANT looks the same)',()=>{
   const h=R.parseHeader(drone);
   assert.equal(h.version,'3.05');assert.equal(h.receiver,'');assert.deepEqual(h.approx,{x:0,y:0,z:0});
-  for(const mode of ['header','manual']){const r=R.assess(h,{mode});assert.equal(r.block,true);assert.match(r.text,/von der Drohne/);}
+  const hdr=R.assess(h,{mode:'header'});assert.equal(hdr.block,true);assert.match(hdr.text,/von der Drohne/);
+  const man=R.assess(h,{mode:'manual',manual:{lat:49.15,lon:8.6,h:160}});
+  assert.equal(man.block,false);assert.equal(man.warn,true);assert.match(man.text,/Datei der Drohne/);
+});
+test('manual mode: implausible header position does not block, distance uses the hand-entered base',()=>{
+  const h=R.parseHeader(sapos);h.approx={x:1,y:1,z:6400000};   // placeholder position in a converter header
+  const r=R.assess(h,{mode:'manual',manual:{lat:49.15,lon:8.60,h:160},flights:[{lat:49.1525,lon:8.6044}]});
+  assert.equal(r.block,false);assert.equal(r.warn,true);assert.match(r.text,/unplausibel.*nicht verwendet/);
+  assert.match(r.text,/Abstand zum Flug \d+ m/);
+  const far=R.assess(R.parseHeader(sapos),{mode:'manual',manual:{lat:48.40,lon:9.99,h:500},flights:[{lat:49.1525,lon:8.6044}]});
+  assert.equal(far.warn,true);assert.match(far.text,/über 30 km/);
+  assert.equal(R.assess(R.parseHeader(sapos),{mode:'manual'}).block,false,'no coordinates entered yet: no distance, no block');
 });
 test('SAPOS header: position, receiver, antenna and distance to the flight',()=>{
   const h=R.parseHeader(sapos);

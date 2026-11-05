@@ -26,6 +26,7 @@ from __future__ import annotations
 import hmac
 import json
 import logging
+import math
 import os
 import re
 import shutil
@@ -150,21 +151,48 @@ def is_nav(name: str) -> bool:
     return bool(re.search(r"(_[A-Z]N\.rnx|\.nav|\.\d\d[nglpfhq])$", name, re.I))
 
 
+def ellipsoidal_height(x: float, y: float, z: float) -> float:
+    """Ellipsoidal height (GRS80) of an ECEF position, Bowring's formula (mm-level for ground stations)."""
+    a, f = 6378137.0, 1 / 298.257222101
+    e2, b = f * (2 - f), 6378137.0 * (1 - 1 / 298.257222101)
+    ep2, p = (a * a - b * b) / (b * b), math.hypot(x, y)
+    th = math.atan2(z * a, p * b)
+    lat = math.atan2(z + ep2 * b * math.sin(th) ** 3, p - e2 * a * math.cos(th) ** 3)
+    return p / math.cos(lat) - a / math.sqrt(1 - e2 * math.sin(lat) ** 2)
+
+
 def header_xyz(obs: Path):
-    """APPROX POSITION XYZ of a RINEX header (for a SAPOS virtual reference station: the reference position)."""
+    """APPROX POSITION XYZ of a RINEX header (for a SAPOS virtual reference station: the reference position).
+    Same rules as the browser check (frontend/public/rinex-head.js), so a direct API client cannot skip them:
+    the drone's own file (no receiver, no antenna, position 0/0/0) and implausible heights (wrong units) are refused."""
+    receiver = antenna = ""
+    xyz = None
     with open(obs, "r", errors="replace") as f:
-        for _ in range(200):
+        for _ in range(400):
             line = f.readline()
             if not line:
                 break
-            if "APPROX POSITION XYZ" in line:
-                x, y, z = (float(v) for v in line[:42].split()[:3])
-                if abs(x) + abs(y) + abs(z) < 1e6:
-                    raise Problem(400, "RINEX-Kopf ohne gültige Position")
-                return x, y, z
-            if "END OF HEADER" in line:
+            label = line[60:].strip()
+            if label == "REC # / TYPE / VERS":
+                receiver = line[20:40].strip()
+            elif label == "ANT # / TYPE":
+                antenna = line[20:40].strip()
+            elif label == "APPROX POSITION XYZ":
+                try:
+                    xyz = tuple(float(v) for v in line[:42].split()[:3])
+                except ValueError:
+                    xyz = None
+            elif label == "END OF HEADER":
                 break
-    raise Problem(400, "RINEX-Kopf ohne APPROX POSITION XYZ – Koordinaten von Hand eingeben")
+    zero = xyz is None or len(xyz) != 3 or sum(abs(v) for v in xyz) < 1e6
+    if zero and not receiver and not antenna:
+        raise Problem(400, "Basisdatei stammt offenbar von der Drohne (kein Empfänger, keine Antenne, Position 0/0/0)")
+    if zero:
+        raise Problem(400, "RINEX-Kopf ohne gültige Position – Koordinaten von Hand eingeben")
+    h = ellipsoidal_height(*xyz)
+    if not -200 < h < 3500:
+        raise Problem(400, "Position im RINEX-Kopf unplausibel (%.0f m ellipsoidisch) – Koordinaten von Hand eingeben" % h)
+    return xyz
 
 
 class OperationCancelled(Exception):  # replaced by the package's class once it is imported

@@ -26,21 +26,34 @@
   }
   const distKm=(a,b)=>{const r=Math.PI/180,s=Math.sin((b.lat-a.lat)*r/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin((b.lon-a.lon)*r/2)**2;
     return 12742*Math.asin(Math.sqrt(s));};
-  // → {ok, block (stops the run), text, geo}; flights = [{lat, lon}] of the chosen flights (may be empty).
-  function assess(h,{mode='header',flights=[]}={}){
+  const plausible=g=>g.lat>-90&&g.lat<90&&g.h>-200&&g.h<3500;   // ellipsoidal; SAPOS stations in Germany stay well below
+  // → {ok, block (stops the run), warn, text, geo}; flights = [{lat, lon}] of the chosen flights (may be empty).
+  // mode 'header': the header position is used for the solution, so a missing or implausible one blocks.
+  // mode 'manual': the hand-entered position (manual = {lat, lon, h}) is used; header findings only warn.
+  // The server (docker/ppk/ppk_server.py header_xyz) enforces the same position rules in header mode.
+  function assess(h,{mode='header',flights=[],manual=null}={}){
     if(!h.version||!h.complete)return {ok:false,block:true,text:'Keine lesbare RINEX-Beobachtungsdatei (Kopf ohne „END OF HEADER“). Komprimierte Dateien (.gz, .crx) bitte vorher entpacken.'};
     const zero=!h.approx||Math.abs(h.approx.x)+Math.abs(h.approx.y)+Math.abs(h.approx.z)<1e6;
-    if(zero&&!h.receiver&&!h.antenna)return {ok:false,block:true,
-      text:'Diese Datei stammt offenbar von der Drohne (kein Empfänger, keine Antenne, Position 0/0/0). Als Basis die SAPOS-Datei aus dem GPPS-Webshop wählen.'};
-    const who=[h.marker&&'Station '+h.marker,h.receiver,h.antenna].filter(Boolean).join(' · ');
-    if(zero)return mode==='manual'?{ok:true,block:false,text:'Basis: '+who+' – Position aus der Handeingabe.'}
-      :{ok:false,block:true,text:'Basis: '+who+' – der RINEX-Kopf enthält keine Position. „Koordinaten von Hand“ wählen und die Basisposition eintragen.'};
-    const geo=ecefToGeo(h.approx.x,h.approx.y,h.approx.z);
-    if(!(geo.lat>-90&&geo.lat<90)||!(geo.h>-200&&geo.h<3500))
-      return {ok:false,block:true,text:'Position im RINEX-Kopf unplausibel ('+geo.h.toFixed(0)+' m ellipsoidisch). Datei prüfen oder „Koordinaten von Hand“ wählen.'};
-    let text='Basis: '+who+' · '+geo.lat.toFixed(4)+' N, '+geo.lon.toFixed(4)+' E, '+geo.h.toFixed(1)+' m ellipsoidisch';
-    const d=flights.filter(f=>f&&Number.isFinite(f.lat)&&Number.isFinite(f.lon)).map(f=>distKm(geo,f));
-    let warn=false;
+    const droneLike=zero&&!h.receiver&&!h.antenna;
+    const who=[h.marker&&'Station '+h.marker,h.receiver,h.antenna].filter(Boolean).join(' · ')||'ohne Stationsangaben';
+    const headGeo=zero?null:ecefToGeo(h.approx.x,h.approx.y,h.approx.z);
+    let geo,text,warn=false;
+    if(mode==='manual'){
+      const m=manual&&Number.isFinite(manual.lat)&&Number.isFinite(manual.lon)?{lat:manual.lat,lon:manual.lon,h:Number.isFinite(manual.h)?manual.h:0}:null;
+      text='Basis: '+who+' – Position aus der Handeingabe'+(m?' ('+m.lat.toFixed(4)+' N, '+m.lon.toFixed(4)+' E)':'');
+      if(droneLike){warn=true;text+='. Achtung: Kopf ohne Empfänger, Antenne und Position – so sieht die Datei der Drohne aus. Nur fortfahren, wenn es sicher die Basis ist.';}
+      else if(headGeo&&!plausible(headGeo)){warn=true;text+='. Die Position im RINEX-Kopf ist unplausibel ('+headGeo.h.toFixed(0)+' m) und wird nicht verwendet.';}
+      geo=m;
+    }else{
+      if(droneLike)return {ok:false,block:true,
+        text:'Diese Datei stammt offenbar von der Drohne (kein Empfänger, keine Antenne, Position 0/0/0). Als Basis die SAPOS-Datei aus dem GPPS-Webshop wählen – oder bei einer eigenen Basis „Koordinaten von Hand“.'};
+      if(zero)return {ok:false,block:true,text:'Basis: '+who+' – der RINEX-Kopf enthält keine Position. „Koordinaten von Hand“ wählen und die Basisposition eintragen.'};
+      if(!plausible(headGeo))
+        return {ok:false,block:true,text:'Position im RINEX-Kopf unplausibel ('+headGeo.h.toFixed(0)+' m ellipsoidisch). Datei prüfen oder „Koordinaten von Hand“ wählen und die Position eintragen.'};
+      geo=headGeo;
+      text='Basis: '+who+' · '+geo.lat.toFixed(4)+' N, '+geo.lon.toFixed(4)+' E, '+geo.h.toFixed(1)+' m ellipsoidisch';
+    }
+    const d=geo?flights.filter(f=>f&&Number.isFinite(f.lat)&&Number.isFinite(f.lon)).map(f=>distKm(geo,f)):[];
     if(d.length){const max=Math.max(...d);text+=' · Abstand zum Flug '+(max<1?Math.round(max*1000)+' m':max.toFixed(1)+' km');
       if(max>30){warn=true;text+=' – zu weit für sicheres Festsetzen (über 30 km); näher gelegene Station oder virtuelle Referenzstation bestellen.';}}
     return {ok:true,block:false,warn,text,geo};

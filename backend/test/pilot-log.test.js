@@ -79,3 +79,59 @@ test('viewer: stored text form is shown as is (redacted again), old encrypted ro
     assert.ok(!d.includes('bbbb'));
   }finally{srv.close();}
 });
+test('redaction: Basic/Digest headers, escaped JSON, prefixed keys, JSON Authorization, key=value without ?/&',()=>{
+  const {redactSecrets}=require('../pilot-log');
+  const cases=[
+    ['Authorization: Basic dXNlcjpwYXNz','dXNlcjpwYXNz'],
+    ['Authorization: Digest username="u", response="6629fae49393a05397450978507c4ef1"','6629fae4'],
+    ['param : "{\\"password\\":\\"hunter2\\"}"','hunter2'],
+    ['{"mqttPassword":"mq-secret-1"}','mq-secret-1'],
+    ['{"deviceToken":"dev-tok-2"}','dev-tok-2'],
+    ['{"Authorization":"Bearer jwt.tok.3"}','jwt.tok.3'],
+    ['connect password=abc4 user=pilot','abc4'],
+    ['X-Auth-Token: tok5xyz','tok5xyz'],
+    ['GET /api/v1?access_token=tok6&x=1','tok6'],
+  ];
+  for(const [line,secret] of cases){
+    const r=redactSecrets(line);
+    assert.ok(!r.text.includes(secret),'leaks '+secret+' in '+r.text);assert.ok(r.count>=1,line);
+    assert.equal(redactSecrets(r.text).count,0,'idempotent: '+r.text);
+  }
+  assert.match(redactSecrets('connect password=abc4 user=pilot').text,/user=pilot/,'neighbouring values stay');
+});
+test('prepareLog: CRLF plain text is normalised, undecodable ciphertext is not labelled as plain text',()=>{
+  const {prepareLog}=require('../pilot-log');
+  const plain=prepareLog(Buffer.from('a\r\nb\r\n'));
+  assert.equal(plain.plain,true);assert.equal(plain.text.toString(),'a\nb\n');
+  const other=encodeLine('x','other-password');   // encrypted with a key we do not know
+  const enc=prepareLog(Buffer.from([other,other].join('\n')));
+  assert.equal(enc.plain,false);assert.equal(enc.failed,2);assert.match(enc.text.toString(),/nicht entschlüsselbar/);
+});
+test('prepareLogAsync runs in a worker and returns the same result plus gzip',async()=>{
+  const {prepareLog,prepareLogAsync}=require('../pilot-log');
+  const zlib=require('node:zlib');
+  const body=Buffer.from([encodeLine('{"password":"pw-7"}'),encodeLine('ok')].join('\n'));
+  const a=prepareLog(body),b=await prepareLogAsync(body);
+  assert.equal(b.text.toString(),a.text.toString());assert.equal(b.redacted,1);
+  assert.equal(zlib.gunzipSync(Buffer.from(b.gzip)).toString(),a.text.toString());
+});
+test('store: old rows (encrypted original or older rules) are rewritten once at start',async()=>{
+  const zlib=require('node:zlib');
+  const {createPilotLogStore,REDACT_VERSION}=require('../pilot-log');
+  const rows=new Map([
+    ['a',{format:'plog',redacted:0,redact_version:1,body:Buffer.from(encodeLine('{"token":"'+'c'.repeat(40)+'"}'))}],
+    ['b',{format:'text',redacted:0,redact_version:1,body:zlib.gzipSync('Authorization: Basic c2VjcmV0')}],
+    ['c',{format:'text',redacted:0,redact_version:REDACT_VERSION,body:zlib.gzipSync('fine')}]]);
+  const pool={query:async(sql,args=[])=>{
+    if(/^SELECT id FROM pilot_logs WHERE format/.test(sql))return {rows:[...rows].filter(([,r])=>r.format!=='text'||r.redact_version<args[0]).map(([id])=>({id}))};
+    if(/^SELECT body,format,redacted/.test(sql))return {rows:[rows.get(args[0])]};
+    if(/^UPDATE pilot_logs/.test(sql)){Object.assign(rows.get(args[0]),{body:args[1],format:'text',redacted:args[2],redact_version:args[4]});return {rowCount:1};}
+    if(/^SELECT id,received_at/.test(sql))return {rows:[]};
+    return {rows:[],rowCount:0};}};
+  const quiet={log(){},error(){}};
+  await createPilotLogStore(pool,{log:quiet}).list();
+  for(const [id,r] of rows){assert.equal(r.format,'text',id);assert.equal(r.redact_version,REDACT_VERSION,id);}
+  assert.ok(!zlib.gunzipSync(rows.get('a').body).toString().includes('cccc'));
+  assert.ok(!zlib.gunzipSync(rows.get('b').body).toString().includes('c2VjcmV0'));
+  assert.equal(rows.get('a').redacted,1);assert.equal(rows.get('b').redacted,1);
+});
