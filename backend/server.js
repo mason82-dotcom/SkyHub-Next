@@ -56,6 +56,7 @@ const {createTileCache,createTileRedirect,tileCacheSettings}=require('./tile-cac
 const {createFhObserver}=require('./fh-observer');
 const {createCloudApi2PortalRouter}=require('./cloud-api2-portal');
 const {createCloudApi2EvidenceRouter}=require('./cloud-api2-evidence');
+const {createCloudApi2HardwareRouter}=require('./cloud-api2-hardware');
 const {createFhMsdkObserve}=require('./fh-msdk-observe');
 const {createFhUgcsReader}=require('./fh-ugcs-reader');
 const {fhMetrics}=require('./fh-metrics');
@@ -248,6 +249,10 @@ app.post('/api/adapters/msdk/observe',createFhMsdkObserve({
 app.use('/api',auth);
 // Keyless Cloud API 2 reference portal: existing auth and read-only registry only.
 app.use('/api/cloud-api2',createCloudApi2PortalRouter({express,registry,mqttState}));
+// Security-sensitive anonymized hardware smoke is view-token-only (no LAN exception).
+app.use('/api/cloud-api2',createCloudApi2HardwareRouter({
+  express,registry,healthSnapshot,mqttShapes,pairing
+}));
 // Mounted AFTER the SkyHub access check (home-LAN rules or token); only Pilot 2's own endpoints sit before it.
 if(mapWriter)app.use('/api/map-elements',createMapElementRouter({express,writer:mapWriter}));
 if(pilotLogs)app.use('/api/pilot-logs',createPilotLogRouter({express,store:pilotLogs}));
