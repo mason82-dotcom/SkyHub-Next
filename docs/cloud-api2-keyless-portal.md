@@ -90,6 +90,10 @@ Herstellerreferenzen:
 - https://enterprise.dji.com/mavic-3-enterprise/specs
 - https://enterprise.dji.com/mavic-3-m
 
+## Verifiable device / mission / media linkage (P0, 07.11.2026)
+
+[Separate proof matrix, fail-closed matching and required independent DJI receipts](cloud-api2-linkage-evidence.md). Read-only `GET /api/cloud-api2/linkage`, existing view-token auth only, manual invocation; no claim that model compatibility constitutes mission execution. The new evidence viewer shows model-compatible candidate count plus three independently unproven cross-domain relations. No DJI SDK or flight hardware activated.
+
 ## Operator-triggered evidence inventory (follow-up)
 
 The new **Nachweise** tab uses a separate, strongly authorized `GET /api/cloud-api2/evidence` endpoint. Unlike the three earlier token-free-LAN read endpoints, **this endpoint is deliberately not in the home-LAN allowlist**. Existing SkyHub view-token authentication is required; the portal does not request or store credentials. HTTP 401 is reported as unavailable, never replaced with synthetic 'real' evidence. The request occurs **only** on explicit operator click; no background polling, automatic cloud queries, token injection or device actions.
