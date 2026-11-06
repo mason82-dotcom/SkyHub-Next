@@ -17,6 +17,7 @@
     <button type="button" class="active" data-view="overview">◈ <span>Übersicht</span></button>
     <button type="button" data-view="devices">▦ <span>Geräte-Backend</span></button>
     <button type="button" data-view="mavic3">✣ <span>Mavic 3 Enterprise</span></button>
+    <button type="button" data-view="evidence">▣ <span>Nachweise</span></button>
     <button type="button" data-view="simulator">◇ <span>Simulator</span><i>LAB</i></button>
     <button type="button" data-view="sdk">⌘ <span>SDK &amp; Bausteine</span></button>
     <button type="button" data-view="integrations">▤ <span>Module &amp; Skills</span></button>
@@ -60,6 +61,21 @@
       <div class="bar"><span id="deviceStatus">Noch keine Live-Abfrage.</span><span class="pill">CLOUD 1.x SOURCE</span></div>
       <div id="devices" class="device-grid" aria-live="polite"><p class="empty">Lade Gerätestatus …</p></div>
       <p class="hint">Diese Ansicht gibt keine Seriennummern, Gerätegeheimnisse oder Positionsdaten aus. Ein Gerät gilt nur bei aktueller OSD-Telemetrie und bestätigter Topologie als frisch.</p>
+    </section>
+    <section id="view-evidence" class="view" hidden>
+      <p class="eyebrow">OBSERVATION / PROVENANCE / READ-ONLY</p>
+      <div class="heading"><div><h1>Gemeinsame Nachweisübersicht</h1>
+        <p>WPML-Missionsrevisionen, Mapping-Eingangsflüge und Thermal-Dateikandidaten werden unabhängig ausgewertet. Kein Nachweis einer gerätespezifischen Zuordnung oder Flugfreigabe.</p></div>
+        <button id="loadEvidence" type="button" class="secondary">Nachweise lesend prüfen</button>
+      </div>
+      <div class="bar"><span id="evidenceStatus" role="status" aria-live="polite">Noch nicht abgefragt. Eine Abfrage erfolgt ausschließlich nach Klick.</span>
+        <span class="pill">ANSICHTSTOKEN ERFORDERLICH</span></div>
+      <div id="evidenceModules" class="integration-grid" aria-live="polite"></div>
+      <article class="card below"><div class="card-top"><b>GERÄTEBEZUG UND DATENQUALITÄT</b><span>NICHT BESTÄTIGT</span></div>
+        <p id="evidenceLinkage">Keine Verbindung zwischen den inventarisierten Modulen und einer bestimmten Drohne wird behauptet.</p>
+        <p class="warning">Gespeicherte Missionen sind keine Flugaufträge; Fotoeingänge sind keine verifizierte Flächenabdeckung; Thermal-Dateien sind keine kalibrierten Temperaturmessungen. Fehlende bzw. nicht erreichbare Daten bleiben UNBEKANNT.</p>
+        <p class="hint">Der Endpunkt /api/cloud-api2/evidence ist ausschließlich mit bestehendem SkyHub-Ansichtstoken zugänglich. Das Portal fordert keine Zugangsdaten an; bei HTTP 401 bleiben die Daten verborgen.</p>
+      </article>
     </section>
     <section id="view-mavic3" class="view" hidden>
       <p class="eyebrow">MODEL FAMILY / KEYLESS / READ-ONLY</p>
