@@ -364,9 +364,20 @@ if(wpmlStore&&pilot.wayline.enabled){
 // PPK geotagging (dji-geotagger) through the internal ppk service; opt-in (SKYHUB_PPK_URL + SKYHUB_PPK_TOKEN).
 const ppk=ppkConfig(process.env);
 if(ppk.issue)console.error('[ppk] disabled:',ppk.issue);
+// Photo coverage QA is independent of mission-release availability: reads media/terrain only.
+// No terrain HTTP request occurs until an operator explicitly supplies a takeoff point.
+// Only the internal hostname used by our own Compose terrain service is accepted here.
+const coverageTerrainSettings=terrainConfig(process.env);
+const coverageTerrainHost=coverageTerrainSettings.enabled?new URL(coverageTerrainSettings.base).hostname:'';
+const coverageTerrainLocal=coverageTerrainHost==='opentopodata'||coverageTerrainHost==='localhost'||
+  coverageTerrainHost==='127.0.0.1'||coverageTerrainHost==='brix-node';
+const coverageTerrain=coverageTerrainSettings.enabled&&coverageTerrainLocal&&!coverageTerrainSettings.public
+  ?createTerrainClient(coverageTerrainSettings):null;
+if(coverageTerrainSettings.enabled&&!coverageTerrain)
+  console.warn('[coverage] terrain disabled: requires the explicitly configured internal terrain service');
 // Photo coverage of stored flights (coverage.js): footprints from XMP/EXIF, gaps inside the flown area. Read-only.
 const ppkFlights=mediaStorage?createPpkStorage({storage:mediaStorage}):null;
-if(ppkFlights)app.use('/api/coverage',createCoverageRouter({express,flights:ppkFlights}));
+if(ppkFlights)app.use('/api/coverage',createCoverageRouter({express,flights:ppkFlights,terrain:coverageTerrain}));
 if(ppk.enabled){app.use('/api/ppk',createPpkRouter(ppk,{flights:ppkFlights}));console.log('[ppk] PPK geotagging service active');}
 // Live flight control (DRC) for one pinned DJI RC Plus 2 + Matrice 4E/4T (DJI Cloud API 1.18 pilot live flight controls).
 // Off by default; separate token; operator lease with fail-safe hand-back to the RC (drc-session.js).

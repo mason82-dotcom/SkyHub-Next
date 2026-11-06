@@ -16,7 +16,7 @@
     try{
       const r=await fetch('/api/coverage/flights',{cache:'no-store',credentials:'same-origin'});
       const b=await r.json().catch(()=>({}));
-      if(!r.ok)throw new Error(b.error||('HTTP '+r.status));
+      if(!r.ok)throw new Error(b.error||b.reason||('HTTP '+r.status));
       $('flight').replaceChildren(...(b.flights||[]).map(f=>{const o=document.createElement('option');o.value=f.id;
         o.textContent=f.name+' · '+f.photos+' Fotos'+(f.startUtc?' · '+new Date(f.startUtc).toLocaleDateString('de-DE'):'');return o;}));
       if(!(b.flights||[]).length){const o=document.createElement('option');o.value='';o.textContent='keine Flüge mit Fotos im Speicher';$('flight').append(o);}
@@ -44,10 +44,20 @@
   $('run').addEventListener('click',async()=>{
     setDisabledReason($('run'),'Berechnung läuft …');$('run').disabled=true;say('Fotoköpfe werden gelesen und ausgewertet …');
     try{
+      const latText=$('takeoff-lat').value.trim(),lonText=$('takeoff-lon').value.trim();
+      if(Boolean(latText)!==Boolean(lonText))
+        throw new Error('Startpunkt: entweder beide Koordinaten oder keine eingeben');
+      const request={flight:$('flight').value,minOverlap:Number($('min').value)};
+      if(latText&&lonText){
+        const lat=Number(latText),lon=Number(lonText);
+        if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)
+          throw new Error('Startpunkt liegt außerhalb des gültigen WGS84-Bereichs');
+        request.takeoff={lat,lon};
+      }
       const r=await fetch('/api/coverage/run',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({flight:$('flight').value,minOverlap:Number($('min').value)})});
+        body:JSON.stringify(request)});
       const b=await r.json().catch(()=>({}));
-      if(!r.ok)throw new Error(b.error||('HTTP '+r.status));
+      if(!r.ok)throw new Error(b.error||b.reason||('HTTP '+r.status));
       if(b.status!=='ok')throw new Error('keine auswertbaren Fotos ('+(b.reason||'?')+')');
       if(layer)map.removeLayer(layer);
       layer=L.layerGroup([overlay(b),L.polygon(b.aoi,{color:'#1f6feb',weight:2,dashArray:'6 4',fill:false})]).addTo(map);
@@ -60,12 +70,23 @@
       add('Ohne Abdeckung',b.stats.uncoveredPct+' %');
       add('Unter '+b.minOverlap+' Fotos',b.stats.belowPct+' %');
       add('Mindestens '+b.minOverlap+' Fotos',b.stats.okPct+' %');
-      add('Höhe über Start',b.aglM.min+'–'+b.aglM.max+' m · Raster '+b.cellM+' m');
+      const terrain=b.altitude&&b.altitude.status==='estimated';
+      add(terrain?'Geschätzte Höhe über Grund':'Höhe über Start (nicht AGL)',
+        b.aglM.min+'–'+b.aglM.max+' m · Raster '+b.cellM+' m');
+      add('Höhenqualität',terrain?'Schätzung aus lokalem DEM ('+(b.altitude.terrainDataset||'?')+')':
+        'UNBEKANNT: keine Geländekorrektur; Höhe über Startpunkt');
+      if(terrain)add('Geländeabfrage',b.altitude.valid+' gültig · '+b.altitude.missing+
+        ' fehlend · '+b.altitude.implausible+' unplausibel');
+      if(b.gsdCmPx)add(terrain?'GSD (DEM-Schätzung, Nadir)':'GSD (UNBERICHTIGT, über Start)',
+        b.gsdCmPx.min+'–'+b.gsdCmPx.max+
+        ' cm/px · Median '+b.gsdCmPx.median+' cm/px ('+b.gsdCmPx.samples+' Bilder)');
+      else add('GSD','UNBEKANNT: keine ausreichend belegten Nadir-Kameradaten');
       $('gaps').replaceChildren(...(b.gaps.length?b.gaps.slice(0,10).map((g,i)=>{const li=document.createElement('li');
         const btn=document.createElement('button');btn.type='button';btn.className='secondary';btn.textContent=fmt(g.areaM2)+' m²';
         btn.setAttribute('aria-label','Lücke '+(i+1)+' mit '+fmt(g.areaM2)+' m² zeigen');
         btn.addEventListener('click',()=>map.setView([g.lat,g.lon],18));li.append(btn);return li;}):[Object.assign(document.createElement('li'),{textContent:'keine Lücke über 25 m²'})]));
-      say('Fertig. Rot = keine Abdeckung innerhalb der beflogenen Fläche.');
+      say('Auswertung abgeschlossen ('+(terrain?'geländekorrigierte AGL-Schätzung':'ohne Geländekorrektur')+
+        '). Rot = keine Abdeckung innerhalb der beflogenen Fläche.');
     }catch(err){say('Auswertung fehlgeschlagen: '+err.message,true);}
     finally{$('run').disabled=false;}
   });
