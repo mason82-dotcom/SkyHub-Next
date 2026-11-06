@@ -1,11 +1,13 @@
 'use strict';
-// Photo coverage after a flight (idea: flight gap detection of hotosm/drone-tm, own implementation): ground footprint of
-// every photo from DJI XMP (GPS, RelativeAltitude, gimbal yaw/pitch/roll) and EXIF (35 mm equivalent focal length, pixel
-// size), projected onto a level ground plane through the four image corners (nadir and oblique). Height: RelativeAltitude,
-// i.e. above the TAKE-OFF point – a photo does not say where that was, so terrain is not corrected (stated in the result).
+// Read-only DJI photo coverage: EXIF/XMP camera geometry on a local ground plane.
+// Default: takeoff-relative altitude (explicitly marked uncorrected). With operator-supplied
+// takeoff GPS and local DEM: same-datum terrain-corrected AGL estimate. Never silently
+// infer takeoff or reuse ellipsoidal AbsoluteAltitude without a verified geoid transform.
 // Counts per grid cell → coverage statistics and gap clusters inside the area flown over (hull of the photo positions).
 // A planning aid, not a photogrammetric quality check (no image overlap matching, no blur/exposure assessment).
 const RAD=Math.PI/180,R=6371008.8;
+const {classifyCaptureName,readDjiXmp}=require('./dji-photo-metadata');
+const {parseTakeoff,terrainCorrectedPhotos}=require('./coverage-altitude');
 
 // --- EXIF: FocalLengthIn35mmFilm (0xA405), PixelXDimension (0xA002), PixelYDimension (0xA003) --------------------------
 function exifInfo(buf){
@@ -41,20 +43,20 @@ function tiff(t){
 
 // --- DJI XMP ------------------------------------------------------------------------------------------------------------
 function xmpInfo(buf){
-  const s=buf.toString('latin1');
-  const i=s.indexOf('<x:xmpmeta'),j=s.indexOf('</x:xmpmeta>',i);
-  if(i<0||j<0)return null;
-  const x=s.slice(i,j);
-  const num=name=>{const m=x.match(new RegExp('drone-dji:'+name+'="([-+]?[\\d.]+)"'));return m?Number(m[1]):null;};
-  const model=(x.match(/drone-dji:DroneModel="([^"]{1,20})"/)||x.match(/tiff:Model="([^"]{1,20})"/)||[])[1]||null;
-  return {lat:num('GpsLatitude'),lon:num('GpsLongitude'),relAlt:num('RelativeAltitude'),
-    yaw:num('GimbalYawDegree'),pitch:num('GimbalPitchDegree'),roll:num('GimbalRollDegree')??0,model};
+  const x=readDjiXmp(buf);
+  return x?{...x,roll:x.roll??0}:null;
 }
-function photoInfo(header){
-  const x=xmpInfo(header);
-  if(!x||![x.lat,x.lon,x.relAlt,x.yaw,x.pitch].every(Number.isFinite))return null;
-  const e=exifInfo(header);
-  return {...x,focal35:e.focal35,width:e.width,height:e.height};
+function photoInfo(header,name){
+  const capture=name?classifyCaptureName(name):{kind:'visible',lens:null};
+  // Thermal R-JPEG and M3M multispectral TIFF belong to their dedicated modules.
+  if(capture.kind!=='visible')return null;
+  try{
+    const x=xmpInfo(header);
+    if(!x||![x.lat,x.lon,x.relAlt,x.yaw,x.pitch].every(Number.isFinite))return null;
+    if(x.imageSource&&/^(?:MS_|IR_CAMERA|THERMAL)/i.test(x.imageSource))return null;
+    const e=exifInfo(header);
+    return {...x,focal35:e.focal35,width:e.width,height:e.height,lens:capture.lens};
+  }catch{return null;} // malformed/truncated untrusted EXIF must not abort an entire flight
 }
 
 // --- footprint: rays through the image corners onto the ground plane ----------------------------------------------------
@@ -115,10 +117,17 @@ function computeCoverage(photos,{cellM=2,maxCells=2_000_000,minOverlap=5}={}){
   for(const p of usable){
     // Photos less than 30° below the horizon (e.g. a level test shot) are not survey photos: not counted.
     if(p.info.pitch>-30){level.push(p.name);continue;}
-    const c=toXY(p.info.lat,p.info.lon),agl=p.info.relAlt-(p.groundM||0);
+    // Do not assume a 24-mm wide lens for M4T telephotos or an unknown M3M image.
+    if(!Number.isFinite(p.info.focal35)||p.info.focal35<=0||!Number.isFinite(p.info.width)||
+       !Number.isFinite(p.info.height)||p.info.width<=0||p.info.height<=0){skipped.push(p.name);continue;}
+    const c=toXY(p.info.lat,p.info.lon),agl=p.aglM??(p.info.relAlt-(p.groundM||0));
     const fp=footprint(p.info,{aglM:agl});
     if(!fp){skipped.push(p.name);continue;}
-    prints.push({name:p.name,center:c,poly:fp.map(([x,y])=>[x+c[0],y+c[1]]),agl,oblique:p.info.pitch>-80});
+    // A central nadir GSD estimate; oblique imagery has spatially varying GSD.
+    const gsdCmPx=p.info.pitch<=-80?100*agl*Math.hypot(36,24)/p.info.focal35/
+      Math.hypot(p.info.width,p.info.height):null;
+    prints.push({name:p.name,center:c,poly:fp.map(([x,y])=>[x+c[0],y+c[1]]),agl,
+      gsdCmPx,oblique:p.info.pitch>-80});
   }
   if(!prints.length)return {status:'skipped',reason:'no usable footprints'};
   // grid over all footprints
@@ -157,7 +166,10 @@ function computeCoverage(photos,{cellM=2,maxCells=2_000_000,minOverlap=5}={}){
   gaps.sort((a,b)=>b.areaM2-a.areaM2);
   const pct=v=>aoiCells?Math.round(v/aoiCells*1000)/10:0;
   const [south,west]=toLL(minX,minY),[north,east]=toLL(maxX,maxY);
-  return {status:'ok',photos:photos.length,used:prints.length,oblique:prints.filter(f=>f.oblique).length,skipped:skipped.length,
+  const gsds=prints.map(p=>p.gsdCmPx).filter(Number.isFinite).sort((a,b)=>a-b);
+  const gsdCmPx=gsds.length?{min:+gsds[0].toFixed(2),median:+gsds[Math.floor(gsds.length/2)].toFixed(2),
+    max:+gsds[gsds.length-1].toFixed(2),samples:gsds.length,scope:'nadir-centre-estimate'}:null;
+  return {status:'ok',gsdCmPx,photos:photos.length,used:prints.length,oblique:prints.filter(f=>f.oblique).length,skipped:skipped.length,
     level:level.length,isolated:prints.length-core.length,cellM:Math.round(cell*100)/100,minOverlap,bounds:{south,west,north,east},width:W,height:H,
     counts:Buffer.from(counts.buffer).toString('base64'),
     aoi:aoi.map(([x,y])=>toLL(x,y).map(v=>+v.toFixed(6))),
@@ -166,7 +178,7 @@ function computeCoverage(photos,{cellM=2,maxCells=2_000_000,minOverlap=5}={}){
 }
 
 // HTTP: GET /api/coverage/flights (flights in MinIO, ppk-storage.js), POST /api/coverage/run {flight}. Read-only on storage.
-function createCoverageRouter({express,flights,log=console,now=()=>Date.now()}){
+function createCoverageRouter({express,flights,terrain=null,log=console,now=()=>Date.now()}){
   const router=express.Router();
   const cache=new Map();
   router.use((req,res,next)=>{res.set('Cache-Control','no-store');next();});
@@ -178,11 +190,21 @@ function createCoverageRouter({express,flights,log=console,now=()=>Date.now()}){
     const id=req.body&&req.body.flight;
     if(typeof id!=='string'||!/^[0-9a-f]{16}$/.test(id))return res.status(400).json({error:'Flug fehlt'});
     const minOverlap=Number.isInteger(req.body.minOverlap)&&req.body.minOverlap>=1&&req.body.minOverlap<=20?req.body.minOverlap:5;
-    const key=id+':'+minOverlap,hit=cache.get(key);
-    if(hit&&now()-hit.at<600000)return res.json(hit.result);
     try{
+      const takeoff=parseTakeoff(req.body);
+      const key=id+':'+minOverlap+':'+(takeoff?takeoff.lat+','+takeoff.lon:'relative'),hit=cache.get(key);
+      if(hit&&now()-hit.at<600000)return res.json(hit.result);
       const {flight,photos}=await flights.photoHeaders(id);
-      const result={flight,...computeCoverage(photos.map(p=>({name:p.name,info:p.header?photoInfo(p.header):null})),{minOverlap})};
+      let mapped=photos.map(p=>({name:p.name,info:p.header?photoInfo(p.header,p.name):null}));
+      let altitude={status:'uncorrected',basis:'takeoff-relative',absoluteAltitudeDatum:'not-used',
+        warning:'Keine Geländeberücksichtigung: relative Höhe über Startpunkt, nicht AGL'};
+      if(takeoff){
+        const corrected=await terrainCorrectedPhotos(mapped,takeoff,terrain);
+        if(corrected.status!=='estimated')
+          return res.status(422).json({status:'unavailable',reason:corrected.altitude.reason});
+        mapped=corrected.photos;altitude=corrected.altitude;
+      }
+      const result={flight,...computeCoverage(mapped,{minOverlap}),altitude};
       cache.set(key,{at:now(),result});if(cache.size>20)cache.delete(cache.keys().next().value);
       res.json(result);
     }catch(err){
