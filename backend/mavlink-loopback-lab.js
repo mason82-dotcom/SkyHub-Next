@@ -43,8 +43,8 @@ function createLoopbackTelemetryLab({enabled=false,host='127.0.0.1',port}={}){
         // This listener handles transport errors only, never incoming data.
         let socketError=null;
         socket.on('error',err=>{socketError=err;});
-        // No socket.bind(), socket.on('message'), receive callback or
-        // connection to a vehicle/GCS/remote controller.
+        // Only outbound datagrams; never register a datagram handler,
+        // server listener or connection to a vehicle, GCS or controller.
         for(const packet of prepared.frames){
           await new Promise((resolve,reject)=>{
             socket.send(packet,port,'127.0.0.1',err=>
