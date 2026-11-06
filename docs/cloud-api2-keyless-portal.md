@@ -108,6 +108,9 @@ Verification command (backend directory): `node --test test/cloud-api2-evidence.
 
 ## RC Plus 2 Enterprise + Matrice 4T: Hardware-Smoketests im Cloud-API-2-Portal
 
+**Figma-Entwurf:** [RC Plus 2 / Matrice 4T Hardwaretest-Ansicht](https://www.figma.com/design/jigezwMCyKOiF0yNQB2pfJ?node-id=15-2) – bearbeitbares UI-Mockup, keine aktive Pi-Hardwareabfrage.
+
+
 **Neuer Reiter:** `M4T + RC Plus 2 Tests` unter `/cloud-api2.html#m4t-hardware`. Dieser Reiter ist eine eigenständige read-only-Diagnoseoberfläche für **DJI Cloud API 1.x** auf dem vorhandenen SkyHub-Backend, keine DJI Cloud API 2 Gerätefreischaltung.
 
 ### Aktuellen Live-Smoketest anzeigen
