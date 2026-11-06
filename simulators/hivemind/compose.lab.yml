@@ -24,6 +24,10 @@ services:
       SKYHUB_DJI_APP_ID: ""
       SKYHUB_DJI_APP_KEY: ""
       SKYHUB_DJI_APP_LICENSE: ""
+    # Replace (not extend) the base ports: only the lab HTTP port on loopback, no S3 upload proxy (:4002),
+    # so the lab never shares a host port with the production stack.
+    ports: !override
+      - "127.0.0.1:${SKYHUB_HTTP_PORT:-14001}:4000"
     depends_on:
       hivemind-broker:
         condition: service_started
