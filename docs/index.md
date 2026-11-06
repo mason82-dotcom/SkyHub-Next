@@ -47,6 +47,10 @@ TAK/CloudTAK-Ausgang (CoT der Live-Positionen, standardmäßig aus): [tak.md](ta
 - [Betriebswerkzeuge – Wirkung und Freigabe](scripts.md), [Mosquitto-Migration](pi-mosquitto-migration.md), [Host-InfluxDB absichern](pi-influxdb-hardening.md), [TSA-/Proxy-Härtung](tsa-proxy-hardening-2026-10-24.md).
 - [Cloud-API-Demo als lokaler Testweg](cloud-api-demo-lokal.md) und das Begleitprojekt [Pi-Hub](pi-hub.md) (Weboberfläche für den Pi-Betrieb, eigenes lokales Repository).
 
+## GitHub-Repository-Pflege (06.11.2026)
+
+[Read-only-Portfolioaudit und optionales Branch-Pruning](github-portfolio-hygiene.md) – schützt PR-Abhängigkeiten, Default-/Protected-Branches und ungemergte Commits; remote Löschvorgänge ausschließlich nach manueller Einzel-Repo-Bestätigung.
+
 ## Sicherheit und Engineering-Review
 
 - [Technischer Main-Review (25.10.2026)](engineering-audit-2026-10-25.md) – Proxy-Trust-Risiken auf dem damaligen Stand; der Sicherheitsentwurf ist inzwischen **in `main` (PR #176) und auf dem Pi ausgerollt**.
