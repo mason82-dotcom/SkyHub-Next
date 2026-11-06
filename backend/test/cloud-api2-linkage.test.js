@@ -9,6 +9,7 @@ const UUID='dbe034d7-32f7-4a3f-8d12-9f7446290b4d';
 const SHA='ab'.repeat(32);
 const mission={id:waylineId(SHA),sha256:SHA,droneModelKey:'0-77-2',name:'SECRET-WAYLINE'};
 const device={sn:'SECRET-SERIAL',role:'subdevice',topologyOnline:true,topologyTimeVerified:true,topologyRestored:false,
+  online:true,fresh:true,telemetryTimeVerified:true,
   model:{domain:'0',type:'77',subType:'2'},telemetry:{latitude:49.99,longitude:8.5}};
 const mediaDb={query:async(sql,args)=>{
   assert.match(sql,/^SELECT count\(\*\)::integer AS n FROM dji_pilot_media_verified WHERE workspace_id=\$1$/);
@@ -43,6 +44,9 @@ test('mission SHA->UUID and precise topology model produce candidates, never exe
 test('model-only, stale topology, restored state, invalid mission SHA and same time never link',()=>{
   assert.equal(aircraftModel({...device,topologyTimeVerified:false}),null);
   assert.equal(aircraftModel({...device,topologyRestored:true}),null);
+  assert.equal(aircraftModel({...device,online:false}),null);
+  assert.equal(aircraftModel({...device,fresh:false}),null);
+  assert.equal(aircraftModel({...device,telemetryTimeVerified:null}),null);
   assert.equal(aircraftModel({...device,topologyOnline:false}),null);
   assert.equal(aircraftModel({...device,role:'gateway'}),null);
   assert.equal(missionModel({...mission,id:'00000000-0000-0000-0000-000000000000'}),null);
