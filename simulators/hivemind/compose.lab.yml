@@ -2,6 +2,12 @@
 # Never merge this into the default SkyHub Next Compose invocation.
 services:
   backend:
+    # Replace the two inherited published ports from production Compose. The
+    # disposable lab must expose only its explicit loopback SkyHub endpoint;
+    # never publish the inherited S3 upload proxy (:4002).
+    # !override requires Docker Compose >= 2.24.4.
+    ports: !override
+      - "127.0.0.1:${SKYHUB_HTTP_PORT:-14001}:4000"
     environment:
       MQTT_BROKER_URL: mqtt://hivemind-broker:1884
       SKYHUB_MQTT_REQUIRED_PORT: "1884"

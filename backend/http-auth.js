@@ -8,7 +8,7 @@ const {createWpmlLanAuth}=require('./wpml-lan-auth');
 // dashboard, the media gallery (MinIO), the thermal module and the Smart Farming catalog works without one.
 // The RTK/flight-session diagnosis (three read-only lists, no serial-specific sources) is readable as well.
 // Pairing administration, DR reports, per-device FH sources, UgCS and metric dumps still need the view token.
-const lanReadPaths=new Set(['/devices','/topology','/events','/diagnostics/mqtt-shapes','/diagnostics/hms-history','/cloud-api2/status','/cloud-api2/devices','/cloud-api2/capabilities']);
+const lanReadPaths=new Set(['/devices','/topology','/events','/diagnostics/mqtt-shapes','/diagnostics/hms-history','/cloud-api2/status','/cloud-api2/devices','/cloud-api2/capabilities','/cloud-api2/linkage']);
 const lanReadPatterns=[
   /^\/drone\/[^/]+\/(track|telemetry)$/,
   /^\/media\/(status|buckets|objects|summary|index|file|thumb|mission|m3m\/inventory)$/,
