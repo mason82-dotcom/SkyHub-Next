@@ -204,7 +204,8 @@ function createCoverageRouter({express,flights,terrain=null,log=console,now=()=>
           return res.status(422).json({status:'unavailable',reason:corrected.altitude.reason});
         mapped=corrected.photos;altitude=corrected.altitude;
       }
-      const result={flight,...computeCoverage(mapped,{minOverlap}),altitude};
+      const result={flight,...computeCoverage(mapped,{minOverlap}),altitude,
+        gsdQuality:altitude.status==='estimated'?'terrain-estimated':'uncorrected-takeoff-height'};
       cache.set(key,{at:now(),result});if(cache.size>20)cache.delete(cache.keys().next().value);
       res.json(result);
     }catch(err){
