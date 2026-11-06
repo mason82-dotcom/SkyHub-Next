@@ -177,3 +177,49 @@ test('events without HMS are not misread as HMS',()=>{
   assert.equal(m.method,null);
   assert.equal(m.hms,null);
 });
+
+test('Wayline progress exposes bounded reported state but never mission IDs or coordinates',()=>{
+  const raw={timestamp:1792528000001,method:'flighttask_progress',
+    data:{result:0,output:{status:'failed',
+      progress:{current_step:26,percent:65},
+      ext:{flight_id:'PRIVATE_MISSION_X',track_id:'PRIVATE_TRACK_X',
+        break_point:{break_reason:517,latitude:49.1234,longitude:8.5678,
+          device_secret:'PRIVATE_GPS_X'}}}}};
+  const result=parseMessage('thing/product/DOCK/events',Buffer.from(JSON.stringify(raw)));
+  assert.deepEqual(result.missionReport,{
+    reportedStatus:'failed',progressPercent:65,currentStep:26,breakReason:517
+  });
+  assert.equal(result.mediaReport,null);
+  assert.doesNotMatch(JSON.stringify(result),/PRIVATE_MISSION_X|PRIVATE_TRACK_X|PRIVATE_GPS_X|49\.1234|8\.5678/);
+});
+
+test('mission summary does not invent progress for malformed or unknown DJI states',()=>{
+  const parse=data=>parseMessage('thing/product/DOCK/events',Buffer.from(JSON.stringify({
+    method:'flighttask_progress',data
+  }))).missionReport;
+  assert.equal(parse({result:1,output:{status:'ok',progress:{current_step:35,percent:100}}}),null);
+  assert.equal(parse({result:0,output:{status:'unknown',progress:{current_step:35,percent:100}}}),null);
+  assert.equal(parse({result:0,output:{status:'ok',progress:{current_step:35,percent:101}}}),null);
+  assert.equal(parse({result:0,output:{status:'ok',progress:{current_step:35,percent:5.5}}}),null);
+  assert.equal(parse({result:0,output:{status:'ok',progress:null}}),null);
+});
+
+test('media priority and callback are only unverified metadata reports',()=>{
+  const topic='thing/product/DOCK/events';
+  const parse=(method,data)=>parseMessage(topic,Buffer.from(JSON.stringify({method,data})));
+  const priority=parse('highest_priority_upload_flighttask_media',{
+    flight_id:'PRIVATE_FLIGHT_ID_X',sts_token:'PRIVATE_STS_X'});
+  assert.deepEqual(priority.mediaReport,{kind:'upload_priority_report',storageVerification:'not_checked'});
+  assert.doesNotMatch(JSON.stringify(priority),/PRIVATE_FLIGHT_ID_X|PRIVATE_STS_X/);
+  const callback=parse('file_upload_callback',{file:{
+    name:'PRIVATE_IMAGE_001.JPG',object_key:'PRIVATE_OBJECT_KEY_X',
+    ext:{flight_id:'PRIVATE_FLIGHT_ID_X'},metadata:{
+      shoot_position:{lat:49.9999,lng:8.9999},token:'PRIVATE_STS_X'
+    }
+  }});
+  assert.deepEqual(callback.mediaReport,{kind:'file_metadata_report',storageVerification:'not_checked'});
+  assert.equal(callback.missionReport,null);
+  assert.doesNotMatch(JSON.stringify(callback),/PRIVATE_IMAGE_001|PRIVATE_OBJECT_KEY_X|PRIVATE_FLIGHT_ID_X|PRIVATE_STS_X|49\.9999|8\.9999/);
+  assert.equal(parse('file_upload_callback',{file:{name:'x.jpg'}}).mediaReport,null);
+  assert.equal(parse('unknown_media',{file:{name:'x.jpg'}}).mediaReport,null);
+});
