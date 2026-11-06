@@ -19,10 +19,7 @@
     return JSON.stringify({
       survey:bridge.snapshot(),
       optimize:$('planar-optimize-angle').checked,
-      agl:$('planar-height').value,pitch:$('planar-pitch').value,
-      relativeHeight:$('planar-takeoff-height').value,
-      takeoffLat:$('planar-takeoff-lat').value,
-      takeoffLon:$('planar-takeoff-lon').value
+      agl:$('planar-height').value,pitch:$('planar-pitch').value
     });
   }
   function invalidate(){
@@ -147,10 +144,19 @@
     if(pending===ctrl){pending=null;$('planar-terrain').disabled=false;}
   });
   for(const id of ['planar-height','planar-pitch','planar-optimize-angle',
-    'planar-takeoff-height','planar-takeoff-lat','planar-takeoff-lon',
     'spacing','heading','optics-enable']){
     $(id).addEventListener('input',invalidate);
     $(id).addEventListener('change',invalidate);
+  }
+  // Changing only the reference for DEM must not invalidate the scan geometry.
+  // It does cancel stale in-flight elevation requests.
+  function cancelTerrain(){
+    epoch++;stopRequest();
+    show('DEM-Startreferenz geändert. Scanvorschau bleibt erhalten; DEM erneut prüfen.');
+  }
+  for(const id of ['planar-takeoff-height','planar-takeoff-lat','planar-takeoff-lon']){
+    $(id).addEventListener('input',cancelTerrain);
+    $(id).addEventListener('change',cancelTerrain);
   }
   // The canonical survey module broadcasts every geometry invalidation,
   // including map clicks, dragged markers and completed asynchronous GeoJSON imports.
