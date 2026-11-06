@@ -27,10 +27,10 @@ export const MAVIC3_MODELS=Object.freeze([
     note:'Eigenständige DJI Multispectral-Produktlinie. NDVI erfordert geeignete Bilddaten und Qualitätsprüfung; kein Thermal-Sensor.'})
 ]);
 const MATCHERS=Object.freeze([
-  ['m3ta',/(?:^|\\s)(?:m3ta|mavic\\s*3ta|mavic\\s*3t\\s*advanced)(?:$|\\s)/],
-  ['m3m',/(?:^|\\s)(?:m3m|mavic\\s*3m|mavic\\s*3\\s*multispectral)(?:$|\\s)/],
-  ['m3t',/(?:^|\\s)(?:m3t|mavic\\s*3t|mavic\\s*3\\s*thermal)(?:$|\\s)/],
-  ['m3e',/(?:^|\\s)(?:m3e|mavic\\s*3e|mavic\\s*3\\s*enterprise)(?:$|\\s)/]
+  ['m3ta',/(?:^|\s)(?:m3ta|mavic\s*3ta|mavic\s*3t\s*advanced)(?:$|\s)/],
+  ['m3m',/(?:^|\s)(?:m3m|mavic\s*3m|mavic\s*3\s*multispectral)(?:$|\s)/],
+  ['m3t',/(?:^|\s)(?:m3t|mavic\s*3t|mavic\s*3\s*thermal)(?:$|\s)/],
+  ['m3e',/(?:^|\s)(?:m3e|mavic\s*3e|mavic\s*3\s*enterprise)(?:$|\s)/]
 ]);
 export function matchMavic3Model(value){
   if(typeof value!=='string'||value.length>160)return null;
