@@ -89,3 +89,74 @@ Ergebnisse enthalten stets `flightReady=false`, `hardwareVerified=false`,
 - https://mavlink.io/en/messages/common.html
 - https://mavlink.io/en/guide/serialization.html
 - https://github.com/mason82-dotcom/SkyHub-Next/blob/main/backend/catalog.js
+
+
+## P2.1 – Independent MAVLink 2 verification and opt-in loopback lab (06.11.2026)
+
+**Stacked development:** requires the P2.0 offline encoder. None of the
+modules below are imported by SkyHub's production `server.js` or `mqtt-ingest.js`.
+No Pi, DJI controller, MQTT broker, Docker configuration or flight function
+has been modified. A green unit test proves framing and loopback transfer
+only; it is **not** a QGroundControl or aircraft acceptance test.
+
+### Independent passive frame verifier
+
+`backend/mavlink-passive-frame-audit.js` independently inspects fixed MAVLink 2
+frames without importing the P2.0 encoder. It uses a bit-at-a-time
+CRC-16/MCRF4XX algorithm with pinned `CRC_EXTRA` values for IDs 0, 30 and
+251. It checks version, payload length, incompatible flags, system ID,
+companion component ID and exact message allowlist. The heartbeat must
+continue to advertise MAV_TYPE_ONBOARD_CONTROLLER=18,
+MAV_AUTOPILOT_INVALID=8, no armed/guided mode, and MAV_STATE_UNINIT.
+The attitude carries radians with unknown angular rates encoded as NaN.
+Named values are strictly restricted to DJI_TKOFF and DJI_BATT.
+
+Batch checks also require contiguous sequence values (modulo 256),
+one companion heartbeat, consistent system ID, monotonically ordered
+optional messages, identical boot-time timestamps on measured fields, and
+a verified `generatedAt` time no older than **1 second**.
+CRC-validated but forged command or autopilot message types are rejected.
+No IDs, device secrets, GNSS coordinates or raw MAVLink payload are
+returned by the structural report.
+
+### Outbound-only loopback lab (P2.2 preparation)
+
+`backend/mavlink-loopback-lab.js` creates NO socket in its constructor;
+`sendBatch` is an explicit action and is **disabled by default**.
+The only allowed destination is literal `127.0.0.1`, with an explicitly
+configured, non-privileged UDP port. Hostnames, non-loopback and IPv6
+destinations are rejected. Prior to sending, the lab clones all frames and
+runs the independent passive batch validator (including 1-second age gate).
+One session enforces at least **1000 ms** between batches and monotonically
+advancing sequence numbers. The sender has NO UDP message receiver,
+command parser, MAVLink dispatcher, HTTP endpoint, DJI SDK or MQTT client.
+Only an error listener is registered. A successful UDP send only proves
+the local kernel accepted the datagram, not that QGroundControl received it.
+
+The 1000-ms throttle is scoped to a **single lab instance**, not a
+global or distributed rate limit. This lab must not be enabled as a
+persistent service, routed to the LAN or integrated with real devices
+without a separate security and capability review.
+
+**QGroundControl boundary:** QGC typically recognizes only vehicle
+heartbeats as vehicles, not onboard-computer heartbeats. Consequently
+the existing P2.0 companion identity will likely NOT create a vehicle
+entry in QGC; this is intentional. Do not falsely present SkyHub as an
+ArduPilot flight controller to achieve a UI icon.
+
+Run all checks offline or in isolated CI (loopback UDP is used by the
+lab-only Node test, never by the SkyHub runtime):
+
+```bash
+node --test \
+  backend/test/mavlink-telemetry-readonly.test.js \
+  backend/test/mavlink-passive-frame-audit.test.js \
+  backend/test/mavlink-loopback-lab.test.js
+```
+
+Next independent gate: P2.3 geoid/MSL and home-reference evidence before
+considering GLOBAL_POSITION_INT; maintain the no-command rule and
+explicit UI limitations for any later QGroundControl visualization.
+
+References: [MAVLink wire protocol](https://mavlink.io/en/guide/serialization.html),
+[MAVLink heartbeat and QGC component detection](https://mavlink.io/en/services/heartbeat.html).
