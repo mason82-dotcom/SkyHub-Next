@@ -217,6 +217,11 @@
       if(Math.abs((point.flight-point.ground)-point.agl)>0.25)
         return unknown('inconsistent-height-reference');
     }
+    const measuredMin=Math.min(...response.profile.map(x=>x.agl));
+    const measuredMax=Math.max(...response.profile.map(x=>x.agl));
+    // The backend rounds extrema and profile heights independently to 0.1 m.
+    if(Math.abs(measuredMin-min)>0.25||Math.abs(measuredMax-max)>0.25)
+      return unknown('inconsistent-agl-extrema');
     if(typeof response.dataset!=='string'||!response.dataset||
        typeof response.assumedTakeoff!=='boolean')
       return unknown('unknown-dem-provenance');
@@ -235,7 +240,10 @@
        totalSegmentCount>400||!Array.isArray(results)||results.length<1||
        results.length>8||results.length>totalSegmentCount)
       invalid('terrain batch size/coverage');
-    const sampled=results.filter(x=>x&&x.status==='sampled');
+    const sampled=results.filter(x=>x&&x.status==='sampled'&&
+      Number.isFinite(x.minAglM)&&Number.isFinite(x.maxAglM)&&
+      x.minAglM<=x.maxAglM&&x.assumedTakeoff===false&&
+      x.terrainVerified===false&&x.flightReady===false);
     const min=sampled.length?Math.min(...sampled.map(x=>x.minAglM)):null;
     const max=sampled.length?Math.max(...sampled.map(x=>x.maxAglM)):null;
     const unknownCount=results.length-sampled.length;
