@@ -138,17 +138,37 @@ p{line-height:1.5}.muted{color:#a8bdd0;font-size:12px}
 <label class="skyhub-check-row"><input id="show-photo-centers" type="checkbox" disabled> Theoretische Fotopositionen auf der Karte anzeigen (nur mit Optikwerten)</label>
 <p class="muted">Maximal 2.000 Kartenmarkierungen. Bei größeren Schätzungen werden ausschließlich die Endpunkte jedes Streifensegments markiert, niemals versteckte Zwischenbilder als vollständig dargestellt.</p>
 <div class="actions"><button id="preview" type="button">2D-Vorschau berechnen</button><button id="fit" type="button">Fläche einpassen</button><button id="geojson" type="button" disabled>Vorschau als GeoJSON exportieren</button></div>
+<section class="skyhub-subpanel" aria-label="Planar Wayline Labor">
+<h2>Planar Wayline · Labor P0–P2</h2>
+<p class="muted">Nur Geometrievorschau. Keine DJI-Flugfreigabe, kein KMZ-Export.</p>
+<label class="skyhub-check-row"><input type="checkbox" id="planar-optimize-angle"> Streifenrichtung optimieren (P0)</label>
+<div class="actions"><button id="planar-sweep" type="button">P0 · Scanvorschau</button></div>
+<div class="row"><div><label for="planar-height">AGL-Höhe (m)</label><input id="planar-height" type="number" min="2" max="500" placeholder="Reale AGL eingeben"></div>
+<div><label for="planar-pitch">Kameraneigung (°)</label><input id="planar-pitch" type="number" min="-85" max="-40" value="-60"></div></div>
+<div class="actions"><button id="planar-five" type="button">P1 · Fünf Richtungen</button></div>
+<label for="planar-pass-select">Angezeigte Aufnahmegruppe</label><select id="planar-pass-select" class="skyhub-full" disabled>
+<option value="0">1 · Nadir</option><option value="1">2 · +0°</option>
+<option value="2">3 · +90°</option><option value="3">4 · +180°</option><option value="4">5 · +270°</option></select>
+<label for="planar-takeoff-height">Höhe über Startpunkt (m, nicht AGL)</label>
+<input id="planar-takeoff-height" type="number" min="2" max="500" placeholder="Startreferenz explizit eingeben">
+<div class="actions"><button id="planar-terrain" type="button">P1 · DEM für Segment 1</button></div>
+<p id="planar-status" role="status" aria-live="polite">Noch keine P0-/P1-Vorschau. P2: KMZ-Audit über die CLI.</p>
+<p class="warning">Blaue Linien sind ausschließlich geometrisch. DEM-Stützpunkte beziehen sich nur auf das erste Scansegment. Hindernisse, Pilot 2, Hardware und Geozonen bleiben ungeprüft.</p>
+</section>
 <div id="status" role="status" aria-live="polite">Mindestens drei Polygonpunkte setzen.</div>
 <p class="warning"><strong>Keine Flugplanung:</strong> Die Approximation gilt nur für kleine, streng geprüfte Survey-Flächen (höchstens 2 km Ausdehnung); Polygonlöcher und getrennte Teilflächen werden nur geometrisch berücksichtigt. Optionale GSD-/Überlappungsschätzungen nur mit manuell bestätigten Kameradaten; nur geometrisch geschätzte Foto-Mittelpunkte, keine echte Bildauslösung, Geländegeometrie, Wendemanöver, Flugbeschränkungen oder DJI-Pilot-2-Prüfung. Kein KMZ-/WPML-Wayline-Export aus dieser Vorschau.</p>
 </aside>
 </main>
 <script src="/vendor/leaflet/1.9.4/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="></script>
 <script src="/wpml-survey-preview-core.js"></script>
+<script src="/wpml-planar-advanced-core.js"></script>
+<script src="/wpml-terrain-client.js"></script>
 <script src="/wpml-photogrammetry-core.js"></script>
 <script src="/wpml-camera-reference-core.js"></script>
 <script src="/wpml-m3m-dual-optics-core.js"></script>
 <script src="/wpml-capture-preview-core.js"></script>
 <script src="/skyhub-map-home.js"></script>
 <script src="/wpml-survey-preview.js"></script>
+<script src="/wpml-planar-ui.js"></script>
 </body>
 </html>
