@@ -4,7 +4,7 @@
 
 ## Scope and trust boundary
 
-- Read-only `GET /api/cloud-api2/linkage` is mounted **after** `app.use('/api',auth)`. It is intentionally absent from the home-LAN token-free GET allowlist. A valid existing view token is necessary. No token is requested or embedded in the frontend.
+- Read-only `GET /api/cloud-api2/linkage` is mounted **after** `app.use('/api',auth)`. The existing explicitly configured, trusted home-LAN **GET/HEAD read-only allowlist** now includes this aggregate endpoint. Outside that LAN, valid existing view-token authentication is still required. No token is requested or embedded in the frontend.
 - Query is explicit on operator click in the **Nachweise** section; no polling or automatic request on page load. No writes, MQTT publishes, DRC actions, mission dispatch, new database tables or Pi/container changes.
 - Backend reads bounded snapshots from `registry.snapshot()`, existing `wpmlStore.all()`, and workspace-scoped `SELECT count(*)` from `dji_pilot_media_verified`. A missing/malformed source becomes `unknown` or `unavailable`, never an implied zero or success.
 - No individual identifier is returned: no serial number, WPML ID, SHA digest, media ID, object key, session identifier, workspace UUID, source filename, GPS coordinate or mission label. All exposed counts have maximum bounds. No data correlation by similar filename, approximate timestamp, coordinates or model name.
