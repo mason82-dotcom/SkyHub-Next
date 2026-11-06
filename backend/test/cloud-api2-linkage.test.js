@@ -86,8 +86,26 @@ test('new endpoint is GET-only, token-protected and mounted after WPML initializ
   const wpml=server.indexOf('let wpmlStore=null;');
   assert.ok(auth>=0&&mount>auth&&mount>wpml);
   const policy=fs.readFileSync(path.join(__dirname,'../http-auth.js'),'utf8');
-  assert.equal(policy.includes("'/cloud-api2/linkage'"),false);
+  assert.equal(policy.includes("'/cloud-api2/linkage'"),true);
   assert.equal(policy.includes('/cloud-api2/(evidence|linkage)'),false);
+});
+test('configured LAN access allows only redacted linkage GET while external clients stay token-gated',()=>{
+  const {createHttpAuth}=require('../http-auth');
+  let permitted=0;
+  const make=(allowed)=>createHttpAuth({secret:'Z'.repeat(32),lanAccess:{
+    allows:()=>allowed
+  }}).auth;
+  const query=(auth,method,p)=>{
+    const req={path:p,method,headers:{},socket:{remoteAddress:'192.0.2.7'}};
+    const res={code:null,status(n){this.code=n;return this;},json(){return this;}};
+    let ok=false;auth(req,res,()=>{ok=true;});
+    return {ok,status:res.code};
+  };
+  assert.deepEqual(query(make(true),'GET','/cloud-api2/linkage'),{ok:true,status:null});
+  assert.deepEqual(query(make(true),'HEAD','/cloud-api2/linkage'),{ok:true,status:null});
+  assert.equal(query(make(true),'POST','/cloud-api2/linkage').status,401);
+  assert.equal(query(make(true),'GET','/cloud-api2/evidence').status,401);
+  assert.equal(query(make(false),'GET','/cloud-api2/linkage').status,401);
 });
 test('browser rejects false verified links and never uses write methods',async()=>{
   const {normalizeLinkage}=await import('../../frontend/public/cloud-api2-linkage.mjs');
