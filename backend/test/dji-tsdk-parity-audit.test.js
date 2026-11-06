@@ -4,6 +4,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const os=require('node:os');
 const path=require('node:path');
+const {spawnSync}=require('node:child_process');
 const A=require('../../scripts/dji-tsdk-parity-audit');
 
 const WIDTH=320,HEIGHT=256,PIXELS=WIDTH*HEIGHT;
@@ -75,4 +76,14 @@ test('CLI requires explicit inputs and safe threshold numbers',()=>{
   assert.throws(()=>A.parseCli([...base,'--max-limit-k=-1']),/decimal/);
   assert.throws(()=>A.parseCli([...base,'--p95-limit-k','3']),/max limit/);
   assert.throws(()=>A.parseCli(base.slice(0,8)),/missing/);
+});
+
+
+test('isolated Pi runner has valid Bash syntax and rejects missing inputs',()=>{
+  const script=path.resolve(__dirname,'../../scripts/dji-tsdk-parity-run.sh');
+  const syntax=spawnSync('bash',['-n',script],{encoding:'utf8'});
+  assert.equal(syntax.status,0,syntax.stderr);
+  const missing=spawnSync('bash',[script,'--baseline-sdk','/nonexistent'],{encoding:'utf8'});
+  assert.equal(missing.status,2);
+  assert.match(missing.stderr,/Usage:/);
 });
