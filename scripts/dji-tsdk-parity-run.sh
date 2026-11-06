@@ -43,13 +43,29 @@ done
 [[ -z "$report" || ! -e "$report" ]] || { echo "FAIL: report exists; no overwrite" >&2;exit 2; }
 
 # Exact parameter limits from the active SkyHub backend; invalid input never runs a native SDK.
-node - "$root" "$emissivity" "$distance" "$humidity" "$ambient" "$reflection" <<'NODE'
-const {sdkParameters}=require(process.argv[2]+'/backend/thermal-sdk.js');
+node - "$root" "$emissivity" "$distance" "$humidity" "$ambient" "$reflection" "$width" "$height" "$p95" "$maximum" "$input" <<'NODE'
+const fs=require('node:fs');
+const root=process.argv[2];
+const {sdkParameters}=require(root+'/backend/thermal-sdk.js');
+const audit=require(root+'/scripts/dji-tsdk-parity-audit.js');
 try{
   const names=['emissivity','distance','humidity','ambient','reflection'];
-  const vals=process.argv.slice(3);
+  const vals=process.argv.slice(3,8);
   sdkParameters(Object.fromEntries(names.map((k,i)=>[k,vals[i]])));
-}catch(err){console.error('FAIL: invalid SDK parameters: '+err.message);process.exit(2);}
+  const [width,height,p95,max,input]=process.argv.slice(8);
+  const args=audit.parseCli(['--baseline','baseline.raw','--candidate','candidate.raw',
+    '--source',input,'--width',width,'--height',height,
+    '--p95-limit-k',p95,'--max-limit-k',max]);
+  audit.frameSize(args.width,args.height);
+  const stat=fs.statSync(input);
+  if(!stat.isFile()||stat.size<4||stat.size>20*1024*1024)
+    throw new Error('source JPEG size invalid');
+  const fd=fs.openSync(input,'r');
+  const header=Buffer.alloc(2);
+  try{if(fs.readSync(fd,header,0,2,0)!==2||header[0]!==255||header[1]!==216)
+    throw new Error('source is not a JPEG');}
+  finally{fs.closeSync(fd);}
+}catch(err){console.error('FAIL: TSDK parity preflight: '+err.message);process.exit(2);}
 NODE
 work="$(mktemp -d -t skyhub-tsdk-parity-XXXXXXXX)"
 cleanup(){ rm -rf -- "$work"; }
