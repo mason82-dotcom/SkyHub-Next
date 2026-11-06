@@ -72,7 +72,7 @@ test('CLI requires explicit inputs and safe threshold numbers',()=>{
   const base=['--baseline','a','--candidate','b','--source','c','--width','320','--height','256'];
   assert.equal(A.parseCli(base).maxLimitK,2);
   assert.equal(A.parseCli([...base,'--p95-limit-k','0']).p95LimitK,0);
-  assert.throws(()=>A.parseCli([...base,'--max-limit-k','-1']),/decimal/);
+  assert.throws(()=>A.parseCli([...base,'--max-limit-k=-1']),/decimal/);
   assert.throws(()=>A.parseCli([...base,'--p95-limit-k','3']),/max limit/);
   assert.throws(()=>A.parseCli(base.slice(0,8)),/missing/);
 });
