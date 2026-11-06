@@ -13,7 +13,7 @@
 
 | Evidence | What can be established | What it cannot prove |
 | --- | --- | --- |
-| DJI registry topology | Aircraft model key can be derived from a subdevice with currently reported topology and verified topology timestamp (restored snapshots excluded) | Historic execution by that serial number; pilot/airframe acceptance |
+| DJI registry topology | Aircraft model key can be derived from a subdevice with currently online aircraft with fresh, timestamp-verified OSD and live, timestamp-verified topology (restored snapshots excluded) | Historic execution by that serial number; pilot/airframe acceptance |
 | WPML store | SHA-256 metadata has the correct deterministic RFC9562-like v8 UUID relationship; DJI model enum is structurally valid | Byte-for-byte rehash of current KMZ, flight permission, actual deployment or flight |
 | Device / mission comparison | Exact DJI aircraft model-key equality produces **candidate-only** combinations | Which of several devices actually used the mission; execution by any specific device |
 | Pilot media DB | Workspace-scoped count of ingestion records that passed STS + S3 HEAD at **ingestion time** | Current object integrity without HEAD recheck, XMP/CaptureUUID authenticity, actual photo capture |
