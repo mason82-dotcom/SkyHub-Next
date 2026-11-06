@@ -72,7 +72,7 @@ test('evidence route exposes one explicit GET and remains behind existing author
   const storage=server.indexOf('const ppkFlights=');
   assert.ok(auth>=0 && evidence>auth && evidence>storage);
   const policy=fs.readFileSync(path.join(__dirname,'../http-auth.js'),'utf8');
-  assert.doesNotMatch(policy,/['"]\\/cloud-api2\\/evidence['"]/);
+  assert.equal(policy.includes("'/cloud-api2/evidence'"),false);
 });
 
 test('same-origin client only performs GET evidence and normalizer rejects unsafe metadata',async()=>{
