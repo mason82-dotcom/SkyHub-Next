@@ -1,84 +1,164 @@
 'use strict';
-// Explicit, local-only planar laboratory controls; no DJI flight command or WPML export.
+// Explicit planar geometry and DEM laboratory. No mission export, DJI control or automatic network requests.
 (function(){
-  const c=window.SkyHubPlanarAdvanced,bridge=window.SkyHubPlanarSelection,$=id=>document.getElementById(id);
-  if(!c||!bridge){$('planar-status').textContent='Planarmodul nicht geladen.';return;}
-  let last=null,groups=null,epoch=0,lastFingerprint=null;
-  const fingerprint=()=>JSON.stringify(bridge.snapshot());
-  const show=t=>{$('planar-status').textContent=t;};
-  const options=()=>{
+  const core=window.SkyHubPlanarAdvanced;
+  const bridge=window.SkyHubPlanarSelection;
+  const terrain=window.SkyHubTerrainClient;
+  const $=id=>document.getElementById(id);
+  if(!core||!bridge){
+    $('planar-status').textContent='Planarmodul nicht geladen – Labortools deaktiviert.';
+    return;
+  }
+  let current=null,groups=null,epoch=0,fingerprint=null,pending=null;
+  const show=message=>{$('planar-status').textContent=message;};
+  function stopRequest(){
+    if(pending){pending.abort();pending=null;}
+    $('planar-terrain').disabled=false;
+  }
+  function snapshot(){
+    return JSON.stringify({
+      survey:bridge.snapshot(),
+      optimize:$('planar-optimize-angle').checked,
+      agl:$('planar-height').value,pitch:$('planar-pitch').value
+    });
+  }
+  function invalidate(){
+    epoch++;stopRequest();current=null;groups=null;fingerprint=null;
+    $('planar-pass-select').disabled=true;
+    bridge.clearAdvanced();
+    show('Eingaben oder Geometrie geändert – Planarvorschau neu berechnen.');
+  }
+  function inputs(){
     const s=bridge.snapshot();
-    if(!s.geometry||(Array.isArray(s.geometry)&&s.geometry.length<3))throw Error('Erst eine gültige Fläche zeichnen.');
-    if(!Number.isFinite(s.spacing))throw Error('Zuerst die gültige 2D-Kameravorschau berechnen.');
+    if(!s.geometry||(Array.isArray(s.geometry)&&s.geometry.length<3))
+      throw Error('Zuerst eine gültige Vermessungsfläche zeichnen oder importieren.');
+    if(!Number.isFinite(s.spacing)||s.spacing<2||s.spacing>200)
+      throw Error('Gültigen Streifenabstand beziehungsweise reale Kameradaten eingeben.');
     return {geometry:s.geometry,spacing:s.spacing,heading:s.heading,
       optimize:$('planar-optimize-angle').checked};
-  };
+  }
+  function renderPlan(){
+    if(current)bridge.drawAdvanced([current],{
+      showCandidates:$('planar-show-candidates').checked
+    });
+  }
+  function applyPlan(plan){
+    stopRequest();epoch++;current=plan;fingerprint=snapshot();renderPlan();
+  }
   $('planar-sweep').addEventListener('click',()=>{
     try{
-      const a=options();groups=null;$('planar-pass-select').disabled=true;
-      last=c.optimize(a.geometry,{spacing:a.spacing,heading:a.heading,optimize:a.optimize});
-      bridge.drawAdvanced([last]);epoch++;lastFingerprint=fingerprint();
-      show('P0: '+last.segmentCount+' Scanabschnitte, '+last.optimizedHeadingDegrees.toFixed(1)+
-        '°; '+last.evaluatedHeadingCount+' Richtungen bewertet; '+
-        last.transitionCandidates.filter(x=>x.status==='candidate').length+
-        ' unverifizierte Übergangskandidaten. Keine sicheren Flugrouten.');
-    }catch(e){show(e.message);}
+      const a=inputs();
+      groups=null;$('planar-pass-select').disabled=true;
+      applyPlan(core.optimize(a.geometry,{
+        spacing:a.spacing,heading:a.heading,optimize:a.optimize
+      }));
+      const count=current.transitionCandidates.filter(x=>x.status==='candidate').length;
+      show('P0: '+current.segmentCount+' Scansegmente, Richtung '+
+        current.optimizedHeadingDegrees.toFixed(1)+'°, '+
+        current.evaluatedHeadingCount+' Winkel bewertet. '+
+        count+' Übergangskandidaten; '+current.unexaminedTransitionCount+
+        ' Übergänge nicht untersucht. Kein Hindernis-/Flugnachweis.');
+    }catch(err){invalidate();show(err.message);}
   });
   $('planar-five').addEventListener('click',()=>{
     try{
-      const a=options();
-      if(!$('planar-height').value.trim()||!$('planar-pitch').value.trim())
-        throw Error('AGL und Neigungswinkel explizit eingeben.');
-      groups=c.fiveDirection(a.geometry,{spacing:a.spacing,heading:a.heading,
-        optimize:a.optimize,heightAGLM:$('planar-height').value,
-        pitchDegrees:$('planar-pitch').value});
-      last=groups.passes[0].preview;
-      $('planar-pass-select').value='0';$('planar-pass-select').disabled=false;
-      bridge.drawAdvanced([last]);epoch++;lastFingerprint=fingerprint();
-      show('P1: fünf Aufnahmegruppen; '+groups.passes.map(p=>p.preview.segmentCount).join('/')+
-        ' Scansegmente. Nur vereinfachte Geometrie, keine Kamera-/Flugfreigabe.');
-    }catch(e){show(e.message);}
+      const a=inputs();
+      const h=$('planar-height').value.trim(),p=$('planar-pitch').value.trim();
+      if(!h||!p)throw Error('Tatsächliche AGL-Höhe und Kameraneigung eingeben.');
+      const result=core.fiveDirection(a.geometry,{
+        spacing:a.spacing,heading:a.heading,optimize:a.optimize,
+        heightAGLM:h,pitchDegrees:p
+      });
+      groups=result;
+      $('planar-pass-select').value='0';
+      $('planar-pass-select').disabled=false;
+      applyPlan(result.passes[0].preview);
+      show('P1: fünf theoretische Aufnahmegruppen mit '+
+        result.passes.map(x=>x.preview.segmentCount).join('/')+
+        ' Scansegmenten. Keine Fotoauslösung oder Flugfreigabe.');
+    }catch(err){invalidate();show(err.message);}
   });
   $('planar-pass-select').addEventListener('change',()=>{
     if(!groups)return;
-    const n=Number($('planar-pass-select').value);
-    if(!Number.isInteger(n)||n<0||n>=5)return;
-    last=groups.passes[n].preview;bridge.drawAdvanced([last]);epoch++;
-    show('P1 Gruppe '+(n+1)+' von 5: '+last.segmentCount+' Scansegmente. Nur Vorschau.');
+    const index=Number($('planar-pass-select').value);
+    if(!Number.isInteger(index)||index<0||index>=groups.passes.length)return;
+    applyPlan(groups.passes[index].preview);
+    show('P1 Aufnahmegruppe '+(index+1)+'/'+groups.passes.length+
+      ': '+current.segmentCount+' Scansegmente. Nur geometrische Vorschau.');
   });
-  $('planar-terrain').addEventListener('click',async()=>{
-    try{
-      if(!last)throw Error('Zuerst eine Planarvorschau berechnen.');
-      if(lastFingerprint!==fingerprint())throw Error('Vorschau veraltet – zuerst neu berechnen.');
-      const h=$('planar-takeoff-height').value.trim(),v=Number(h);
-      if(!h||!Number.isFinite(v)||v<2||v>500)
-        throw Error('Höhe über Startpunkt (2–500 m) explizit eingeben, nicht AGL.');
-      if(!window.SkyHubTerrainClient)throw Error('DEM-Dienstclient fehlt.');
-      const first=last.segments[0],snapshot=JSON.stringify(bridge.snapshot()),at=epoch;
-      $('planar-terrain').disabled=true;show('DEM-Abfrage für das erste Scansegment läuft …');
-      const data=await window.SkyHubTerrainClient.profile(
-        [first.start,first.end].map(p=>({lat:p.lat,lon:p.lon,h:v})));
-      if(at!==epoch||snapshot!==JSON.stringify(bridge.snapshot())){
-        show('Geometrie geändert: veraltete DEM-Antwort verworfen.');return;
-      }
-      const result=c.terrainAssessment(data);
-      if(result.status!=='sampled')throw Error('DEM unvollständig oder nicht verfügbar.');
-      show('DEM nur Segment 1/'+last.segmentCount+': AGL '+result.minAglM+
-        '–'+result.maxAglM+' m; '+result.samples+' Höhenpunkte. '+
-        (result.below15m?'WARNUNG: unter 15 m. ':'')+
-        (result.above120m?'WARNUNG: über 120 m. ':'')+
-        'Startreferenz angenommen; keine Hindernis-/Flugfreigabe.');
-    }catch(e){show(e.message);}
-    finally{$('planar-terrain').disabled=false;}
-  });
-  function invalidate(){
-    last=null;groups=null;lastFingerprint=null;epoch++;
-    $('planar-pass-select').disabled=true;bridge.clearAdvanced();
-    show('Geometrie oder Parameter geändert – neu berechnen.');
+  $('planar-show-candidates').addEventListener('change',renderPlan);
+  function readTakeoff(){
+    const rawLat=$('planar-takeoff-lat').value.trim();
+    const rawLon=$('planar-takeoff-lon').value.trim();
+    if(!rawLat||!rawLon)throw Error('Gemessene WGS84-Startposition (Breite und Länge) ist erforderlich.');
+    const lat=Number(rawLat),lon=Number(rawLon);
+    if(!Number.isFinite(lat)||!Number.isFinite(lon)||
+       lat< -85||lat>85||lon< -180||lon>180)
+      throw Error('Ungültige Startkoordinaten. WGS84-Breite -85…85°, Länge -180…180°.');
+    return {lat,lon};
   }
-  for(const id of ['planar-height','planar-pitch','planar-takeoff-height',
-    'planar-optimize-angle','spacing','heading','optics-enable','geometry-file'])
+  $('planar-terrain').addEventListener('click',async()=>{
+    if(!current){show('Zuerst P0 oder P1 berechnen.');return;}
+    if(fingerprint!==snapshot()){
+      invalidate();show('Vorschau veraltet – zuerst neu berechnen.');return;
+    }
+    let h,ref;
+    try{
+      const raw=$('planar-takeoff-height').value.trim();
+      if(!raw||!Number.isFinite(Number(raw))||Number(raw)<2||Number(raw)>500)
+        throw Error('Explizite theoretische Höhe über Startpunkt (2–500 m) erforderlich.');
+      h=Number(raw);ref=readTakeoff();
+      if(!terrain)throw Error('Terrain-Client nicht verfügbar.');
+    }catch(err){show(err.message);return;}
+    stopRequest();
+    const ctrl=new AbortController();pending=ctrl;
+    const started=++epoch,observed=snapshot();
+    const segments=current.segments.slice(0,8);
+    const results=[];
+    $('planar-terrain').disabled=true;
+    for(const [index,segment] of segments.entries()){
+      if(ctrl.signal.aborted||epoch!==started||snapshot()!==observed)break;
+      show('P3 DEM: Segment '+(index+1)+'/'+segments.length+
+        ' wird einzeln geprüft; keine Prüfung der Übergangslücken.');
+      try{
+        const points=[segment.start,segment.end].map(p=>({lat:p.lat,lon:p.lon,h}));
+        const response=await terrain.profile(points,{takeoff:ref,signal:ctrl.signal});
+        if(ctrl.signal.aborted||epoch!==started||snapshot()!==observed)break;
+        results.push(core.terrainAssessment(response));
+      }catch(err){
+        if(ctrl.signal.aborted||epoch!==started||snapshot()!==observed)break;
+        results.push({status:'unknown',reason:'dem-request-failed'});
+      }
+    }
+    if(!ctrl.signal.aborted&&epoch===started&&snapshot()===observed&&results.length){
+      const r=core.assessTerrainSegments(results,current.segmentCount);
+      const range=r.sampledSegmentCount?
+        ('AGL min/max '+r.minAglM+' / '+r.maxAglM+' m. '):'Keine gültigen Höhenwerte. ';
+      show('P3 DEM-Stichprobe: '+r.sampledSegmentCount+'/'+r.totalSegmentCount+
+        ' Scansegmente geprüft ('+r.failedSegmentCount+
+        ' fehlgeschlagen, '+r.notRequestedSegmentCount+' nicht angefragt). '+
+        range+(r.below15m?'WARNUNG unter 15 m. ':'')+
+        (r.above120m?'WARNUNG über 120 m. ':'')+
+        'Kein Nachweis für nicht geprüfte Segmente, Hindernisse oder DJI-Flugfreigabe.');
+    }
+    if(pending===ctrl){pending=null;$('planar-terrain').disabled=false;}
+  });
+  for(const id of ['planar-height','planar-pitch','planar-optimize-angle',
+    'spacing','heading','optics-enable']){
     $(id).addEventListener('input',invalidate);
-  for(const id of ['add','undo','clear','import-geometry'])
-    $(id).addEventListener('click',invalidate);
+    $(id).addEventListener('change',invalidate);
+  }
+  // Changing only the reference for DEM must not invalidate the scan geometry.
+  // It does cancel stale in-flight elevation requests.
+  function cancelTerrain(){
+    epoch++;stopRequest();
+    show('DEM-Startreferenz geändert. Scanvorschau bleibt erhalten; DEM erneut prüfen.');
+  }
+  for(const id of ['planar-takeoff-height','planar-takeoff-lat','planar-takeoff-lon']){
+    $(id).addEventListener('input',cancelTerrain);
+    $(id).addEventListener('change',cancelTerrain);
+  }
+  // The canonical survey module broadcasts every geometry invalidation,
+  // including map clicks, dragged markers and completed asynchronous GeoJSON imports.
+  window.addEventListener('skyhub-survey-invalidated',invalidate);
 })();
