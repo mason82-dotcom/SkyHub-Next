@@ -23,6 +23,12 @@ Use this repository-local skill for edits to area mapping, five-direction photog
 - All preview outputs must remain flightReady=false, dispatchAllowed=false, exportableAsWaylines=false.
 - A reference audit is neither Pilot 2 acceptance nor physical camera calibration.
 - Never put mission coordinates, names or secrets in summary output.
+- P3 terrain requires an explicit, measured WGS84 takeoff reference for all independent strips; do not silently use each strip's first point as a shared takeoff.
+- Sample at most eight independent strip segments sequentially on explicit user action. Keep sampled/failed/not-requested counts visible; no crossing polygon holes via synthetic transit legs.
+- Never coerce null/missing DEM heights into zero. Check AGL extrema against every returned height profile; incomplete or inconsistent samples are UNKNOWN.
+- Cancel in-flight DEM calls on geometry, camera or takeoff changes; preserve existing scan geometry when only DEM reference inputs change.
+- A fully sampled set remains terrainVerified=false and flightReady=false; no collision or geofence verification is implied.
+- Display geometric transition candidates only on explicit opt-in, as dashed warnings, never as a DJI wayline.
 
 ## Tests and review
 Use the existing project frontend-design / frontend-design-premium skills for UI changes. Maintain the existing light tokens.
