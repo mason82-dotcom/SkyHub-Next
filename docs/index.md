@@ -14,6 +14,10 @@
 GSD-Qualitätsstatus, getrennte M4T-Thermal- und M3M-Multispektral-Verarbeitung. Ausschließlich Offline-/Synthetiknachweise,
 keine DJI-Flugfreigabe oder Hardwareabnahme.
 
+## Passiver MAVLink-2-Telemetrieadapter (RosettaDrone-Referenz, 06.11.2026)
+
+[Isolierte MAVLink-2-OSD-Projektion für Mavic 3M und Matrice 4T](mavlink-telemetry-readonly.md) – ausschließlich Offline-Frames; keine DJI-Steuerung, keine UDP-Liveübertragung, kein GPS-MSL-Nachweis und keine QGC-Flugfreigabe.
+
 ## Missionsfreigabe, NDVI, TAK/CloudTAK (04.11.2026)
 
 [Risikoanalyse](risikoanalyse-missionsversand-ndvi-tak-2026-11-04.md) (17 Risiken; kritisch: Pilot 2 sah bisher jede gespeicherte Route) und
