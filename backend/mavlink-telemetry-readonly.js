@@ -144,7 +144,7 @@ function projectMavlinkTelemetry(device,{
 
   return Object.freeze({schema:SCHEMA,accepted:true,reason:null,
     frames:Object.freeze(frames),messageTypes:Object.freeze(messageTypes),
-    nextSequence:next,hardwareVerified:false,flightReady:false,
+    nextSequence:next,generatedAt:now,hardwareVerified:false,flightReady:false,
     publisherEnabled:false,mqttUsed:false,udpSent:false,commandCapable:false});
 }
 module.exports={projectMavlinkTelemetry,SCHEMA,MAX_FIELD_AGE_MS};
