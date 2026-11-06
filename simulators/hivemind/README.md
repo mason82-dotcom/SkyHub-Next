@@ -38,7 +38,9 @@ Even a successful lab test does not validate actual RC Plus 2 / M4T / M3M hardwa
 It contains fixed credentials, a hardcoded external network and colliding ports.
 This integration deliberately does **not** reuse it.
 
-Requires Git, Docker with Compose v2, network access to GitHub/Maven, and adequate
+Requires Git, **Docker Compose 2.24.4 or newer** (the lab's `!override` port-list
+semantics are required to suppress the inherited production :4002 S3 proxy publication),
+network access to GitHub/Maven, and adequate
 disk space/RAM. A local JDK is not necessary; Maven 3.9/Java 21 runs in a build
 container. All commands are explicit; checking out this branch changes no service.
 
