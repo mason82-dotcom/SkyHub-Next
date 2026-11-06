@@ -1,9 +1,10 @@
 import {SkyHubDaaSClient} from './cloud-api2-sdk.mjs';
 import {SkyHubLabSimulator} from './cloud-api2-lab.mjs';
+import {MODULES,SKILLS,VENDOR_SKILLS} from './cloud-api2-modules.mjs';
 const get=id=>document.getElementById(id);
 const client=new SkyHubDaaSClient();
 const lab=new SkyHubLabSimulator();
-const sections=['overview','devices','simulator','sdk','ai'];
+const sections=['overview','devices','simulator','sdk','integrations','ai'];
 const features=[
   ['SkyHub Geräte-Backend','KEYLESS'],
   ['Objektorientierte GET-Fassade','KEYLESS'],
@@ -116,6 +117,28 @@ function renderFeatures(){
     target.append(item);
   }
 }
+function renderIntegrations(){
+  const modules=get('moduleCatalog');
+  const skills=get('skillCatalog');
+  for(const item of MODULES){
+    const article=el('article','integration-item');
+    article.append(el('small','',item.scope),el('h2','',item.title),el('p','',item.detail));
+    const status=el('span','integration-state',item.state);
+    const link=el('a','integration-link','Bestehende Seite öffnen ↗');
+    link.href=item.href;
+    article.append(status,link);
+    modules.append(article);
+  }
+  for(const item of SKILLS){
+    const article=el('article','skill-item');
+    article.append(el('b','',item.title),el('p','',item.scope));
+    const link=el('a','integration-link','Herstellerreferenz ↗');
+    link.href=VENDOR_SKILLS+'/'+item.id;
+    link.target='_blank';link.rel='noopener noreferrer';
+    article.append(link);
+    skills.append(article);
+  }
+}
 function makePrompt(){
   const topic=promptTopics[get('task').value];
   const detail=get('target').value.trim().slice(0,600);
@@ -135,5 +158,5 @@ get('copy').addEventListener('click',async()=>{
   catch(_){get('promptStatus').textContent='Zwischenablage nicht verfügbar; Text manuell markieren.';}
 });
 function updateTime(){get('localtime').textContent=new Intl.DateTimeFormat('de-DE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date());}
-renderFeatures();renderLab();updateTime();setInterval(updateTime,60000);
+renderFeatures();renderIntegrations();renderLab();updateTime();setInterval(updateTime,60000);
 view(location.hash.slice(1)||'overview');refresh();
