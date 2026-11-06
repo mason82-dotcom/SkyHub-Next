@@ -16,7 +16,7 @@
     try{
       const r=await fetch('/api/coverage/flights',{cache:'no-store',credentials:'same-origin'});
       const b=await r.json().catch(()=>({}));
-      if(!r.ok)throw new Error(b.error||('HTTP '+r.status));
+      if(!r.ok)throw new Error(b.error||b.reason||('HTTP '+r.status));
       $('flight').replaceChildren(...(b.flights||[]).map(f=>{const o=document.createElement('option');o.value=f.id;
         o.textContent=f.name+' · '+f.photos+' Fotos'+(f.startUtc?' · '+new Date(f.startUtc).toLocaleDateString('de-DE'):'');return o;}));
       if(!(b.flights||[]).length){const o=document.createElement('option');o.value='';o.textContent='keine Flüge mit Fotos im Speicher';$('flight').append(o);}
@@ -57,7 +57,7 @@
       const r=await fetch('/api/coverage/run',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},
         body:JSON.stringify(request)});
       const b=await r.json().catch(()=>({}));
-      if(!r.ok)throw new Error(b.error||('HTTP '+r.status));
+      if(!r.ok)throw new Error(b.error||b.reason||('HTTP '+r.status));
       if(b.status!=='ok')throw new Error('keine auswertbaren Fotos ('+(b.reason||'?')+')');
       if(layer)map.removeLayer(layer);
       layer=L.layerGroup([overlay(b),L.polygon(b.aoi,{color:'#1f6feb',weight:2,dashArray:'6 4',fill:false})]).addTo(map);
