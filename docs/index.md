@@ -8,6 +8,10 @@
 
 **Navigationsstand ergänzt am 02.11.2026; dokumentierter Raspberry-Pi-Betriebsstand weiter vom 27.10.2026.** Primäre Einstiegspunkte sind der [Betriebsstand des Pi vom 27.10.2026](stand-2026-10-27-betriebsstand.md), der [Main-Audit des Quellcodes](stand-2026-10-25-main-audit.md) und die [Dokumentationspflege](dokumentationspflege.md). Die bisherige Repository-Statusdatei und die umfangreichen PR-Triageberichte sind ältere Messungen **desselben Tages** und kein Ersatz für eine aktuelle GitHub-Abfrage. Diese Navigation gilt für den Root-Stack `skyhub-next`. Die wichtigste Unterscheidung ist die zwischen dem **Code auf `main`** und **noch nicht integrierten Entwicklungszweigen**.
 
+## Planar Wayline P0–P2 (06.11.2026)
+
+[Flächen-/Schrägbildplanung und abgesicherte KMZ-Referenzprüfung](planar-wayline-integration.md) – experimentelles Vermessungslabor, read-only DEM-Profil und Offline-Kompatibilitätsprüfung; keine DJI-Flugfreigabe.
+
 ## Fotoabdeckung: AGL, GSD und M4T/M3M (06.11.2026)
 
 [Geländekorrigierte Fotoabdeckung P0–P2](coverage-terrain-qa-p0-p2.md) – lokale DEM-Höhendifferenz mit explizitem Startpunkt,
