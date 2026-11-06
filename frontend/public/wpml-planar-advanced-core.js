@@ -193,23 +193,71 @@
       pilot2HardwareVerified:false,flightReady:false,exportableAsWaylines:false,
       dispatchAllowed:false};
   }
+  // Strictly numeric; never coerce null or empty DEM fields into elevation zero.
   function terrainAssessment(response){
-    if(!response||response.status!=='ok'||!response.minAgl||
-       !response.maxAgl||!Array.isArray(response.profile))
-      return {status:'unknown',terrainVerified:false,obstacleClearanceVerified:false,
-        flightReady:false,dispatchAllowed:false};
-    const min=Number(response.minAgl.aglM),max=Number(response.maxAgl.aglM);
-    if(!Number.isFinite(min)||!Number.isFinite(max)||min>max||
-       response.profile.some(x=>x.ground===null||x.agl===null))
-      return {status:'unknown',terrainVerified:false,obstacleClearanceVerified:false,
-        flightReady:false,dispatchAllowed:false};
+    const unknown=reason=>({
+      status:'unknown',reason,terrainVerified:false,obstacleClearanceVerified:false,
+      flightReady:false,dispatchAllowed:false,exportableAsWaylines:false
+    });
+    if(!response||response.status!=='ok'||!response.minAgl||!response.maxAgl||
+       !Array.isArray(response.profile))return unknown('not-sampled');
+    const min=response.minAgl.aglM,max=response.maxAgl.aglM;
+    if(typeof min!=='number'||!Number.isFinite(min)||
+       typeof max!=='number'||!Number.isFinite(max)||min>max)
+      return unknown('invalid-agl-extrema');
+    if(!Number.isSafeInteger(response.samples)||response.samples<2||
+       response.samples>600||response.profile.length!==response.samples)
+      return unknown('sample-count-mismatch');
+    if(response.missing!==0)return unknown('missing-dem-heights');
+    for(const point of response.profile){
+      if(!point||typeof point!=='object'||
+         !Number.isFinite(point.ground)||!Number.isFinite(point.flight)||
+         !Number.isFinite(point.agl)||!Number.isFinite(point.d))
+        return unknown('invalid-profile-point');
+      if(Math.abs((point.flight-point.ground)-point.agl)>0.25)
+        return unknown('inconsistent-height-reference');
+    }
+    if(typeof response.dataset!=='string'||!response.dataset||
+       typeof response.assumedTakeoff!=='boolean')
+      return unknown('unknown-dem-provenance');
     return {status:'sampled',minAglM:min,maxAglM:max,
       below15m:min<15,above120m:max>120,
-      samples:response.samples,missing:response.missing,
-      dataset:response.dataset,assumedTakeoff:response.assumedTakeoff,
-      coverage:'single-selected-scan-segment-only',
-      terrainVerified:false,obstacleClearanceVerified:false,
-      flightReady:false,dispatchAllowed:false,exportableAsWaylines:false};
+      samples:response.samples,missing:0,dataset:response.dataset,
+      assumedTakeoff:response.assumedTakeoff,
+      coverage:'selected-scan-segment-only',terrainVerified:false,
+      obstacleClearanceVerified:false,flightReady:false,dispatchAllowed:false,
+      exportableAsWaylines:false};
   }
-  return Object.freeze({optimize,fiveDirection,terrainAssessment,transitionCandidate});
+  // Aggregate only independent scan samples. Never bridge excluded zones
+  // and never imply that sampling the first N strips certifies unexamined strips.
+  function assessTerrainSegments(results,totalSegmentCount){
+    if(!Number.isSafeInteger(totalSegmentCount)||totalSegmentCount<1||
+       totalSegmentCount>400||!Array.isArray(results)||results.length<1||
+       results.length>8||results.length>totalSegmentCount)
+      invalid('terrain batch size/coverage');
+    const sampled=results.filter(x=>x&&x.status==='sampled');
+    const min=sampled.length?Math.min(...sampled.map(x=>x.minAglM)):null;
+    const max=sampled.length?Math.max(...sampled.map(x=>x.maxAglM)):null;
+    const unknownCount=results.length-sampled.length;
+    return {
+      schema:'skyhub-planar-segment-dem-sample-v1',
+      status:sampled.length===0?'unknown':
+        sampled.length===totalSegmentCount?'sampled-all':'partial',
+      selectedSegmentCount:results.length,sampledSegmentCount:sampled.length,
+      failedSegmentCount:unknownCount,
+      notRequestedSegmentCount:totalSegmentCount-results.length,
+      totalSegmentCount,
+      minAglM:min,maxAglM:max,
+      below15m:sampled.some(x=>x.below15m),
+      above120m:sampled.some(x=>x.above120m),
+      assumedTakeoff:sampled.some(x=>x.assumedTakeoff),
+      datasetNames:[...new Set(sampled.map(x=>x.dataset))].sort(),
+      coverage:'first-eight-independent-scan-segments-at-most',
+      coverageComplete:sampled.length===totalSegmentCount,
+      terrainVerified:false,obstacleClearanceVerified:false,
+      cameraHardwareVerified:false,flightReady:false,dispatchAllowed:false,
+      exportableAsWaylines:false
+    };
+  }
+  return Object.freeze({optimize,fiveDirection,terrainAssessment,assessTerrainSegments,transitionCandidate});
 });
