@@ -10,7 +10,7 @@
   const capture=window.SkyHubCapturePreview;
   const $=id=>document.getElementById(id);
   if(!engine){$('status').textContent='Offline-Geometriemodul fehlt.';return;}
-  const points=[];let importedGeometry=null,map=null,polygon=null,markers=[],lines=[],photoMarkers=[],report=null,photoReport=null,captureReport=null,dualReport=null,dualCount=null,firstFit=false;
+  const points=[];let importedGeometry=null,map=null,polygon=null,markers=[],lines=[],advancedLines=[],photoMarkers=[],report=null,photoReport=null,captureReport=null,dualReport=null,dualCount=null,firstFit=false;
   const feedback=(txt,error=false)=>{
     $('status').textContent=txt;
     $('status').style.color=error?'var(--sky-warning)':'var(--sky-ink)';
@@ -37,7 +37,7 @@
     importedGeometry=null;
     points.push({lat:a,lon:b});invalidate();render();
   }
-  function invalidate(){report=null;photoReport=null;captureReport=null;dualReport=null;dualCount=null;$('geojson').disabled=true;
+  function invalidate(){for(const layer of advancedLines)layer.remove();advancedLines=[];report=null;photoReport=null;captureReport=null;dualReport=null;dualCount=null;$('geojson').disabled=true;
     $('show-photo-centers').disabled=true;}
   function fit(){
     if(!map)return;
@@ -363,6 +363,18 @@
     document.body.appendChild(a);a.click();a.remove();
     setTimeout(()=>URL.revokeObjectURL(url),30000);
     feedback('Unverbindliche GeoJSON-Vorschau lokal gespeichert. Kein DJI-Missionsformat.');
+  });
+  window.SkyHubPlanarSelection=Object.freeze({
+    snapshot:()=>({geometry:importedGeometry||points.map(p=>({...p})),
+      spacing:$('optics-enable').checked?(report?report.lineSpacingMeters:null):Number($('spacing').value),
+      heading:Number($('heading').value)}),
+    drawAdvanced:plans=>{
+      for(const layer of advancedLines)layer.remove();advancedLines=[];
+      if(!map)return;
+      for(const plan of plans)for(const seg of plan.segments)
+        advancedLines.push(L.polyline([[seg.start.lat,seg.start.lon],
+          [seg.end.lat,seg.end.lon]],{color:'#2458d3',weight:3,opacity:.9}).addTo(map));
+    }
   });
   syncDualControls();
   render();
