@@ -16,7 +16,9 @@ function normalizeEvidence(input){
     const status=Object.hasOwn(STATES,item?.status)?item.status:'unknown';
     const count=(status==='observed'||status==='empty')&&
       Number.isSafeInteger(item?.count)&&item.count>=0&&item.count<=100000?item.count:null;
-    return {...entry,status,count:count===null?null:count,label:STATES[status]};
+    const verifiedStatus=(status==='observed' && (count===null||count===0)) ||
+      (status==='empty' && count!==0)?'unknown':status;
+    return {...entry,status:verifiedStatus,count:verifiedStatus===status?count:null,label:STATES[verifiedStatus]};
   });
   return {modules,deviceCorrelation:'not-established',flightReady:false,accuracyVerified:false};
 }
