@@ -112,7 +112,7 @@ const assertNoOverflow=async page=>{
    tabs:document.querySelectorAll('[role=tab]').length,
    // Shared frame (scripts/webui-shell.py, DESIGN.md "Layout und Navigation", reorganised in #284): top level along the
    // operator workflow = "Lagebild" as a direct link to / plus the groups Planen, Fliegen, Auswerten, Diagnose, all fully
-   // visible; the 17 module links live in the group menus (hidden while closed), Thermal included.
+   // visible; the 18 module links live in the group menus (hidden while closed), Thermal included.
    allNavLinksVisible:(()=>{
      const nav=document.querySelector('.skyhub-global-nav');
      if(!nav)return false;
@@ -124,7 +124,7 @@ const assertNoOverflow=async page=>{
      const current=[...nav.querySelectorAll('a[aria-current="page"]')];
      return top.length===5 && direct.length===1 && direct[0]==='/' &&
        ['Planen','Fliegen','Auswerten','Diagnose'].every((name,i)=>(groups[i]||'').startsWith(name)) &&
-       links.length===17 && links.includes('/thermal.html') &&
+       links.length===18 && links.includes('/thermal.html') && links.includes('/cloud-api2.html') &&
        current.length===1 && current[0].getAttribute('href')==='/' &&
        top.every(item=>{
          const rect=item.getBoundingClientRect();
@@ -141,7 +141,7 @@ const assertNoOverflow=async page=>{
  assert.equal(dimensions.mainCount,1,'one semantic main landmark');
  assert.equal(dimensions.tabs,2,'two accessible tabs');
  assert.equal(dimensions.allNavLinksVisible,true,
-   'top-level navigation (Lagebild link + Planen, Fliegen, Auswerten, Diagnose) must stay visible; 17 module links, current page marked once');
+   'top-level navigation (Lagebild link + Planen, Fliegen, Auswerten, Diagnose) must stay visible; 18 module links including Cloud API 2, current page marked once');
  assert.equal(dimensions.lightStylesheet,true,'light stylesheet must be loaded successfully');
  assert.equal(dimensions.colorScheme,'light','root color-scheme must remain light');
  assert.equal(dimensions.bodyBackground,'rgb(243, 246, 251)','light canvas must be rendered');
