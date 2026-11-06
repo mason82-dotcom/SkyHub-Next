@@ -41,7 +41,7 @@ function validTerrain(min=10,max=125){
  return {status:'ok',minAgl:{aglM:min},maxAgl:{aglM:max},
    dataset:'eudem25m',samples:2,missing:0,assumedTakeoff:false,
    profile:[{d:0,ground:100,flight:110,agl:10},
-     {d:100,ground:101,flight:109,agl:8}]};
+     {d:100,ground:101,flight:226,agl:125}]};
 }
 test('P3 DEM rejects null, incomplete, inconsistent and ambiguous heights',()=>{
  assert.equal(planar.terrainAssessment({status:'unavailable'}).status,'unknown');
@@ -54,7 +54,8 @@ test('P3 DEM rejects null, incomplete, inconsistent and ambiguous heights',()=>{
    {...t,profile:[]},
    {...t,profile:[...t.profile.slice(0,1),{d:99,ground:null,flight:100,agl:10}]},
    {...t,profile:[...t.profile.slice(0,1),{d:99,ground:100,flight:100,agl:10}]},
-   {...t,assumedTakeoff:undefined}
+   {...t,assumedTakeoff:undefined},
+   {...t,maxAgl:{aglM:124}}
  ])assert.equal(planar.terrainAssessment(bad).status,'unknown',JSON.stringify(bad));
  const valid=planar.terrainAssessment(validTerrain());
  assert.equal(valid.below15m,true);
