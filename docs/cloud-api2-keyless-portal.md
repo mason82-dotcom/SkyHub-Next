@@ -89,3 +89,18 @@ Figma-Design: https://www.figma.com/design/jigezwMCyKOiF0yNQB2pfJ
 Herstellerreferenzen:
 - https://enterprise.dji.com/mavic-3-enterprise/specs
 - https://enterprise.dji.com/mavic-3-m
+
+## Operator-triggered evidence inventory (follow-up)
+
+The new **Nachweise** tab uses a separate, strongly authorized `GET /api/cloud-api2/evidence` endpoint. Unlike the three earlier token-free-LAN read endpoints, **this endpoint is deliberately not in the home-LAN allowlist**. Existing SkyHub view-token authentication is required; the portal does not request or store credentials. HTTP 401 is reported as unavailable, never replaced with synthetic 'real' evidence. The request occurs **only** on explicit operator click; no background polling, automatic cloud queries, token injection or device actions.
+
+Source modules and interpretation:
+- `wpmlStore.status()/list({page:1,pageSize:1})`: number of stored WPML revisions. No mission name/ID, target, geolocation or mission release is exposed. These are **not flight approvals**.
+- `ppkFlights.list()`: number of available photo flights with at least 2 images, read from the existing PPK inventory. They are **not computed coverage results** and have no proven device correlation.
+- `mediaStorage.buckets()/mediaRouter.bucketIndex()`: count of DJI-style `_T.JPG` or `_T.JPEG` filename candidates. These are **not calibrated or verified R-JPEG temperature measurements**.
+
+Results are server-side redacted to fixed status/number enums only; they contain no serial number, object key, bucket, route coordinate or media payload. Inventory queries have bounded reads and fail closed to `unknown` or `unavailable`. The response flags `deviceCorrelation=not-established`, `hardwareVerified=false`, `flightReady=false`, `accuracyVerified=false`, `synthetic=false`.
+
+Files: `backend/cloud-api2-evidence.js`, `frontend/public/cloud-api2-evidence.mjs`, and `backend/test/cloud-api2-evidence.test.js`.
+
+Verification command (backend directory): `node --test test/cloud-api2-evidence.test.js test/cloud-api2-keyless.test.js test/cloud-api2-module-catalog.test.js`. Hardware acceptance, DJI Cloud API 2 bridging, automatic association of mission/media with aircraft, GIS route correctness and thermal accuracy remain explicitly unverified.
