@@ -55,7 +55,7 @@ async function thermal(storage,index){
     for(const object of result.objects){
       const name=typeof object?.displayName==='string'?object.displayName:
         typeof object?.key==='string'?object.key.split('/').pop():'';
-      if(/_T\\.jpe?g$/i.test(name))count++;
+      if(/_T\.jpe?g$/i.test(name))count++;
     }
   }
   const safe=boundedCount(count);
