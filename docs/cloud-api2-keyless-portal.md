@@ -108,31 +108,31 @@ Verification command (backend directory): `node --test test/cloud-api2-evidence.
 
 ## RC Plus 2 Enterprise + Matrice 4T: Hardware-Smoketests im Cloud-API-2-Portal
 
-**Neuer Reiter:** \`M4T + RC Plus 2 Tests\` unter \`/cloud-api2.html#m4t-hardware\`. Dieser Reiter ist eine eigenständige read-only-Diagnoseoberfläche für **DJI Cloud API 1.x** auf dem vorhandenen SkyHub-Backend, keine DJI Cloud API 2 Gerätefreischaltung.
+**Neuer Reiter:** `M4T + RC Plus 2 Tests` unter `/cloud-api2.html#m4t-hardware`. Dieser Reiter ist eine eigenständige read-only-Diagnoseoberfläche für **DJI Cloud API 1.x** auf dem vorhandenen SkyHub-Backend, keine DJI Cloud API 2 Gerätefreischaltung.
 
 ### Aktuellen Live-Smoketest anzeigen
 
-- Auf ausdrücklichen Benutzerklick wird \`GET /api/cloud-api2/hardware/rc-plus2-m4t\` hinter der bestehenden \`app.use('/api',auth)\` ausgeführt. **Keine Ausnahme für tokenfreien LAN-Zugriff** (absichtlich).
-- Der Handler liest **nur** \`registry.snapshot(now)\`, \`healthSnapshot()\`, \`mqttShapes.snapshot()\` und bestehende \`pairing.devices()\`. Er verwendet den vorhandenen \`evaluateHardwareSession\`-Evaluator und \`makeLiveEvidence\`-Projektor, überprüft die feste Struktur anschließend mit \`validateLiveEvidenceReceipt\`. Pairing-Pending-Codes werden weder angefordert noch ausgegeben.
-- Ein fehlender oder zeitüberschreitender Redis-Pairing-Read liefert \`listingAvailable=false\` und das Live-Gate bleibt **INCOMPLETE**; er löst kein Pairing aus. Strukturfehler: HTTP 503 mit generischer Meldung ohne Rohdaten. HTTP 401 bei fehlender Berechtigung wird im UI klar angezeigt und **niemals** mit historischen Daten ersetzt.
+- Auf ausdrücklichen Benutzerklick wird `GET /api/cloud-api2/hardware/rc-plus2-m4t` hinter der bestehenden `app.use('/api',auth)` ausgeführt. **Keine Ausnahme für tokenfreien LAN-Zugriff** (absichtlich).
+- Der Handler liest **nur** `registry.snapshot(now)`, `healthSnapshot()`, `mqttShapes.snapshot()` und bestehende `pairing.devices()`. Er verwendet den vorhandenen `evaluateHardwareSession`-Evaluator und `makeLiveEvidence`-Projektor, überprüft die feste Struktur anschließend mit `validateLiveEvidenceReceipt`. Pairing-Pending-Codes werden weder angefordert noch ausgegeben.
+- Ein fehlender oder zeitüberschreitender Redis-Pairing-Read liefert `listingAvailable=false` und das Live-Gate bleibt **INCOMPLETE**; er löst kein Pairing aus. Strukturfehler: HTTP 503 mit generischer Meldung ohne Rohdaten. HTTP 401 bei fehlender Berechtigung wird im UI klar angezeigt und **niemals** mit historischen Daten ersetzt.
 - Keine Seriennummern, Roh-OSD, Koordinaten, Token, Pairing-Codes, Feldnamen, Payloads, Firmware-Strings oder vertrauliche Daten verlassen die Servergrenze; ausschließlich exakt definierte Booleans, begrenzte Zählwerte und OSD-Alter. Die Ansicht fordert kein Token an, speichert keines und startet keine automatische Wiederholung.
 
 ### Lokale, bereits anonymisierte JSON-Belege
 
 Die Ansicht akzeptiert optional vom Betreiber selbst ausgewählte JSON-Dateien bis 32 KiB, lokal im Browser verarbeitet, **ohne Upload**:
 
-\`\`\`bash
+```bash
 SKYHUB_COMPOSE_DIR="$HOME/Projekte/SkyHub-Next" node scripts/pi-rc-plus2-m4t-check.js --preflight --json
 SKYHUB_COMPOSE_DIR="$HOME/Projekte/SkyHub-Next" node scripts/pi-rc-plus2-m4t-check.js --runtime-check --json
 SKYHUB_COMPOSE_DIR="$HOME/Projekte/SkyHub-Next" node scripts/pi-rc-plus2-m4t-check.js --json
-\`\`\`
+```
 
 Ausgabe separat in drei Dateien sichern, dann über den Dateiauswahldialog laden. Der Browser akzeptiert ausschließlich streng definierte Receipt-Strukturen und verwirft Zusatzfelder. Zeitstempel, Modus und Datenherkunft werden für **jeden Beleg separat** angezeigt. Ein alter PASS bleibt **HISTORISCH**. Es werden keine Daten automatisch lokal persistiert.
 
 ### Historische Testabnahme (nie als aktueller Messwert)
 
-Der am **25.10.2026 um 21:22:23 UTC** dokumentierte Pi-Beleg hatte \`result=TRANSPORT_SMOKE_OK\`, \`linkedPairs=1\`, RC Plus 2 **21/54** beobachtete statische Felder, M4T **100/202** vorläufig katalogisierte Felder und OSD-Alter jeweils 1 s. Quelle: [Hardware Evidence 24./25.10.2026](hardware-acceptance-status-2026-10-24.md).
+Der am **25.10.2026 um 21:22:23 UTC** dokumentierte Pi-Beleg hatte `result=TRANSPORT_SMOKE_OK`, `linkedPairs=1`, RC Plus 2 **21/54** beobachtete statische Felder, M4T **100/202** vorläufig katalogisierte Felder und OSD-Alter jeweils 1 s. Quelle: [Hardware Evidence 24./25.10.2026](hardware-acceptance-status-2026-10-24.md).
 
-Das ist **nur** ein Transport-/Topologie-/OSD-Smoke. Besonders Hardware-Komplettabnahme, Parallelbetrieb RC Pro/M3M, M4T-Radiometrie, Laser, HMS-Ereignis, Kamera-/Stream-Abnahme, Reconnect und Flugfreigabe bleiben gesonderte Gates. \`hardwareAcceptanceComplete=false\`, \`flightReady=false\`, \`dispatchAllowed=false\` werden weder im Backend noch im Frontend überschrieben.
+Das ist **nur** ein Transport-/Topologie-/OSD-Smoke. Besonders Hardware-Komplettabnahme, Parallelbetrieb RC Pro/M3M, M4T-Radiometrie, Laser, HMS-Ereignis, Kamera-/Stream-Abnahme, Reconnect und Flugfreigabe bleiben gesonderte Gates. `hardwareAcceptanceComplete=false`, `flightReady=false`, `dispatchAllowed=false` werden weder im Backend noch im Frontend überschrieben.
 
-Regressionen: \`node --test test/cloud-api2-hardware.test.js\`. Kein neuer Pi-Deploy oder Container-Neustart wird durch den Code angestoßen.
+Regressionen: `node --test test/cloud-api2-hardware.test.js`. Kein neuer Pi-Deploy oder Container-Neustart wird durch den Code angestoßen.
