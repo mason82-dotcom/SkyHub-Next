@@ -76,6 +76,14 @@
         <p class="warning">Gespeicherte Missionen sind keine Flugaufträge; Fotoeingänge sind keine verifizierte Flächenabdeckung; Thermal-Dateien sind keine kalibrierten Temperaturmessungen. Fehlende bzw. nicht erreichbare Daten bleiben UNBEKANNT.</p>
         <p class="hint">Der Endpunkt /api/cloud-api2/evidence ist ausschließlich mit bestehendem SkyHub-Ansichtstoken zugänglich. Das Portal fordert keine Zugangsdaten an; bei HTTP 401 bleiben die Daten verborgen.</p>
       </article>
+      <article class="card below" id="linkagePanel">
+        <div class="card-top"><b>GERÄT ↔ MISSION ↔ MEDIEN</b><span>UNABHÄNGIGE NACHWEISE</span></div>
+        <p>Modellkompatibilität ist eine technische Vorprüfung, keine Zuordnung zu einem realen Flug. Einzelne Datensätze werden nicht über ähnliche Namen oder Zeitstempel verbunden.</p>
+        <button type="button" id="loadLinkage" class="secondary">Zuordnungsnachweise prüfen (GET)</button>
+        <p class="hint" id="linkageStatus" role="status" aria-live="polite">Noch nicht abgefragt; Zugriff nur mit bestehendem Ansichtstoken.</p>
+        <div id="linkageReport" class="integration-grid" aria-live="polite"></div>
+        <p class="warning">Verifizierte Beziehungen zwischen Gerät, konkreter WPML-Mission und Medien erfordern einen zusätzlichen unabhängigen Ausführungs-/Aufnahmebeleg. Ein Modelltreffer allein beweist nichts über den Einsatz.</p>
+      </article>
     </section>
     <section id="view-mavic3" class="view" hidden>
       <p class="eyebrow">MODEL FAMILY / KEYLESS / READ-ONLY</p>
