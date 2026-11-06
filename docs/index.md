@@ -1,5 +1,9 @@
 # SkyHub Next – Dokumentationswegweiser
 
+## Cloud API 2: Keyless-Webportal (06.11.2026)
+
+[Neue Website, Geräte-Backend, eigene DaaS-Lesefassade, Offline-Simulator und KI-Werkstatt](cloud-api2-keyless-portal.md) – kein DJI-Key, keine DJI-Runtime und keine Flugfreigabe.
+
 **Repository:** https://github.com/mason82-dotcom/SkyHub-Next. Historische GitHub-Links wurden auf den neuen Slug normalisiert; die lokalen Pi-Verzeichnisse `SkyHub` (Legacy) und `SkyHub-Next` (Entwicklung) bleiben unterschiedlich.
 
 **GitHub-Audit 02.11.2026:** [Aktuelle Bestandsaufnahme, PR-Triage und sichere Bereinigung](repository-audit-2026-11-02.md). Diese Momentaufnahme ersetzt nicht die auf dem Pi zu verifizierenden Betriebsdaten.
