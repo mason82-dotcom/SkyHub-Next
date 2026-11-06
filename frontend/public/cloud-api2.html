@@ -18,6 +18,7 @@
     <button type="button" data-view="devices">▦ <span>Geräte-Backend</span></button>
     <button type="button" data-view="simulator">◇ <span>Simulator</span><i>LAB</i></button>
     <button type="button" data-view="sdk">⌘ <span>SDK &amp; Bausteine</span></button>
+    <button type="button" data-view="integrations">▤ <span>Module &amp; Skills</span></button>
     <button type="button" data-view="ai">✳ <span>KI-Werkstatt</span></button>
   </nav>
   <div class="side-footer"><p><span id="indicator" class="dot"></span><b id="connection">Backend nicht geprüft</b></p>
@@ -80,6 +81,21 @@ const devices = await client.listDevices();
 const modules = await client.getCapabilities();</code></pre><p>Der Client verwendet nur same-origin-GET. Die vorhandene SkyHub-Authentifizierung gilt unverändert.</p>
       </article><article class="card"><div class="card-top"><b>BAUSTEIN-MATRIX</b><span>VERFÜGBARKEIT</span></div><div id="modules" class="features"></div></article></div>
       <article class="card below"><div class="card-top"><b>DJI HERSTELLERKOMPONENTEN</b><span>REFERENZ</span></div><p>Das offizielle Cloud API 2 Java/JNI SDK, der DJI-PaaS-Dienst sowie proprietäre Frontend-Skripte sind nicht Bestandteil dieser Implementierung. Sie werden nicht von unbekannten Quellen nachgeladen, und die Webseite funktioniert ohne sie.</p><a href="https://github.com/dji-sdk/Cloud-API-2/tree/main/docs/cn" target="_blank" rel="noopener noreferrer">DJI Cloud API 2 Dokumentation ↗</a></article>
+    </section>
+    <section id="view-integrations" class="view" hidden>
+      <p class="eyebrow">SKYHUB MODULES / DJI DEVELOPER REFERENCES</p>
+      <div class="heading"><div><h1>Module &amp; Developer Skills</h1>
+        <p>Sichere Einstiegspunkte in bestehende SkyHub-Seiten und geprüfte Verweise auf die DJI-Entwicklerressourcen. Diese Übersicht installiert weder SDK noch Plugin und führt keine DJI-Aktionen aus.</p></div>
+        <span class="pill">REFERENCE ONLY</span>
+      </div>
+      <article class="card"><div class="card-top"><b>SKYHUB-EIGENE MODULE</b><span>NAVIGATION / KEINE CLOUD-2-BRIDGE</span></div>
+        <div id="moduleCatalog" class="integration-grid"></div>
+        <p class="hint">Die Navigation bestätigt keine Verfügbarkeit auf dem laufenden Raspberry Pi. Missionsvorschau und Kartenvorschau sind keine Flugfreigabe; Thermalwerte benötigen gesonderte Genauigkeitsnachweise.</p>
+      </article>
+      <article class="card below"><div class="card-top"><b>OFFIZIELLE DJI DEVELOPER SKILLS</b><span>NICHT INSTALLIERT</span></div>
+        <div id="skillCatalog" class="skill-grid"></div>
+        <p class="warning">Die Links zeigen auf Herstellerdokumentation. Es erfolgt keine automatische Installation, SDK-Initialisierung oder MCP-Verbindung. Der offizielle DJI-MCP-Server enthält auch Flugsteuerungsfunktionen und bleibt außerhalb des read-only-Umfangs.</p>
+      </article>
     </section>
     <section id="view-ai" class="view" hidden>
       <p class="eyebrow">AI ENGINEERING / LOCAL</p><div class="heading"><div><h1>KI-Entwicklungswerkstatt</h1><p>Vorlagen für Architektur, Protokollprüfung, Simulation, Frontend und Sicherheits-Audits. Keine Modellanfragen, keine Automatisierung und keine Geräteaktionen.</p></div><span class="pill lab">OFFLINE</span></div>
