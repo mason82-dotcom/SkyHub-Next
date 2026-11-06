@@ -106,3 +106,27 @@ test('simulator uses only deterministic synthetic frames and exports synthetic p
   assert.equal(payload.flightReady,false);
   sim.reset();assert.equal(sim.current().altitude,0);
 });
+test('Mavic 3 Enterprise family catalog keeps 3TA, 3T, 3E and M3M distinct',async()=>{
+  const {MAVIC3_MODELS,matchMavic3Model,countMavic3Registry}=await import('../../frontend/public/cloud-api2-mavic3.mjs');
+  assert.deepEqual(MAVIC3_MODELS.map(x=>x.id),['m3e','m3t','m3ta','m3m']);
+  assert.equal(matchMavic3Model('DJI Mavic 3T Advanced').id,'m3ta');
+  assert.equal(matchMavic3Model('DJI Mavic 3T').id,'m3t');
+  assert.equal(matchMavic3Model('DJI Mavic 3E').id,'m3e');
+  assert.equal(matchMavic3Model('DJI Mavic 3M').id,'m3m');
+  assert.equal(matchMavic3Model('Mavic 3 Multispectral').id,'m3m');
+  assert.equal(matchMavic3Model('DJI Mavic 3TD'),null,'Dock device must not be misclassified');
+  assert.equal(matchMavic3Model('Matrice 4T'),null);
+  assert.equal(MAVIC3_MODELS.find(x=>x.id==='m3m').hasThermal,false);
+  assert.equal(MAVIC3_MODELS.find(x=>x.id==='m3ta').hasThermal,true);
+  assert.equal(countMavic3Registry([{modelName:'Mavic 3E'},{modelName:'Matrice 4T'}]).length,1);
+});
+test('Mavic 3 user interface is model-only and read-only',()=>{
+  const root=path.resolve(__dirname,'../../frontend/public');
+  const html=fs.readFileSync(path.join(root,'cloud-api2.html'),'utf8');
+  const js=fs.readFileSync(path.join(root,'cloud-api2.js'),'utf8');
+  assert.match(html,/id="view-mavic3"/);
+  assert.match(html,/data-view="mavic3"/);
+  assert.match(js,/countMavic3Registry/);
+  assert.match(js,/observedDevices=devices/);
+  assert.doesNotMatch(js,/mqtt\\.publish\\s*\\(|flighttask_prepare|drcSendStickControl/i);
+});

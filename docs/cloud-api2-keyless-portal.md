@@ -58,3 +58,24 @@ DJI Cloud API 2 V1.1.0 wurde am 05.11.2026 veröffentlicht. Die herstellereigene
 - https://github.com/dji-sdk/Cloud-API-2/blob/main/docs/cn/12.api1-api2-comparison.md
 
 Achtung: Die Cloud API 2 V1.1.0 ist nicht dieselbe Versionslinie wie die bisherige Cloud API 1.x. Ein vollumfänglicher Cloud-API-1.20-Protokollabgleich oder die hardwareseitige Kompatibilität aller unterstützten Drohnen wurde hier nicht nachgewiesen.
+
+## Mavic 3 Enterprise & Multispectral (Modellkatalog, Schlüssel-frei)
+
+Ergänzung im Branch `feature/cloud-api2-website-20261106`: Eine eigene Ansicht `Mavic 3 Enterprise` mit folgenden DJI-Herstellerprofilen:
+
+| Modell | Bildsensoren | Fachmodule, nur Referenz / Planung |
+| --- | --- | --- |
+| Mavic 3E | RGB 20 MP, 4/3 CMOS, mechanischer Verschluss | RGB-Mapping, RTK, WPML-Entwurf |
+| Mavic 3T | RGB/Tele/Thermal 640×512 | Thermal, R-JPEG, RGB-Inspektion |
+| Mavic 3T Advanced | Thermal 640×512, 8 µm Pixelpitch | separates Advanced-Thermal-Profil |
+| Mavic 3M | RGB 20 MP + G/R/RE/NIR je 5 MP | Multispektral / NDVI, RGB-Mapping |
+
+Mavic 3M ist bei DJI eine **separate Multispectral-Produktlinie** und hier als verwandtes Gerät berücksichtigt. Mavic 3D / 3TD gehören zur Dock-Familie und werden nicht mit M3E/T/TA/M verwechselt.
+
+Die JS-Library `frontend/public/cloud-api2-mavic3.mjs` bietet einen statischen Modellkatalog, spezifische Sensor-/Modulhinweise und eine konservative Klassifikation bereits vorhandener, redigierter Registry-Modelle. Kein Import von DJI-Libraries und keine neuen Backend- oder MQTT-Schreibwege. Die Ansicht zeigt **unbekannt**, wenn keine aktuelle Live-Registry-Information vorliegt. Die Fachmodule sind **keine automatische Laufzeitaktivierung**, kein Nachweis einer Cloud API 2 Freigabe und keine Flug-/Missionsfreigabe.
+
+Figma-Design: https://www.figma.com/design/jigezwMCyKOiF0yNQB2pfJ
+
+Herstellerreferenzen:
+- https://enterprise.dji.com/mavic-3-enterprise/specs
+- https://enterprise.dji.com/mavic-3-m

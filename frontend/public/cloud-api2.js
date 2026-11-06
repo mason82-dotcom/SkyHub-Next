@@ -1,9 +1,12 @@
 import {SkyHubDaaSClient} from './cloud-api2-sdk.mjs';
 import {SkyHubLabSimulator} from './cloud-api2-lab.mjs';
+import {MAVIC3_MODELS,countMavic3Registry} from './cloud-api2-mavic3.mjs';
 const get=id=>document.getElementById(id);
 const client=new SkyHubDaaSClient();
 const lab=new SkyHubLabSimulator();
-const sections=['overview','devices','simulator','sdk','ai'];
+const sections=['overview','devices','mavic3','simulator','sdk','ai'];
+let observedDevices=[];
+let chosenMavic3='m3e';
 const features=[
   ['SkyHub Geräte-Backend','KEYLESS'],
   ['Objektorientierte GET-Fassade','KEYLESS'],
@@ -41,6 +44,52 @@ document.querySelectorAll('[data-view]').forEach(button=>
   button.addEventListener('click',()=>view(button.dataset.view)));
 document.querySelectorAll('[data-open]').forEach(button=>
   button.addEventListener('click',()=>view(button.dataset.open)));
+
+function renderMavic3Detail(){
+  const model=MAVIC3_MODELS.find(x=>x.id===chosenMavic3)||MAVIC3_MODELS[0];
+  const root=get('mavic3-detail');root.replaceChildren();
+  const top=el('div','card-top');top.append(el('b','',model.name.toUpperCase()),el('span','',model.group.toUpperCase()));root.append(top);
+  root.append(el('h2','',model.focus));
+  const dl=el('dl');
+  dl.className='family-facts';
+  for(const [name,value] of [['Bildgebung',model.imaging],['Thermal',model.hasThermal?'Herstellerseitige Kamera vorhanden':'Nicht vorhanden'],
+    ['Multispektral',model.hasMultispectral?'4 Spektralbänder vorhanden':'Nicht vorhanden'],
+    ['Betriebsstatus','Referenzdaten · keine Hardwarefreigabe']]){
+    const item=el('div','family-data');item.append(el('dt','',name),el('dd','',value));dl.append(item);
+  }
+  root.append(dl);
+  const tags=el('div','family-tags');for(const item of model.modules)tags.append(el('span','',item));root.append(tags);
+  root.append(el('p','notice',model.note));
+  root.append(el('p','hint','Module sind thematische Zuordnungen und keine Aussage über einen betriebsbereiten DJI Cloud API 2 SDK-Treiber.'));
+  document.querySelectorAll('[data-mavic3-id]').forEach(button=>{
+    const selected=button.dataset.mavic3Id===model.id;
+    button.classList.toggle('selected',selected);
+    button.setAttribute('aria-pressed',String(selected));
+  });
+}
+function renderMavic3Registry(){
+  const matches=countMavic3Registry(observedDevices);
+  const root=get('mavic3-registry');root.replaceChildren();
+  get('mavic3-count').textContent=matches.length+' zugeordnete Registry-Geräte · Live-Status nur bei frischer OSD + Topologie';
+  if(!matches.length){root.append(el('p','empty','Keine Mavic-3-Geräte aus der aktuell erreichbaren Registry bestätigt. Modellprofile bleiben als Referenz sichtbar.'));return;}
+  for(const {device,model} of matches){
+    const item=el('div','family-device');
+    item.append(el('b','',model.name));
+    const state=el('small','',device.online===true?'● Frische Live-Telemetrie gemeldet':'○ Offline / nicht verifiziert');
+    const chip=el('em',device.online===true?'live':'',device.batteryPercent===null||device.batteryPercent===undefined?'Akku unbekannt':'Akku '+device.batteryPercent+' %');
+    state.append(' · ',chip);item.append(state);root.append(item);
+  }
+}
+function setupMavic3(){
+  const root=get('mavic3-models');root.replaceChildren();
+  for(const model of MAVIC3_MODELS){
+    const button=el('button','family-model');button.type='button';button.dataset.mavic3Id=model.id;
+    button.append(el('small','',model.group),el('strong','',model.name),el('span','',model.focus));
+    button.addEventListener('click',()=>{chosenMavic3=model.id;renderMavic3Detail();});
+    root.append(button);
+  }
+  renderMavic3Detail();renderMavic3Registry();
+}
 function connected(value,text){
   get('indicator').classList.toggle('ok',value);
   get('connection').textContent=text;
@@ -71,6 +120,7 @@ async function refresh(){
   try{
     const [status,list]=await Promise.all([client.getStatus(),client.listDevices()]);
     const devices=Array.isArray(list.devices)?list.devices:[];
+    observedDevices=devices;renderMavic3Registry();
     get('count').textContent=Number.isInteger(list.total)?list.total:'—';
     get('online').textContent=Number.isInteger(list.online)?list.online:'—';
     get('deviceStatus').textContent=String(list.total)+' registriert · '+String(list.online)+' frisch · MQTT '+(status.mqttConnected?'verbunden':'nicht verbunden');
@@ -84,7 +134,7 @@ async function refresh(){
     get('status').textContent=err instanceof Error?err.message:'Keine Verbindung';
     get('status').classList.remove('ok');
     connected(false,'Live-Daten nicht verfügbar');
-    paintDevices([]);
+    observedDevices=[];renderMavic3Registry();paintDevices([]);
   }
 }
 get('refresh').addEventListener('click',refresh);
@@ -135,5 +185,5 @@ get('copy').addEventListener('click',async()=>{
   catch(_){get('promptStatus').textContent='Zwischenablage nicht verfügbar; Text manuell markieren.';}
 });
 function updateTime(){get('localtime').textContent=new Intl.DateTimeFormat('de-DE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date());}
-renderFeatures();renderLab();updateTime();setInterval(updateTime,60000);
+setupMavic3();renderFeatures();renderLab();updateTime();setInterval(updateTime,60000);
 view(location.hash.slice(1)||'overview');refresh();

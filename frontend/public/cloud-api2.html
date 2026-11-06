@@ -16,6 +16,7 @@
   <nav aria-label="Portalnavigation">
     <button type="button" class="active" data-view="overview">◈ <span>Übersicht</span></button>
     <button type="button" data-view="devices">▦ <span>Geräte-Backend</span></button>
+    <button type="button" data-view="mavic3">✣ <span>Mavic 3 Enterprise</span></button>
     <button type="button" data-view="simulator">◇ <span>Simulator</span><i>LAB</i></button>
     <button type="button" data-view="sdk">⌘ <span>SDK &amp; Bausteine</span></button>
     <button type="button" data-view="ai">✳ <span>KI-Werkstatt</span></button>
@@ -58,6 +59,20 @@
       <div class="bar"><span id="deviceStatus">Noch keine Live-Abfrage.</span><span class="pill">CLOUD 1.x SOURCE</span></div>
       <div id="devices" class="device-grid" aria-live="polite"><p class="empty">Lade Gerätestatus …</p></div>
       <p class="hint">Diese Ansicht gibt keine Seriennummern, Gerätegeheimnisse oder Positionsdaten aus. Ein Gerät gilt nur bei aktueller OSD-Telemetrie und bestätigter Topologie als frisch.</p>
+    </section>
+    <section id="view-mavic3" class="view" hidden>
+      <p class="eyebrow">MODEL FAMILY / KEYLESS / READ-ONLY</p>
+      <div class="heading"><div><h1>Mavic 3 Enterprise &amp; Multispectral</h1><p>Herstellerbasierte Modellprofile und Live-Registry-Abgleich. Mavic 3M wird als verwandte, eigenständige Multispectral-Produktlinie berücksichtigt.</p></div><span class="pill lab">MODELLKATALOG · KEINE FREIGABE</span></div>
+      <p class="family-safety">Keine implizite Cloud-API-2-Geräteunterstützung, keine DJI-Schlüssel und keine Missions- oder Flugbefehle. Modelldaten sind Referenzangaben; Verbindungszustände stammen ausschließlich aus der bestehenden SkyHub-Registry.</p>
+      <div id="mavic3-models" class="family-grid" aria-label="Mavic-3-Modell wählen"></div>
+      <div class="columns family-columns">
+        <article class="card" id="mavic3-detail" aria-live="polite"></article>
+        <article class="card"><div class="card-top"><b>LIVE-REGISTRY-ABGLEICH</b><span>CLOUD API 1.x</span></div>
+          <p id="mavic3-count">Noch nicht abgefragt.</p><div id="mavic3-registry" aria-live="polite"><p class="empty">Keine aktuelle Abfrage.</p></div>
+          <p class="hint">Geräte werden nur anhand gemeldeter Modellnamen zugeordnet. Keine Seriennummern, Positionen oder unbestätigten Nutzdaten.</p>
+        </article>
+      </div>
+      <p class="hint">Quellen: offizielle DJI Mavic 3 Enterprise / Mavic 3 Multispectral Produktdaten. Mavic 3D/3TD gehören zur Dock-Baureihe und sind nicht Teil dieser Übersicht.</p>
     </section>
     <section id="view-simulator" class="view" hidden>
       <p class="eyebrow">OFFLINE / SANDBOX</p>
