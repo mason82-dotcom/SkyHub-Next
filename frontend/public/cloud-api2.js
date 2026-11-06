@@ -180,6 +180,19 @@ function renderLinkage(data){
   const report=normalizeLinkage(data);
   const root=get('linkageReport');
   root.replaceChildren();
+  const inventories=[
+    ['Gerätebestand',report.inventory.device,'Cloud API 1.x Topologie'],
+    ['WPML-Speicher',report.inventory.mission,'S3-Missionsmetadaten'],
+    ['Pilot-2-Medien',report.inventory.media,'Beim Upload per S3 HEAD bestätigte Datensätze']
+  ];
+  for(const [title,record,source] of inventories){
+    const article=el('article','integration-item');
+    article.append(el('small','',record.status.toUpperCase()),el('h2','',title),
+      el('p','',source));
+    article.append(el('b','evidence-count',
+      record.count===null?'Anzahl unbekannt':record.count+' Einträge'));
+    root.append(article);
+  }
   const entries=[
     ['Gerät ↔ Mission',report.deviceMission,'Keine unabhängige DJI-Ausführungsbestätigung'],
     ['Mission ↔ Medien',report.missionMedia,'Keine authentische missionsgebundene Medienreferenz'],
