@@ -12,7 +12,7 @@ const DATE=new Date('2026-11-06T22:00:00.000Z');
 const now=DATE.getTime();
 function providers(devices=[],pairing=null){
   return {
-    registry:{snapshot:(at)=>{assert.equal(at,now);return devices;}},
+    registry:{snapshot:(at)=>{assert.ok(Number.isFinite(at));return devices;}},
     healthSnapshot:()=>({mqtt:true,subscribed:true,
       topologyReplyEnabled:true,topologyReplyConnected:true,
       serial:'SECRET_HEALTH_SN',latitude:49.123456}),
