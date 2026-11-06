@@ -39,6 +39,10 @@ function createLoopbackTelemetryLab({enabled=false,host='127.0.0.1',port}={}){
       let socket=null;
       try{
         socket=dgram.createSocket('udp4');
+        // UDP errors must not become unhandled EventEmitter exceptions.
+        // This listener handles transport errors only, never incoming data.
+        let socketError=null;
+        socket.on('error',err=>{socketError=err;});
         // No socket.bind(), socket.on('message'), receive callback or
         // connection to a vehicle/GCS/remote controller.
         for(const packet of prepared.frames){
@@ -47,6 +51,7 @@ function createLoopbackTelemetryLab({enabled=false,host='127.0.0.1',port}={}){
               err?reject(err):resolve());
           });
         }
+        if(socketError)throw socketError;
         lastSent=Date.now();
         nextExpected=audit.nextSequence;
         return Object.freeze({schema:SCHEMA,accepted:true,reason:null,
