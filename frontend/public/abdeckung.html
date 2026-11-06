@@ -62,9 +62,10 @@
 <header class="skyhub-pagehead mrel-top">
   <h1>Fotoabdeckung <span class="muted">Lücken und Überlappung eines Flugs</span></h1>
 </header>
-<p class="mrel-note" role="note">Aus Position, Höhe, Gimbal-Winkeln (DJI-XMP) und Brennweite (EXIF) jedes Fotos wird die Bodenfläche berechnet –
-  auch für Schrägaufnahmen. Höhe = Höhe über Start, Gelände nicht berücksichtigt (am Hang ist die Fläche talwärts größer, bergwärts kleiner).
-  Planungshilfe, keine photogrammetrische Qualitätsprüfung. Liest nur Fotoköpfe aus dem Speicher.</p>
+<p class="mrel-note" role="note">Die Fotoabdeckung ist eine Modellschätzung aus DJI-XMP und EXIF, keine photogrammetrische Qualitätsprüfung.
+  Ohne expliziten Startpunkt wird ausschließlich die Höhe über dem Startpunkt verwendet (kein AGL).
+  Mit Startpunkt und einem aktivierten lokalen Geländedienst wird die Höhe über Grund aus zwei Höhen desselben Geländemodells geschätzt.
+  Weder Hindernisfreiheit noch Luftrecht oder Genauigkeit sind dadurch nachgewiesen. Originalfotos bleiben unverändert.</p>
 <main id="skyhubMain" tabindex="-1" class="cov-grid">
   <section class="card" aria-labelledby="h-map">
     <h2 id="h-map">Karte</h2>
@@ -77,6 +78,10 @@
     <h2 id="h-run">Flug</h2>
     <label>Flug aus dem Speicher <select id="flight"><option value="">wird geladen …</option></select></label>
     <label>Mindestanzahl Fotos je Bodenpunkt <input id="min" type="number" min="1" max="20" step="1" value="5"></label>
+    <label>Startpunkt Breitengrad (optional, WGS84) <input id="takeoff-lat" type="number" min="-90" max="90" step="any" placeholder="z. B. 49.167218"></label>
+    <label>Startpunkt Längengrad (optional, WGS84) <input id="takeoff-lon" type="number" min="-180" max="180" step="any" placeholder="z. B. 8.591312"></label>
+    <p class="muted">Nur beide Koordinaten zusammen eingeben. Die erste Fotoposition ist <strong>nicht</strong> automatisch der Startpunkt.
+      Wenn Geländedaten fehlen, erfolgt kein stiller Rückfall auf unberichtigte Werte.</p>
     <button id="run" type="button" disabled data-disabled-reason="Flugliste wird geladen …">Abdeckung berechnen</button>
     <p id="status" class="muted" role="status" aria-live="polite"></p>
     <dl id="stats" class="cov-stats"></dl>
