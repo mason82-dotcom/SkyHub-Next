@@ -2,10 +2,11 @@ import {SkyHubDaaSClient} from './cloud-api2-sdk.mjs';
 import {SkyHubLabSimulator} from './cloud-api2-lab.mjs';
 import {MODULES,SKILLS,VENDOR_SKILLS} from './cloud-api2-modules.mjs';
 import {MAVIC3_MODELS,countMavic3Registry} from './cloud-api2-mavic3.mjs';
+import {normalizeEvidence} from './cloud-api2-evidence.mjs';
 const get=id=>document.getElementById(id);
 const client=new SkyHubDaaSClient();
 const lab=new SkyHubLabSimulator();
-const sections=['overview','devices','mavic3','simulator','sdk','integrations','ai'];
+const sections=['overview','devices','evidence','mavic3','simulator','sdk','integrations','ai'];
 let observedDevices=[];
 let chosenMavic3='m3e';
 const features=[
@@ -140,6 +141,40 @@ async function refresh(){
 }
 get('refresh').addEventListener('click',refresh);
 get('reload').addEventListener('click',refresh);
+function paintEvidence(data){
+  const parsed=normalizeEvidence(data);
+  const root=get('evidenceModules');
+  root.replaceChildren();
+  for(const module of parsed.modules){
+    const article=el('article','integration-item');
+    article.append(el('small','',module.label),el('h2','',module.title));
+    article.append(el('p','',module.meaning));
+    const countText=module.count===null?'Zählwert nicht verfügbar':
+      module.count+' Einträge im vorhandenen Speicher';
+    article.append(el('b','evidence-count',countText));
+    root.append(article);
+  }
+  get('evidenceLinkage').textContent=
+    'Quelle: vorhandene SkyHub-Speicherindizes. Gerätezuordnung: nicht nachgewiesen. '+
+    'Flugfreigabe: nein. Messgenauigkeit: nicht nachgewiesen.';
+}
+async function inspectEvidence(){
+  const button=get('loadEvidence');
+  if(button.disabled)return;
+  button.disabled=true;
+  get('evidenceStatus').textContent='Lesende Prüfung gestartet. Keine Geräteaktion.';
+  get('evidenceModules').replaceChildren();
+  try{
+    const result=await client.getEvidence();
+    paintEvidence(result);
+    get('evidenceStatus').textContent='Inventarstände geladen. Quelle: bestehende SkyHub-Speicher, keine DJI Cloud API 2 Runtime.';
+  }catch(error){
+    get('evidenceStatus').textContent=error instanceof Error?error.message:'Nachweise nicht erreichbar';
+    get('evidenceModules').append(el('p','empty','Keine Nachweise verfügbar. Unbekannt ist kein negativer Hardwarebefund.'));
+    get('evidenceLinkage').textContent='Keine neue Evidenz. Gerätezuordnung und Flugfreigabe weiterhin nicht nachgewiesen.';
+  }finally{button.disabled=false;}
+}
+get('loadEvidence').addEventListener('click',inspectEvidence);
 function renderLab(){
   const state=lab.current();
   get('frame').textContent='FRAME '+String(state.index+1).padStart(2,'0')+' / '+state.count;
