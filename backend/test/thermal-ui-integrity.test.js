@@ -107,7 +107,7 @@ test('new geometric tools preserve SDK/estimate-independent ROI and CSV provenan
     {type:'ellipse',rect:{x0:0,y0:0,x1:4,y1:2}}
   );
   await h.hook.recompute();
-  assert.deepEqual(h.hook.state.measurements.map(m=>m.stats.pixels),[4,13,7]);
+  assert.equal(h.hook.state.measurements.map(m=>m.stats.pixels).join(','),'4,13,7');
   assert.deepEqual(h.el('measurements').children.map(row=>row.children[1].textContent),
     ['Linie','Kreis','Ellipse']);
   h.hook.exportCsv();
