@@ -6,7 +6,7 @@ class SkyHubDaaSClient {
     this.fetchImpl=options.fetchImpl || fetch.bind(globalThis);
   }
   async query(resource) {
-    if(!['status','devices','capabilities','evidence'].includes(resource)) throw new TypeError('Read-only operation required');
+    if(!['status','devices','capabilities','evidence','linkage'].includes(resource)) throw new TypeError('Read-only operation required');
     const response=await this.fetchImpl('/api/cloud-api2/'+resource,{
       method:'GET',credentials:'same-origin',cache:'no-store',headers:{Accept:'application/json'}
     });
@@ -20,5 +20,6 @@ class SkyHubDaaSClient {
   listDevices(){return this.query('devices');}
   getCapabilities(){return this.query('capabilities');}
   getEvidence(){return this.query('evidence');}
+  getLinkage(){return this.query('linkage');}
 }
 export {SkyHubDaaSClient};
