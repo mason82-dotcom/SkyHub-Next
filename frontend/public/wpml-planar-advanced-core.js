@@ -168,8 +168,8 @@
     const base=optimize(geometry,{spacing,heading:options.heading,
       optimize:options.optimize===true});
     const defs=[
-      ['nadir',null,-90],['north',0,pitch],['east',90,pitch],
-      ['south',180,pitch],['west',270,pitch]
+      ['nadir',null,-90],['direction1',0,pitch],['direction2',90,pitch],
+      ['direction3',180,pitch],['direction4',270,pitch]
     ];
     const offset=agl/Math.tan(Math.abs(pitch)*RAD);
     if(!Number.isFinite(offset)||offset>1500)invalid('oblique offset too large');

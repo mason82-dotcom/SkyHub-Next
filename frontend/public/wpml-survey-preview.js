@@ -368,6 +368,7 @@
     snapshot:()=>({geometry:importedGeometry||points.map(p=>({...p})),
       spacing:$('optics-enable').checked?(report?report.lineSpacingMeters:null):Number($('spacing').value),
       heading:Number($('heading').value)}),
+    clearAdvanced:()=>{for(const layer of advancedLines)layer.remove();advancedLines=[];},
     drawAdvanced:plans=>{
       for(const layer of advancedLines)layer.remove();advancedLines=[];
       if(!map)return;

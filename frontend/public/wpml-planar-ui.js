@@ -3,7 +3,8 @@
 (function(){
   const c=window.SkyHubPlanarAdvanced,bridge=window.SkyHubPlanarSelection,$=id=>document.getElementById(id);
   if(!c||!bridge){$('planar-status').textContent='Planarmodul nicht geladen.';return;}
-  let last=null,groups=null,epoch=0;
+  let last=null,groups=null,epoch=0,lastFingerprint=null;
+  const fingerprint=()=>JSON.stringify(bridge.snapshot());
   const show=t=>{$('planar-status').textContent=t;};
   const options=()=>{
     const s=bridge.snapshot();
@@ -16,7 +17,7 @@
     try{
       const a=options();groups=null;$('planar-pass-select').disabled=true;
       last=c.optimize(a.geometry,{spacing:a.spacing,heading:a.heading,optimize:a.optimize});
-      bridge.drawAdvanced([last]);epoch++;
+      bridge.drawAdvanced([last]);epoch++;lastFingerprint=fingerprint();
       show('P0: '+last.segmentCount+' Scanabschnitte, '+last.optimizedHeadingDegrees.toFixed(1)+
         '°; '+last.evaluatedHeadingCount+' Richtungen bewertet; '+
         last.transitionCandidates.filter(x=>x.status==='candidate').length+
@@ -33,7 +34,7 @@
         pitchDegrees:$('planar-pitch').value});
       last=groups.passes[0].preview;
       $('planar-pass-select').value='0';$('planar-pass-select').disabled=false;
-      bridge.drawAdvanced([last]);epoch++;
+      bridge.drawAdvanced([last]);epoch++;lastFingerprint=fingerprint();
       show('P1: fünf Aufnahmegruppen; '+groups.passes.map(p=>p.preview.segmentCount).join('/')+
         ' Scansegmente. Nur vereinfachte Geometrie, keine Kamera-/Flugfreigabe.');
     }catch(e){show(e.message);}
@@ -48,6 +49,7 @@
   $('planar-terrain').addEventListener('click',async()=>{
     try{
       if(!last)throw Error('Zuerst eine Planarvorschau berechnen.');
+      if(lastFingerprint!==fingerprint())throw Error('Vorschau veraltet – zuerst neu berechnen.');
       const h=$('planar-takeoff-height').value.trim(),v=Number(h);
       if(!h||!Number.isFinite(v)||v<2||v>500)
         throw Error('Höhe über Startpunkt (2–500 m) explizit eingeben, nicht AGL.');
@@ -69,6 +71,14 @@
     }catch(e){show(e.message);}
     finally{$('planar-terrain').disabled=false;}
   });
-  for(const id of ['planar-height','planar-pitch','planar-takeoff-height','planar-optimize-angle'])
-    $(id).addEventListener('input',()=>{epoch++;show('Parameter geändert – neu berechnen.');});
+  function invalidate(){
+    last=null;groups=null;lastFingerprint=null;epoch++;
+    $('planar-pass-select').disabled=true;bridge.clearAdvanced();
+    show('Geometrie oder Parameter geändert – neu berechnen.');
+  }
+  for(const id of ['planar-height','planar-pitch','planar-takeoff-height',
+    'planar-optimize-angle','spacing','heading','optics-enable','geometry-file'])
+    $(id).addEventListener('input',invalidate);
+  for(const id of ['add','undo','clear','import-geometry'])
+    $(id).addEventListener('click',invalidate);
 })();

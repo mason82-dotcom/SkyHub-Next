@@ -31,7 +31,7 @@ test('P0 keeps holes and separated polygons without creating flyable gaps',()=>{
 });
 test('P1 five direction result needs explicit camera/height inputs and stays experimental',()=>{
  const r=planar.fiveDirection(rect,{spacing:20,heightAGLM:60,pitchDegrees:-60});
- assert.deepEqual(r.passes.map(x=>x.key),['nadir','north','east','south','west']);
+ assert.deepEqual(r.passes.map(x=>x.key),['nadir','direction1','direction2','direction3','direction4']);
  assert.ok(r.passes.every(x=>!x.flightReady&&!x.exportableAsWaylines));
  assert.equal(r.terrainVerified,false);
  assert.ok(r.estimatedCaptureLengthMeters>0);
