@@ -128,5 +128,5 @@ test('Mavic 3 user interface is model-only and read-only',()=>{
   assert.match(html,/data-view="mavic3"/);
   assert.match(js,/countMavic3Registry/);
   assert.match(js,/observedDevices=devices/);
-  assert.doesNotMatch(js,/mqtt\\.publish\\s*\\(|flighttask_prepare|drcSendStickControl/i);
+  assert.doesNotMatch(js,/mqtt\.publish\s*\(|flighttask_prepare|drcSendStickControl/i);
 });
