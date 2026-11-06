@@ -4,7 +4,7 @@ description: Read-only development guidance for the DJI Cloud API 2 reference po
 ---
 # SkyHub Cloud API 2: keyless development
 
-Use this repository-local skill when editing the SkyHub-owned Cloud API 2 portal, client, module catalog, device projections, mock simulator, or AI prompt templates. It is **not** the DJI manufacturer plugin and does not install DJI libraries.
+Use this repository-local skill when editing the SkyHub-owned Cloud API 2 portal, client, module catalog, device projections, mock simulator, or AI prompt templates. It is not the DJI manufacturer plugin and does not install DJI libraries.
 
 ## References and boundaries
 
