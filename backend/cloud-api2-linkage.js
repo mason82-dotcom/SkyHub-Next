@@ -11,7 +11,8 @@ function count(n){return Number.isSafeInteger(n)&&n>=0&&n<=100000?n:null;}
 function result(status,total=null){return {status,count:total};}
 function aircraftModel(device){
   if(!device||device.role!=='subdevice'||device.topologyOnline!==true||
-    device.topologyTimeVerified!==true||device.topologyRestored===true)return null;
+    device.topologyTimeVerified!==true||device.topologyRestored===true||
+    device.online!==true||device.fresh!==true||device.telemetryTimeVerified!==true)return null;
   const m=device.model;
   if(!m||String(m.domain)!=='0'||!/^\d{1,5}$/.test(String(m.type))||
     !/^\d{1,5}$/.test(String(m.subType??0)))return null;
