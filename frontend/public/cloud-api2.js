@@ -187,9 +187,11 @@ function renderM4tHardware(){
   for(const receipt of hardwareEvidence.values()){
     const card=el('article','card hardware-receipt');
     const top=el('div','card-top');
-    top.append(el('b','',receipt.title),el('span','',receipt.timeClass));
+    const measuredAge=Math.max(0,Math.floor((Date.now()-Date.parse(receipt.measuredAt))/1000));
+    const freshness=measuredAge<=20?'ZEITNAH':'HISTORISCH';
+    top.append(el('b','',receipt.title),el('span','',freshness));
     card.append(top);
-    const info=el('p','hardware-provenance',receipt.origin+' · '+receipt.measuredAt+' · '+receipt.ageSeconds+' s seit Messung');
+    const info=el('p','hardware-provenance',receipt.origin+' · '+receipt.measuredAt+' · '+measuredAge+' s seit Messung');
     card.append(info);
     const ok=receipt.result==='READY'||receipt.result==='TRANSPORT_SMOKE_OK';
     card.append(el('strong','hardware-result'+(ok?' hardware-ok':' hardware-warn'),
@@ -209,7 +211,7 @@ function registerHardwareReceipt(data,origin){
   const normalized=normalizeHardwareReceipt(data,{origin});
   hardwareEvidence.set(normalized.mode,normalized);
   renderM4tHardware();
-  get('m4tHardwareStatus').textContent=normalized.title+' geladen: '+normalized.result+' ('+normalized.origin+', '+normalized.timeClass+'). Kein Flugkommando.';
+  get('m4tHardwareStatus').textContent=normalized.title+' geladen: '+normalized.result+' ('+normalized.origin+' · '+normalized.measuredAt+'). Kein Flugkommando.';
 }
 async function inspectM4tHardware(){
   const button=get('loadM4tHardware');if(button.disabled)return;
@@ -305,4 +307,6 @@ get('copy').addEventListener('click',async()=>{
 });
 function updateTime(){get('localtime').textContent=new Intl.DateTimeFormat('de-DE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date());}
 setupMavic3();renderFeatures();renderIntegrations();renderLab();updateTime();setInterval(updateTime,60000);
+// Refresh only the displayed age; never repeat a hardware/HTTP request automatically.
+setInterval(()=>{if(!get('view-m4t-hardware').hidden&&hardwareEvidence.size)renderM4tHardware();},15000);
 view(location.hash.slice(1)||'overview');refresh();
