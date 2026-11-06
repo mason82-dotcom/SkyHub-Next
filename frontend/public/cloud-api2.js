@@ -3,6 +3,7 @@ import {SkyHubLabSimulator} from './cloud-api2-lab.mjs';
 import {MODULES,SKILLS,VENDOR_SKILLS} from './cloud-api2-modules.mjs';
 import {MAVIC3_MODELS,countMavic3Registry} from './cloud-api2-mavic3.mjs';
 import {normalizeEvidence} from './cloud-api2-evidence.mjs';
+import {normalizeLinkage} from './cloud-api2-linkage.mjs';
 const get=id=>document.getElementById(id);
 const client=new SkyHubDaaSClient();
 const lab=new SkyHubLabSimulator();
@@ -175,6 +176,44 @@ async function inspectEvidence(){
   }finally{button.disabled=false;}
 }
 get('loadEvidence').addEventListener('click',inspectEvidence);
+function renderLinkage(data){
+  const report=normalizeLinkage(data);
+  const root=get('linkageReport');
+  root.replaceChildren();
+  const entries=[
+    ['Gerät ↔ Mission',report.deviceMission,'Keine unabhängige DJI-Ausführungsbestätigung'],
+    ['Mission ↔ Medien',report.missionMedia,'Keine authentische missionsgebundene Medienreferenz'],
+    ['Gerät ↔ Medien',report.deviceMedia,'Keine bestätigte Gerätekennung aus geprüftem Medieninhalt']
+  ];
+  for(const [title,_,detail] of entries){
+    const article=el('article','integration-item');
+    article.append(el('small','','NICHT NACHGEWIESEN'),el('h2','',title),el('p','',detail));
+    root.append(article);
+  }
+  const model=el('article','integration-item');
+  model.append(el('small','','NUR MODELL-KANDIDATEN'),
+    el('h2','','Modellkompatibilität'),
+    el('p','','Abgleich von zeitlich gültiger Topologie und hashkonsistenten WPML-Metadaten – keine dokumentierte Ausführung.'));
+  model.append(el('b','evidence-count',report.modelCandidatePairs===null?
+    'UNBEKANNT':report.modelCandidatePairs+' Modellkombinationen'));
+  root.append(model);
+}
+async function inspectLinkage(){
+  const button=get('loadLinkage');
+  if(button.disabled)return;
+  button.disabled=true;
+  get('linkageReport').replaceChildren();
+  get('linkageStatus').textContent='Prüfung läuft; ausschließlich lesende Bestandsabfragen.';
+  try{
+    renderLinkage(await client.getLinkage());
+    get('linkageStatus').textContent='Quellbestände geprüft. Kein Geräte-, Missions- oder Medienlink ohne eigenständigen Nachweis.';
+  }catch(err){
+    get('linkageStatus').textContent=err instanceof Error?err.message:'Nicht erreichbar';
+    get('linkageReport').append(el('p','empty','Verknüpfungsnachweise unbekannt. Keine Zuordnung freigegeben.'));
+  }finally{button.disabled=false;}
+}
+get('loadLinkage').addEventListener('click',inspectLinkage);
+
 function renderLab(){
   const state=lab.current();
   get('frame').textContent='FRAME '+String(state.index+1).padStart(2,'0')+' / '+state.count;
