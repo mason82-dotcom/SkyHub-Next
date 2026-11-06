@@ -29,3 +29,7 @@
 .family-device em{color:#eabc7e;font-style:normal}.family-device em.live{color:#76e5cc}
 @media(max-width:1120px){.family-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.family-columns{grid-template-columns:1fr}}
 @media(max-width:580px){.family-grid{grid-template-columns:1fr}.family-data{grid-template-columns:1fr;gap:4px}}
+
+.evidence-count{display:block;color:#7fead0;font-size:15px;letter-spacing:.1px;padding-top:13px;border-top:1px solid #294b5a;margin-top:15px}
+#evidenceModules:empty{display:none}
+#loadEvidence:disabled{opacity:.55;cursor:wait}
