@@ -55,6 +55,7 @@ const {createTsaHub,createTopologyListHandler}=require('./tsa-hub');
 const {createTileCache,createTileRedirect,tileCacheSettings}=require('./tile-cache');
 const {createFhObserver}=require('./fh-observer');
 const {createCloudApi2PortalRouter}=require('./cloud-api2-portal');
+const {createCloudApi2EvidenceRouter}=require('./cloud-api2-evidence');
 const {createFhMsdkObserve}=require('./fh-msdk-observe');
 const {createFhUgcsReader}=require('./fh-ugcs-reader');
 const {fhMetrics}=require('./fh-metrics');
@@ -278,6 +279,7 @@ if(process.env.SKYHUB_MINIO_DR_ENABLED==='true'){
 }
 const mediaStorage=process.env.SKYHUB_MEDIA_ENABLED==='true'?
   createS3Storage(process.env):null;
+let mediaBucketIndex=null;
 // Pilot 2 uploads are stored as org_<fingerprint>_<ms>.jpg; show the DJI file name from PostgreSQL.
 async function pilotMediaLabels(){
   const {rows}=await pool.query('SELECT object_key,file_name,pilot_metadata->>\'created_time\' AS created '+
@@ -286,6 +288,7 @@ async function pilotMediaLabels(){
 }
 if(mediaStorage){
   const mediaRouter=createMediaRouter(mediaStorage,{labels:pool?pilotMediaLabels:null});
+  mediaBucketIndex=mediaRouter.bucketIndex;
   app.use('/api/media',mediaRouter);
   // Thermal module: radiometric R-JPEGs from the same storage, read-only.
   // Optional DJI Thermal SDK: isolated thermal-sdk service (compose profile), internal network only.
@@ -381,6 +384,11 @@ if(coverageTerrainSettings.enabled&&!coverageTerrain)
 // Photo coverage of stored flights (coverage.js): footprints from XMP/EXIF, gaps inside the flown area. Read-only.
 const ppkFlights=mediaStorage?createPpkStorage({storage:mediaStorage}):null;
 if(ppkFlights)app.use('/api/coverage',createCoverageRouter({express,flights:ppkFlights,terrain:coverageTerrain}));
+// Privileged, operator-triggered GET summary only; not in the token-free home-LAN allowlist.
+// Aggregates anonymized inventory counts; never joins aircraft identities or issues commands.
+app.use('/api/cloud-api2',createCloudApi2EvidenceRouter({
+  express,wpmlStore,ppkFlights,mediaStorage,mediaIndex:mediaBucketIndex
+}));
 if(ppk.enabled){app.use('/api/ppk',createPpkRouter(ppk,{flights:ppkFlights}));console.log('[ppk] PPK geotagging service active');}
 // Live flight control (DRC) for one pinned DJI RC Plus 2 + Matrice 4E/4T (DJI Cloud API 1.18 pilot live flight controls).
 // Off by default; separate token; operator lease with fail-safe hand-back to the RC (drc-session.js).
