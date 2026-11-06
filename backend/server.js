@@ -56,6 +56,7 @@ const {createTileCache,createTileRedirect,tileCacheSettings}=require('./tile-cac
 const {createFhObserver}=require('./fh-observer');
 const {createCloudApi2PortalRouter}=require('./cloud-api2-portal');
 const {createCloudApi2EvidenceRouter}=require('./cloud-api2-evidence');
+const {createCloudApi2LinkageRouter}=require('./cloud-api2-linkage');
 const {createFhMsdkObserve}=require('./fh-msdk-observe');
 const {createFhUgcsReader}=require('./fh-ugcs-reader');
 const {fhMetrics}=require('./fh-metrics');
@@ -388,6 +389,10 @@ if(ppkFlights)app.use('/api/coverage',createCoverageRouter({express,flights:ppkF
 // Aggregates anonymized inventory counts; never joins aircraft identities or issues commands.
 app.use('/api/cloud-api2',createCloudApi2EvidenceRouter({
   express,wpmlStore,ppkFlights,mediaStorage,mediaIndex:mediaBucketIndex
+}));
+// Read-only, authenticated candidate audit (not included in token-free LAN allowlist).
+app.use('/api/cloud-api2',createCloudApi2LinkageRouter({
+  express,registry,wpmlStore,db:pool,workspace:pilot.workspaceId
 }));
 if(ppk.enabled){app.use('/api/ppk',createPpkRouter(ppk,{flights:ppkFlights}));console.log('[ppk] PPK geotagging service active');}
 // Live flight control (DRC) for one pinned DJI RC Plus 2 + Matrice 4E/4T (DJI Cloud API 1.18 pilot live flight controls).
