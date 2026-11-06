@@ -5,6 +5,7 @@ const fs=require('node:fs');
 const os=require('node:os');
 const path=require('node:path');
 const {spawnSync}=require('node:child_process');
+const {createHash}=require('node:crypto');
 const A=require('../../scripts/dji-tsdk-parity-audit');
 
 const WIDTH=320,HEIGHT=256,PIXELS=WIDTH*HEIGHT;
@@ -86,4 +87,60 @@ test('isolated Pi runner has valid Bash syntax and rejects missing inputs',()=>{
   const missing=spawnSync('bash',[script,'--baseline-sdk','/nonexistent'],{encoding:'utf8'});
   assert.equal(missing.status,2);
   assert.match(missing.stderr,/Usage:/);
+});
+
+
+test('Pi runner pins one private JPEG snapshot even if the original changes between SDK calls',t=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'skyhub-tsdk-pinned-'));
+  t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+  const scripts=path.join(dir,'scripts'),backend=path.join(dir,'backend'),bin=path.join(dir,'fake-bin');
+  fs.mkdirSync(scripts);fs.mkdirSync(backend);fs.mkdirSync(bin);
+  fs.copyFileSync(path.resolve(__dirname,'../../scripts/dji-tsdk-parity-run.sh'),path.join(scripts,'dji-tsdk-parity-run.sh'));
+  fs.copyFileSync(path.resolve(__dirname,'../../scripts/dji-tsdk-parity-audit.js'),path.join(scripts,'dji-tsdk-parity-audit.js'));
+  fs.copyFileSync(path.resolve(__dirname,'../thermal-sdk.js'),path.join(backend,'thermal-sdk.js'));
+
+  // Mock only external system dependencies: no Docker engine or DJI binaries are invoked.
+  const fakeWrapper=String.raw`#!/usr/bin/env bash
+set -Eeuo pipefail
+sdk='' input='' output=''
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --sdk) sdk="$2";shift 2;;
+    --input) input="$2";shift 2;;
+    --output) output="$2";shift 2;;
+    --) shift;break;;
+    *) shift;;
+  esac
+done
+[[ -n "$sdk" && -n "$input" && -n "$output" ]] || exit 2
+sha256sum "$input" >> "$TRACE"
+# Model an external writer replacing the original while the baseline SDK is busy.
+if [[ "$sdk" == *sdk17 ]]; then printf '\377\330CHANGED\377\331' > "$ORIGINAL"; fi
+node -e 'const fs=require("node:fs");const b=Buffer.alloc(320*256*4);for(let i=0;i<320*256;i++)b.writeFloatLE(20,i*4);fs.writeFileSync(process.argv[1],b)' "$output/temperatures.raw"
+`;
+  fs.writeFileSync(path.join(scripts,'dji-tsdk-run.sh'),fakeWrapper,{mode:0o755});
+  fs.writeFileSync(path.join(bin,'uname'),'#!/bin/sh\necho aarch64\n',{mode:0o755});
+  fs.writeFileSync(path.join(bin,'docker'),'#!/bin/sh\nexit 0\n',{mode:0o755});
+  const oldSdk=path.join(dir,'sdk17'),newSdk=path.join(dir,'sdk19');
+  for(const sdk of [oldSdk,newSdk]){
+    fs.mkdirSync(path.join(sdk,'bin'),{recursive:true});
+    fs.writeFileSync(path.join(sdk,'bin','dji_irp'),'mock');
+  }
+  const original=path.join(dir,'source.JPG'),trace=path.join(dir,'inputs.sha256');
+  fs.writeFileSync(original,Buffer.from([0xff,0xd8,65,66,67,0xff,0xd9]));
+  const before=createHash('sha256').update(fs.readFileSync(original)).digest('hex');
+  const result=spawnSync('bash',[path.join(scripts,'dji-tsdk-parity-run.sh'),
+    '--baseline-sdk',oldSdk,'--candidate-sdk',newSdk,'--input',original,
+    '--width','320','--height','256'],{
+    encoding:'utf8',timeout:30000,env:{...process.env,PATH:bin+':'+process.env.PATH,TRACE:trace,ORIGINAL:original}
+  });
+  assert.equal(result.status,0,result.stderr);
+  const report=JSON.parse(result.stdout);
+  assert.equal(report.status,'PASS');
+  assert.equal(report.sourceSha256,before,'audit must identify the same pinned JPEG used in both runs');
+  const inputs=fs.readFileSync(trace,'utf8').trim().split('\n').map(line=>line.slice(0,64));
+  assert.deepEqual(inputs,[before,before]);
+  assert.notEqual(createHash('sha256').update(fs.readFileSync(original)).digest('hex'),before,
+    'the simulated external writer should have changed the original');
+  assert.equal(report.sdkExecutionVerified,false,'mocked SDK execution must not count as hardware acceptance');
 });

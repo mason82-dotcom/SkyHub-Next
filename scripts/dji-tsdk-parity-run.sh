@@ -72,17 +72,31 @@ cleanup(){ rm -rf -- "$work"; }
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
+# Create exactly one private snapshot, so both SDK versions see identical input bytes.
+# The original file may be rotated/replaced externally during the two measurements.
 mkdir -- "$work/baseline" "$work/candidate"
+snapshot="$work/source.JPG"
+cp -- "$input" "$snapshot"
+chmod 0600 -- "$snapshot"
+# Re-check the private snapshot after copying, before starting any SDK processes.
+node - "$snapshot" <<'NODE'
+const fs=require('node:fs');
+const p=process.argv[2],stat=fs.statSync(p);
+if(!stat.isFile()||stat.size<4||stat.size>20*1024*1024)process.exit(2);
+const fd=fs.openSync(p,'r'),head=Buffer.alloc(2);
+try{if(fs.readSync(fd,head,0,2,0)!==2||head[0]!==255||head[1]!==216)process.exit(2);}
+finally{fs.closeSync(fd);}
+NODE
 set -- ./dji_irp --source /input.JPG --action measure --output /output/temperatures.raw \
   --measurefmt float32 --emissivity "$emissivity" --distance "$distance" \
   --humidity "$humidity" --ambient "$ambient" --reflection "$reflection"
 echo "Running baseline SDK in an isolated temporary container" >&2
-bash "$root/scripts/dji-tsdk-run.sh" --timeout "$timeout_s" --sdk "$baseline" --input "$input" --output "$work/baseline" -- "$@"
+bash "$root/scripts/dji-tsdk-run.sh" --timeout "$timeout_s" --sdk "$baseline" --input "$snapshot" --output "$work/baseline" -- "$@"
 echo "Running candidate SDK in an isolated temporary container" >&2
-bash "$root/scripts/dji-tsdk-run.sh" --timeout "$timeout_s" --sdk "$candidate" --input "$input" --output "$work/candidate" -- "$@"
+bash "$root/scripts/dji-tsdk-run.sh" --timeout "$timeout_s" --sdk "$candidate" --input "$snapshot" --output "$work/candidate" -- "$@"
 set -- node "$root/scripts/dji-tsdk-parity-audit.js" \
   --baseline "$work/baseline/temperatures.raw" --candidate "$work/candidate/temperatures.raw" \
-  --source "$input" --width "$width" --height "$height" \
+  --source "$snapshot" --width "$width" --height "$height" \
   --p95-limit-k "$p95" --max-limit-k "$maximum"
 [[ -z "$report" ]] || set -- "$@" --report "$report"
 "$@"

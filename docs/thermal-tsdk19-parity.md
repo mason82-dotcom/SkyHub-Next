@@ -37,10 +37,20 @@ Abweichungen können legitime Kalibrieränderungen oder Fehler bedeuten.
 
 ## Pi 5: vergleichende Einzelbildprüfung (ausschließlich manuell)
 
-Beide SDKs werden mit identischen Parametern ausgeführt. Beide haben nur
-Lesezugriff auf das R-JPEG und ihre nativen Dateien. Der vorhandene
-scripts/dji-tsdk-run.sh setzt den Timeout von der nativen Host-Seite.
-SDK-Container und temporäre Rohausgaben werden bei Fehlern entfernt.
+Beide SDKs werden mit identischen Parametern ausgeführt. Vor dem ersten
+SDK-Aufruf erstellt der Runner **genau eine private, temporäre Kopie** des
+R-JPEG. Beide isolierten SDK-Aufrufe lesen ausschließlich diese Kopie, nicht
+den veränderlichen Originalpfad. So werden keine unterschiedlichen Bildstände
+verglichen, wenn die Quelldatei zwischen den beiden Durchläufen extern ersetzt
+wird. Das Original bleibt unverändert; der JSON-Quellhash bezieht sich auf
+die tatsächlich verwendete Kopie. Die Kopie wird nach dem Vergleich gelöscht.
+
+Beide SDKs haben nur Lesezugriff auf die eingefrorene Kopie und ihre nativen
+Dateien. Der vorhandene scripts/dji-tsdk-run.sh setzt den Timeout von der
+nativen Host-Seite. SDK-Container und temporäre Rohausgaben werden bei
+Fehlern entfernt. Der Snapshot vermeidet Änderungen durch normale externe
+Dateirotation; er ist kein Schutz gegen mutwillige Manipulationen durch
+privilegierte Prozesse während der SDK-Ausführung.
 
     cd ~/Projekte/SkyHub-Next
     node --test backend/test/dji-tsdk-parity-audit.test.js
