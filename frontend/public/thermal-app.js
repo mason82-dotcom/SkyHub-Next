@@ -159,6 +159,17 @@ function isotherm(){
   if(!Number.isFinite(t1))return null;
   return {mode,t1,t2:Number.isFinite(t2)?t2:t1};
 }
+function drawShapePath(ctx,type,r){
+  const cx=(r.x0+r.x1)/2,cy=(r.y0+r.y1)/2;
+  ctx.beginPath();
+  if(type==='line'){ctx.moveTo(r.x0+0.5,r.y0+0.5);ctx.lineTo(r.x1+0.5,r.y1+0.5);}
+  else{
+    let rx=Math.abs(r.x1-r.x0)/2,ry=Math.abs(r.y1-r.y0)/2;
+    if(type==='circle')rx=ry=Math.min(rx,ry);
+    if(rx>0&&ry>0)ctx.ellipse(cx+0.5,cy+0.5,rx,ry,0,0,Math.PI*2);
+  }
+  ctx.stroke();
+}
 function draw(){
   const canvas=el('thermal'),ctx=canvas.getContext('2d');
   canvas.width=state.width;canvas.height=state.height;
@@ -178,11 +189,15 @@ function draw(){
     marker(state.whole.cold.x,state.whole.cold.y,'#4fc3ff','C '+T.format(state.whole.min));
   }
   state.measurements.forEach((m,i)=>{
-    const s=m.stats;
+    const s=m.stats;if(!s)return;
     if(m.type==='spot')marker(m.x,m.y,'#ffffff',(i+1)+': '+T.format(s.mean));
     else{
-      ctx.lineWidth=3;ctx.strokeStyle='#000';ctx.strokeRect(s.x0,s.y0,s.x1-s.x0+1,s.y1-s.y0+1);
-      ctx.lineWidth=1.5;ctx.strokeStyle='#fff';ctx.strokeRect(s.x0,s.y0,s.x1-s.x0+1,s.y1-s.y0+1);
+      const outline=()=>{
+        if(m.type==='box')ctx.strokeRect(s.x0,s.y0,s.x1-s.x0+1,s.y1-s.y0+1);
+        else drawShapePath(ctx,m.type,m.rect);
+      };
+      ctx.lineWidth=3;ctx.strokeStyle='#000';outline();
+      ctx.lineWidth=1.5;ctx.strokeStyle='#fff';outline();
       ctx.font='bold 13px system-ui';ctx.fillStyle='#fff';ctx.strokeStyle='#000';ctx.lineWidth=3;
       const label=(i+1)+': max '+T.format(s.max);
       ctx.strokeText(label,s.x0+3,s.y0+15);ctx.fillText(label,s.x0+3,s.y0+15);
@@ -190,7 +205,9 @@ function draw(){
   });
   if(state.drag){
     const d=state.drag;ctx.setLineDash([5,4]);ctx.strokeStyle='#fff';ctx.lineWidth=1.5;
-    ctx.strokeRect(Math.min(d.x0,d.x1),Math.min(d.y0,d.y1),Math.abs(d.x1-d.x0),Math.abs(d.y1-d.y0));
+    if(state.tool==='box')ctx.strokeRect(Math.min(d.x0,d.x1),Math.min(d.y0,d.y1),
+      Math.abs(d.x1-d.x0),Math.abs(d.y1-d.y0));
+    else drawShapePath(ctx,state.tool,d);
     ctx.setLineDash([]);
   }
   drawHistogram(min,max);
@@ -252,12 +269,15 @@ function renderMeasurements(){
   const body=el('measurements');body.replaceChildren();
   state.measurements.forEach((m,i)=>{
     m.stats=m.type==='spot'?T.regionStats(state.temps,state.width,state.height,{x0:m.x,y0:m.y,x1:m.x,y1:m.y}):
-      T.regionStats(state.temps,state.width,state.height,m.rect);
-    const s=m.stats,tr=node('tr');
+      m.type==='box'?T.regionStats(state.temps,state.width,state.height,m.rect):
+      T.shapeStats(state.temps,state.width,state.height,m.type,m.rect);
+    const s=m.stats;if(!s)return;
+    const tr=node('tr');
     const del=node('button','secondary','✕');del.type='button';del.setAttribute('aria-label','Messung '+(i+1)+' löschen');
     del.addEventListener('click',()=>{state.measurements.splice(i,1);renderMeasurements();draw();});
     const td=node('td');td.append(del);
-    tr.append(node('td',null,String(i+1)),node('td',null,m.type==='spot'?'Punkt':'Bereich'),
+    tr.append(node('td',null,String(i+1)),node('td',null,
+      {spot:'Punkt',box:'Bereich',line:'Linie',circle:'Kreis',ellipse:'Ellipse'}[m.type]||m.type),
       node('td',null,m.type==='spot'?m.x+'/'+m.y:s.x0+'/'+s.y0+' – '+s.x1+'/'+s.y1),
       node('td',null,T.format(s.min)),node('td',null,T.format(s.mean)),node('td',null,T.format(s.max)),td);
     body.append(tr);
@@ -345,19 +365,26 @@ function wireCanvas(){
     if(!state.temps)return;
     const {x,y}=pixel(e);
     el('readout').textContent='x '+x+'  y '+y+'  →  '+T.format(state.temps[y*state.width+x],2);
-    if(state.drag){state.drag.x1=x;state.drag.y1=y;draw();}
+    if(state.drag&&state.drag.pointerId===e.pointerId){state.drag.x1=x;state.drag.y1=y;draw();}
   });
   c.addEventListener('pointerdown',e=>{
     if(!state.temps||state.tool==='view')return;
     const {x,y}=pixel(e);
     if(state.tool==='spot'){state.measurements.push({type:'spot',x,y});renderMeasurements();draw();}
-    else{state.drag={x0:x,y0:y,x1:x,y1:y};c.setPointerCapture(e.pointerId);}
+    else{state.drag={x0:x,y0:y,x1:x,y1:y,pointerId:e.pointerId};c.setPointerCapture(e.pointerId);}
   });
-  c.addEventListener('pointerup',()=>{
-    const d=state.drag;state.drag=null;
-    if(!d)return;
-    if(Math.abs(d.x1-d.x0)>=2&&Math.abs(d.y1-d.y0)>=2)state.measurements.push({type:'box',rect:d});
+  c.addEventListener('pointerup',e=>{
+    const d=state.drag;
+    if(!d||d.pointerId!==e.pointerId)return;
+    state.drag=null;
+    const {x,y}=pixel(e);d.x1=x;d.y1=y;
+    const dx=Math.abs(d.x1-d.x0),dy=Math.abs(d.y1-d.y0);
+    if(state.tool==='line'?(dx>=2||dy>=2):(dx>=2&&dy>=2))
+      state.measurements.push({type:state.tool,rect:{x0:d.x0,y0:d.y0,x1:d.x1,y1:d.y1}});
     renderMeasurements();draw();
+  });
+  c.addEventListener('pointercancel',e=>{
+    if(state.drag?.pointerId===e.pointerId){state.drag=null;if(state.temps)draw();}
   });
 }
 
@@ -393,7 +420,8 @@ function exportCsv(){
     ['Nr','Art','x0','y0','x1','y1','Pixel','Min °C','Mittel °C','Median °C','Max °C'],
     ['Bild','gesamt',0,0,state.width-1,state.height-1,s.pixels,s.min,s.mean,s.median,s.max]];
   state.measurements.forEach((m,i)=>{const t=m.stats;
-    rows.push([i+1,m.type==='spot'?'Punkt':'Bereich',t.x0,t.y0,t.x1,t.y1,t.pixels,t.min,t.mean,t.median,t.max]);});
+    if(t)rows.push([i+1,{spot:'Punkt',box:'Bereich',line:'Linie',circle:'Kreis',ellipse:'Ellipse'}[m.type]||m.type,
+      t.x0,t.y0,t.x1,t.y1,t.pixels,t.min,t.mean,t.median,t.max]);});
   download(base()+'_messungen.csv',new Blob([T.csv(rows)],{type:'text/csv;charset=utf-8'}));
 }
 function exportPng(){
