@@ -2,9 +2,13 @@
 // Terrain profile client for the WPML editor: the editor's second explicit network path (besides the mission store
 // client). One POST to /api/terrain/profile on user request; read-only, nothing is stored on the server.
 (function(global){
-  async function profile(points){
+  async function profile(points,{takeoff=null,signal}={}){
+    // The normal editor keeps the original takeoff-less call contract.
+    // Only the opt-in planar multi-segment check supplies a measured reference.
+    const request=takeoff===null?{points}:{points,takeoff};
     const r=await fetch('/api/terrain/profile',{method:'POST',credentials:'same-origin',cache:'no-store',
-      headers:{'Content-Type':'application/json'},body:JSON.stringify({points})});
+      ...(signal?{signal}:{}),
+      headers:{'Content-Type':'application/json'},body:JSON.stringify(request)});
     const b=await r.json().catch(()=>({}));
     if(r.status===404)throw new Error('Höhendienst ist auf diesem SkyHub nicht eingerichtet');
     if(!r.ok)throw new Error(b.error||('HTTP '+r.status));
