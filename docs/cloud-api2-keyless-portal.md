@@ -58,3 +58,13 @@ DJI Cloud API 2 V1.1.0 wurde am 05.11.2026 veröffentlicht. Die herstellereigene
 - https://github.com/dji-sdk/Cloud-API-2/blob/main/docs/cn/12.api1-api2-comparison.md
 
 Achtung: Die Cloud API 2 V1.1.0 ist nicht dieselbe Versionslinie wie die bisherige Cloud API 1.x. Ein vollumfänglicher Cloud-API-1.20-Protokollabgleich oder die hardwareseitige Kompatibilität aller unterstützten Drohnen wurde hier nicht nachgewiesen.
+
+## Integration Explorer: Module und Developer Skills (06.11.2026)
+
+Im Portal gibt es den zusätzlichen Reiter **Module & Skills**. Er verlinkt die bereits im SkyHub-Repository vorhandenen Seiten `/wpml-survey-preview.html`, `/abdeckung.html` und `/thermal.html`. Das sind lediglich Navigationsziele und keine Cloud-API-2-Protokolladapter. Ihre Verfügbarkeit auf einem produktiven Pi wird nicht behauptet. Insbesondere bleiben `flightReady=false` sowie die getrennte Thermal-Genauigkeitsbewertung zwingend.
+
+Die separat dargestellten DJI-Developer-Skills `cloudapi2-sdk-core`, `cloudapi2-device-management`, `cloudapi2-frontend-component`, `cloudapi2-map` und `cloudapi2-troubleshooting` sind **Herstellerreferenzen, nicht installiert**. Die SkyHub-eigene Agent-Regel `.agents/skills/skyhub-cloudapi2-keyless/SKILL.md` beschreibt, wie diese Ressourcen ohne DJI-Key und ohne Flugsteuerung zur Entwicklung herangezogen werden dürfen.
+
+Referenz: https://github.com/dji-sdk/Cloud-API-2/tree/main/devkit/skills ; der Hersteller stellt zusätzlich einen MCP-Server mit Flugfähigkeiten bereit. Dieser wird **nicht** installiert, verbunden oder im Produkt aktiviert.
+
+Zusätzlicher Offline-Test: `node --test test/cloud-api2-module-catalog.test.js`. Der Test prüft die lokalen Links und Sicherheitsgrenzen; weder Pi-/DJI-Laufzeit noch Hersteller-SDK werden dabei ausgeführt.
