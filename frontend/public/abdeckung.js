@@ -77,7 +77,8 @@
         'UNBEKANNT: keine Geländekorrektur; Höhe über Startpunkt');
       if(terrain)add('Geländeabfrage',b.altitude.valid+' gültig · '+b.altitude.missing+
         ' fehlend · '+b.altitude.implausible+' unplausibel');
-      if(b.gsdCmPx)add('GSD (Nadir, Bildmitte)',b.gsdCmPx.min+'–'+b.gsdCmPx.max+
+      if(b.gsdCmPx)add(terrain?'GSD (DEM-Schätzung, Nadir)':'GSD (UNBERICHTIGT, über Start)',
+        b.gsdCmPx.min+'–'+b.gsdCmPx.max+
         ' cm/px · Median '+b.gsdCmPx.median+' cm/px ('+b.gsdCmPx.samples+' Bilder)');
       else add('GSD','UNBEKANNT: keine ausreichend belegten Nadir-Kameradaten');
       $('gaps').replaceChildren(...(b.gaps.length?b.gaps.slice(0,10).map((g,i)=>{const li=document.createElement('li');
