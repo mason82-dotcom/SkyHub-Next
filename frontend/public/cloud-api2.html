@@ -17,6 +17,7 @@
     <button type="button" class="active" data-view="overview">◈ <span>Übersicht</span></button>
     <button type="button" data-view="devices">▦ <span>Geräte-Backend</span></button>
     <button type="button" data-view="mavic3">✣ <span>Mavic 3 Enterprise</span></button>
+    <button type="button" data-view="m4t-hardware">▧ <span>M4T + RC Plus 2 Tests</span></button>
     <button type="button" data-view="evidence">▣ <span>Nachweise</span></button>
     <button type="button" data-view="simulator">◇ <span>Simulator</span><i>LAB</i></button>
     <button type="button" data-view="sdk">⌘ <span>SDK &amp; Bausteine</span></button>
@@ -98,6 +99,33 @@
         </article>
       </div>
       <p class="hint">Quellen: offizielle DJI Mavic 3 Enterprise / Mavic 3 Multispectral Produktdaten. Mavic 3D/3TD gehören zur Dock-Baureihe und sind nicht Teil dieser Übersicht.</p>
+    </section>
+    <section id="view-m4t-hardware" class="view" hidden>
+      <p class="eyebrow">HARDWARE EVIDENCE / DJI CLOUD API 1.x / READ-ONLY</p>
+      <div class="heading"><div><h1>Matrice 4T &amp; RC Plus 2</h1>
+        <p>Hardwarediagnostik für Controller und Fluggerät. Live-Smoketest, Runtime-Modulprüfung und Pi-Preflight bleiben getrennte Nachweise.</p></div>
+        <span class="pill lab">KEINE FLUGFREIGABE</span></div>
+      <p class="family-safety">Eine erfolgreiche Transportprüfung bedeutet weder vollständige Hardwareabnahme noch Freigabe von Kamera, Thermal, Laser, Missionen oder DRC. Synthetische Tests und historische Pi-Messungen werden nicht als aktueller Live-Nachweis ausgegeben.</p>
+      <div class="hardware-actions">
+        <button type="button" class="primary" id="loadM4tHardware">Aktuellen Hardware-Smoke lesend prüfen</button>
+        <label for="m4tReceiptFile" class="hardware-upload">Anonymisierten Pi-Beleg (JSON) öffnen</label>
+        <input id="m4tReceiptFile" type="file" accept=".json,application/json" aria-describedby="m4tImportHelp">
+      </div>
+      <p id="m4tImportHelp" class="hint">JSON-Belege von <code>scripts/pi-rc-plus2-m4t-check.js --preflight --json</code>, <code>--runtime-check --json</code> oder <code>--json</code> lokal prüfen. Die Datei wird nicht hochgeladen. Die Serverabfrage benötigt bestehende SkyHub-Berechtigung; keine Tokenabfrage in dieser Seite.</p>
+      <div class="bar"><span id="m4tHardwareStatus" role="status" aria-live="polite">Kein aktueller Test ausgeführt oder importiert. Ausschließlich lesende Aufrufe auf ausdrücklichen Klick.</span><span class="pill">GET / HARDWARE / VIEW TOKEN</span></div>
+      <div id="m4tHardwareReceipts" class="hardware-receipts" aria-live="polite">
+        <p class="empty">Noch kein aktueller Hardware-Nachweis geladen. Der unten dokumentierte historische Smoketest wird nicht automatisch übernommen.</p>
+      </div>
+      <article class="card below">
+        <div class="card-top"><b>LETZTER DOKUMENTIERTER PI-TEST</b><span>HISTORISCH · 25.10.2026</span></div>
+        <div class="hardware-history">
+          <div><small>RC PLUS 2</small><strong>21 / 54</strong><span>statische Felder beobachtet</span></div>
+          <div><small>MATRICE 4T</small><strong>100 / 202</strong><span>vorläufig katalogisierte Felder beobachtet</span></div>
+          <div><small>PAIRING / OSD</small><strong>1 Paar</strong><span>OSD-Alter je 1 s</span></div>
+          <div><small>ABNAHME</small><strong>OFFEN</strong><span>Transport-Smoke ≠ Flugfreigabe</span></div>
+        </div>
+        <p class="hint">Dokumentierter Folgebeleg: 25.10.2026, 21:22:23 UTC. Diese Werte sind keine aktuelle Telemetrie. <a href="https://github.com/mason82-dotcom/SkyHub-Next/blob/main/docs/hardware-acceptance-status-2026-10-24.md" target="_blank" rel="noopener noreferrer">Hardware-Evidence-Dokumentation ↗</a></p>
+      </article>
     </section>
     <section id="view-simulator" class="view" hidden>
       <p class="eyebrow">OFFLINE / SANDBOX</p>

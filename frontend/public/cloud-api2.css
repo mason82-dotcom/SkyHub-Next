@@ -33,3 +33,29 @@
 .evidence-count{display:block;color:#7fead0;font-size:15px;letter-spacing:.1px;padding-top:13px;border-top:1px solid #294b5a;margin-top:15px}
 #evidenceModules:empty{display:none}
 #loadEvidence:disabled{opacity:.55;cursor:wait}
+
+/* Scoped RC Plus 2 / Matrice 4T read-only hardware evidence dashboard. */
+.hardware-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:20px 0 12px}
+.hardware-upload{display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:#d9edf4;background:#173145;border:1px solid #386374;border-radius:7px;padding:12px 18px;font-size:12px;font-weight:750}
+.hardware-upload:hover{background:#234255}
+#m4tReceiptFile{max-width:240px;font-size:11px;color:#a7bfca}
+.hardware-receipts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.hardware-receipt{min-width:0}
+.hardware-provenance{font-size:11px!important;color:#a5c0cb!important}
+.hardware-result{display:block;font-size:21px;margin:15px 0 24px}
+.hardware-ok,.hw-pass{color:#77edd0}
+.hardware-warn,.hw-unknown{color:#e8b47e}
+.hardware-checks{display:grid;gap:0;margin:0}
+.hardware-check{display:flex;gap:16px;justify-content:space-between;align-items:baseline;border-bottom:1px solid #294a5e;padding:11px 0;font-size:11px}
+.hardware-check dt{max-width:68%;color:#afc8d3}
+.hardware-check dd{text-align:right;margin:0;font-weight:700;color:#dbe9f1}
+.hardware-check dd.hw-pass{color:#77edd0}.hardware-check dd.hw-unknown{color:#e8b47e}
+.hardware-history{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.hardware-history div{padding:15px;background:#102e3d;border:1px solid #315368;border-radius:8px}
+.hardware-history small,.hardware-history strong,.hardware-history span{display:block}
+.hardware-history small{font-size:10px;color:#93b1c1}
+.hardware-history strong{font-size:22px;color:#e9f5fa;margin:12px 0}
+.hardware-history span{font-size:10px;line-height:1.5;color:#adc5ce}
+#loadM4tHardware:disabled{opacity:.55;cursor:wait}
+@media(max-width:1120px){.hardware-receipts{grid-template-columns:1fr}.hardware-history{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.hardware-history{grid-template-columns:1fr}.hardware-check{flex-wrap:wrap;gap:4px}}
