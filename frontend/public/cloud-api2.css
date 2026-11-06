@@ -9,3 +9,23 @@
 .skill-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .skill-item b{font-size:13px;color:#e7f4f7}
 @media(max-width:1000px){.integration-grid{grid-template-columns:1fr}.skill-grid{grid-template-columns:1fr}}
+/* Mavic 3 model taxonomy, scoped to the keyless device-family view. */
+.family-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin:20px 0}
+.family-model{background:#142d3e;border:1px solid #315568;border-radius:11px;padding:18px;text-align:left;color:#e8f3f8;min-height:165px}
+.family-model:hover,.family-model:focus-visible{border-color:#73dcca;background:#1b3a4c}
+.family-model.selected{border-color:#61e7d3;background:#1b4148;box-shadow:inset 0 3px #61e7d3}
+.family-model small,.family-model strong,.family-model span{display:block}
+.family-model small{font-size:10px;color:#89b9c3;letter-spacing:.5px}
+.family-model strong{font-size:19px;margin:13px 0 9px}
+.family-model span{font-size:11px;line-height:1.6;color:#b6ced8}
+.family-safety{border-left:3px solid #d6a56e;padding:11px 15px;background:#56472e2b;color:#f1c890;font-size:12px;line-height:1.7}
+.family-columns{grid-template-columns:1.08fr 1fr}
+.family-data{display:grid;grid-template-columns:155px 1fr;gap:12px;padding:12px 0;border-bottom:1px solid #2b4a5b;font-size:12px}
+.family-data dt{color:#98b3c1}.family-data dd{margin:0;line-height:1.7;color:#e1f1f5}
+.family-tags{display:flex;flex-wrap:wrap;gap:9px;margin:16px 0}
+.family-tags span{font-size:10px;color:#8ff3da;padding:8px 10px;background:#214b4a;border:1px solid #3d8171;border-radius:5px}
+.family-device{padding:13px 0;border-bottom:1px solid #2d5060}
+.family-device b,.family-device small{display:block}.family-device b{font-size:13px}.family-device small{font-size:11px;line-height:1.6;color:#a0b7c5;margin-top:6px}
+.family-device em{color:#eabc7e;font-style:normal}.family-device em.live{color:#76e5cc}
+@media(max-width:1120px){.family-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.family-columns{grid-template-columns:1fr}}
+@media(max-width:580px){.family-grid{grid-template-columns:1fr}.family-data{grid-template-columns:1fr;gap:4px}}
