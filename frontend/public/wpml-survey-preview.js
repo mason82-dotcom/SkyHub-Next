@@ -37,8 +37,14 @@
     importedGeometry=null;
     points.push({lat:a,lon:b});invalidate();render();
   }
-  function invalidate(){for(const layer of advancedLines)layer.remove();advancedLines=[];report=null;photoReport=null;captureReport=null;dualReport=null;dualCount=null;$('geojson').disabled=true;
-    $('show-photo-centers').disabled=true;}
+  function invalidate(){
+    for(const layer of advancedLines)layer.remove();advancedLines=[];
+    report=null;photoReport=null;captureReport=null;dualReport=null;dualCount=null;
+    $('geojson').disabled=true;$('show-photo-centers').disabled=true;
+    // A real geometry edit, camera change or completed import invalidates
+    // the advanced P0/P1 result as well as the original survey result.
+    window.dispatchEvent(new Event('skyhub-survey-invalidated'));
+  }
   function fit(){
     if(!map)return;
     if(importedGeometry&&polygon){
@@ -369,12 +375,24 @@
       spacing:$('optics-enable').checked?(report?report.lineSpacingMeters:null):Number($('spacing').value),
       heading:Number($('heading').value)}),
     clearAdvanced:()=>{for(const layer of advancedLines)layer.remove();advancedLines=[];},
-    drawAdvanced:plans=>{
+    drawAdvanced:(plans,{showCandidates=false}={})=>{
       for(const layer of advancedLines)layer.remove();advancedLines=[];
       if(!map)return;
-      for(const plan of plans)for(const seg of plan.segments)
-        advancedLines.push(L.polyline([[seg.start.lat,seg.start.lon],
-          [seg.end.lat,seg.end.lon]],{color:'#2458d3',weight:3,opacity:.9}).addTo(map));
+      for(const plan of plans){
+        for(const seg of plan.segments)
+          advancedLines.push(L.polyline([[seg.start.lat,seg.start.lon],
+            [seg.end.lat,seg.end.lon]],{color:'#2458d3',weight:3,opacity:.9}).addTo(map));
+        if(showCandidates&&Array.isArray(plan.transitionCandidates)){
+          for(const transition of plan.transitionCandidates){
+            if(transition.status!=='candidate'||!Array.isArray(transition.path)||
+               transition.path.length<2||transition.path.length>82)continue;
+            advancedLines.push(L.polyline(transition.path.map(p=>[p.lat,p.lon]),{
+              color:'#855510',weight:2,opacity:.85,dashArray:'4,7',
+              interactive:false
+            }).addTo(map));
+          }
+        }
+      }
     }
   });
   syncDualControls();
