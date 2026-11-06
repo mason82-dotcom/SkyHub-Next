@@ -3,10 +3,12 @@ import {SkyHubLabSimulator} from './cloud-api2-lab.mjs';
 import {MODULES,SKILLS,VENDOR_SKILLS} from './cloud-api2-modules.mjs';
 import {MAVIC3_MODELS,countMavic3Registry} from './cloud-api2-mavic3.mjs';
 import {normalizeEvidence} from './cloud-api2-evidence.mjs';
+import {normalizeHardwareReceipt} from './cloud-api2-hardware.mjs';
 const get=id=>document.getElementById(id);
 const client=new SkyHubDaaSClient();
 const lab=new SkyHubLabSimulator();
-const sections=['overview','devices','evidence','mavic3','simulator','sdk','integrations','ai'];
+const sections=['overview','devices','evidence','mavic3','m4t-hardware','simulator','sdk','integrations','ai'];
+const hardwareEvidence=new Map();
 let observedDevices=[];
 let chosenMavic3='m3e';
 const features=[
@@ -175,6 +177,67 @@ async function inspectEvidence(){
   }finally{button.disabled=false;}
 }
 get('loadEvidence').addEventListener('click',inspectEvidence);
+// Hardware evidence is requested only on explicit action; no timers or auto polling.
+function renderM4tHardware(){
+  const root=get('m4tHardwareReceipts');root.replaceChildren();
+  if(hardwareEvidence.size===0){
+    root.append(el('p','empty','Keine aktuelle Prüfung vorhanden. Der historische Test wird nicht als Live-Datenpunkt gezählt.'));
+    return;
+  }
+  for(const receipt of hardwareEvidence.values()){
+    const card=el('article','card hardware-receipt');
+    const top=el('div','card-top');
+    const measuredAge=Math.max(0,Math.floor((Date.now()-Date.parse(receipt.measuredAt))/1000));
+    const freshness=measuredAge<=20?'ZEITNAH':'HISTORISCH';
+    top.append(el('b','',receipt.title),el('span','',freshness));
+    card.append(top);
+    const info=el('p','hardware-provenance',receipt.origin+' · '+receipt.measuredAt+' · '+measuredAge+' s seit Messung');
+    card.append(info);
+    const ok=receipt.result==='READY'||receipt.result==='TRANSPORT_SMOKE_OK';
+    card.append(el('strong','hardware-result'+(ok?' hardware-ok':' hardware-warn'),
+      receipt.result==='TRANSPORT_SMOKE_OK'?'TRANSPORT-SMOKE PASS':receipt.result==='READY'?'MODUL/VORAUSSETZUNG BEREIT':'UNVOLLSTÄNDIG'));
+    const checks=el('dl','hardware-checks');
+    for(const check of receipt.checks){
+      const wrapper=el('div','hardware-check');
+      wrapper.append(el('dt','',check.name),el('dd',check.status==='PASS'?'hw-pass':check.status==='NICHT BESTÄTIGT'||check.status==='UNVOLLSTÄNDIG'?'hw-unknown':'',check.status));
+      checks.append(wrapper);
+    }
+    card.append(checks);
+    card.append(el('p','hint','hardwareAcceptanceComplete=false · flightReady=false · dispatchAllowed=false. Eine erfolgreiche Transportprüfung ersetzt keine Hardware- oder Flugabnahme.'));
+    root.append(card);
+  }
+}
+function registerHardwareReceipt(data,origin){
+  const normalized=normalizeHardwareReceipt(data,{origin});
+  hardwareEvidence.set(normalized.mode,normalized);
+  renderM4tHardware();
+  get('m4tHardwareStatus').textContent=normalized.title+' geladen: '+normalized.result+' ('+normalized.origin+' · '+normalized.measuredAt+'). Kein Flugkommando.';
+}
+async function inspectM4tHardware(){
+  const button=get('loadM4tHardware');if(button.disabled)return;
+  button.disabled=true;
+  get('m4tHardwareStatus').textContent='Aktuelle Backend-Zustände werden ausschließlich lesend geprüft …';
+  try{
+    const data=await client.getRcPlus2M4tEvidence();
+    registerHardwareReceipt(data,'backend-live');
+  }catch(error){
+    hardwareEvidence.delete('live-transport-smoke');
+    renderM4tHardware();
+    get('m4tHardwareStatus').textContent=(error instanceof Error?error.message:'Hardware-Nachweis nicht erreichbar')+
+      ' · Kein aktueller Hardware-Nachweis. Alternative: anonymisierten lokalen JSON-Beleg prüfen.';
+  }finally{button.disabled=false;}
+}
+get('loadM4tHardware').addEventListener('click',inspectM4tHardware);
+get('m4tReceiptFile').addEventListener('change',async()=>{
+  const input=get('m4tReceiptFile'),file=input.files?.[0];if(!file)return;
+  try{
+    if(file.size>32768)throw new TypeError('JSON-Datei zu groß (max. 32 KiB)');
+    const parsed=JSON.parse(await file.text());
+    registerHardwareReceipt(parsed,'operator-file');
+  }catch(_error){
+    get('m4tHardwareStatus').textContent='JSON-Beleg abgelehnt: Format, Inhalt oder Prüfsummenbedingungen ungültig. Keine Rohdaten angezeigt.';
+  }finally{input.value='';}
+});
 function renderLab(){
   const state=lab.current();
   get('frame').textContent='FRAME '+String(state.index+1).padStart(2,'0')+' / '+state.count;
@@ -244,4 +307,6 @@ get('copy').addEventListener('click',async()=>{
 });
 function updateTime(){get('localtime').textContent=new Intl.DateTimeFormat('de-DE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date());}
 setupMavic3();renderFeatures();renderIntegrations();renderLab();updateTime();setInterval(updateTime,60000);
+// Refresh only the displayed age; never repeat a hardware/HTTP request automatically.
+setInterval(()=>{if(!get('view-m4t-hardware').hidden&&hardwareEvidence.size)renderM4tHardware();},15000);
 view(location.hash.slice(1)||'overview');refresh();
