@@ -92,7 +92,7 @@ Herstellerreferenzen:
 
 ## Verifiable device / mission / media linkage (P0, 07.11.2026)
 
-[Separate proof matrix, fail-closed matching and required independent DJI receipts](cloud-api2-linkage-evidence.md). Read-only `GET /api/cloud-api2/linkage`, existing view-token auth only, manual invocation; no claim that model compatibility constitutes mission execution. The new evidence viewer shows model-compatible candidate count plus three independently unproven cross-domain relations. No DJI SDK or flight hardware activated.
+[Separate proof matrix, fail-closed matching and required independent DJI receipts](cloud-api2-linkage-evidence.md). Read-only `GET /api/cloud-api2/linkage`, existing trusted LAN read access or view-token auth, manual invocation; no claim that model compatibility constitutes mission execution. The new evidence viewer shows model-compatible candidate count plus three independently unproven cross-domain relations. No DJI SDK or flight hardware activated.
 
 ## Operator-triggered evidence inventory (follow-up)
 
