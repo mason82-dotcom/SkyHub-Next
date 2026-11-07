@@ -24,6 +24,10 @@ const messages: Record<LabLocale, Record<string, string>> = {
     noLive: 'Unbestätigte Laborwerte – nicht mit SkyHub-Telemetrie verwechseln',
     admin: 'Administrator', regularUser: 'Benutzer', manageUsers: 'Benutzerverwaltung',
     themeColor: 'Akzentfarbe', guide: 'Handbuch', logout: 'Abmelden',
+    plannedTasks: 'Geplante Missionen', manualTasks: 'Manuelle Flüge', taskDistribution: 'Missionsverteilung',
+    taskSuccess: 'Erfolgreich', taskSuspended: 'Angehalten', taskFailed: 'Fehlgeschlagen',
+    executionResults: 'Ausführungsergebnisse', flightData: 'Flugdaten', flightCount: 'Flüge',
+    flightMinutes: 'Flugzeit (min)', flightKm: 'Flugstrecke (km)',
   },
   en: {
     dashboard: 'Dashboard', stream: 'Live video', devices: 'Device management',
@@ -43,6 +47,10 @@ const messages: Record<LabLocale, Record<string, string>> = {
     noLive: 'Unverified lab values – not SkyHub live telemetry',
     admin: 'Administrator', regularUser: 'User', manageUsers: 'User management',
     themeColor: 'Accent color', guide: 'User guide', logout: 'Sign out',
+    plannedTasks: 'Planned missions', manualTasks: 'Manual flights', taskDistribution: 'Mission distribution',
+    taskSuccess: 'Succeeded', taskSuspended: 'Suspended', taskFailed: 'Failed',
+    executionResults: 'Execution results', flightData: 'Flight data', flightCount: 'Flights',
+    flightMinutes: 'Flight time (min)', flightKm: 'Flight distance (km)',
   },
 }
 export function useLabLocale() {
