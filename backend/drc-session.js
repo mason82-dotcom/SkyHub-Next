@@ -185,6 +185,10 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
     if(stickTimer)return;
     stickTimer=clock.setInterval(()=>{
       if(s.phase!=='drc_active'){stopSticks();return;}
+      if(!linkProof().ready){
+        try{drc('stick_control',P.NEUTRAL);}catch{}
+        stopSticks();return;
+      }
       const fresh=s.lastStick&&now()-s.lastStick.at<=L.stickStaleMs&&holds(s.lastStick.operator);
       try{drc('stick_control',fresh?s.lastStick.value:P.NEUTRAL);}catch(err){s.lastError='Knüppel: '+err.message;}
       // Neutral for a short while after the last input, then stop sending (the aircraft brakes without input).
@@ -252,6 +256,7 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
     dragTimer=clock.setInterval(()=>{
       const d=s.lastDrag;
       if(s.phase!=='drc_active'||!d){stopDrag(false);return;}
+      if(!rcPro&&!linkProof().ready){stopDrag(true);return;}
       if(now()-d.at<=L.dragStaleMs&&holds(d.operator)){try{dragSend(d.value);}catch(err){s.lastError='Gimbal: '+err.message;}}
       else stopDrag(true);
     },Math.round(1000/L.dragHz));
