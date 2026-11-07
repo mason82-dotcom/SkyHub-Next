@@ -1,0 +1,27 @@
+/* Planning workspace consumes existing Cloud API 2 dark portal tokens.
+   The mission editor, survey planner and library retain their own canonical styles. */
+.planning-intro{max-width:920px;color:#b7ccd7;line-height:1.7;font-size:13px}
+.planning-flow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:22px 0 16px}
+.planning-choice{position:relative;display:flex;flex-direction:column;align-items:flex-start;text-align:left;
+  gap:11px;width:100%;min-height:165px;padding:20px;border:1px solid #345569;border-radius:11px;
+  background:#122c3d;color:#e5f5f9;cursor:pointer;font:inherit}
+.planning-choice:hover{border-color:#84ddd0;background:#1a3b4a}
+.planning-choice.selected{border-color:#61e7d3;box-shadow:inset 0 3px #61e7d3;background:#1b4148}
+.planning-choice:focus-visible{outline:3px solid #94ffe7;outline-offset:3px}
+.planning-choice strong{font-size:17px;line-height:1.35}
+.planning-choice small{font-size:12px;color:#b0c6d2;line-height:1.55}
+.planning-choice em{font-style:normal;font-size:10px;letter-spacing:.04em;color:#f4d2a0;margin-top:auto}
+.planning-status{border:1px solid #426277;border-radius:9px;padding:13px 16px;font-size:13px;
+  color:#d6e7f0;background:#102639;line-height:1.6}
+.planning-workspace-header{display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap;margin:20px 0 12px}
+.planning-workspace-header p{font-size:12px;color:#b0c8d4;margin:0}
+.planning-frame-wrap{border:1px solid #34566c;border-radius:10px;overflow:hidden;background:#0c1c29}
+.planning-frame{display:block;width:100%;height:clamp(660px,80vh,1020px);border:0;background:#f3f6fb}
+.planning-frame[hidden]{display:none!important}
+.planning-empty{border:1px dashed #4b6c7d;border-radius:9px;padding:25px;color:#b5ccd5;text-align:center}
+.planning-safety{border-left:3px solid #efbd77;background:#3f3223;color:#f1d9b0;padding:14px 18px;
+  margin:18px 0;font-size:13px;line-height:1.7}
+.planning-safety strong{display:block;margin-bottom:4px}
+@media(max-width:920px){.planning-flow{grid-template-columns:1fr}.planning-choice{min-height:0;padding:15px;gap:7px}.planning-frame{height:720px}}
+@media(max-width:580px){.planning-frame{height:680px}.planning-workspace-header{align-items:flex-start}}
+@media(prefers-reduced-motion:reduce){.planning-choice{transition:none}}
