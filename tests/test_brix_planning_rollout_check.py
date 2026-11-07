@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import importlib.util
-import io
 import json
 import tempfile
 import unittest
@@ -16,8 +15,31 @@ assert spec.loader is not None
 spec.loader.exec_module(checker)
 
 
-class FakeResponse(io.BytesIO):
-    status = 200
+class FakeResponse:
+    def __init__(self, body, status=200):
+        self.body = body
+        self.status = status
+
+    def read(self, _limit):
+        return self.body
+
+
+class FakeConnection:
+    def __init__(self, _bind, _port, timeout=5):
+        self.route = None
+        self.closed = False
+
+    def request(self, method, route, headers):
+        assert method == "GET"
+        self.route = route
+
+    def getresponse(self):
+        if self.route == "/api/health":
+            return FakeResponse(b'{"readOnly":true,"status":"online"}')
+        return FakeResponse(b"<html><title>Old Portal</title></html>")
+
+    def close(self):
+        self.closed = True
 
 
 class BrixPlanningRolloutCheckTests(unittest.TestCase):
@@ -93,15 +115,19 @@ class BrixPlanningRolloutCheckTests(unittest.TestCase):
                     checker.runtime_context()
 
     def test_http_check_rejects_stale_planning_page(self):
-        def fake_open(url, timeout):
-            if url.endswith("/api/health"):
-                return FakeResponse(b'{"readOnly":true,"status":"online"}')
-            return FakeResponse(b"<html><title>Old Portal</title></html>")
-
-        with patch.object(checker, "urlopen", side_effect=fake_open):
+        # HTTPConnection cannot follow redirects or honor an environment proxy.
+        with patch.object(checker, "HTTPConnection", FakeConnection):
             checker.http_check("192.168.178.50", 4001, post=False)
             with self.assertRaisesRegex(checker.Refusal, "Portal-HTTP-Asset fehlt/alt"):
                 checker.http_check("192.168.178.50", 4001, post=True)
+
+    def test_http_redirect_is_not_followed(self):
+        class RedirectConnection(FakeConnection):
+            def getresponse(self):
+                return FakeResponse(b"", status=302)
+        with patch.object(checker, "HTTPConnection", RedirectConnection):
+            with self.assertRaisesRegex(checker.Refusal, "HTTP nicht 200"):
+                checker.fetch_local("192.168.178.50", 4001, "/cloud-api2.html")
 
 
 if __name__ == "__main__":
