@@ -46,7 +46,7 @@ function headEvidence(v){
   const at=stamp(v.lastModified);
   return at===null?null:{size:v.size,etag:v.etag,lastModified:at};
 }
-function createPilotMediaStore(db,{clock=()=>Date.now()}={}){
+function createPilotMediaStore(db,{clock=()=>Date.now(),djiNames=false}={}){
   requireDb(db);
   if(typeof clock!=='function')throw new TypeError('Media clock required');
   function now(){
@@ -109,6 +109,17 @@ function createPilotMediaStore(db,{clock=()=>Date.now()}={}){
       const item=parseUploadCallback(callback);
       if(!item)throw new TypeError('Invalid Pilot media callback');
       if(!item.uploaded)return {status:'failed-upload'};
+      // With DJI names (pilot-media-rename.js, migration 007) a confirmed object may already have been renamed: a repeated
+      // callback for its original key is answered from the record instead of a HEAD on the (now absent) original.
+      if(djiNames){
+        const renamed=await db.query(
+          'SELECT file_name,fingerprint FROM dji_pilot_media_verified WHERE workspace_id=$1 AND pilot_object_key=$2',
+          [workspace,item.objectKey]);
+        if(renamed.rows.length===1){
+          const row=renamed.rows[0];
+          return {status:row.file_name===item.name&&row.fingerprint===(item.fingerprint??null)?'duplicate':'conflict'};
+        }
+      }
       // Callback metadata, supplied size and supplied checksum are NOT trusted.
       const granted=await grantedObject(workspace,item.objectKey,headObject);
       if(granted.status!=='verified')return {status:granted.status};

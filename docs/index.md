@@ -130,6 +130,7 @@ Diese Dokumente waren bisher nur über Suche oder PR-Beschreibungen erreichbar. 
 - [DJI Thermal SDK 1.9: isolierter Pi-5-A/B-Vergleich gegen SDK 1.7 (kein Upgrade)](thermal-tsdk19-parity.md)
 - [DJI Pilot 2 – isolierte HTTPS-Medienendpunkte](dji-pilot2-media-https-api.md)
 - [DJI Pilot 2 Media STS – isolierte HTTPS-Autorisierungsgrenze](dji-pilot2-media-sts-boundary.md)
+- [DJI Pilot 2 – originale DJI-Dateinamen im Bucket (Umbenennung nach der Upload-Bestätigung, Migration 007)](pilot-media-dji-names.md)
 - [SkyHub Next – Verifizierte DJI-Pilot-2-Medienbibliothek (Read-only)](dji-pilot2-verified-media-library.md)
 - [DJI Pilot 2 – Persistente Medienregistrierung mit S3-Objektnachweis](dji-pilot2-verified-media-registration.md)
 - [SkyHub Next – Mediengalerie (31.10.2026)](media-gallery.md)

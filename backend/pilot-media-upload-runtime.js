@@ -8,6 +8,7 @@ const express=require('express');
 const {createMinioStsIssuer}=require('./minio-sts');
 const {createPilotMediaStsHandler}=require('./pilot-media-sts');
 const {createPilotMediaRouter}=require('./pilot-media-http');
+const {renameConfig,createRenameS3,createPilotMediaRenamer}=require('./pilot-media-rename');
 const {createPilotMediaStore,createRegisteredStsIssuer}=require('./pilot-media-store');
 const {createPilotMediaGroupStore}=require('./pilot-media-groups');
 const {createPilotMediaHttpAudit}=require('./pilot-media-http-audit');
@@ -34,7 +35,11 @@ function createPilotMediaUploadRuntime({env,pool,redis,authorize,storage,pilot,t
   if(env.SKYHUB_PILOT_UPLOAD_S3_ACCESS_KEY===env.SKYHUB_S3_ACCESS_KEY)
     throw new Error('Pilot uploads need their own MinIO account, not the read-only gallery account');
   const limiter=createPilotMediaRateLimiter(redis);
-  const store=createPilotMediaStore(pool);
+  // Original DJI file names in the bucket (pilot-media-rename.js; needs migration 007 and the rename account).
+  const names=renameConfig(env);
+  if(names.issue)log('[pilot media] DJI-Namen aus: '+names.issue);
+  const renamer=names.enabled?createPilotMediaRenamer({s3:createRenameS3(names),db:pool,workspace,log}):null;
+  const store=createPilotMediaStore(pool,{djiNames:!!renamer});
   const stats={grants:0,grantFailures:0};
   const registered=createRegisteredStsIssuer({issueGrant:issuer.issueGrant,store});
   const sts=createPilotMediaStsHandler({
@@ -52,7 +57,8 @@ function createPilotMediaUploadRuntime({env,pool,redis,authorize,storage,pilot,t
     audit:createPilotMediaHttpAudit(pool),store,
     groups:createPilotMediaGroupStore(pool),
     headObject:storage.headObject,
-    transaction:createPilotMediaMutationTransaction(pool)
+    transaction:createPilotMediaMutationTransaction(pool),
+    onVerified:renamer?key=>renamer.renameKey(key):null
   }));
   // DJI wayline library: Pilot 2 follows a presigned link to the same endpoint (see dji-wayline-http.js).
   const downloadBucket=env.SKYHUB_PILOT_WAYLINE_ENABLED==='true'&&env.SKYHUB_WPML_STORE_ENABLED==='true'?
@@ -68,7 +74,7 @@ function createPilotMediaUploadRuntime({env,pool,redis,authorize,storage,pilot,t
     endpoint:issuer.config.endpoint,
     start(){if(!server)server=proxy.listen(proxyPort);return server;},
     stop(){if(server){server.close();server=null;}},
-    stats:()=>({...stats,proxy:proxy.stats()}),
+    stats:()=>({...stats,djiNames:!!renamer,proxy:proxy.stats()}),
     // STS scope + HEAD evidence check, shared with the Pilot 2 wayline import (pilot-wayline-import.js).
     grants:Object.freeze({verifyGrantedObject:args=>store.verifyGrantedObject(args)})
   };
