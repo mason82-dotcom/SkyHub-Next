@@ -98,6 +98,10 @@ function drcScoped(patterns,account,role){
   return patterns.map(topic=>topic.replace('thing/product/+/', 'thing/product/'+sn+'/'));
 }
 function aclText(a){
+  // Validate each identity before comparing them: missing/invalid serials
+  // fail explicitly, and can never be silently converted to wildcard ACLs.
+  if(a.commander)drcScoped(COMMANDER_WRITE,a.commander,'commander');
+  if(a.drcLink)drcScoped(DRC_LINK_WRITE,a.drcLink,'drcLink');
   if(a.commander&&a.drcLink&&a.commander.gatewaySn!==a.drcLink.gatewaySn)
     throw new Error('DRC commander und drcLink müssen dieselbe RC-Seriennummer verwenden');
   const block=(user,write,read)=>[
