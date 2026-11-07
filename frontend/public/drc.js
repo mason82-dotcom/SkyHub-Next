@@ -117,9 +117,13 @@
   function render(s){
     state=s;
     const mine=s.operator===operator,active=s.phase==='drc_active',held=s.phase==='authorized'||active;
-    $('phase').textContent=PHASE[s.phase]||s.phase;$('phase').className=active?'bad':'';
+    const linkReady=Boolean(s.controlLink&&s.controlLink.ready);
+    const controlsReady=RCPRO||linkReady;
+    $('phase').textContent=active&&!controlsReady?'DRC-Modus · Rückkanal nicht bestätigt':(PHASE[s.phase]||s.phase);
+    $('phase').className=active?'bad':'';
     $('operator').textContent=s.operator?(mine?'du':'anderer Bediener'):'niemand';
-    $('link').textContent=s.broker+' · '+s.upLink+(s.latencyMs!=null?' · '+s.latencyMs+' ms':'');
+    $('link').textContent=s.broker+' · '+s.upLink+(s.latencyMs!=null?' · '+s.latencyMs+' ms':'')+
+      (active&&!controlsReady?' · FLUGBEFEHLE GESPERRT':'');
     const a=s.aircraft;
     $('aircraft').textContent=a?(a.model+' · '+a.sn):'kein Fluggerät an der RC';
     $('height').textContent=a&&Number.isFinite(a.heightAboveTakeoff)?a.heightAboveTakeoff.toFixed(1)+' m':'–';
@@ -129,6 +133,7 @@
     const notes=[];
     if(s.failsafe&&s.failsafe.pending)notes.push('Totmannschaltung: '+s.failsafe.reason);
     if(s.joystickInvalid)notes.push('Knüppel gesperrt: '+s.joystickInvalid.text);
+    if(active&&!controlsReady&&!RCPRO)notes.push('Steuerung gesperrt: '+(s.controlLink?.reason||'Nachweis fehlt'));
     if(s.lastError)notes.push(s.lastError);
     $('notice').textContent=notes.join(' · ')||'–';$('notice').className=notes.length?'bad':'';
     $('scale').textContent=Math.round((s.limits?.stickScale??0.5)*100);
@@ -137,11 +142,12 @@
     $('enter').disabled=s.phase!=='authorized'||!mine;
     $('exit').disabled=!active||!mine;
     $('release').disabled=s.phase==='idle';
-    $('flyto').disabled=!held||!mine;$('flystop').disabled=!((s.flyTo&&s.flyTo.active)||(s.takeoff&&s.takeoff.active));
-    $('takeoff').disabled=!held||!mine;
-    $('rth').disabled=!held;$('rthcancel').disabled=!held||!mine;
-    $('land').disabled=!active||!mine;$('estop').disabled=!(active||s.phase==='drc_pending');
-    renderPayload(s,active&&mine);
+    $('flyto').disabled=!held||!mine||!controlsReady;
+    $('flystop').disabled=!((s.flyTo&&s.flyTo.active)||(s.takeoff&&s.takeoff.active));
+    $('takeoff').disabled=!held||!mine||!controlsReady;
+    $('rth').disabled=!held;$('rthcancel').disabled=!held||!mine||!controlsReady;
+    $('land').disabled=!active||!mine||!controlsReady;$('estop').disabled=!(active||s.phase==='drc_pending');
+    renderPayload(s,active&&mine&&controlsReady);
     drawMap(s);
   }
 
@@ -201,7 +207,8 @@
   window.addEventListener('blur',()=>{dragHeld.clear();document.querySelectorAll('.gimbalpad .held').forEach(b=>b.classList.remove('held'));});
   setInterval(()=>{
     if(!dragHeld.size)return;
-    const live=state&&state.phase==='drc_active'&&state.operator===operator&&$('active').checked;
+    const live=state&&state.phase==='drc_active'&&(RCPRO||state.controlLink?.ready)&&
+      state.operator===operator&&$('active').checked;
     if(!live||!socket||!socket.connected)return;
     let yaw=0,pitch=0;for(const [y,p] of dragHeld.values()){yaw+=y;pitch+=p;}
     socket.emit('gimbal',{yaw:Math.max(-1,Math.min(1,yaw)),pitch:Math.max(-1,Math.min(1,pitch))});
@@ -260,7 +267,8 @@
     const {v,any}=readSticks();
     $('dotL').style.setProperty('--x',v.yaw);$('dotL').style.setProperty('--y',-v.throttle);
     $('dotR').style.setProperty('--x',v.roll);$('dotR').style.setProperty('--y',-v.pitch);
-    const live=state&&state.phase==='drc_active'&&state.operator===operator&&$('active').checked;
+    const live=state&&state.phase==='drc_active'&&(RCPRO||state.controlLink?.ready)&&
+      state.operator===operator&&$('active').checked;
     $('stickstate').textContent=live?(any?'sendet':'bereit'):'aus';
     // Nur bei Eingabe senden; der Server ergänzt neutral und hört nach kurzer Zeit ohne Eingabe auf (Fluggerät bremst).
     if(!RCPRO&&live&&any&&socket&&socket.connected)socket.emit('stick',v);
