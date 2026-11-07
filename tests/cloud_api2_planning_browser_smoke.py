@@ -77,6 +77,8 @@ def run():
                 guard(page, base, unexpected)
                 page.goto(base + "/cloud-api2.html#planning", wait_until="domcontentloaded")
                 page.locator('#view-planning:not([hidden])').wait_for(timeout=12000)
+                check("MANUELLES SPEICHERN" in page.locator("#portalModeBadge").inner_text(),
+                      "Planning tab incorrectly claims global read-only mode")
                 check(page.locator('button[data-planning-tool]').count() == 3,
                       "Expected three canonical planning choices")
                 initial = page.evaluate("""() => [...document.querySelectorAll('.planning-frame')]
@@ -137,6 +139,16 @@ def run():
                 check(unexpected == [], "Unexpected non-GET browser traffic: " + str(unexpected))
                 if width in (390, 1440):
                     page.screenshot(path=str(ARTIFACTS / f"planning-{width}.png"), full_page=True)
+                # Navigation away and back restores the correct header mode and
+                # does not silently destroy the open planning document.
+                page.locator('nav[aria-label="Portalnavigation"] button[data-view="overview"]').click()
+                check(page.locator("#portalModeBadge").inner_text() == "● READ ONLY",
+                      "Read-only badge must be restored for observation views")
+                page.locator('nav[aria-label="Portalnavigation"] button[data-view="planning"]').click()
+                check("MANUELLES SPEICHERN" in page.locator("#portalModeBadge").inner_text(),
+                      "Reopened planner incorrectly claims global read-only mode")
+                check(route_name.input_value() == transient_name,
+                      "Portal navigation destroyed an unsaved in-memory draft")
                 print(f"PASS: planning iframe, routes, fallback, responsive {width}px; no writes")
                 context.close()
 
