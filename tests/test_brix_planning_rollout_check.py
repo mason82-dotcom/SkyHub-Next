@@ -121,6 +121,48 @@ class BrixPlanningRolloutCheckTests(unittest.TestCase):
             with self.assertRaisesRegex(checker.Refusal, "Portal-HTTP-Asset fehlt/alt"):
                 checker.http_check("192.168.178.50", 4001, post=True)
 
+    def test_postflight_accepts_byte_identical_delivered_assets(self):
+        class CurrentConnection(FakeConnection):
+            def getresponse(self):
+                if self.route == "/api/health":
+                    return super().getresponse()
+                source = checker.ROOT / "frontend/public" / self.route.lstrip("/")
+                return FakeResponse(source.read_bytes())
+
+        with patch.object(checker, "HTTPConnection", CurrentConnection):
+            checker.http_check("192.168.178.50", 4001, post=True)
+
+    def test_postflight_rejects_old_build_even_when_all_markers_exist(self):
+        class StaleConnection(FakeConnection):
+            def getresponse(self):
+                if self.route == "/api/health":
+                    return super().getresponse()
+                source = checker.ROOT / "frontend/public" / self.route.lstrip("/")
+                body = source.read_bytes()
+                if self.route == "/cloud-api2-planning.mjs":
+                    # The expected UI markers remain present, but the bytes
+                    # are no longer those of the checked-out source revision.
+                    body += b"\\n// old image, unchanged required markers\\n"
+                return FakeResponse(body)
+
+        with patch.object(checker, "HTTPConnection", StaleConnection):
+            with self.assertRaisesRegex(checker.Refusal, "weicht von Source ab: /cloud-api2-planning.mjs"):
+                checker.http_check("192.168.178.50", 4001, post=True)
+
+    def test_postflight_rejects_invalid_utf8_from_web_asset(self):
+        class CorruptConnection(FakeConnection):
+            def getresponse(self):
+                if self.route == "/api/health":
+                    return super().getresponse()
+                source = checker.ROOT / "frontend/public" / self.route.lstrip("/")
+                if self.route == "/cloud-api2.html":
+                    return FakeResponse(source.read_bytes() + b"\\xff")
+                return FakeResponse(source.read_bytes())
+
+        with patch.object(checker, "HTTPConnection", CorruptConnection):
+            with self.assertRaises(UnicodeDecodeError):
+                checker.http_check("192.168.178.50", 4001, post=True)
+
     def test_http_redirect_is_not_followed(self):
         class RedirectConnection(FakeConnection):
             def getresponse(self):
