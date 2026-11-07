@@ -35,6 +35,17 @@ function plainObjectPath(url){
   try{decoded=decodeURIComponent(path);}catch(_err){return false;}
   return !decoded.slice(1).split('/').some(segment=>segment===''||segment==='.'||segment==='..');
 }
+// S3 operation behind a request, for diagnostics only (no object names).
+function requestKind(method,url){
+  const query=String(url).split('?')[1]||'';
+  const keys=new Set(query.split('&').map(p=>p.split('=')[0]));
+  if(method==='POST'&&keys.has('uploads'))return 'CreateMultipartUpload';
+  if(method==='POST'&&keys.has('uploadId'))return 'CompleteMultipartUpload';
+  if(method==='PUT'&&keys.has('uploadId'))return 'UploadPart';
+  if(method==='PUT')return 'PutObject';
+  if(method==='POST')return 'PostObject';
+  return method==='HEAD'?'HeadObject':'GetObject';
+}
 function forwardHeaders(headers){
   const out={};
   for(const [name,value] of Object.entries(headers)){
@@ -68,9 +79,24 @@ function createS3UploadProxy({target,workspace,trustedProxyIps,downloadBucket=nu
     },response=>{
       stats.forwarded++;stats.lastAt=new Date().toISOString();
       res.writeHead(response.statusCode,forwardHeaders(response.headers));
+      if(response.statusCode>=400){
+        // Only method, request kind, status and the S3 error code (e.g. EntityTooSmall):
+        // never keys, tokens, signatures or object names.
+        let head='';
+        response.on('data',chunk=>{if(head.length<2048)head+=chunk.toString('utf8',0,2048-head.length);});
+        response.on('end',()=>{
+          const code=(/<Code>([A-Za-z0-9]{1,64})<\/Code>/.exec(head)||[])[1]||'-';
+          // Header NAMES only (x-amz-*), never values: shows which optional S3 features the
+          // client requests (tagging, checksums, storage class ...).
+          const amz=Object.keys(req.headers).filter(h=>/^x-amz-[a-z0-9-]{1,48}$/.test(h)&&!/security-token|credential|signature/.test(h)).sort().join(',');
+          const q=String(url).split('?')[1]||'';
+          const auth=req.headers.authorization?'header':/X-Amz-Signature=/.test(q)?'query':'none';
+          const token=req.headers['x-amz-security-token']?'header':/X-Amz-Security-Token=/.test(q)?'query':'none';
+          log('[s3 upload] '+req.method+' '+requestKind(req.method,url)+' -> HTTP '+response.statusCode+' '+code+
+            ' auth='+auth+' token='+token+' session='+((/\/media\/([0-9a-f]{8})[0-9a-f]{24}\//.exec(url)||[])[1]||'-')+(amz?' headers '+amz:''));
+        });
+      }
       response.pipe(res);
-      // Only status and method: never keys, tokens or signatures.
-      if(response.statusCode>=400)log('[s3 upload] '+req.method+' -> HTTP '+response.statusCode);
     });
     outbound.on('error',()=>{
       stats.failed++;
@@ -91,4 +117,4 @@ function createS3UploadProxy({target,workspace,trustedProxyIps,downloadBucket=nu
   return {handler,listen,stats:()=>({...stats})};
 }
 
-module.exports={createS3UploadProxy,uploadPath,downloadPath,plainObjectPath};
+module.exports={createS3UploadProxy,uploadPath,downloadPath,plainObjectPath,requestKind};

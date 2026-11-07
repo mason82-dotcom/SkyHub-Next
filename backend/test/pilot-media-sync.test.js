@@ -193,3 +193,12 @@ test('S3 proxy passes presigned wayline downloads only when enabled, Host unchan
     assert.equal(received.length,2);
   }finally{off.close();on.close();minio.close();}
 });
+
+test('S3 proxy diagnostics: request kind and S3 error code only', () => {
+  const {requestKind}=require('../s3-upload-proxy');
+  assert.equal(requestKind('POST','/dji-cloud/ws/media/x/a.MP4?uploads'),'CreateMultipartUpload');
+  assert.equal(requestKind('POST','/dji-cloud/ws/media/x/a.MP4?uploadId=abc'),'CompleteMultipartUpload');
+  assert.equal(requestKind('PUT','/dji-cloud/ws/media/x/a.MP4?partNumber=1&uploadId=abc'),'UploadPart');
+  assert.equal(requestKind('PUT','/dji-cloud/ws/media/x/a.JPG'),'PutObject');
+  assert.equal(requestKind('POST','/dji-cloud/ws/media/x/a.JPG'),'PostObject');
+});
