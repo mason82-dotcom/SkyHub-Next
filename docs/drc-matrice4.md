@@ -142,6 +142,13 @@ konfigurierte, überprüfte `SKYHUB_DRC_GATEWAY_SN`. Ein Konto für die RC
 voneinander ab, bricht die ACL-Generierung ab. Allgemeine Pilot-2- und
 Leserechte sind hiervon nicht betroffen.
 
+**Wichtig bei Altinstallationen:** `scripts/brix-drc-setup.sh` beendet sich
+absichtlich ohne Änderung, wenn der Benutzer `skyhub_commander` bereits in
+der ACL steht. Vor einer späteren Aktivierung muss daher eine vorhandene
+DRC-ACL manuell auf `thing/product/<RC-SN>/...` überprüft und gegebenenfalls
+mit Sicherung und gesonderter Betreiberfreigabe migriert werden. Ein bloßes
+Update dieses Scripts ändert eine bestehende Broker-ACL **nicht**.
+
 **Grenze:** Dieser Test beweist MQTT-Zugriffsrechte und Transportverhalten
 des lokalen Labor-Brokers. Er beweist keine sichere Rückgabe einer echten
 Flugsteuerung bei WLAN-/WAN-Ausfall. Auch nach erfolgreicher CI gilt
