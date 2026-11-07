@@ -138,3 +138,13 @@ test('configuration fails at start-up, not at login',()=>{
   assert.throws(()=>createWpmlOperatorIssuer({...base,operatorIssuer:OPERATOR_ISSUER+'/'}),/trailing slash/);
   assert.throws(()=>createWpmlOperatorIssuer({...base,workspaces:{'Bad Name':WS}}),/Invalid workspace/);
 });
+
+test('real Forgejo 17 shape (probed 07.11.2026): iss without trailing slash, aud as one-element list',async()=>{
+  const bare=PROVIDER.replace(/\/$/,'');
+  const ctx=setup({claims:{iss:bare,aud:['skyhub-wpml']},groups:['skyhub','skyhub:ws-farm-operator'],
+    discoveryOverride:{issuer:bare,authorization_endpoint:bare+'/login/oauth/authorize',
+      token_endpoint:bare+'/login/oauth/access_token',jwks_uri:bare+'/login/oauth/keys'}});
+  const out=await login(ctx);
+  assert.equal(out.role,'operator');
+  assert.ok(await ctx.verify(out.token));
+});

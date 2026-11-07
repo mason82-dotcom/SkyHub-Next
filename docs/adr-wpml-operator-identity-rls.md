@@ -105,7 +105,19 @@ ein späterer Wechsel A → B nur Konfiguration.
   ohne Befund ab Vertrauen 8. Sitzungsdauer standardmäßig 1 h: `reissue()` prüft die Team-Mitgliedschaft nicht erneut,
   eine Entfernung aus dem Forgejo-Team wirkt also spätestens nach einer Sitzung (sofort: `revoke()`).
 
-### Schritt 4: Forgejo einrichten (Betreiber)
+### Schritt 4: Forgejo einrichten – erledigt am 07.11.2026
+
+Eingerichtet: Organisation `skyhub` (privat), Teams `ws-pilot-operator` und `ws-pilot-admin` ohne Repository-Zugriff
+(mason ist Admin), OAuth2-Anwendung „SkyHub WPML“ (vertraulich, Weiterleitung
+`https://rpi5.fritz.box:4443/wpml/oidc/callback`). Client-ID/Secret liegen auf brix-node in
+`~/.config/skyhub-wpml/oidc-client.json` (0600). Workspace `pilot` = `SKYHUB_PILOT_WORKSPACE_ID`.
+
+Nachweis mit einem temporären Testkonto (danach gelöscht), echter Code-Flow mit PKCE: ID-Token RS256 mit `kid`,
+`iss` = `https://rpi5-pironman.tailf59dac.ts.net:9445` (ohne Schrägstrich), `aud` = Liste mit der Client-ID, `nonce`
+korrekt, `groups` = `["skyhub","skyhub:ws-pilot-operator"]`. Hinweis: Forgejo setzt Secure-Cookies; der Browser muss
+die HTTPS-Adresse aus `ROOT_URL` nutzen.
+
+Ursprüngliche Anleitung:
 
 1. **Organisation** anlegen, z. B. `skyhub` (Wert für `oidc.organization`).
 2. Je Workspace zwei **Teams**: `ws-<workspace>-operator` und `ws-<workspace>-admin` (Workspace-Name 3–32 Zeichen,
