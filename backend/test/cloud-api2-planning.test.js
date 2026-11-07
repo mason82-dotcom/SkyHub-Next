@@ -31,6 +31,7 @@ function fixture(){
     url:origin+['/wpml-editor.html','/wpml-survey-preview.html','/wpml-route-library.html'][i],
   }));
   const status=node('planningStatus'),open=node('planningOpenFull'),empty=node('planningEmpty');
+  empty.hidden=false;
   const all=[...frames,status,open,empty];
   const doc={
     location:{href:origin+'/cloud-api2.html#planning'},
@@ -81,11 +82,12 @@ test('explicit activation lazy-loads one approved tool, retains hidden workspace
   const ui=initPlanningWorkspace(doc);
   assert.ok(ui);
   assert.equal(ui.getActive(),null);
-  assert.equal(empty.hidden,true); // hidden only when user activates
+  assert.equal(empty.hidden,false); // placeholder remains until explicit choice
   for(const frame of frames)assert.equal(frame.getAttribute('src'),null);
   assert.equal(ui.activate('invalid-tool'),false);
   assert.equal(ui.getActive(),null);
   buttons[0].emit('click');
+  assert.equal(empty.hidden,true);
   assert.equal(ui.getActive(),'editor');
   assert.equal(open.href,'/wpml-editor.html');
   assert.equal(frames[0].getAttribute('src'),'/wpml-editor.html');
