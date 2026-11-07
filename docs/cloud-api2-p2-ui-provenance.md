@@ -4,7 +4,7 @@
 Angewandt: `frontend-design` und `frontend-design-premium`. Bestehende SkyHub-Tokens, UI-Verträge und GET-only-Grenzen bleiben maßgeblich. Die P2-Styles erweitern nur das isolierte Portal `cloud-api2.html`; keine globale Operator-Theme-Migration.
 
 ## Implementiert
-- DE/EN-Sprachumschalter für den neuen Datenherkunfts- und Vergleichsbereich; keine persistierten Spracheinstellungen.
+- DE/EN-Sprachumschalter **nur** für den neuen Datenherkunfts- und Vergleichsbereich; `lang` wird auf die lokalisierten Elemente gesetzt. Die unveränderten deutschsprachigen Portalbereiche bleiben als `html[lang=de]` ausgezeichnet. Keine persistierten Spracheinstellungen.
 - Mobile horizontale Tastatur-/Touch-Navigation bei ≤900px, einspaltige Karten bei ≤520px und horizontal bedienbare Vergleichstabelle.
 - Permanenter, sichtbarer Hinweis `DJI DevKit BRIX: MOCK` auf jeder Portalansicht.
 - Statische, strikt getrennte Vergleichsmatrix für Geräte, OSD/Telemetrie, Missionen und Medien. DJI-Demowerte 128 Routen / 128 Medien sind im Hersteller-Mock fest codiert; keine Abfrage des BRIX.
@@ -18,9 +18,11 @@ Angewandt: `frontend-design` und `frontend-design-premium`. Bestehende SkyHub-To
 
 ## Prüfung
 ```bash
-node --test backend/test/cloud-api2-p2-ui.test.mjs
+node --test backend/test/cloud-api2-p2-ui.test.js
 node --check frontend/public/cloud-api2-p2-ui.mjs
 ```
+Der neue CommonJS-Test liegt in `backend/test/*.test.js` und läuft dadurch in der bestehenden CI automatisch mit. Neben statischen Verträgen prüft er den tatsächlichen Sprachwechsel mit einer isolierten synthetischen DOM-Testumgebung. Er ersetzt keinen echten Browser.
+
 Zusätzlich erforderlich: echte Browser-Smokes bei 320, 390, 834, 1440px, Tastaturfokus, Tab-Navigation, DE/EN-Wechsel, fehlende Live-Daten, P1 GET-Inspektion und kein unerwarteter horizontaler Body-Overflow. Diese Prüfungen sind nicht durch statische Tests ersetzt.
 
 ## BRIX-Betrieb
