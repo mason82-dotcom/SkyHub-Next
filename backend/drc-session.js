@@ -136,7 +136,7 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
     triggerFailsafe('Bediener nicht mehr verbunden');
   }
   function triggerFailsafe(reason){
-    if(s.phase==='idle'||s.phase==='auth_pending')return;
+    if(s.phase==='idle'||s.phase==='auth_pending'||s.failsafe?.pending)return;
     s.lastStick=null;
     s.failsafe={reason,at:now(),pending:true};
     log('failsafe',{reason});
