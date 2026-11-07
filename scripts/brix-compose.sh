@@ -9,6 +9,8 @@ command -v docker >/dev/null || { echo "docker fehlt" >&2; exit 2; }
 files=(-f docker-compose.yml -f docker-compose.brix.yml)
 [[ -f docker-compose.override.yml ]] && files+=(-f docker-compose.override.yml)
 if grep -qx 'SKYHUB_LIVE_ENABLED=true' .env && [[ -f docker-compose.live.yml ]]; then files+=(-f docker-compose.live.yml); fi
+# ADR-001 operator login + central route library: only with the explicit switch in .env.
+if grep -qx 'SKYHUB_WPML_CENTRAL=1' .env && [[ -f docker-compose.wpml-central.brix.yml ]]; then files+=(-f docker-compose.wpml-central.brix.yml); fi
 compose=(docker compose -p skyhub-next --env-file .env "${files[@]}" --profile thermal-sdk)
 grep -q "^SKYHUB_TERRAIN_URL=." .env && compose+=(--profile terrain)
 grep -q "^SKYHUB_PPK_URL=." .env && compose+=(--profile ppk)

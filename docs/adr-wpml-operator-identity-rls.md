@@ -164,5 +164,19 @@ SKYHUB_WPML_WORKSPACES=pilot=<SKYHUB_PILOT_WORKSPACE_ID>
 SKYHUB_WPML_CENTRAL_ORIGINS=https://rpi5.fritz.box:4443
 ```
 
-Vor dem Einschalten auf brix-node: Migrationen 003–005 mit Admin-Rechten, `skyhub_wpml_provision_workspace(<pilot>)`,
-Login-Rolle für `skyhub_wpml_app` mit eigenem Passwort, Secrets-Datei erzeugen, Container-Mount der beiden Dateien.
+Einrichtung auf brix-node (im Stack-Ordner `/srv/stacks/skyhub-next`, als uid 1000):
+
+```
+bash scripts/brix-wpml-central-setup.sh            # nur prüfen, ändert nichts
+bash scripts/brix-wpml-central-setup.sh --apply    # pg_dump-Backup, 003–005 in einer Transaktion,
+                                                   # provision_workspace(pilot), Login für skyhub_wpml_app,
+                                                   # ~/.config/skyhub-wpml/central.json (0600), .env-Einträge
+echo SKYHUB_WPML_CENTRAL=1 >> .env && bash scripts/brix-compose.sh up -d --no-deps --no-build backend
+```
+
+`--apply` schaltet nichts ein und startet nichts neu. `scripts/brix-compose.sh` nimmt
+`docker-compose.wpml-central.brix.yml` (Umgebung + schreibgeschützte Mounts der beiden Secrets-Dateien) nur bei der Zeile
+`SKYHUB_WPML_CENTRAL=1` in `.env` dazu. Zurück: Zeile entfernen, denselben `up`-Befehl ausführen; Tabellen und Rollen
+bleiben dann ungenutzt liegen. Der Check prüft auch, ob der Backend-Container die Forgejo-Discovery unter der
+Tailscale-Adresse erreicht. Der Browser des Operators muss diese Adresse ebenfalls erreichen (Tailscale aktiv).
+Offen danach: Oberfläche im Planungsreiter, die `/wpml-central/*` nutzt (bisher nur die API).
