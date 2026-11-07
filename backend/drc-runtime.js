@@ -70,7 +70,7 @@ function aircraftFromRegistry(registry,gateway,variant='rc-plus-2'){
   };
 }
 
-function createDrcRuntime({config,registry,pool,io,express,mqttConnect,socketAuth,lanSocket=()=>false,log=console}){
+function createDrcRuntime({config,registry,pool,io,express,mqttConnect,socketAuth,lanSocket=()=>false,log=console,clock}){
   const variant=config.variant||'rc-plus-2';
   const audit=entry=>{
     const {gateway,action,...detail}=entry;
@@ -96,7 +96,7 @@ function createDrcRuntime({config,registry,pool,io,express,mqttConnect,socketAut
     lastEmit=t;nsp.emit('drc',status());
   };
   const session=createDrcSession({gateway:gw,variant,aircraft:aircraftFromRegistry(registry,gw,variant),limits:config.limits,audit,
-    onChange:broadcast,userCallsign:config.userCallsign,transportReady:()=>connected,
+    onChange:broadcast,userCallsign:config.userCallsign,transportReady:()=>connected,...(clock?{clock}:{}),
     // services and events_reply: QoS 1 (must arrive); DRC down (sticks 10 Hz, heartbeat): QoS 0 as DJI's latency-oriented link.
     publishService:(g,m)=>publish(topics.services,m,1),
     publishDrc:(g,m)=>publish(topics.drcDown,m,0),
