@@ -114,6 +114,19 @@ def run():
                       "Original route library revision action missing")
                 check(page.locator("#planningOpenFull").get_attribute("href") == "/wpml-route-library.html",
                       "Library direct-link fallback drifted")
+                # Modify a local, unsaved input; selection changes must not recreate
+                # the library iframe or implicitly persist/send anything.
+                route_name = page.frame_locator("#planningFrame-library").locator("#route-name")
+                transient_name = "Unsaved offline UI test – do not publish"
+                route_name.fill(transient_name)
+                page.locator('button[data-planning-tool="editor"]').click()
+                page.locator('button[data-planning-tool="library"]').click()
+                check(route_name.input_value() == transient_name,
+                      "Unsaved in-memory route name was lost after switching tools")
+                check(page.locator("#planningFrame-library").get_attribute("src") ==
+                      "/wpml-route-library.html", "Library iframe reloaded on re-selection")
+                check(page.locator('button[data-planning-tool="library"]').get_attribute("aria-pressed")
+                      == "true", "Library selection was not restored")
                 overflow = page.evaluate("""() => ({
                     width: window.innerWidth, scroll: document.documentElement.scrollWidth,
                     active: document.querySelectorAll('[data-planning-tool][aria-pressed="true"]').length,
@@ -126,6 +139,58 @@ def run():
                     page.screenshot(path=str(ARTIFACTS / f"planning-{width}.png"), full_page=True)
                 print(f"PASS: planning iframe, routes, fallback, responsive {width}px; no writes")
                 context.close()
+
+            # Real Chromium keyboard acceptance: Enter activates a native button.
+            context = browser.new_context(viewport={"width": 834, "height": 900})
+            page = context.new_page()
+            unexpected = []
+            guard(page, base, unexpected)
+            page.goto(base + "/cloud-api2.html#planning", wait_until="domcontentloaded")
+            button = page.locator('button[data-planning-tool="editor"]')
+            button.focus()
+            check(button.evaluate("(element) => element === document.activeElement"),
+                  "Planning button must be keyboard-focusable")
+            page.keyboard.press("Enter")
+            page.locator("#planningStatus").filter(has_text="geladen. Entwurfs-").wait_for(timeout=15000)
+            check(button.get_attribute("aria-pressed") == "true",
+                  "Keyboard activation did not select editor")
+            check(unexpected == [], "Unexpected browser writes in keyboard test")
+            print("PASS: Enter-key selection and focusable controls")
+            context.close()
+
+            # Chromium touch emulation: genuine tap on a mobile-sized viewport.
+            context = browser.new_context(viewport={"width": 390, "height": 844},
+                                          is_mobile=True, has_touch=True, device_scale_factor=1)
+            page = context.new_page()
+            unexpected = []
+            guard(page, base, unexpected)
+            page.goto(base + "/cloud-api2.html#planning", wait_until="domcontentloaded")
+            page.locator('button[data-planning-tool="area"]').tap()
+            page.locator("#planningStatus").filter(has_text="geladen. Entwurfs-").wait_for(timeout=15000)
+            check(page.locator('button[data-planning-tool="area"]').get_attribute("aria-pressed")
+                  == "true", "Touch selection did not activate area planner")
+            check(unexpected == [], "Unexpected browser writes in touch test")
+            print("PASS: touch tap on mobile-sized viewport")
+            context.close()
+
+            # A real frame-ancestors denial must never produce a ready indication.
+            context = browser.new_context(viewport={"width": 390, "height": 844})
+            page = context.new_page()
+            unexpected = []
+            guard(page, base, unexpected)
+            page.route(base + "/wpml-route-library.html",
+                       lambda route: route.fulfill(status=200, headers={
+                           "content-type": "text/html",
+                           "content-security-policy": "frame-ancestors 'none'"
+                       }, body="<title>Routenbibliothek · SkyHub</title>"))
+            page.goto(base + "/cloud-api2.html#planning", wait_until="domcontentloaded")
+            page.locator('button[data-planning-tool="library"]').click()
+            page.locator("#planningStatus").filter(has_text="UNBEKANNT").wait_for(timeout=15000)
+            check(page.locator("#planningOpenFull").get_attribute("href") == "/wpml-route-library.html",
+                  "CSP rejection must retain the canonical fallback link")
+            check(unexpected == [], "Unexpected browser writes in CSP rejection test")
+            print("PASS: CSP frame-ancestors denial fails closed")
+            context.close()
 
             context = browser.new_context(viewport={"width": 390, "height": 844})
             page = context.new_page()
