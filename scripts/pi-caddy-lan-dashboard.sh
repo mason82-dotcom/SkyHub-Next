@@ -34,7 +34,8 @@ rpi5.fritz.box:${PORT}, ${PI_IP}:${PORT} {
 	header {
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "no-referrer"
-		X-Frame-Options "DENY"
+		# SAMEORIGIN: the planning tab of cloud-api2.html embeds the WPML tools from the same origin.
+		X-Frame-Options "SAMEORIGIN"
 		-Server
 		-Via
 	}
