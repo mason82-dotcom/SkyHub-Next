@@ -11,6 +11,14 @@ Dienste werden weder neu erstellt noch migriert.
 - **DRC bleibt ausgeschaltet**: nur wenn `SKYHUB_DRC_ENABLED=false` sowohl in
   der lokalen Konfiguration als auch im effektiven Compose-Profil und im
   tatsächlich laufenden Backend-Container belegt ist. Andernfalls **STOP**.
+- **Nur freigegebene Netzports**: `preflight` und `postflight` prüfen sowohl
+  die aufgelöste Compose-Konfiguration als auch die tatsächlichen Docker-
+  Portbindungen. Zulässig sind ausschließlich Backend 4000→4001 (bzw.
+  `SKYHUB_HTTP_PORT`), S3-Proxy 4002→4002 (bzw.
+  `SKYHUB_S3_UPLOAD_PROXY_HOST_PORT`) und Mosquitto 1884→1884 auf derselben
+  expliziten **RFC1918-IPv4** (`SKYHUB_BRIX_BIND`). Postgres/Redis dürfen
+  keine Hostports veröffentlichen. Zusätzliche oder öffentliche Bindings:
+  **STOP**, auch wenn daneben ein korrektes Binding existiert.
 - Kein Flug, kein aktiver Operator-Lease, kein RC-Kontrollübergang im Updatefenster.
   Ein Backend-Neustart kann laufende Datenpfade unterbrechen; sichere RC-Rückgabe
   ist bei Transportverlust nicht garantiert.
@@ -21,8 +29,8 @@ Dienste werden weder neu erstellt noch migriert.
   `source` prüft nur lokale Dateien, `preflight` den BRIX-Baselinezustand,
   `postflight` zusätzlich die ausgelieferten Assets. Diese müssen nicht nur die erwarteten
   UI-Marker enthalten, sondern **bytegenau (SHA-256)** mit den lokalen Dateien übereinstimmen.
-  Zusätzlich verifiziert `postflight` die im laufenden Backend-Container enthaltenen
-  sämtliche Top-Level-JavaScript-/Paketmanifest-Dateien (Bestand dynamisch
+  Zusätzlich verifiziert `postflight` sämtliche Top-Level-JavaScript- und
+  Paketmanifest-Dateien im laufenden Backend-Container (Bestand dynamisch
   aus dem Checkout ermittelt) per `docker exec … sha256sum` gegen die lokalen Quelldateien.
   Dieses `docker exec` startet nur einen kurzlebigen lesenden Hash-Prozess;
   es ruft keinerlei SkyHub-Endpunkt oder DJI-Steuerbefehl auf.
@@ -60,9 +68,10 @@ python3 scripts/brix-planning-rollout-check.py --mode preflight
 
 Der Check verlangt u. a. Linux x86-64, `main` == lokal bekanntes
 `origin/main`, unveränderte getrackte Dateien, private `.env`, eine
-RFC1918-LAN-Bind-Adresse, Compose-Backend-Port 4000→4001 (oder den
-konfigurierten Port), laufendes/DRC-deaktiviertes Backend, Postgres, Redis und
-Mosquitto, auflösbares altes Docker-Image und `/api/health`.
+explizite RFC1918-LAN-Bind-Adresse (kein Link-Local, keine Testnetze),
+**exakte** Compose- und Runtime-Portbelegungen für HTTP, S3-Proxy und MQTT,
+keine Hostports für Postgres/Redis, laufendes/DRC-deaktiviertes Backend,
+Postgres, Redis und Mosquitto, auflösbares altes Docker-Image und `/api/health`.
 **FAIL bedeutet keine Freigabe**. Keine interpolierte Compose-JSON im Chat posten:
 sie kann Zugangsdaten enthalten.
 

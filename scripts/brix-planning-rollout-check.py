@@ -45,6 +45,8 @@ HTTP_PAGES = {
 # This command reads only first-party files explicitly copied by backend/Dockerfile.
 # No shell expansion of user-controlled paths; output is processed in memory only.
 BACKEND_HASH_COMMAND = "sha256sum /app/backend/*.js /app/backend/package*.json"
+RFC1918_NETWORKS = tuple(ipaddress.IPv4Network(cidr) for cidr in
+                         ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"))
 
 
 class Refusal(Exception):
@@ -79,7 +81,8 @@ def read_env_flags() -> dict[str, str]:
     mode = path.stat().st_mode
     require(not (mode & (stat.S_IROTH | stat.S_IWOTH | stat.S_IWGRP)),
             "Private .env hat unsichere Schreib-/Leserechte")
-    allowed = {"SKYHUB_DRC_ENABLED", "SKYHUB_BRIX_BIND", "SKYHUB_HTTP_PORT"}
+    allowed = {"SKYHUB_DRC_ENABLED", "SKYHUB_BRIX_BIND", "SKYHUB_HTTP_PORT",
+               "SKYHUB_S3_UPLOAD_PROXY_HOST_PORT"}
     flags: dict[str, str] = {}
     for raw in path.read_text(encoding="utf-8").splitlines():
         line = raw.strip()
@@ -91,6 +94,61 @@ def read_env_flags() -> dict[str, str]:
             require(key not in flags, "Doppelter kritischer .env-Schlüssel: " + key)
             flags[key] = value.strip().strip('"').strip("'")
     return flags
+
+
+def is_rfc1918_bind(bind: str) -> bool:
+    try:
+        address = ipaddress.IPv4Address(bind)
+        return any(address in network for network in RFC1918_NETWORKS)
+    except (ipaddress.AddressValueError, ValueError):
+        return False
+
+
+def expected_bindings(bind: str, http_port: int, upload_port: int) -> dict[str, set[tuple[str, str, str, str]]]:
+    return {
+        "backend": {(bind, str(http_port), "4000", "tcp"),
+                    (bind, str(upload_port), "4002", "tcp")},
+        "mosquitto": {(bind, "1884", "1884", "tcp")},
+        "postgres": set(),
+        "redis": set(),
+    }
+
+
+def validate_compose_ports(services: dict, bind: str, http_port: int, upload_port: int) -> None:
+    """All published ports must match the expected LAN-only binding set."""
+    require(isinstance(services, dict), "Compose-Dienstliste ungültig")
+    for name, expected in expected_bindings(bind, http_port, upload_port).items():
+        service = services.get(name)
+        require(isinstance(service, dict), "Compose-Dienst fehlt: " + name)
+        ports = service.get("ports") or []
+        require(isinstance(ports, list), "Compose-Portliste ungültig: " + name)
+        actual = []
+        for port in ports:
+            require(isinstance(port, dict), "Compose-Porteintrag ungültig: " + name)
+            actual.append((str(port.get("host_ip")), str(port.get("published")),
+                           str(port.get("target")), str(port.get("protocol", "tcp"))))
+        require(len(actual) == len(expected) and set(actual) == expected,
+                "Unerwartete Compose-Portfreigabe: " + name)
+
+
+def validate_runtime_ports(name: str, ports: object, bind: str,
+                           http_port: int, upload_port: int) -> None:
+    """Docker inspect NetworkSettings.Ports proves what is actually published."""
+    require(isinstance(ports, dict), "Runtime-Portliste ungültig: " + name)
+    actual = []
+    for target, mappings in ports.items():
+        if mappings is None:
+            continue  # exposed but deliberately unpublished
+        match = re.fullmatch(r"([0-9]{1,5})/(tcp|udp)", str(target))
+        require(match is not None and isinstance(mappings, list) and len(mappings) > 0,
+                "Runtime-Porteintrag ungültig: " + name)
+        for mapping in mappings:
+            require(isinstance(mapping, dict), "Runtime-Portabbildung ungültig: " + name)
+            actual.append((str(mapping.get("HostIp")), str(mapping.get("HostPort")),
+                           match.group(1), match.group(2)))
+    expected = expected_bindings(bind, http_port, upload_port)[name]
+    require(len(actual) == len(expected) and set(actual) == expected,
+            "Unerwartete laufende Portfreigabe: " + name)
 
 
 def runtime_context() -> tuple[str, int, str]:
@@ -108,11 +166,12 @@ def runtime_context() -> tuple[str, int, str]:
             "DRC ist lokal aktiviert: kein unbegleiteter Backend-Rollout")
     bind = flags.get("SKYHUB_BRIX_BIND", "")
     try:
-        ip = ipaddress.IPv4Address(bind)
-        require(ip.is_private and not ip.is_loopback and not ip.is_unspecified,
-                "Backend-Bind-Adresse ist keine private LAN-IPv4")
+        require(is_rfc1918_bind(bind), "Backend-Bind-Adresse ist keine RFC1918-LAN-IPv4")
         port = int(flags.get("SKYHUB_HTTP_PORT", "4001"))
-        require(1 <= port <= 65535, "Backend-Port außerhalb des zulässigen Bereichs")
+        upload_port = int(flags.get("SKYHUB_S3_UPLOAD_PROXY_HOST_PORT", "4002"))
+        require(all(1 <= p <= 65535 for p in (port, upload_port)),
+                "Backend-Port außerhalb des zulässigen Bereichs")
+        require(len({port, upload_port, 1884}) == 3, "Backend-/MQTT-Hostports überlappen")
     except (ValueError, ipaddress.AddressValueError):
         raise Refusal("Ungültige SKYHUB_BRIX_BIND/HTTP_PORT-Konfiguration") from None
     # Resolved Compose environment is more authoritative than raw .env flags.
@@ -121,10 +180,7 @@ def runtime_context() -> tuple[str, int, str]:
     env = services.get("backend", {}).get("environment", {})
     require(str(env.get("SKYHUB_DRC_ENABLED", "")).lower() == "false",
             "Effective Compose DRC gate != false")
-    ports = services.get("backend", {}).get("ports", [])
-    require(any(str(p.get("published")) == str(port) and p.get("host_ip") == bind
-                and str(p.get("target")) == "4000" for p in ports),
-            "Effective Compose backend Bind/Port nicht wie erwartet")
+    validate_compose_ports(services, bind, port, upload_port)
     backend_id = None
     for service in ("backend", "postgres", "redis", "mosquitto"):
         ident = execute("bash", "scripts/brix-compose.sh", "ps", "-q", service)
@@ -132,6 +188,9 @@ def runtime_context() -> tuple[str, int, str]:
                 "Dienstecontainer fehlt/mehrdeutig: " + service)
         state = json.loads(execute("docker", "inspect", "--format", "{{json .State}}", ident))
         require(state.get("Running") is True, "Container läuft nicht: " + service)
+        runtime_ports = json.loads(execute("docker", "inspect", "--format",
+                                           "{{json .NetworkSettings.Ports}}", ident))
+        validate_runtime_ports(service, runtime_ports, bind, port, upload_port)
         health = state.get("Health")
         if health is not None:
             require(health.get("Status") == "healthy", "Container unhealthy: " + service)
