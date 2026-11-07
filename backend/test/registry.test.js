@@ -176,6 +176,38 @@ test('aircraft OSD with mode_code 14 (not connected) is not treated as fresh tel
   assert.equal(registry.get('RC01',now).aircraftConnected,null);
 });
 
+test('read-only event history marks mission and media reports as unverified',()=>{
+  const registry=createRegistry();
+  const start=1792528000000;
+  const mission=receive('thing/product/DOCK03/events',{
+    timestamp:start,method:'flighttask_progress',data:{result:0,
+      output:{status:'canceled',progress:{current_step:0,percent:0},
+        ext:{flight_id:'PRIVATE_FLIGHT_X',break_point:{break_reason:1281}}}}
+  });
+  const missionEvent=registry.ingest(mission,start).event;
+  assert.deepEqual(missionEvent.missionReport,{
+    reportedStatus:'canceled',progressPercent:0,currentStep:0,breakReason:1281
+  });
+  assert.equal(Object.hasOwn(missionEvent,'mediaReport'),false);
+  const callback=receive('thing/product/DOCK03/events',{
+    timestamp:start+1,method:'file_upload_callback',data:{file:{
+      name:'PRIVATE_IMAGE_X.JPG',object_key:'PRIVATE_OBJECT_KEY_X',
+      ext:{flight_id:'PRIVATE_FLIGHT_X'},metadata:{token:'PRIVATE_TOKEN_X'}}}
+  });
+  const mediaEvent=registry.ingest(callback,start+1).event;
+  assert.deepEqual(mediaEvent.mediaReport,{
+    kind:'file_metadata_report',storageVerification:'not_checked'
+  });
+  assert.equal(Object.hasOwn(mediaEvent,'missionReport'),false);
+  assert.equal(registry.events().length,2);
+  for (const value of [registry.events(),registry.snapshot()]) {
+    assert.doesNotMatch(JSON.stringify(value),/PRIVATE_IMAGE_X|PRIVATE_OBJECT_KEY_X|PRIVATE_FLIGHT_X|PRIVATE_TOKEN_X/);
+  }
+  const stale=registry.ingest(callback,start+2);
+  assert.equal(stale.dropReason,'duplicate');
+  assert.equal(registry.events().length,2);
+});
+
 test('at the device limit, a flood of invented serials cannot evict topology-confirmed devices',()=>{
   const registry=createRegistry(4);
   registry.ingest(topology(['AIR01']),1760000001000);

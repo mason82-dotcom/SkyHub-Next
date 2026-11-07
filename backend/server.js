@@ -54,6 +54,10 @@ const {createPilotAuth}=require('./pilot-auth');
 const {createTsaHub,createTopologyListHandler}=require('./tsa-hub');
 const {createTileCache,createTileRedirect,tileCacheSettings}=require('./tile-cache');
 const {createFhObserver}=require('./fh-observer');
+const {createCloudApi2PortalRouter}=require('./cloud-api2-portal');
+const {createCloudApi2EvidenceRouter}=require('./cloud-api2-evidence');
+const {createCloudApi2LinkageRouter}=require('./cloud-api2-linkage');
+const {createCloudApi2HardwareRouter}=require('./cloud-api2-hardware');
 const {createFhMsdkObserve}=require('./fh-msdk-observe');
 const {createFhUgcsReader}=require('./fh-ugcs-reader');
 const {fhMetrics}=require('./fh-metrics');
@@ -244,6 +248,12 @@ app.post('/api/adapters/msdk/observe',createFhMsdkObserve({
  token:process.env.SKYHUB_FH_MSDK_OBSERVER_TOKEN||''
 }));
 app.use('/api',auth);
+// Keyless Cloud API 2 reference portal: existing auth and read-only registry only.
+app.use('/api/cloud-api2',createCloudApi2PortalRouter({express,registry,mqttState}));
+// Security-sensitive anonymized hardware smoke is view-token-only (no LAN exception).
+app.use('/api/cloud-api2',createCloudApi2HardwareRouter({
+  express,registry,healthSnapshot,mqttShapes,pairing
+}));
 // Mounted AFTER the SkyHub access check (home-LAN rules or token); only Pilot 2's own endpoints sit before it.
 if(mapWriter)app.use('/api/map-elements',createMapElementRouter({express,writer:mapWriter}));
 if(pilotLogs)app.use('/api/pilot-logs',createPilotLogRouter({express,store:pilotLogs}));
@@ -275,6 +285,7 @@ if(process.env.SKYHUB_MINIO_DR_ENABLED==='true'){
 }
 const mediaStorage=process.env.SKYHUB_MEDIA_ENABLED==='true'?
   createS3Storage(process.env):null;
+let mediaBucketIndex=null;
 // Pilot 2 uploads are stored as org_<fingerprint>_<ms>.jpg; show the DJI file name from PostgreSQL.
 async function pilotMediaLabels(){
   const {rows}=await pool.query('SELECT object_key,file_name,pilot_metadata->>\'created_time\' AS created '+
@@ -283,6 +294,7 @@ async function pilotMediaLabels(){
 }
 if(mediaStorage){
   const mediaRouter=createMediaRouter(mediaStorage,{labels:pool?pilotMediaLabels:null});
+  mediaBucketIndex=mediaRouter.bucketIndex;
   app.use('/api/media',mediaRouter);
   // Thermal module: radiometric R-JPEGs from the same storage, read-only.
   // Optional DJI Thermal SDK: isolated thermal-sdk service (compose profile), internal network only.
@@ -364,9 +376,29 @@ if(wpmlStore&&pilot.wayline.enabled){
 // PPK geotagging (dji-geotagger) through the internal ppk service; opt-in (SKYHUB_PPK_URL + SKYHUB_PPK_TOKEN).
 const ppk=ppkConfig(process.env);
 if(ppk.issue)console.error('[ppk] disabled:',ppk.issue);
+// Photo coverage QA is independent of mission-release availability: reads media/terrain only.
+// No terrain HTTP request occurs until an operator explicitly supplies a takeoff point.
+// Only the internal hostname used by our own Compose terrain service is accepted here.
+const coverageTerrainSettings=terrainConfig(process.env);
+const coverageTerrainHost=coverageTerrainSettings.enabled?new URL(coverageTerrainSettings.base).hostname:'';
+const coverageTerrainLocal=coverageTerrainHost==='opentopodata'||coverageTerrainHost==='localhost'||
+  coverageTerrainHost==='127.0.0.1'||coverageTerrainHost==='brix-node';
+const coverageTerrain=coverageTerrainSettings.enabled&&coverageTerrainLocal&&!coverageTerrainSettings.public
+  ?createTerrainClient(coverageTerrainSettings):null;
+if(coverageTerrainSettings.enabled&&!coverageTerrain)
+  console.warn('[coverage] terrain disabled: requires the explicitly configured internal terrain service');
 // Photo coverage of stored flights (coverage.js): footprints from XMP/EXIF, gaps inside the flown area. Read-only.
 const ppkFlights=mediaStorage?createPpkStorage({storage:mediaStorage}):null;
-if(ppkFlights)app.use('/api/coverage',createCoverageRouter({express,flights:ppkFlights}));
+if(ppkFlights)app.use('/api/coverage',createCoverageRouter({express,flights:ppkFlights,terrain:coverageTerrain}));
+// Privileged, operator-triggered GET summary only; not in the token-free home-LAN allowlist.
+// Aggregates anonymized inventory counts; never joins aircraft identities or issues commands.
+app.use('/api/cloud-api2',createCloudApi2EvidenceRouter({
+  express,wpmlStore,ppkFlights,mediaStorage,mediaIndex:mediaBucketIndex
+}));
+// Read-only candidate and provenance summary; trusted LAN GET/HEAD or view-token auth only.
+app.use('/api/cloud-api2',createCloudApi2LinkageRouter({
+  express,registry,wpmlStore,db:pool,workspace:pilot.workspaceId
+}));
 if(ppk.enabled){app.use('/api/ppk',createPpkRouter(ppk,{flights:ppkFlights}));console.log('[ppk] PPK geotagging service active');}
 // Live flight control (DRC) for one pinned DJI RC Plus 2 + Matrice 4E/4T (DJI Cloud API 1.18 pilot live flight controls).
 // Off by default; separate token; operator lease with fail-safe hand-back to the RC (drc-session.js).

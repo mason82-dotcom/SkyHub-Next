@@ -67,7 +67,7 @@ if any(l.strip() == '@wayline_download {' for l in lines[s:e]):
 catch = [i for i in range(s, e) if lines[i] == '\thandle {']
 if len(catch) != 1: sys.exit('Catch-all handle of the S3 site not found exactly once')
 dl = ['\t' + marker + ' (download)', '\t# Managed by SkyHub-Next/scripts/pi-caddy-pilot-wayline.sh',
-      '\t@wayline_download {', '\t\tremote_ip 192.168.178.0/24', '\t\tmethod GET HEAD',
+      '\t@wayline_download {', '\t\tremote_ip 192.168.178.0/24 fd1a:baaf:283e::/64 2a02:8071:3184:88c0::/64', '\t\tmethod GET HEAD',
       '\t\tpath /skyhub-wpml/missions/*', '\t}',
       '\thandle @wayline_download {', '\t\treverse_proxy 127.0.0.1:4002', '\t}']
 lines[catch[0]:catch[0]] = dl

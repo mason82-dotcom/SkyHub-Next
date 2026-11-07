@@ -118,7 +118,7 @@ class CloudApiDemoHttpsTest(unittest.TestCase):
         subprocess.run(["bash", "-n", str(CADDY_SCRIPT)], check=True)
         block = subprocess.run(["bash", str(CADDY_SCRIPT), "print"], check=True, capture_output=True, text=True).stdout
         self.assertIn("rpi5.fritz.box:4444, 192.168.178.63:4444 {", block)
-        self.assertIn("@lan remote_ip 192.168.178.0/24", block)
+        self.assertIn("@lan remote_ip 192.168.178.0/24 fd1a:baaf:283e::/64 2a02:8071:3184:88c0::/64", block)
         self.assertIn('respond "Forbidden" 403', block)
         self.assertIn("reverse_proxy 192.168.178.63:8081", block)  # the web port, never the backend port
         self.assertNotIn("6789", block)

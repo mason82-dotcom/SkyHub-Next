@@ -58,7 +58,7 @@
     <div>
       <p class="eyebrow">RADIOMETRISCHE WÄRMEBILDER</p>
       <h1>Thermal <span class="muted">Wärmebilder aus DJI R-JPEG</span></h1>
-      <p>Alle Wärmebilder (DJI R-JPEG) aus dem SkyHub-Speicher: Darstellung mit Paletten, Temperatur an jeder Stelle, Messpunkte und -bereiche, Isothermen, Emissionsgrad-Korrektur, Serienauswertung und Export.</p>
+      <p>Alle Wärmebilder (DJI R-JPEG) aus dem SkyHub-Speicher: Darstellung mit Paletten, Temperatur an jeder Stelle, Messpunkte, Linien, Kreise und Messbereiche, Isothermen, Emissionsgrad-Korrektur, Serienauswertung und Export.</p>
     </div>
     <p class="estimate" id="estimate">Temperaturen sind Schätzwerte aus den Rohdaten (ohne DJI Thermal SDK), keine kalibrierte Messung. Kamerakompatibilität und Genauigkeit sind nicht verifiziert.</p>
   </div>
@@ -108,6 +108,9 @@
           <button type="button" data-tool="view" aria-pressed="true">Ansehen</button>
           <button type="button" data-tool="spot" aria-pressed="false">Messpunkt</button>
           <button type="button" data-tool="box" aria-pressed="false">Messbereich</button>
+          <button type="button" data-tool="line" aria-pressed="false">Linie</button>
+          <button type="button" data-tool="circle" aria-pressed="false">Kreis</button>
+          <button type="button" data-tool="ellipse" aria-pressed="false">Ellipse</button>
         </div>
         <label class="check"><input type="checkbox" id="show-spots" checked> Hot-/Cold-Spot</label>
         <label class="check"><input type="checkbox" id="show-visual" checked> Foto daneben</label>
@@ -143,7 +146,7 @@
           <h2 id="meas-title">Messungen</h2>
           <table class="table"><thead><tr><th>#</th><th>Art</th><th>Position</th><th>Min</th><th>Mittel</th><th>Max</th><th></th></tr></thead>
             <tbody id="measurements"></tbody></table>
-          <p class="fine">Messpunkt: Klick ins Wärmebild. Messbereich: Rechteck aufziehen. Werte folgen der gewählten Emissionsgrad-Näherung; keine kalibrierte Messung.</p>
+          <p class="fine">Messpunkt: klicken. Rechteck, Linie, Kreis und Ellipse: mit gedrückter Taste oder Berührung aufziehen. Kreis und Ellipse liegen im aufgezogenen Begrenzungsrechteck. Die Werte verwenden die aktuell ausgewählte Berechnungsart (SDK oder Schätzung); eine unabhängige Genauigkeitsprüfung ist damit nicht erbracht.</p>
         </section>
       </div>
     </div>
