@@ -45,6 +45,30 @@
       "applied": false
     },
     {
+      "id": "wpml-audit-draft-004",
+      "family": "wpml-draft",
+      "order": 4,
+      "path": "backend/db/migrations/004_wpml_route_audit_draft.sql",
+      "status": "blocked_draft",
+      "requires": [
+        "wpml-library-draft-003"
+      ],
+      "git_blob_sha": "eca262be6d630f6d2e9987cddd08f92988e3ceda",
+      "applied": false
+    },
+    {
+      "id": "wpml-runtime-rls-draft-005",
+      "family": "wpml-draft",
+      "order": 5,
+      "path": "backend/db/migrations/005_wpml_runtime_rls_draft.sql",
+      "status": "blocked_draft",
+      "requires": [
+        "wpml-audit-draft-004"
+      ],
+      "git_blob_sha": "31478dc7cd4f53bd5a5d7ac056ad4aae98c18201",
+      "applied": false
+    },
+    {
       "id": "pilot-media-http-004",
       "family": "pilot-media",
       "order": 4,

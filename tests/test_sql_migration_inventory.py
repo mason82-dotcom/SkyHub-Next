@@ -50,6 +50,22 @@ class SqlMigrationInventoryTest(unittest.TestCase):
         self.assertEqual({e["status"] for e in duplicates},
                          {"offline_only", "blocked_draft"})
 
+    def test_wpml_audit_requires_blocked_draft_dependency(self) -> None:
+        data = self.data()
+        audit = next(entry for entry in data["entries"]
+                     if entry["id"] == "wpml-audit-draft-004")
+        self.assertEqual(audit["status"], "blocked_draft")
+        self.assertEqual(audit["family"], "wpml-draft")
+        self.assertEqual(audit["requires"], ["wpml-library-draft-003"])
+        self.assertEqual(audit_inventory(self.root), [])
+        audit["status"] = "offline_only"
+        self.write(data)
+        self.assert_fails("Draft is not explicitly blocked")
+        audit["status"] = "blocked_draft"
+        audit["requires"] = ["pilot-media-verified-003"]
+        self.write(data)
+        self.assert_fails("cross-family dependency")
+
     def test_existing_sql_change_is_not_silent(self) -> None:
         target = self.root / DIRECTORY / "003_dji_pilot_media_verified.sql"
         target.write_bytes(target.read_bytes() + b"\n-- unreviewed alteration\n")

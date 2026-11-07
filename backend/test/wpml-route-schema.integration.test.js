@@ -35,13 +35,17 @@ test('draft WPML route schema: workspace FKs, immutable revisions, no dispatch a
     await c.query(migration);
     await c.query(migration);
     const policy=await c.query(
-      "SELECT relname,relrowsecurity,relforcerowsecurity FROM pg_class "+
-      "WHERE relname LIKE 'skyhub_wpml_%' AND relkind='r' ORDER BY relname");
+      "SELECT c.relname,c.relrowsecurity,c.relforcerowsecurity FROM pg_class c "+
+      "JOIN pg_namespace n ON n.oid=c.relnamespace "+
+      "WHERE n.nspname=current_schema() AND c.relname LIKE 'skyhub_wpml_%' "+
+      "AND c.relkind='r' ORDER BY c.relname");
     assert.equal(policy.rows.length,4);
     assert.ok(policy.rows.every(r=>r.relrowsecurity===true&&r.relforcerowsecurity===true));
     const granted=await c.query(
-      "SELECT relname, relacl::text AS acl FROM pg_class "+
-      "WHERE relname='skyhub_wpml_route_revisions'");
+      "SELECT c.relname,c.relacl::text AS acl FROM pg_class c "+
+      "JOIN pg_namespace n ON n.oid=c.relnamespace "+
+      "WHERE n.nspname=current_schema() AND "+
+      "c.relname='skyhub_wpml_route_revisions'");
     assert.doesNotMatch(granted.rows[0].acl||'',/PUBLIC=/);
 
     await c.query(
