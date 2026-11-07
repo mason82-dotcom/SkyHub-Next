@@ -114,6 +114,33 @@ test('home LAN: no token needed when the LAN gate marked the request (req.skyhub
   }finally{server.close();await rt.shutdown();}
 });
 
+test('socket motion never renews the operator lease or bypasses the dead-man switch',async()=>{
+  const mqtt=fakeMqtt(),handlers=new Map(),errors=[];
+  let accept;
+  const socket={
+    handshake:{auth:{operator:'operator-001'},headers:{},address:'127.0.0.1'},
+    on:(name,fn)=>handlers.set(name,fn),
+    emit:(event,msg)=>{if(event==='drc-error')errors.push(msg);}
+  };
+  const io={of:()=>({use(){},on(name,fn){if(name==='connection')accept=fn;},emit(){}})};
+  const rt=createDrcRuntime({config:drcConfig(ENV),registry:registry(),pool:null,io,express,
+    mqttConnect:()=>mqtt,log:{log(){},error(){}}});
+  try{
+    mqtt.emit('connect');
+    accept(socket);
+    handlers.get('stick')({roll:1});
+    handlers.get('gimbal')({yaw:1});
+    assert.equal(rt.session.snapshot().operator,null,'motion packets cannot acquire a lease');
+    assert.equal(errors.length,2,'both unleased controls are refused');
+    assert.equal(mqtt.published.filter(x=>x.topic.endsWith('/drc/down')).length,0);
+    handlers.get('lease')(()=>{});
+    assert.equal(rt.session.snapshot().operator,'operator-001','only explicit lease heartbeats arm an operator');
+    handlers.get('stick')({roll:1});
+    assert.equal(rt.session.snapshot().controlLink.ready,false,'no physical DRC proof');
+    assert.equal(mqtt.published.filter(x=>x.msg.method==='stick_control').length,0);
+  }finally{await rt.shutdown();}
+});
+
 test('home LAN socket check: allowed host, trusted proxy with https, LAN client and same Origin are all required',()=>{
   const {createHttpAuth}=require('../http-auth');
   const {createLanAccess}=require('../lan-access');
