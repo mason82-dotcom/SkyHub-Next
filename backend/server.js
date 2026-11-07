@@ -29,6 +29,7 @@ const {createPilotMediaLibraryRuntime}=require('./pilot-media-library-runtime');
 const {createPilotMediaUploadRuntime}=require('./pilot-media-upload-runtime');
 const {createMinioDrRouter}=require('./minio-dr-api');
 const {createWpmlMissionStore,createWpmlMissionRouter}=require('./wpml-mission-store');
+const {flighthubConfig,createFlightHubRouteSource,createFlightHubImportRouter}=require('./flighthub-route-source');
 const {releaseConfig,createReleaseStore,pilotLibrary,createMissionReleaseRouter}=require('./mission-release');
 const {drcConfig,createDrcRuntime}=require('./drc-runtime');
 const {liveControlConfig,createLiveControl}=require('./live-control');
@@ -329,6 +330,13 @@ let wpmlStore=null;
 if(process.env.SKYHUB_WPML_STORE_ENABLED==='true'){
   try{
     wpmlStore=createWpmlMissionStore({env:process.env});
+    // Routes from FlightHub Keyless (FlightHub ADR-002): SkyHub pulls on an operator action, never released automatically.
+    // Mounted before the mission router so /flighthub is not taken for a wayline id.
+    const flighthub=flighthubConfig(process.env);
+    if(flighthub.issue)console.error('[wpml import] disabled:',flighthub.issue);
+    app.use('/api/wpml/missions',createFlightHubImportRouter({express,
+      source:flighthub.enabled?createFlightHubRouteSource({base:flighthub.base}):null,store:wpmlStore}));
+    if(flighthub.enabled)console.log('[wpml import] FlightHub routes can be taken over from '+flighthub.base);
     app.use('/api/wpml/missions',createWpmlMissionRouter({express,store:wpmlStore}));
     console.log('[wpml store] active, bucket '+wpmlStore.bucket);
   }catch(err){console.error('[wpml store] disabled:',err.message);}

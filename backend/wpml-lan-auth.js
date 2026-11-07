@@ -3,7 +3,7 @@
 // Other write APIs, DJI Pilot 2 and requests from outside the allowlisted network stay protected.
 const UUID='[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 // Read-only: the mission store, the release overview/check (mission-release.js) and the live-control status (drc-runtime.js).
-const READ=new RegExp('^/(?:wpml/(?:missions(?:/status|/'+UUID+'(?:/kmz)?)?|release(?:/config|/'+UUID+')?)|drc/(?:rcpro/)?status)/?$');
+const READ=new RegExp('^/(?:wpml/(?:missions(?:/status|/flighthub|/'+UUID+'(?:/kmz)?)?|release(?:/config|/'+UUID+')?)|drc/(?:rcpro/)?status)/?$');
 // Token-free writes from the home LAN (decision 04.11.2026: no token fields in the UI), always with browser same-origin proof.
 // Explicit allowlist per method (fail closed): a new route is NOT token-free until it is added here.
 const RELEASE=new RegExp('^/wpml/release/'+UUID+'/release$');
@@ -13,7 +13,7 @@ const DRC_COMMANDS=new Set(['auth/request','release','live/enter','live/exit','f
 const MAP_ELEMENT=/^\/map-elements\/[A-Za-z0-9_.:-]{1,128}$/;
 const DRC_PAYLOAD=/^payload\/[a-z][a-z_]{1,31}$/;
 const WRITES=Object.freeze({
-  POST:path=>path==='/wpml/missions'||path==='/thermal/export'||path==='/ppk/jobs'||path==='/ppk/jobs/storage'||path==='/terrain/profile'||path==='/coverage/run'||path==='/ndvi/run'||/^\/live\/control\/(start|stop|quality|lens)$/.test(path)||path==='/map-elements'||RELEASE.test(path)||
+  POST:path=>path==='/wpml/missions'||path==='/wpml/missions/import/flighthub'||path==='/thermal/export'||path==='/ppk/jobs'||path==='/ppk/jobs/storage'||path==='/terrain/profile'||path==='/coverage/run'||path==='/ndvi/run'||/^\/live\/control\/(start|stop|quality|lens)$/.test(path)||path==='/map-elements'||RELEASE.test(path)||
     (path.startsWith('/drc/')&&(c=>DRC_COMMANDS.has(c)||DRC_PAYLOAD.test(c))(path.slice(5).replace(/^rcpro\//,''))),
   PUT:path=>MAP_ELEMENT.test(path),
   DELETE:path=>RELEASE.test(path)||MAP_ELEMENT.test(path)||/^\/pilot-logs\/[0-9a-f-]{36}$/.test(path)||/^\/(thermal\/export|ppk\/jobs)\/[0-9a-f]{24}$/.test(path)

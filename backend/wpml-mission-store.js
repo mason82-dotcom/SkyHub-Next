@@ -124,7 +124,7 @@ function fromMetadata(id,head){
     templateTypes:(m['template-types']||'').split(',').filter(t=>/^[0-3]$/.test(t)).map(Number),
     aircraft:dec(m.aircraft),
     username:dec(m['user-name']),
-    origin:m.origin==='pilot2'?'pilot2':null,
+    origin:m.origin==='pilot2'||m.origin==='flighthub'?m.origin:null,
     wpmlVersion:/^1\.0\.\d$/.test(m['wpml-version']||'')?m['wpml-version']:null,
     waypointCount:n(m['waypoint-count']),
     createTime:n(m['create-time'])??(head.LastModified?.getTime?.()||null),
@@ -301,7 +301,8 @@ function createWpmlMissionStore({env=process.env,client,now=()=>new Date(),cache
         ...(parent?{'parent-id':parent.id,'root-id':parent.rootId,
           generation:String(parent.generation+1)}:{}),
         'flight-ready':'false',
-        ...(origin==='pilot2'?{origin:'pilot2'}:{})
+        // Where the file came from (Pilot 2 upload, FlightHub import – ADR-002); the SkyHub editor writes none.
+        ...(origin==='pilot2'||origin==='flighthub'?{origin}:{})
       };
       let created=true;
       try{
