@@ -60,8 +60,14 @@ async function fixture(){
   const sim=createRcSimulator({
     gateway:GW,aircraftSn:SN,clock,
     publish:(topic,msg)=>{
-      if(mqtt.online&&mqtt.topics.has(topic))
-        mqtt.emit('message',topic,Buffer.from(JSON.stringify(msg)),{retain:false});
+      // MQTT delivery is asynchronous: replies cannot race ahead of pending
+      // service/payload reply registration in the SkyHub session.
+      if(mqtt.online&&mqtt.topics.has(topic)){
+        const bytes=Buffer.from(JSON.stringify(msg));
+        queueMicrotask(()=>{
+          if(mqtt.online)mqtt.emit('message',topic,bytes,{retain:false});
+        });
+      }
     }
   });
   const env={
