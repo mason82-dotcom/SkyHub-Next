@@ -60,6 +60,9 @@ test('portal view exists with accessible selection, no auto-loading and explicit
   assert.match(html,/data-view="planning"/);
   assert.match(html,/id="view-planning"/);
   assert.match(js,/['"]planning['"]/);
+  assert.match(html,/id="portalModeBadge"/);
+  assert.match(js,/MANUELLES SPEICHERN MÖGLICH/);
+  assert.match(js,/badge\.classList\.toggle\('planning-mode',key==='planning'\)/);
   assert.match(html,/cloud-api2-planning\.mjs/);
   assert.match(html,/cloud-api2-planning\.css/);
   assert.equal((html.match(/data-planning-tool="/g)||[]).length,3);
