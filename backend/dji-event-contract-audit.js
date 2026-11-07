@@ -89,4 +89,4 @@ function inspectDjiEvent({topic,payload,packet={},expectedGatewaySn,now=Date.now
     shapeValidated,replyPublished:false,liveMqttUsed:false,
     hardwareVerified:false,operationVerified:false,flightReady:false});
 }
-module.exports={inspectDjiEvent,SCHEMA,MAX_BYTES};
+module.exports={inspectDjiEvent,SCHEMA,MAX_BYTES,EVENT_KINDS};

@@ -7,7 +7,7 @@ const {inspectDjiEventProfile,SCHEMA}=require('../dji-event-profile-audit');
 const NOW=1794000000000;
 const GW='GATEWAY_PRIVATE_1',TOPIC='thing/product/'+GW+'/events';
 const RC_PRO={domain:2,type:144,subType:0};
-const RC_PLUS={domain:'2',type:174,subType:0};
+const RC_PLUS={domain:2,type:174,subType:0};
 const M3M={domain:0,type:77,subType:2};
 const M4T={domain:0,type:99,subType:1};
 const DOCK1={domain:3,type:1,subType:0};
@@ -180,4 +180,49 @@ test('profile module has no MQTT/network/publisher dependencies',()=>{
   assert.doesNotMatch(src,/\brequire\(['"](?:mqtt|express|pg|ioredis|node:https|node:net)['"]\)/);
   assert.doesNotMatch(src,/\.publish\s*\(|\.connect\s*\(/);
   assert.equal(typeof inspectDjiEventProfile,'function');
+});
+
+test('review #291: string, array and toString-coerced model domains fail closed',()=>{
+  for(const domain of ['2',[2],{toString:()=>'2'}]){
+    const out=inspect(payload(),{binding:pair({domain,type:144,subType:0},M3M)});
+    assert.deepEqual([out.accepted,out.reason],[false,'unknown_gateway_model'],String(domain));
+  }
+});
+test('review #291: async resolver is rejected without an unhandled rejection',async()=>{
+  let unhandled=0;const onUnhandled=()=>{unhandled++;};
+  process.on('unhandledRejection',onUnhandled);
+  try{
+    const out=inspect(payload(),{resolveTrustedPair:async()=>{throw new Error('registry down');}});
+    assert.deepEqual([out.accepted,out.reason],[false,'unbound_gateway']);
+    await new Promise(r=>setImmediate(r));await new Promise(r=>setTimeout(r,10));
+    assert.equal(unhandled,0);
+  }finally{process.off('unhandledRejection',onUnhandled);}
+});
+test('review #291: throwing getter or Proxy in the resolver result fails closed',()=>{
+  const getter=Object.defineProperty({gatewaySn:GW},'gatewayModel',{get(){throw new Error('lazy load');}});
+  assert.equal(inspect(payload(),{resolveTrustedPair:()=>getter}).reason,'trusted_resolver_failed');
+  const proxy=new Proxy({},{get(){throw new Error('closed');}});
+  assert.equal(inspect(payload(),{resolveTrustedPair:()=>proxy}).reason,'trusted_resolver_failed');
+});
+test('review #291: empty dock (aircraftModel null/undefined) is accepted as dock without aircraft',()=>{
+  for(const aircraftModel of [null,undefined]){
+    const out=inspect(progress(),{binding:{gatewaySn:GW,gatewayModel:DOCK2,aircraftModel}});
+    assert.deepEqual([out.accepted,out.profile],[true,'dock-2']);
+  }
+  // Pilot profiles still require a real aircraft binding.
+  assert.equal(inspect(payload(),{binding:{gatewaySn:GW,gatewayModel:RC_PRO,aircraftModel:null}}).reason,
+    'missing_aircraft_binding');
+});
+test('review #291: authenticated gateway identity must match the topic',()=>{
+  assert.equal(inspect(payload(),{authenticatedGatewaySn:GW}).accepted,true);
+  const other=inspect(payload(),{authenticatedGatewaySn:'OTHERGATEWAY01'});
+  assert.equal(other.accepted,false);
+});
+test('review #291: Dock allowlist is derived from the P1.1 event kinds',()=>{
+  const {EVENT_KINDS}=require('../dji-event-contract-audit');
+  for(const method of Object.keys(EVENT_KINDS)){
+    const msg=method==='flighttask_progress'?progress():payload(method);
+    const out=inspect(msg,{binding:pair(DOCK2,{domain:0,type:91,subType:1})});
+    assert.notEqual(out.reason,'event_outside_profile',method);
+  }
 });

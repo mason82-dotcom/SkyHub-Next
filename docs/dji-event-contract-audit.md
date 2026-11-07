@@ -81,6 +81,17 @@ pairing names cannot authorize it. This module does not itself implement
 authentication or make a device online; it cannot be wired to public input
 without a separate authorization review.
 
+Review follow-ups (07.11.2026):
+- **Gateway identity:** the topic serial number is attacker-controlled. Before any runtime wiring the caller MUST pass
+  `authenticatedGatewaySn`, the gateway identity taken from the authenticated MQTT connection (broker ACL or client
+  certificate); P1.1 then rejects topics of any other gateway. Without it the gate only proves that the topic is
+  self-consistent.
+- **Resolver results** are read once inside the guard. Async resolvers, throwing getters and Proxies fail closed
+  (`unbound_gateway` / `trusted_resolver_failed`); a later promise rejection is swallowed and cannot crash the process.
+- **Model tuples** must be exact numbers; string, array or `toString`-coerced domains are rejected.
+- **Empty dock:** `aircraftModel: null` or `undefined` means no aircraft is bound; Pilot profiles still require one.
+- **Dock allowlist** is derived from the P1.1 `EVENT_KINDS`, so both lists cannot diverge.
+
 ### Typed profile matrix (strict and intentionally narrow)
 
 | Trusted gateway `domain:type:subType` | Profile | Required aircraft for Pilot / allowed paired aircraft for Dock |

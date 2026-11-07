@@ -6,16 +6,12 @@
 // untrusted MQTT data may never declare a gateway or aircraft model.
 const {parseTopic}=require('./dji');
 const {resolveDeviceModel}=require('./catalog');
-const {inspectDjiEvent}=require('./dji-event-contract-audit');
+const {inspectDjiEvent,EVENT_KINDS}=require('./dji-event-contract-audit');
 
 const SCHEMA='skyhub-dji-event-profile-audit-v1';
 const PILOT_EVENTS=Object.freeze(['hms','airsense_warning']);
-const DOCK_EVENTS=Object.freeze([
-  'hms','airsense_warning','flighttask_progress','flighttask_ready',
-  'file_upload_callback','highest_priority_upload_flighttask_media',
-  'ota_progress','fileupload_progress',
-  'flight_areas_sync_progress','flight_areas_drone_location'
-]);
+// Dock follows the complete P1.1 allowlist: derived, so a method added there cannot silently diverge here.
+const DOCK_EVENTS=Object.freeze(Object.keys(EVENT_KINDS));
 const PROFILE_RULES=Object.freeze({
   '2:144:0':Object.freeze({name:'pilot-rc-pro-m3m',family:'pilot-to-cloud',
     aircraft:Object.freeze(['0:77:2']),events:PILOT_EVENTS}),
@@ -29,10 +25,11 @@ const PROFILE_RULES=Object.freeze({
     aircraft:Object.freeze(['0:100:0','0:100:1']),events:DOCK_EVENTS})
 });
 const object=x=>x!==null&&typeof x==='object'&&!Array.isArray(x);
+// Exact numeric model tuple only: no string, array or toString-coerced domains.
 function modelKey(value){
   if(!object(value))return null;
   const {domain,type,subType}=value;
-  if(!['0','2','3'].includes(String(domain))||
+  if(typeof domain!=='number'||![0,2,3].includes(domain)||
      !Number.isInteger(type)||type<0||type>999||
      !Number.isInteger(subType)||subType<0||subType>255)
     return null;
@@ -47,26 +44,37 @@ function reject(reason,profile=null){
   });
 }
 function inspectDjiEventProfile({
-  topic,payload,packet={},now=Date.now(),resolveTrustedPair
+  topic,payload,packet={},now=Date.now(),resolveTrustedPair,authenticatedGatewaySn
 }={}){
   const source=typeof topic==='string'?parseTopic(topic):null;
   if(!source||source.source!=='thing'||source.channel!=='events')
     return reject('invalid_topic');
+  // The topic SN is attacker-controlled. When the caller knows the gateway identity from the authenticated MQTT
+  // connection (broker ACL / client certificate), it MUST pass it here; P1.1 then compares it with the topic.
+  // Without it this gate only proves self-consistency of the topic. REQUIRED before any runtime wiring.
+  const expectedGatewaySn=authenticatedGatewaySn===undefined?source.sn:authenticatedGatewaySn;
 
   // Validate the envelope BEFORE invoking the registry resolver. This
   // preserves all P1.1 freshness, retained and payload safety gates.
   const base=inspectDjiEvent({
-    topic,payload,packet,now,expectedGatewaySn:source.sn
+    topic,payload,packet,now,expectedGatewaySn
   });
   if(!base.accepted)return reject(base.reason);
   if(typeof resolveTrustedPair!=='function')return reject('missing_trusted_resolver');
 
+  // Read every resolver field exactly once inside the guard: throwing getters/Proxies fail closed.
   let binding;
-  try{binding=resolveTrustedPair(source.sn);}
-  catch(_err){return reject('trusted_resolver_failed');}
-  // No async/network resolver or self-asserted trust flag.
-  if(!object(binding)||typeof binding.then==='function'||
-     binding.gatewaySn!==source.sn)return reject('unbound_gateway');
+  try{
+    const raw=resolveTrustedPair(source.sn);
+    if(raw!==null&&(typeof raw==='object'||typeof raw==='function')&&typeof raw.then==='function'){
+      // No async/network resolver: reject, and swallow a later rejection so it can never crash the process.
+      Promise.resolve(raw).catch(()=>{});
+      return reject('unbound_gateway');
+    }
+    if(!object(raw))return reject('unbound_gateway');
+    binding={gatewaySn:raw.gatewaySn,gatewayModel:raw.gatewayModel,aircraftModel:raw.aircraftModel};
+  }catch(_err){return reject('trusted_resolver_failed');}
+  if(binding.gatewaySn!==source.sn)return reject('unbound_gateway');
 
   const gatewayKey=modelKey(binding.gatewayModel);
   if(!gatewayKey||!resolveDeviceModel(binding.gatewayModel))
@@ -75,7 +83,8 @@ function inspectDjiEventProfile({
     ?PROFILE_RULES[gatewayKey]:null;
   if(!profile)return reject('unsupported_gateway_model');
 
-  const suppliedAircraft=Object.hasOwn(binding,'aircraftModel');
+  // null/undefined = no aircraft bound (e.g. an empty dock); only a real value is checked as a pair.
+  const suppliedAircraft=binding.aircraftModel!==undefined&&binding.aircraftModel!==null;
   const aircraftKey=suppliedAircraft?modelKey(binding.aircraftModel):null;
   if(profile.family==='pilot-to-cloud'&&!suppliedAircraft)
     return reject('missing_aircraft_binding',profile.name);
