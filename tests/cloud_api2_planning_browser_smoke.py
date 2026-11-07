@@ -142,6 +142,34 @@ def run():
             check(unexpected == [], "Unexpected browser writes in error case")
             print("PASS: blocked / missing iframe fails closed with original direct link")
             context.close()
+            # A loaded, trusted editor can navigate while hidden. Reopening it
+            # must not retain the previous green/ready indication after a 404.
+            context = browser.new_context(viewport={"width": 390, "height": 844})
+            page = context.new_page()
+            unexpected = []
+            guard(page, base, unexpected)
+            page.goto(base + "/cloud-api2.html#planning", wait_until="domcontentloaded")
+            page.locator('button[data-planning-tool="editor"]').click()
+            page.locator("#planningStatus").filter(has_text="geladen. Entwurfs-").wait_for(timeout=15000)
+            page.locator('button[data-planning-tool="area"]').click()
+            page.locator("#planningStatus").filter(has_text="geladen. Entwurfs-").wait_for(timeout=15000)
+            visible_before = page.locator("#planningStatus").inner_text()
+            page.locator("#planningFrame-editor").evaluate(
+                "(frame) => frame.setAttribute('src', '/missing-hidden-planning-editor.html')")
+            page.wait_for_function("""() => {
+                const frame = document.getElementById('planningFrame-editor');
+                return frame && frame.contentDocument &&
+                    frame.contentDocument.title === 'Error response';
+            }""", timeout=15000)
+            check(page.locator("#planningStatus").inner_text() == visible_before,
+                  "Background iframe navigation must not alter the active tool's status")
+            page.locator('button[data-planning-tool="editor"]').click()
+            page.locator("#planningStatus").filter(has_text="UNBEKANNT").wait_for(timeout=15000)
+            check(page.locator("#planningOpenFull").get_attribute("href") == "/wpml-editor.html",
+                  "Hidden iframe failure must preserve the canonical direct link")
+            check(unexpected == [], "Unexpected browser writes in hidden navigation test")
+            print("PASS: hidden stale editor fails closed after background 404")
+            context.close()
             browser.close()
     finally:
         server.shutdown()
