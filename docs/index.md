@@ -38,10 +38,6 @@
 GSD-Qualitätsstatus, getrennte M4T-Thermal- und M3M-Multispektral-Verarbeitung. Ausschließlich Offline-/Synthetiknachweise,
 keine DJI-Flugfreigabe oder Hardwareabnahme.
 
-## Passiver MAVLink-2-Telemetrieadapter (RosettaDrone-Referenz, 06.11.2026)
-
-[Isolierte MAVLink-2-OSD-Projektion für Mavic 3M und Matrice 4T](mavlink-telemetry-readonly.md) – ausschließlich Offline-Frames; keine DJI-Steuerung, keine UDP-Liveübertragung, kein GPS-MSL-Nachweis und keine QGC-Flugfreigabe.
-
 ## Missionsfreigabe, NDVI, TAK/CloudTAK (04.11.2026)
 
 [Risikoanalyse](risikoanalyse-missionsversand-ndvi-tak-2026-11-04.md) (17 Risiken; kritisch: Pilot 2 sah bisher jede gespeicherte Route) und
@@ -100,10 +96,6 @@ TAK/CloudTAK-Ausgang (CoT der Live-Positionen, standardmäßig aus): [tak.md](ta
 
 - [Telemetrie-Cockpit (Operations)](telemetry-cockpit.md) – acht OSD-Einzelwerte je Gerät, Frische pro Feld; rein lesend, keine Flugfreigabe.
 
-**Workspace-Isolation und Löschrichtlinie (neuer Offline-Entwurf):** [PostgreSQL-RLS, transaktionsgebundener Mandantenkontext und Legal-Hold-Gates](dji-flighttask-workspace-rls-retention-policy.md). Keine Migration, keine produktive Autorisierungsquelle.
-
-**DJI-Missionsbeobachtung: #74/#78/#83 und Multi-Missions-Router #108 in `main`:** [Statusautomat](dji-rpc-lifecycle-observation.md), [read-only Reply-Adapter](dji-flighttask-rpc-integration.md), [isoliertes CAS-Journal](dji-flighttask-durable-journal.md), [Offline-Retention](dji-flighttask-journal-retention.md) und [optionale Workspace-Autorisierung](dji-flighttask-journal-access.md) und [experimentelles Multi-Missions-Routing](dji-flighttask-multimission-router.md). Die Module sind **nicht in die aktive DJI-Laufzeit eingebunden**; kein produktives SQL-Deployment oder freigegebener Identity Provider.
-
 | Bereich | Dokumente |
 | --- | --- |
 | DJI MQTT, OSD, Pilot-2-Handshake | [MQTT/OSD](mqtt-osd-integration.md), [DJI Cloud API](dji-cloud-api-compatibility.md) |
@@ -119,10 +111,6 @@ TAK/CloudTAK-Ausgang (CoT der Live-Positionen, standardmäßig aus): [tak.md](ta
 | FlightHub 2 Frontend – optionale Herstellerkomponenten, nur Referenz | [FH2-On-Premises-Komponenten und Sicherheitsgates](dji-flighthub2-frontend-components.md) |
 | FlightHub 2 On-Premises – Bewertung (Recherche, kein Test) | [Bezug, Anforderungen, Geräte, Frontend-Komponenten](dji-flighthub2-on-premises-bewertung.md) |
 | DJI-Cloud-API-Demo als lokaler Testweg (extern zum Repo, nur LAN) | [Stack, Absicherung, Offline-Karte, Grenzen](cloud-api-demo-lokal.md) |
-
-## Passiver DJI Flight-Area-Laborstand
-
-[Event-Inspector](dji-flight-area-integration.md) · [Offline-Zielrevisionsmonitor](dji-flight-area-sync-monitor.md). Ausschließlich gelesene, begrenzte Daten; keine aktiven Fluggebietsänderungen, kein Pi-Hardwarebeleg.
 
 ## Experimentelle M3M-Smart-Farming-Komponenten
 
@@ -140,7 +128,6 @@ Diese Dokumente waren bisher nur über Suche oder PR-Beschreibungen erreichbar. 
 - [DJI Pilot 2 – Mediensynchronisation RC Plus 2 / RC Pro (manueller Upload)](dji-pilot2-media-sync.md)
 - [SkyHub Next – Thermalmodul (31.10.2026)](thermal.md)
 - [DJI Thermal SDK 1.9: isolierter Pi-5-A/B-Vergleich gegen SDK 1.7 (kein Upgrade)](thermal-tsdk19-parity.md)
-- [PV-Job-Store (experimentell): Nebenläufigkeit gegen PostgreSQL 16 in der CI, nicht in `server.js`](pv-postgres-concurrency-ci.md)
 - [DJI Pilot 2 – isolierte HTTPS-Medienendpunkte](dji-pilot2-media-https-api.md)
 - [DJI Pilot 2 Media STS – isolierte HTTPS-Autorisierungsgrenze](dji-pilot2-media-sts-boundary.md)
 - [SkyHub Next – Verifizierte DJI-Pilot-2-Medienbibliothek (Read-only)](dji-pilot2-verified-media-library.md)
@@ -184,8 +171,6 @@ Diese Dokumente waren bisher nur über Suche oder PR-Beschreibungen erreichbar. 
 - [M3M P1/P3: lokale TIFF-Eingangsprüfung und numerische versiegelte ROI-Analyse (offline)](smart-farming-p1-p3-offline-lab.md)
 - [M3M P1/P3: private TIFF-Originalkopie und versiegelte PNG-Indexvorschau (offline)](smart-farming-private-ingest-preview.md)
 - [M3M P3: begrenzte private GeoJSON-Punkt- und Polygonanalyse aus versiegelten GeoTIFFs (offline)](smart-farming-private-geospatial-query.md)
-- [M3M P3: separat autorisierter, ungemounteter GIS-HTTP-Vertrag (isoliertes Labor)](smart-farming-scoped-geo-http-contract.md)
-- [M3M P3.1: echter isolierter HTTP→Python→Rasterio-Testpfad (synthetische Daten)](smart-farming-http-python-rasterio-lab.md)
 - [M3M P3.2: private EPSG:3857-Vegetationskarten mit lokalem SHA-verifiziertem GeoJSON-Zeichentool](smart-farming-private-map-lab.md)
 - [M3M P3.3: privater numerischer GeoTIFF-/CSV-Polygonexport für GIS (offline)](smart-farming-private-numeric-gis-export.md)
 - [M3M P3.4: private GDAL-COG-Validierung mit zweitem TIFF-Decoder (offline)](smart-farming-private-cog-validation.md)
@@ -210,11 +195,6 @@ Diese Dokumente waren bisher nur über Suche oder PR-Beschreibungen erreichbar. 
 
 - [SkyHub Next – zwei Haupttabs (isolierter UI-Branch)](tak-ui-two-tabs.md)
 - [SkyHub Next · Light UI (2026-10-24)](webui-light-redesign.md)
-
-**Weitere**
-
-- [Flighttask-Korrelation – isolierter, nicht angebundener Auswahlhelfer](dji-flighttask-correlation-guard.md)
-- [Flighttask-Snapshot: verschlüsselter Offline-Stand und idempotenter Wiederanlauf nach Neustart (nicht angebunden)](dji-flighttask-snapshot-recovery.md)
 
 ## Historische Momentaufnahmen – nicht als Live-Betriebszustand verwenden
 

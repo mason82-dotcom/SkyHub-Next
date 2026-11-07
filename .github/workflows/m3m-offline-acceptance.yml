@@ -37,7 +37,7 @@ jobs:
         run: npm ci --prefix backend --ignore-scripts --no-audit --no-fund
       - name: Catalog read, auth, LAN rejection and view-model tests
         run: |
-          node --test backend/test/smart-farming-catalog.test.js backend/test/smart-farming-catalog-http.test.js backend/test/smart-farming-captures.test.js backend/test/media-gallery-ui.test.js backend/test/smart-farming-geo-api.test.js frontend/test/smart-farming-ui.test.js frontend/test/smart-farming-map-lab.test.js backend/test/m3m-catalog-transport.test.js
+          node --test backend/test/smart-farming-catalog.test.js backend/test/smart-farming-catalog-http.test.js backend/test/smart-farming-captures.test.js backend/test/media-gallery-ui.test.js frontend/test/smart-farming-ui.test.js frontend/test/smart-farming-map-lab.test.js backend/test/m3m-catalog-transport.test.js
       - name: Check default Compose has no active Smart Farming endpoint
         run: |
           docker compose --env-file .env.example config --quiet
@@ -66,12 +66,6 @@ jobs:
         run: |
           python -m py_compile backend/workers/m3m_*.py
           python -m unittest discover -s tests -p 'test_m3m_*.py' -v
-      - name: Install locked Node dependencies for actual Python Rasterio integration
-        run: npm ci --prefix backend --ignore-scripts --no-audit --no-fund
-      - name: Verify scoped HTTP to actual Python GeoTIFF worker (synthetic offline)
-        env:
-          SKYHUB_M3M_REAL_RASTER_PROVIDER_TEST: "1"
-        run: node --test backend/test/smart-farming-python-provider.integration.test.js
       - name: Operator CLI help is safe and offline
         run: |
           python backend/workers/m3m_dedal_offline_pipeline.py --help
