@@ -21,6 +21,11 @@ Dienste werden weder neu erstellt noch migriert.
   `source` prüft nur lokale Dateien, `preflight` den BRIX-Baselinezustand,
   `postflight` zusätzlich die ausgelieferten Assets. Diese müssen nicht nur die erwarteten
   UI-Marker enthalten, sondern **bytegenau (SHA-256)** mit den lokalen Dateien übereinstimmen.
+  Zusätzlich verifiziert `postflight` die im laufenden Backend-Container enthaltenen
+  **143** Top-Level-JavaScript-/Paketmanifest-Dateien (Bestand dynamisch aus dem
+  Checkout ermittelt) per `docker exec … sha256sum` gegen die lokalen Quelldateien.
+  Dieses `docker exec` startet nur einen kurzlebigen lesenden Hash-Prozess;
+  es ruft keinerlei SkyHub-Endpunkt oder DJI-Steuerbefehl auf.
   Es führt **nie** `git pull`, Docker Build/Up, Schreib-HTTP, S3 oder DRC aus.
 - Die statische Portalprüfung ist keine echte DJI- oder Flugabnahme. Der
   externe Browser-/HTTPS-Test und die Pilot-2-Rückgabe bleiben Betreiberaufgaben.
@@ -106,8 +111,14 @@ per SHA-256 verglichen; ein altes Image mit noch vorhandenen UI-Markern ist
 nun **FAIL**. Die Requests erfolgen direkt per privatem HTTP ohne Redirects,
 Proxy oder transparente Kompression. Voraussetzung ist eine unveränderte
 1:1-Auslieferung durch `express.static` (keine HTML-Transformation).
-Dies bestätigt nur die Dateiversion und Backend-Liveness, **nicht** die
-Version aller Node-Module, Caddy/TLS, Leaflet, UI-Eingabe oder Hardware.
+Anschließend muss der laufende Backend-Container alle `backend/*.js`-Dateien
+und `backend/package*.json` des aktuellen Checkouts bytegleich enthalten.
+Fehlende, zusätzliche, doppelte oder geänderte Dateien sind **FAIL**; die
+Container-ID muss während des Checks unverändert bleiben. `docker exec`
+benötigt hierfür `sh` und `sha256sum` im laufenden Node-Alpine-Image.
+Dies bestätigt nur diese aus dem Checkout kopierten Quelldateien und
+Backend-Liveness, **nicht** installierte `node_modules`, externe
+Abhängigkeiten, Caddy/TLS, Leaflet, UI-Eingabe oder Hardware.
 Bei Abweichung keine weiteren Dienste neu starten, erst Image/Checkout und
 Rollback-Tag prüfen.
 
