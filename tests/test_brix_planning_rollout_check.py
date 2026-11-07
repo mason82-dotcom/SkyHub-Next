@@ -142,7 +142,7 @@ class BrixPlanningRolloutCheckTests(unittest.TestCase):
                 if self.route == "/cloud-api2-planning.mjs":
                     # The expected UI markers remain present, but the bytes
                     # are no longer those of the checked-out source revision.
-                    body += b"\\n// old image, unchanged required markers\\n"
+                    body += b"\n// old image, unchanged required markers\n"
                 return FakeResponse(body)
 
         with patch.object(checker, "HTTPConnection", StaleConnection):
@@ -156,7 +156,7 @@ class BrixPlanningRolloutCheckTests(unittest.TestCase):
                     return super().getresponse()
                 source = checker.ROOT / "frontend/public" / self.route.lstrip("/")
                 if self.route == "/cloud-api2.html":
-                    return FakeResponse(source.read_bytes() + b"\\xff")
+                    return FakeResponse(source.read_bytes() + b"\xff")
                 return FakeResponse(source.read_bytes())
 
         with patch.object(checker, "HTTPConnection", CorruptConnection):
