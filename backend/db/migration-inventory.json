@@ -101,6 +101,18 @@
       "requires": [],
       "git_blob_sha": "1b552632c36e01520df70f5dd017981c186f2a99",
       "applied": false
+    },
+    {
+      "id": "pilot-media-dji-names-007",
+      "family": "pilot-media",
+      "order": 7,
+      "path": "backend/db/migrations/007_dji_pilot_media_dji_names.sql",
+      "status": "offline_only",
+      "requires": [
+        "pilot-media-library-005"
+      ],
+      "git_blob_sha": "66e34679f94096e0821730935cf36cc34b5f717d",
+      "applied": false
     }
   ]
 }

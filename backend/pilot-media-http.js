@@ -41,7 +41,7 @@ function validatedBody(req){
 }
 function createPilotMediaHandlers({
   workspace,authorize,allowRequest,audit,store,groups,headObject,transaction,
-  log=message=>console.log(message)
+  log=message=>console.log(message),onVerified=null
 }={}){
   // Structure only (field names and value types), never values, keys, tokens or serials.
   function logInvalid(action,req,where){
@@ -137,6 +137,9 @@ function createPilotMediaHandlers({
     uploadCallback:(req,res)=>guarded(req,res,ACTIONS.callback,async(body,{store:writer})=>{
       if(!parseUploadCallback(body))return invalid();
       const result=await writer.verifyCallback({workspace,callback:body,headObject});
+      // DJI names: rename after answering Pilot 2 (never delays or fails the callback).
+      if(result?.status==='verified'&&typeof onVerified==='function')
+        setImmediate(()=>{try{Promise.resolve(onVerified(body.object_key)).catch(()=>{});}catch(_err){/* logged by renamer */}});
       switch(result?.status){
         case 'verified':
         case 'duplicate':return ok(uploadCallbackResponse(body.object_key));
