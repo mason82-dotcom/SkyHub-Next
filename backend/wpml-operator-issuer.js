@@ -62,7 +62,8 @@ function parseJwt(compact){
 
 function createWpmlOperatorIssuer({
   oidc,workspaces,operatorIssuer,signingKey,keyId,redis,keySecret,recordMacSecret,
-  sessionSeconds=3600,tokenSeconds=MAX_TOKEN_SECONDS,   // team removal takes effect at the latest after one sessionfetch=globalThis.fetch,clock=()=>Date.now(),
+  // 1 h session: reissue() does not re-check team membership, so a removal takes effect at the latest after one session.
+  sessionSeconds=3600,tokenSeconds=MAX_TOKEN_SECONDS,fetch=globalThis.fetch,clock=()=>Date.now(),
   httpTimeoutMs=5000
 }={}){
   // ---- configuration (fail at start-up, never at login time) ----
