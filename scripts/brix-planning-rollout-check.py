@@ -127,6 +127,21 @@ def runtime_context() -> tuple[str, int]:
         health = state.get("Health")
         if health is not None:
             require(health.get("Status") == "healthy", "Container unhealthy: " + service)
+        if service == "backend":
+            running_env = json.loads(execute("docker", "inspect", "--format",
+                                             "{{json .Config.Env}}", ident))
+            # Read it in memory only. Docker inspect otherwise exposes credentials.
+            drc = [entry.split("=", 1)[1] for entry in running_env
+                   if entry.startswith("SKYHUB_DRC_ENABLED=")]
+            require(len(drc) == 1 and drc[0].lower() == "false",
+                    "Laufender Backend-Container hat DRC nicht nachweislich aus")
+            previous_image = execute("docker", "inspect", "--format", "{{.Image}}", ident)
+            require(bool(re.fullmatch(r"sha256:[a-f0-9]{64}", previous_image)),
+                    "Altes Backend-Image nicht eindeutig identifizierbar")
+            restored = execute("docker", "image", "inspect", "--format",
+                               "{{.Id}}", previous_image)
+            require(restored.startswith("sha256:"),
+                    "Vorheriges Image nicht für Rollback auflösbar")
     print("PASS RUNTIME: main/Compose, DRC aus, vier Container laufen")
     return bind, port
 
