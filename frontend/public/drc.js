@@ -133,12 +133,13 @@
     const notes=[];
     if(s.failsafe&&s.failsafe.pending)notes.push('Totmannschaltung: '+s.failsafe.reason);
     if(s.joystickInvalid)notes.push('Knüppel gesperrt: '+s.joystickInvalid.text);
+    if(s.recoveryRequired)notes.push('RC-Rückgabe nach Netzfehler UNBESTÄTIGT: Pilot 2 prüfen; DRC-Dienst erst danach neu starten');
     if(active&&!controlsReady&&!RCPRO)notes.push('Steuerung gesperrt: '+(s.controlLink?.reason||'Nachweis fehlt'));
     if(s.lastError)notes.push(s.lastError);
     $('notice').textContent=notes.join(' · ')||'–';$('notice').className=notes.length?'bad':'';
     $('scale').textContent=Math.round((s.limits?.stickScale??0.5)*100);
     $('tHeight').max=s.limits?.maxHeightAboveTakeoffM??120;$('tSpeed').max=s.limits?.maxSpeedMs??10;
-    $('auth').disabled=s.phase!=='idle'||!a;
+    $('auth').disabled=s.phase!=='idle'||!a||Boolean(s.recoveryRequired);
     $('enter').disabled=s.phase!=='authorized'||!mine;
     $('exit').disabled=!active||!mine;
     $('release').disabled=s.phase==='idle';
