@@ -56,8 +56,9 @@
 
 <section class="drc-warning" role="note">
   Während der Cloud-Steuerung sind <b>Knüppel, Rückkehr- und Not-Aus-Taste der Fernsteuerung wirkungslos</b> (DJI). Der Pilot bleibt an der
-  Fernsteuerung mit Sichtkontakt. Verliert SkyHub den Bediener (Tab verlassen, Netz weg), gehen die Knüppel auf neutral, ein Anflug wird
-  gestoppt, und nach 3 s bekommt die Fernsteuerung die Kontrolle zurück.
+  Fernsteuerung mit Sichtkontakt. Verliert SkyHub den Bediener (Tab verlassen, Netz weg), werden neutrale Knüppel,
+  Anflugstopp und Rückgabe nach 3 s versucht. Bei Broker-/Netzausfall ist diese Rückgabe <b>nicht garantiert</b>:
+  Der Pilot muss die Kontrolle in DJI Pilot 2 selbst überprüfen und gegebenenfalls wieder übernehmen.
 </section>
 
 <main id="skyhubMain" tabindex="-1" class="drc-grid">
