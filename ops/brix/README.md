@@ -12,6 +12,12 @@ nftables (`/etc/nftables.d/brix-access.nft`) lässt auf 1884/4001/4002 nur den P
 | `ops/brix/mosquitto/` | Broker-Konfiguration; `passwd`/`acl` bleiben lokal (600, nicht im Git) |
 | `ops/brix/monitoring/` | Prometheus-Job und Grafana-Alarmregeln für SkyHub und das restic-Backup |
 
+## Sicherer Planungs-Frontend-Rollout
+
+- [Brix-Planungs-Runbook](planning-rollout.md): getrennte Vorprüfung, explizites Backend-Update, Postflight und Image-Rollback
+- `python3 scripts/brix-planning-rollout-check.py --mode source|preflight|postflight` prüft lesend, nimmt keine Dienständerungen vor
+- DRC muss vor jedem Backend-Rollout sowohl konfiguriert als auch **im laufenden Container** ausgeschaltet sein
+
 ## Betrieb
 
 ```bash
