@@ -178,3 +178,14 @@ test('second Pilot page instance uses the token its sibling already stored',asyn
   assert.equal(page.requests.find(r=>r.url==='/api/pilot/bootstrap').auth,'Bearer '+DEVICE_TOKEN);
   assert.doesNotMatch(page.el('result').textContent,/abgelaufen/);
 });
+
+test('rebuilding the cloud session reloads only the cloud-dependent modules the configuration uses',async()=>{
+  const store=storage({'skyhub.pilot.deviceToken':DEVICE_TOKEN});
+  const page=await openPage({store,loaded:true,connected:true});
+  const unloaded=[];
+  page.bridge.platformUnloadComponent=name=>{unloaded.push(name);return ok(true);};
+  await page.timers.find(t=>t.ms===15000).callback();
+  await page.settle();
+  // This bootstrap enables no tsa/media/wayline: only the cloud module is rebuilt.
+  assert.deepEqual(unloaded,['thing']);
+});

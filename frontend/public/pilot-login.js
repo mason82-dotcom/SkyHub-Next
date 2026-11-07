@@ -218,18 +218,67 @@
       password:config.mqtt.password,connectCallback:'skyhubPilotMqttState'
     }));
   }
+  // DJI JSBridge doc (2026-10-13): map, tsa and mission (and media for its STS/upload calls) run over
+  // the api module and must be reloaded when api is reloaded; tsa, map, media and mission also need
+  // the cloud (thing) module. The api module keeps the token it was loaded with, so a new device
+  // token is handed over with apiSetToken and a changed host reloads api and its dependants.
+  // Only modules this configuration loads again are unloaded.
+  function dependants(config){
+    const c=config||{},out=[];
+    if(c.tsa){out.push('tsa');if(c.map)out.push('map');}
+    if(c.media)out.push('media');
+    if(c.wayline)out.push('mission');
+    return out;
+  }
+  function unloadIfLoaded(names){
+    for(const name of names){
+      if(bridgeBoolean('platformIsComponentLoaded',name)===true){
+        try{invoke('platformUnloadComponent',name);}catch(_){}
+      }
+    }
+  }
+  function bridgeString(method){
+    try{
+      if(!window.djiBridge||typeof window.djiBridge[method]!=='function')return null;
+      const r=parseBridge(window.djiBridge[method]());
+      return r.ok&&typeof r.data==='string'?r.data:null;
+    }catch(_){return null;}
+  }
+  function ensureApi(host,config){
+    if(bridgeBoolean('platformIsComponentLoaded','api')!==true){
+      invoke('platformLoadComponent','api',JSON.stringify({host,token:sessionToken}));
+      return 'loaded';
+    }
+    const loadedHost=bridgeString('apiGetHost');
+    if(loadedHost!==null&&loadedHost.replace(/\/+$/,'')!==host){
+      unloadIfLoaded(dependants(config));
+      try{invoke('platformUnloadComponent','api');}catch(_){}
+      invoke('platformLoadComponent','api',JSON.stringify({host,token:sessionToken}));
+      return 'reloaded';
+    }
+    // The token is only compared here and never logged (invoke logs method names and codes only).
+    // Only a token Pilot 2 reports as different is replaced; a rejected setter (Pilot 2 refuses
+    // setters that change nothing) must never stop tsa, media or mission from loading.
+    const loadedToken=bridgeString('apiGetToken');
+    if(loadedToken!==null&&loadedToken!==sessionToken&&typeof window.djiBridge.apiSetToken==='function'){
+      try{invoke('apiSetToken',sessionToken);return 'token';}catch(_){return 'token-rejected';}
+    }
+    return 'kept';
+  }
   // Situation awareness: DJI needs the api and ws modules before tsa, and the cloud (thing)
   // module before all of them. Only requested when the server enables it; a failure here must
   // never affect the MQTT connection. The device token is passed to the bridge only.
+  function ensureWs(tsa){
+    if(bridgeBoolean('platformIsComponentLoaded','ws')!==true)
+      invoke('platformLoadComponent','ws',JSON.stringify({
+        host:tsa.wsHost,token:sessionToken,connectCallback:'skyhubPilotWsState'}));
+  }
   function loadTsa(config){
     const tsa=config&&config.tsa;
     if(!tsa||typeof tsa.apiHost!=='string'||typeof tsa.wsHost!=='string'||!sessionToken)return;
     try{
-      if(bridgeBoolean('platformIsComponentLoaded','api')!==true)
-        invoke('platformLoadComponent','api',JSON.stringify({host:tsa.apiHost,token:sessionToken}));
-      if(bridgeBoolean('platformIsComponentLoaded','ws')!==true)
-        invoke('platformLoadComponent','ws',JSON.stringify({
-          host:tsa.wsHost,token:sessionToken,connectCallback:'skyhubPilotWsState'}));
+      ensureApi(tsa.apiHost,config);
+      ensureWs(tsa);
       if(bridgeBoolean('platformIsComponentLoaded','tsa')!==true)
         invoke('platformLoadComponent','tsa','{}');
       // Map elements (jsbridge map module, after cloud + ws): Pilot 2 then reads the element groups over the api module and
@@ -251,8 +300,7 @@
     const media=config&&config.media;
     if(!media||typeof media.apiHost!=='string'||!sessionToken)return;
     try{
-      if(bridgeBoolean('platformIsComponentLoaded','api')!==true)
-        invoke('platformLoadComponent','api',JSON.stringify({host:media.apiHost,token:sessionToken}));
+      ensureApi(media.apiHost,config);
       if(bridgeBoolean('platformIsComponentLoaded','media')!==true)
         invoke('platformLoadComponent','media',JSON.stringify(MEDIA_SETTINGS));
       // Pilot 2 rejects a setter that changes nothing (e.g. code 615012), so only switch off what
@@ -271,18 +319,22 @@
     }catch(e){mediaState='nicht geladen ('+e.message+')';}
     refreshDiagnostics();
   }
-  // Wayline library: DJI loads the 'mission' module after 'api'. Pilot 2 then lists SkyHub's
+  // Wayline library: DJI loads the 'mission' module after the cloud, api and ws modules.
+  // SkyHub serves the ws endpoint only together with situation awareness; without it the mission
+  // module is still loaded (list/download work over api) and the diagnostics say that ws is missing. Pilot 2 then lists SkyHub's
   // validated KMZ files in its wayline library and downloads them via short-lived links.
   // Uploads from Pilot 2 are refused by SkyHub. No flight task is created by this module.
   function loadWayline(config){
     const wayline=config&&config.wayline;
     if(!wayline||typeof wayline.apiHost!=='string'||!sessionToken)return;
     try{
-      if(bridgeBoolean('platformIsComponentLoaded','api')!==true)
-        invoke('platformLoadComponent','api',JSON.stringify({host:wayline.apiHost,token:sessionToken}));
+      ensureApi(wayline.apiHost,config);
+      const tsa=config.tsa;
+      const ws=Boolean(tsa&&typeof tsa.wsHost==='string');
+      if(ws)ensureWs(tsa);
       if(bridgeBoolean('platformIsComponentLoaded','mission')!==true)
         invoke('platformLoadComponent','mission','{}');
-      waylineState='Modul geladen (nur Liste/Download)';
+      waylineState='Modul geladen (nur Liste/Download'+(ws?'':', ohne ws-Modul: Lagebild aus')+')';
     }catch(e){waylineState='nicht geladen ('+e.message+')';}
     refreshDiagnostics();
   }
@@ -353,6 +405,11 @@
       if(typeof window.djiBridge.platformUnloadComponent==='function')
         window.djiBridge.platformUnloadComponent('thing');
       loadThing(lastConfig);
+      // tsa, map, media and mission depend on the cloud module: reload them on the new one.
+      unloadIfLoaded(dependants(lastConfig));
+      loadTsa(lastConfig);
+      loadMedia(lastConfig);
+      loadWayline(lastConfig);
       setTimeout(()=>window.skyhubPilotMqttState(),4000);
     }catch(e){status('Neuaufbau fehlgeschlagen: '+e.message);show('rebuild',true);}
   }

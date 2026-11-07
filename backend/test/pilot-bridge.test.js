@@ -27,14 +27,26 @@ async function createPilot(options={}){
     return elements.get(id);
   }
   let response=options.mqttState??JSON.stringify({code:0,data:false});
+  const loadedSet=options.loaded?new Set(options.loaded):null;
   const auto={photo:options.autoPhoto??false,video:options.autoVideo??false};
   const bridge={
     platformVerifyLicense:()=>JSON.stringify({code:0}),
     platformSetWorkspaceId:()=>JSON.stringify({code:0}),
     platformSetInformation:()=>JSON.stringify({code:0}),
     platformLoadComponent(...args){calls.load.push(args);
-      return JSON.stringify({code:options.loadFails?.includes(args[0])?17:0});},
-    ...(options.loaded?{platformIsComponentLoaded:name=>JSON.stringify({code:0,data:options.loaded.includes(name)})}:{}),
+      const fails=options.loadFails?.includes(args[0]);
+      if(!fails&&loadedSet)loadedSet.add(args[0]);
+      if(!fails&&args[0]==='api'&&options.api)Object.assign(options.api,JSON.parse(args[1]));
+      return JSON.stringify({code:fails?17:0});},
+    ...(loadedSet?{platformIsComponentLoaded:name=>JSON.stringify({code:0,data:loadedSet.has(name)})}:{}),
+    platformUnloadComponent(name){(calls.unload??=[]).push(name);if(loadedSet)loadedSet.delete(name);return JSON.stringify({code:0});},
+    ...(options.api?{
+      apiGetHost:()=>JSON.stringify({code:0,data:options.api.host}),
+      apiGetToken:()=>JSON.stringify({code:0,data:options.api.token}),
+      apiSetToken(token){(calls.apiSetToken??=[]).push(token);
+        if(options.api.setFails)return JSON.stringify({code:615012});
+        options.api.token=token;return JSON.stringify({code:0});}
+    }:{}),
     wsGetConnectState:()=>JSON.stringify({code:0,data:true}),
     thingGetConnectState(){return response;},
     thingConnect(...args){calls.retry.push(args);return JSON.stringify({code:0});},
@@ -271,4 +283,63 @@ test('without media config no api or media module is loaded',async()=>{
   const pilot=await createPilot();
   await pilot.connect();
   assert.deepEqual(pilot.calls.load.map(args=>args[0]),['thing']);
+});
+
+// JSBridge doc 2026-10-13: api keeps its token, mission needs ws, api/cloud reloads reload dependants.
+const full={...withTsa,map:{userName:'pilot'},media:{apiHost:'https://rpi5.fritz.box'},wayline:{apiHost:'https://rpi5.fritz.box'}};
+
+test('a loaded api module with an old token gets the new token via apiSetToken, nothing is reloaded',async()=>{
+  const pilot=await createPilot({bootstrap:full,loaded:['thing','api','ws','tsa','map','media','mission'],
+    api:{host:'https://rpi5.fritz.box/',token:'old-token'}});
+  await pilot.connect();
+  assert.deepEqual(pilot.calls.apiSetToken,['placeholder-test-token']);
+  assert.deepEqual(pilot.calls.load,[]);
+  assert.equal(pilot.calls.unload,undefined);
+  assert.doesNotMatch(pilot.el('diagnostics').textContent+pilot.el('result').textContent,/placeholder-test-token|old-token/);
+});
+
+test('same token and host: the api module is kept as it is',async()=>{
+  const pilot=await createPilot({bootstrap:full,loaded:['thing','api','ws','tsa','map','media','mission'],
+    api:{host:'https://rpi5.fritz.box',token:'placeholder-test-token'}});
+  await pilot.connect();
+  assert.equal(pilot.calls.apiSetToken,undefined);
+  assert.deepEqual(pilot.calls.load,[]);
+});
+
+test('a different api host reloads api and then map, tsa, media and mission',async()=>{
+  const pilot=await createPilot({bootstrap:full,loaded:['thing','api','ws','tsa','map','media','mission'],
+    api:{host:'https://old.example',token:'placeholder-test-token'}});
+  await pilot.connect();
+  assert.deepEqual(pilot.calls.unload,['tsa','map','media','mission','api']);
+  assert.deepEqual(pilot.calls.load.map(c=>c[0]),['api','tsa','map','media','mission']);
+  assert.deepEqual(JSON.parse(pilot.calls.load[0][1]),{host:'https://rpi5.fritz.box',token:'placeholder-test-token'});
+});
+
+test('the mission module is loaded after cloud, api and ws',async()=>{
+  const pilot=await createPilot({bootstrap:{...withTsa,wayline:{apiHost:'https://rpi5.fritz.box'}},loaded:['thing','tsa']});
+  await pilot.connect();
+  assert.deepEqual(pilot.calls.load.map(c=>c[0]),['api','ws','mission']);
+  assert.match(pilot.el('diagnostics').textContent,/nur Liste\/Download\)/);
+});
+
+test('without situation awareness mission still loads and the diagnostics name the missing ws module',async()=>{
+  const pilot=await createPilot({bootstrap:{...bootstrap,wayline:{apiHost:'https://rpi5.fritz.box'}}});
+  await pilot.connect();
+  assert.deepEqual(pilot.calls.load.map(c=>c[0]),['thing','api','mission']);
+  assert.match(pilot.el('diagnostics').textContent,/ohne ws-Modul/);
+});
+
+test('a rejected apiSetToken does not stop the dependent modules from loading',async()=>{
+  const pilot=await createPilot({bootstrap:full,loaded:['thing','api','ws'],
+    api:{host:'https://rpi5.fritz.box',token:'old-token',setFails:true}});
+  await pilot.connect();
+  assert.equal(pilot.calls.apiSetToken.length,3);              // tried by tsa, media and mission, never fatal
+  assert.deepEqual(pilot.calls.load.map(c=>c[0]),['tsa','map','media','mission']);
+  assert.doesNotMatch(pilot.el('diagnostics').textContent,/nicht geladen/);
+});
+
+test('without apiGetToken (older Pilot 2) no token setter is called',async()=>{
+  const pilot=await createPilot({bootstrap:full,loaded:['thing','api','ws','tsa','map','media','mission']});
+  await pilot.connect();
+  assert.equal(pilot.calls.apiSetToken,undefined);
 });
