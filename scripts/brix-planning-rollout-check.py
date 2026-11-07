@@ -8,6 +8,7 @@ config is parsed in memory; interpolated secrets are never printed.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import ipaddress
 import json
 import platform
@@ -34,6 +35,7 @@ HTTP_PAGES = {
         "/wpml-editor.html", "/wpml-survey-preview.html", "/wpml-route-library.html",
         "flightReady: false", "dispatchAllowed: false",
     ),
+    "/cloud-api2-planning.css": ("planning-flow", "planning-frame"),
     "/wpml-editor.html": ("Missionsentwurf",),
     "/wpml-survey-preview.html": ("Vermessungsvorschau",),
     "/wpml-route-library.html": ("Routenbibliothek",),
@@ -146,17 +148,18 @@ def runtime_context() -> tuple[str, int]:
     return bind, port
 
 
-def fetch_local(bind: str, port: int, route: str) -> str:
+def fetch_local(bind: str, port: int, route: str) -> bytes:
     # Direct, non-proxied HTTP GET to the private IPv4 only. HTTPConnection
     # does not follow redirects, preventing requests from leaving the LAN.
     connection = HTTPConnection(bind, port, timeout=5)
     try:
-        connection.request("GET", route, headers={"Connection": "close"})
+        connection.request("GET", route, headers={"Connection": "close", "Accept-Encoding": "identity",
+                                                  "Cache-Control": "no-cache"})
         response = connection.getresponse()
         require(response.status == 200, "HTTP nicht 200: " + route)
         payload = response.read(256 * 1024 + 1)
         require(len(payload) <= 256 * 1024, "HTTP-Antwort zu groß: " + route)
-        return payload.decode("utf-8", errors="replace")
+        return payload
     finally:
         connection.close()
 
@@ -168,12 +171,20 @@ def http_check(bind: str, port: int, *, post: bool) -> None:
                 "Health contract readOnly/status nicht bestätigt")
         if post:
             for route, terms in HTTP_PAGES.items():
-                body = fetch_local(bind, port, route)
+                payload = fetch_local(bind, port, route)
+                body = payload.decode("utf-8")  # Invalid UTF-8 must fail closed.
                 require(all(term in body for term in terms), "Portal-HTTP-Asset fehlt/alt: " + route)
+                # Text markers are not proof of the deployed revision: an older
+                # image may still contain every marker. Static files are served
+                # verbatim by Express; bind HTTP bytes to the checked-out source.
+                source = ROOT / "frontend/public" / route.lstrip("/")
+                require(source.is_file(), "Lokale Quelldatei fehlt: " + route)
+                require(hashlib.sha256(payload).digest() == hashlib.sha256(source.read_bytes()).digest(),
+                        "Ausgeliefertes HTTP-Asset weicht von Source ab: " + route)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         raise Refusal("Lokale Backend-HTTP-Prüfung nicht bestätigt (" +
                       type(exc).__name__ + ")") from None
-    print("PASS HTTP: Backend-Health" + (" und alle Planungs-Assets" if post else " (Baseline)"))
+    print("PASS HTTP: Backend-Health" + (" und bytegenaue Planungs-Assets" if post else " (Baseline)"))
 
 
 def main() -> int:

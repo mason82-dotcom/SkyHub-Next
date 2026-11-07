@@ -19,7 +19,8 @@ Dienste werden weder neu erstellt noch migriert.
   ausdrücklichen Backend-Dienstnamen.
 - `scripts/brix-planning-rollout-check.py` hat drei Modi. **Alle sind lesend**:
   `source` prüft nur lokale Dateien, `preflight` den BRIX-Baselinezustand,
-  `postflight` zusätzlich die ausgelieferten Assets.
+  `postflight` zusätzlich die ausgelieferten Assets. Diese müssen nicht nur die erwarteten
+  UI-Marker enthalten, sondern **bytegenau (SHA-256)** mit den lokalen Dateien übereinstimmen.
   Es führt **nie** `git pull`, Docker Build/Up, Schreib-HTTP, S3 oder DRC aus.
 - Die statische Portalprüfung ist keine echte DJI- oder Flugabnahme. Der
   externe Browser-/HTTPS-Test und die Pilot-2-Rückgabe bleiben Betreiberaufgaben.
@@ -98,10 +99,17 @@ python3 scripts/brix-planning-rollout-check.py --mode postflight
 ```
 
 `postflight` prüft lesend `/api/health`, `/cloud-api2.html`,
-`/cloud-api2-planning.mjs` und die drei bestehenden WPML-Originalseiten
-an der privaten BRIX-Bind-Adresse. Das beweist nur Asset-Auslieferung und
-Backend-Liveness; Caddy/TLS, Leaflet, Eingabe und Betriebsberechtigung sind
-separat zu prüfen. Beim ersten Fehler keine weiteren Dienste neustarten.
+`/cloud-api2-planning.mjs`, `/cloud-api2-planning.css` und die drei bestehenden
+WPML-Originalseiten an der privaten BRIX-Bind-Adresse. Bei jedem statischen
+Asset wird die HTTP-Antwort mit den **Dateibytes des überprüften Checkouts**
+per SHA-256 verglichen; ein altes Image mit noch vorhandenen UI-Markern ist
+nun **FAIL**. Die Requests erfolgen direkt per privatem HTTP ohne Redirects,
+Proxy oder transparente Kompression. Voraussetzung ist eine unveränderte
+1:1-Auslieferung durch `express.static` (keine HTML-Transformation).
+Dies bestätigt nur die Dateiversion und Backend-Liveness, **nicht** die
+Version aller Node-Module, Caddy/TLS, Leaflet, UI-Eingabe oder Hardware.
+Bei Abweichung keine weiteren Dienste neu starten, erst Image/Checkout und
+Rollback-Tag prüfen.
 
 ## E – Abnahme nach Deployment
 
