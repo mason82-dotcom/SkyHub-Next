@@ -120,3 +120,15 @@ Fachquelle: [Thermalvertrag](docs/thermal.md), `backend/thermal.js` und `fronten
 - Jeder Export enthält Schätzhinweis und nachvollziehbare Quelle/Berechnungsgrundlage. Die Serie benennt die abweichende, unkorrigierte Berechnung ausdrücklich.
 - Fotokandidaten bleiben als Heuristik gekennzeichnet. Mehrdeutigkeit ist kein erfolgreicher Treffer. Keine dieser UI-Prüfungen erteilt eine Hardware- oder Messfreigabe.
 - Nachweise: `backend/test/thermal-ui-integrity.test.js`, `scripts/thermal-browser-ci.js` sowie die Backendtests.
+
+
+## Cloud API 2 – Missionsplanung als kanonischer WPML-Arbeitsbereich (P0)
+
+Der Reiter `/cloud-api2.html#planning` führt in drei **bestehende, kanonische** SkyHub-Seiten: `/wpml-editor.html`, `/wpml-survey-preview.html` und `/wpml-route-library.html`. Die Planungsansicht besitzt keine eigene Missions-/KMZ-Logik, keine eigene Geometrieberechnung und keinen eigenen Speicherpfad.
+
+- Vor einem ausdrücklichen Werkzeugklick bleibt die eingebettete Originalseite ungeladen. Werkzeugwechsel behalten bereits geöffnete Frames und ihre flüchtige Bearbeitung, garantieren aber keine Speicherung.
+- Der aktive Auswahlbutton erhält `aria-pressed=true`, alle anderen `false`. Laden, geladene Originalansicht und unbekannter/gesperrter Frame-Zustand werden als Text mit `role=status` angezeigt; Frame-`load` allein genügt nicht für PASS.
+- Jedes Werkzeug besitzt einen sichtbaren Direktlink auf seinen bekannten Same-Origin-Pfad als Alternative bei iframe- oder CSP-Sperren, Kartenfehlern oder zu engem Viewport.
+- Keine Funktion fügt Gerätekommandos, Mission-Dispatch, Auto-Sync oder eine Cloud-API-2-Runtime hinzu. Die bestehenden Editor-/Bibliotheksseiten können **nach eigenem Klick** lokale Entwürfe ändern oder die bereits autorisierte MinIO-Speicherfunktion auslösen; die Portal-Integration verspricht deshalb nicht globalen Read-only-Betrieb.
+- Flächenplanung ist nur theoretische 2D-/DEM-Vorschau und erzeugt keine unmittelbar fliegbare Wayline. `flightReady=false`, `terrainVerified=false` und `dispatchAllowed=false` bleiben maßgeblich.
+- Browserabnahme bei 320/390/834/1440px, Tastatur, Touch, Einbettungsblockade und wiederholten Wechseln erforderlich. Details: `docs/cloud-api2-mission-planning-workspace.md`.
