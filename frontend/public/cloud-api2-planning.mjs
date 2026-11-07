@@ -50,6 +50,19 @@ export function initPlanningWorkspace(doc = globalThis.document) {
   const states=new Map(PLANNING_TOOLS.map(x=>[x.id,'unloaded']));
   let active = null;
   const updateStatus = message => { status.textContent = message; };
+  // A load event is not proof that the canonical, same-origin page is present.
+  // Re-check when revisiting a frame: an embedded page may have navigated while hidden.
+  const trustedFrame = (tool,frame) => {
+    try {
+      const parent = new URL(doc.location.href);
+      const actual = new URL(frame.contentWindow.location.href,parent.href);
+      return actual.origin === parent.origin &&
+        actual.pathname === tool.path &&
+        (frame.contentDocument?.title || '').startsWith(tool.pageTitle);
+    } catch (_) {
+      return false; // Includes cross-origin / blocked contentDocument access.
+    }
+  };
 
   function activate(id) {
     const tool = byId.get(id);
@@ -72,7 +85,12 @@ export function initPlanningWorkspace(doc = globalThis.document) {
       updateStatus(tool.name + ' wird geladen. Noch kein Ergebnis bestätigt.');
       frame.setAttribute('src',tool.path);
     } else {
-      const state=states.get(id);
+      let state=states.get(id);
+      if (state==='ready' && !trustedFrame(tool,frame)) {
+        // A previously verified hidden frame may have changed without a visible event.
+        state='unknown';
+        states.set(id,state);
+      }
       updateStatus(state==='ready'
         ? tool.name + ' erneut geöffnet. Die eingebettete Ansicht bleibt erhalten.'
         : state==='loading' ? tool.name + ' lädt noch.'
@@ -86,20 +104,13 @@ export function initPlanningWorkspace(doc = globalThis.document) {
   for (const tool of PLANNING_TOOLS) {
     const frame=frames.get(tool.id);
     frame.addEventListener('load',()=>{
+      // Track hidden frames too, but never overwrite the currently selected tool's status.
+      const ready=trustedFrame(tool,frame);
+      states.set(tool.id,ready?'ready':'unknown');
       if (active!==tool.id) return;
-      // A frame load alone is not proof the editor loaded (404/CSP can also load).
-      try {
-        const url=new URL(frame.contentWindow.location.href,doc.location.href);
-        if (url.origin!==new URL(doc.location.href).origin || url.pathname!==tool.path)
-          throw new Error('unexpected-frame-url');
-        const title=frame.contentDocument?.title || '';
-        if (!title.startsWith(tool.pageTitle)) throw new Error('unexpected-frame-document');
-        states.set(tool.id,'ready');
-        updateStatus(tool.name + ' geladen. Entwurfs- und Prüfaktionen erfolgen ausschließlich im Originalmodul.');
-      } catch (_) {
-        states.set(tool.id,'unknown');
-        updateStatus('UNBEKANNT: Einbettung konnte nicht bestätigt werden. Über „separat öffnen“ die Originalseite aufrufen.');
-      }
+      updateStatus(ready
+        ? tool.name + ' geladen. Entwurfs- und Prüfaktionen erfolgen ausschließlich im Originalmodul.'
+        : 'UNBEKANNT: Einbettung konnte nicht bestätigt werden. Über „separat öffnen“ die Originalseite aufrufen.');
     });
     frame.addEventListener('error',()=>{
       states.set(tool.id,'unknown');
