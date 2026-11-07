@@ -1,5 +1,9 @@
 # SkyHub Next – Dokumentationswegweiser
 
+## Cloud API 2 P2: Mobile UI, lokale Sprachausgabe und Mock-Abgrenzung (07.11.2026)
+
+[DE/EN-Teilübersetzung, responsive Ansicht und Trennung der BRIX-DevKit-Demo](cloud-api2-p2-ui-provenance.md) – Quellenvergleich ohne BRIX-Datenabruf, keine vollständige Portalübersetzung und keine Hardwarefreigabe.
+
 ## Cloud API 2 V1.1.0: P1-Read-only-Vertragsadapter (07.11.2026)
 
 [GET-only-SDK-Fassade, Versionen, Capability-Matrix und Portalprüfung](cloud-api2-v1.1.0-p1-adapter.md) – keine DJI-API-2-Runtime, keine Flug- oder Hardwarefreigabe.

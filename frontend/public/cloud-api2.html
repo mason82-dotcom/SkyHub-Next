@@ -5,7 +5,9 @@
 <meta name="robots" content="noindex"><meta name="theme-color" content="#0a1724">
 <title>Cloud API 2 Lab | SkyHub Next</title>
 <link rel="stylesheet" href="/cloud-api2.css">
+<link rel="stylesheet" href="/cloud-api2-p2.css">
 <script defer type="module" src="/cloud-api2.js"></script>
+<script defer type="module" src="/cloud-api2-p2-ui.mjs"></script>
 </head>
 <body>
 <a class="skip" href="#main">Zum Inhalt springen</a>
@@ -31,6 +33,7 @@
 </aside>
 <div class="content">
   <header class="topbar"><span>SKYHUB NEXT <i>/</i> DJI INTEGRATION <i>/</i> <b>CLOUD API 2 LAB</b></span><div><span class="ro">● READ ONLY</span> <time id="localtime">—</time></div></header>
+  <div class="p2-tools"><label for="p2-language">Sprache / Language</label><select id="p2-language"><option value="de">Deutsch</option><option value="en">English</option></select><span id="p2-mock-banner" class="p2-mock" role="status">DJI-DevKit auf BRIX: MOCK – keine Live-Geräte</span></div>
   <main id="main" tabindex="-1">
     <section id="view-overview" class="view">
       <p class="eyebrow">KEYLESS INTEGRATION · REFERENCE V1.1.0</p>
@@ -158,6 +161,7 @@
         <div id="readonlyAdapterModules" class="integration-grid" aria-live="polite"></div>
         <p class="warning">Mission-Dispatch, DRC und DJI-MCP-Aktionen sind nicht Teil dieser Fassade. Es werden weder Authentifizierungsdaten angefordert noch Gerätebefehle übertragen.</p>
       </article>
+      <article class="card below p2-provenance"><div class="card-top"><b id="p2-compare-title">Datenherkunft &amp; Vergleich</b><span>READ ONLY / MOCK</span></div><p id="p2-compare-intro">Vergleich getrennter Datenquellen.</p><div id="p2-provenance"></div><p id="p2-compare-status" role="status" aria-live="polite">Kein automatischer Cross-System-Abgleich</p></article>
     </section>
     <section id="view-sdk" class="view" hidden>
       <p class="eyebrow">KEYLESS API / DEVELOPER KIT</p><div class="heading"><div><h1>SDK &amp; Bausteine</h1><p>SkyHub-eigene objektorientierte GET-Fassade, lokale Komponenten und Schnittstellenstatus. Keine Behauptung einer installierten DJI-Java-Runtime.</p></div><span class="pill">NO DJI KEY</span></div>
