@@ -1,0 +1,43 @@
+name: Cloud API 2 mission planning workspace
+on:
+  pull_request:
+    paths:
+      - 'frontend/public/cloud-api2*'
+      - 'backend/test/cloud-api2-planning.test.js'
+      - 'UX-CONTRACT.md'
+      - 'docs/cloud-api2-mission-planning-workspace.md'
+      - '.github/workflows/cloud-api2-mission-planning.yml'
+  push:
+    branches:
+      - feature/cloud-api2-mission-planning-workspace-p0-20261107
+      - main
+    paths:
+      - 'frontend/public/cloud-api2*'
+      - 'backend/test/cloud-api2-planning.test.js'
+      - 'UX-CONTRACT.md'
+      - 'docs/cloud-api2-mission-planning-workspace.md'
+      - '.github/workflows/cloud-api2-mission-planning.yml'
+permissions:
+  contents: read
+jobs:
+  safety-and-existing-wpml:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate syntax of planning and existing portal modules
+        run: |
+          node --check frontend/public/cloud-api2-planning.mjs
+          node --check frontend/public/cloud-api2.js
+      - name: Verify navigation contract and canonical WPML tools
+        run: |
+          node --test \
+            backend/test/cloud-api2-planning.test.js \
+            backend/test/cloud-api2-module-catalog.test.js \
+            backend/test/cloud-api2-p2-ui.test.js \
+            backend/test/wpml-editor.test.js \
+            backend/test/wpml-survey-preview.test.js \
+            backend/test/wpml-route-library-ui.test.js
