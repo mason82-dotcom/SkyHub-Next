@@ -9,7 +9,7 @@ import {SkyHubReadOnlyContractAdapter} from './cloud-api2-readonly-adapter.mjs';
 const get=id=>document.getElementById(id);
 const client=new SkyHubDaaSClient();
 const lab=new SkyHubLabSimulator();
-const sections=['overview','devices','evidence','mavic3','m4t-hardware','simulator','sdk','contracts','integrations','ai'];
+const sections=['overview','devices','evidence','mavic3','m4t-hardware','planning','simulator','sdk','contracts','integrations','ai'];
 const hardwareEvidence=new Map();
 let observedDevices=[];
 let chosenMavic3='m3e';
