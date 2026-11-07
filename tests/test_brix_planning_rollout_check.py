@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import hashlib
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -162,6 +164,74 @@ class BrixPlanningRolloutCheckTests(unittest.TestCase):
         with patch.object(checker, "HTTPConnection", CorruptConnection):
             with self.assertRaisesRegex(checker.Refusal, "Lokale Backend-HTTP-Prüfung nicht bestätigt"):
                 checker.http_check("192.168.178.50", 4001, post=True)
+
+    def test_backend_image_check_accepts_matching_runtime_without_writes(self):
+        with tempfile.TemporaryDirectory() as temp, patch.object(checker, "ROOT", Path(temp)):
+            backend = Path(temp) / "backend"
+            backend.mkdir()
+            (backend / "server.js").write_bytes(b"console.log('ok');")
+            (backend / "package.json").write_bytes(b'{"name":"skyhub"}')
+            names = ("package.json", "server.js")
+            response = "\n".join(
+                hashlib.sha256((backend / name).read_bytes()).hexdigest() +
+                "  /app/backend/" + name for name in names
+            )
+            calls = []
+            def fake_exec(*args):
+                calls.append(args)
+                return response
+            with patch.object(checker, "execute", side_effect=fake_exec):
+                checker.backend_image_check("a" * 12)
+            self.assertEqual(calls, [("docker", "exec", "a" * 12, "sh", "-c",
+                                      checker.BACKEND_HASH_COMMAND)])
+
+    def test_backend_image_check_rejects_modified_runtime_bytes(self):
+        with tempfile.TemporaryDirectory() as temp, patch.object(checker, "ROOT", Path(temp)):
+            backend = Path(temp) / "backend"
+            backend.mkdir()
+            (backend / "server.js").write_text("new")
+            (backend / "package.json").write_text("{}")
+            lines = (
+                hashlib.sha256(b"old").hexdigest() + "  /app/backend/server.js",
+                hashlib.sha256(b"{}").hexdigest() + "  /app/backend/package.json",
+            )
+            with patch.object(checker, "execute", return_value="\n".join(lines)):
+                with self.assertRaisesRegex(checker.Refusal, "Dateihashes"):
+                    checker.backend_image_check("a" * 12)
+
+    def test_backend_image_check_rejects_missing_or_duplicate_container_files(self):
+        with tempfile.TemporaryDirectory() as temp, patch.object(checker, "ROOT", Path(temp)):
+            backend = Path(temp) / "backend"
+            backend.mkdir()
+            (backend / "server.js").write_bytes(b"server")
+            (backend / "package.json").write_bytes(b"{}")
+            line = hashlib.sha256(b"server").hexdigest() + "  /app/backend/server.js"
+            with patch.object(checker, "execute", return_value=line):
+                with self.assertRaisesRegex(checker.Refusal, "Dateibestand"):
+                    checker.backend_image_check("a" * 12)
+            with patch.object(checker, "execute", return_value=line + "\n" + line):
+                with self.assertRaisesRegex(checker.Refusal, "Doppelter"):
+                    checker.backend_image_check("a" * 12)
+
+    def test_postflight_attests_backend_only_after_http_and_rechecks_container_identity(self):
+        recorded = []
+        def fake_http(_bind, _port, *, post):
+            self.assertTrue(post)
+            recorded.append("http")
+        def fake_backend(_id):
+            recorded.append("backend")
+        def fake_exec(*args):
+            self.assertEqual(args, ("bash", "scripts/brix-compose.sh", "ps", "-q", "backend"))
+            recorded.append("same-container")
+            return "a" * 12
+        with patch.object(checker, "source_check"), \
+             patch.object(checker, "runtime_context", return_value=("192.168.178.50", 4001, "a" * 12)), \
+             patch.object(checker, "http_check", side_effect=fake_http), \
+             patch.object(checker, "backend_image_check", side_effect=fake_backend), \
+             patch.object(checker, "execute", side_effect=fake_exec), \
+             patch.object(sys, "argv", ["check", "--mode", "postflight"]):
+            self.assertEqual(checker.main(), 0)
+        self.assertEqual(recorded, ["http", "backend", "same-container"])
 
     def test_http_redirect_is_not_followed(self):
         class RedirectConnection(FakeConnection):
