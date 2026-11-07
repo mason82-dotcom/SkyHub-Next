@@ -20,6 +20,7 @@
     <button type="button" data-view="m4t-hardware">▧ <span>M4T + RC Plus 2 Tests</span></button>
     <button type="button" data-view="evidence">▣ <span>Nachweise</span></button>
     <button type="button" data-view="simulator">◇ <span>Simulator</span><i>LAB</i></button>
+    <button type="button" data-view="contracts">◉ <span>API-2-Vertragsprüfung</span></button>
     <button type="button" data-view="sdk">⌘ <span>SDK &amp; Bausteine</span></button>
     <button type="button" data-view="integrations">▤ <span>Module &amp; Skills</span></button>
     <button type="button" data-view="ai">✳ <span>KI-Werkstatt</span></button>
@@ -135,6 +136,28 @@
         <div class="sim-metrics"><div><small>FLUGPHASE</small><b id="phase">Bereit</b></div><div><small>HÖHE (LAB)</small><b id="height">0 m</b></div><div><small>AKKU (LAB)</small><b id="battery">96 %</b></div><div><small>LINK (LAB)</small><b id="link">100 %</b></div></div>
         <div class="actions"><button id="next" class="primary" type="button">Nächster Labor-Frame →</button><button id="reset" class="secondary" type="button">Zurücksetzen</button><button id="download" class="secondary" type="button">JSON exportieren</button></div>
       </article><article class="card"><div class="card-top"><b>LABORPROTOKOLL</b><span>IN-MEMORY</span></div><ol id="labLog" class="log"></ol><p class="warning">Alle Zustände sind vorgefertigt und synthetisch. Die Buttons erzeugen keine Start-, Missions-, Rückkehr- oder Landebefehle.</p></article></div>
+    </section>
+    <section id="view-contracts" class="view" hidden>
+      <p class="eyebrow">P1 / OFFLINE CONTRACT / EXISTING SKYHUB GET ONLY</p>
+      <div class="heading"><div><h1>API-2-Vertragsprüfung</h1>
+        <p>Versionsgebundener DJI-Cloud-API-2-V1.1.0-Katalog gegen die vorhandene SkyHub-DaaS-Lesefassade. Modellnennung ist keine Hardwarefreigabe.</p></div>
+        <button id="inspectReadOnlyAdapter" type="button" class="secondary">Lesevertrag prüfen (GET)</button>
+      </div>
+      <div class="bar"><span id="readonlyAdapterStatus" role="status" aria-live="polite">Noch nicht geprüft. Die Abfrage erfolgt ausschließlich nach Klick.</span><span class="pill">SCHREIBWEGE GESPERRT</span></div>
+      <article class="card below">
+        <div class="card-top"><b>VERTRAG &amp; SDK-STAND</b><span>KEINE DJI-RUNTIME</span></div>
+        <div id="readonlyAdapterSummary" class="features" aria-live="polite"></div>
+        <p class="hint">Quelle: revisionsgebundener, statischer Herstellerkatalog. Das Ergebnis ist keine Live-/Lizenz-/Firmware-/Flugabnahme und kein Geräte- oder Medien-Herkunftsnachweis.</p>
+      </article>
+      <article class="card below">
+        <div class="card-top"><b>GERÄTEFAMILIEN</b><span>7 REFERENZPROFILE</span></div>
+        <div id="readonlyAdapterDevices" class="integration-grid" aria-live="polite"></div>
+      </article>
+      <article class="card below">
+        <div class="card-top"><b>SDK-CAPABILITY-MATRIX</b><span>13 VERTRÄGE</span></div>
+        <div id="readonlyAdapterModules" class="integration-grid" aria-live="polite"></div>
+        <p class="warning">Mission-Dispatch, DRC und DJI-MCP-Aktionen sind nicht Teil dieser Fassade. Es werden weder Authentifizierungsdaten angefordert noch Gerätebefehle übertragen.</p>
+      </article>
     </section>
     <section id="view-sdk" class="view" hidden>
       <p class="eyebrow">KEYLESS API / DEVELOPER KIT</p><div class="heading"><div><h1>SDK &amp; Bausteine</h1><p>SkyHub-eigene objektorientierte GET-Fassade, lokale Komponenten und Schnittstellenstatus. Keine Behauptung einer installierten DJI-Java-Runtime.</p></div><span class="pill">NO DJI KEY</span></div>

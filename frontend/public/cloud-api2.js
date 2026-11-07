@@ -5,10 +5,11 @@ import {MAVIC3_MODELS,countMavic3Registry} from './cloud-api2-mavic3.mjs';
 import {normalizeEvidence} from './cloud-api2-evidence.mjs';
 import {normalizeLinkage} from './cloud-api2-linkage.mjs';
 import {normalizeHardwareReceipt} from './cloud-api2-hardware.mjs';
+import {SkyHubReadOnlyContractAdapter} from './cloud-api2-readonly-adapter.mjs';
 const get=id=>document.getElementById(id);
 const client=new SkyHubDaaSClient();
 const lab=new SkyHubLabSimulator();
-const sections=['overview','devices','evidence','mavic3','m4t-hardware','simulator','sdk','integrations','ai'];
+const sections=['overview','devices','evidence','mavic3','m4t-hardware','simulator','sdk','contracts','integrations','ai'];
 const hardwareEvidence=new Map();
 let observedDevices=[];
 let chosenMavic3='m3e';
@@ -309,6 +310,67 @@ get('download').addEventListener('click',()=>{
   const anchor=el('a');anchor.href=url;anchor.download='skyhub-cloudapi2-lab.json';
   anchor.click();URL.revokeObjectURL(url);
 });
+
+const readOnlyAdapter=new SkyHubReadOnlyContractAdapter({client});
+function paintReadOnlyContract(contract){
+  const summary=get('readonlyAdapterSummary');
+  const devices=get('readonlyAdapterDevices');
+  const modules=get('readonlyAdapterModules');
+  summary.replaceChildren();devices.replaceChildren();modules.replaceChildren();
+  for(const [key,value] of [
+    ['DJI Plattform',contract.vendorPlatformVersion],
+    ['DJI Revision',contract.vendorCommit.slice(0,12)],
+    ['SDK-Quellen',contract.sdkSourceVersion],
+    ['DevKit-JAR',contract.devkitJarVersion],
+    ['API-2-SDK installiert','NEIN / NUR REFERENZ'],
+    ['Flug- und Missionsfreigabe','NICHT NACHGEWIESEN']
+  ]){
+    const line=el('div','feature');
+    line.append(el('span','',key),el('b','',value));summary.append(line);
+  }
+  const support={
+    'explicitly-listed-not-hardware-certified':'DJI MODELLREFERENZ · NICHT ABGENOMMEN',
+    'family-listed-not-specific-certified':'DJI FAMILIENREFERENZ · NICHT ABGENOMMEN',
+    'not-explicitly-listed':'DJI API 2: NICHT EINZELN BELEGT',
+    'sdk-controller-class-only':'NUR SDK CONTROLLER-ABSTRAKTION'
+  };
+  for(const d of contract.devices){
+    const card=el('article','integration-item');
+    card.append(el('small','',support[d.vendorSupport]),el('h2','',d.name),
+      el('p','','Keine bestätigte API-2-Hardwareabnahme und keine Flugfreigabe.'));
+    devices.append(card);
+  }
+  for(const c of contract.capabilities){
+    const card=el('article','integration-item');
+    const mode=c.skyhubMode==='read-only-projection'?'SKYHUB GET · API-1.x-DATEN':
+      c.skyhubMode==='disabled'?'GESPERRT':'DJI REFERENZ / KEINE RUNTIME';
+    card.append(el('small','',mode),el('h2','',c.vendorModule),
+      el('p','',c.id+' · keine Cloud-API-2-SDK-Abnahme.'));
+    modules.append(card);
+  }
+}
+async function inspectReadOnlyContract(){
+  const button=get('inspectReadOnlyAdapter');
+  if(button.disabled)return;
+  button.disabled=true;
+  get('readonlyAdapterSummary').replaceChildren();
+  get('readonlyAdapterDevices').replaceChildren();
+  get('readonlyAdapterModules').replaceChildren();
+  get('readonlyAdapterStatus').textContent='Vertrag wird über vorhandene SkyHub-GET-Schnittstelle geprüft …';
+  try{
+    const contract=await readOnlyAdapter.inspect();
+    paintReadOnlyContract(contract);
+    get('readonlyAdapterStatus').textContent=
+      'PASS: Version, 7 Gerätereferenzen, 13 Capabilities und READ-ONLY-Gates geprüft. Keine Hardwareabnahme.';
+  }catch(_){
+    get('readonlyAdapterSummary').replaceChildren();
+    get('readonlyAdapterDevices').replaceChildren();
+    get('readonlyAdapterModules').replaceChildren();
+    get('readonlyAdapterStatus').textContent=
+      'UNBEKANNT: Vertrag nicht erreichbar, nicht autorisiert oder widersprüchlich. Keine Freigabe.';
+  }finally{button.disabled=false;}
+}
+get('inspectReadOnlyAdapter').addEventListener('click',inspectReadOnlyContract);
 function renderFeatures(){
   const target=get('modules');
   for(const [name,state] of features){
