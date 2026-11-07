@@ -42,6 +42,11 @@ HTTP_PAGES = {
 }
 
 
+# This command reads only first-party files explicitly copied by backend/Dockerfile.
+# No shell expansion of user-controlled paths; output is processed in memory only.
+BACKEND_HASH_COMMAND = "sha256sum /app/backend/*.js /app/backend/package*.json"
+
+
 class Refusal(Exception):
     pass
 
@@ -120,6 +125,7 @@ def runtime_context() -> tuple[str, int]:
     require(any(str(p.get("published")) == str(port) and p.get("host_ip") == bind
                 and str(p.get("target")) == "4000" for p in ports),
             "Effective Compose backend Bind/Port nicht wie erwartet")
+    backend_id = None
     for service in ("backend", "postgres", "redis", "mosquitto"):
         ident = execute("bash", "scripts/brix-compose.sh", "ps", "-q", service)
         require(bool(re.fullmatch(r"[a-f0-9]{12,64}", ident)),
@@ -130,6 +136,7 @@ def runtime_context() -> tuple[str, int]:
         if health is not None:
             require(health.get("Status") == "healthy", "Container unhealthy: " + service)
         if service == "backend":
+            backend_id = ident
             running_env = json.loads(execute("docker", "inspect", "--format",
                                              "{{json .Config.Env}}", ident))
             # Read it in memory only. Docker inspect otherwise exposes credentials.
@@ -145,7 +152,31 @@ def runtime_context() -> tuple[str, int]:
             require(restored.startswith("sha256:"),
                     "Vorheriges Image nicht für Rollback auflösbar")
     print("PASS RUNTIME: main/Compose, DRC aus, vier Container laufen")
-    return bind, port
+    require(backend_id is not None, "Backend-Container nicht nachgewiesen")
+    return bind, port, backend_id
+
+
+def backend_image_check(backend_id: str) -> None:
+    """Bind the running image\u0027s first-party JS and package manifests to checked-out source."""
+    require(bool(re.fullmatch(r"[a-f0-9]{12,64}", backend_id)),
+            "Ungültige Backend-Containerkennung")
+    source_dir = ROOT / "backend"
+    expected_files = sorted([*source_dir.glob("*.js"), *source_dir.glob("package*.json")])
+    require(bool(expected_files) and (source_dir / "server.js") in expected_files and
+            (source_dir / "package.json") in expected_files,
+            "Backend-Quelldateien fehlen")
+    expected = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in expected_files}
+    raw = execute("docker", "exec", backend_id, "sh", "-c", BACKEND_HASH_COMMAND)
+    actual = {}
+    for line in raw.splitlines():
+        match = re.fullmatch(r"([a-f0-9]{64})  /app/backend/([A-Za-z0-9_.-]+)", line)
+        require(match is not None, "Ungültige Container-Hash-Ausgabe")
+        name = match.group(2)
+        require(name not in actual, "Doppelter Backend-Dateiname im Container")
+        actual[name] = match.group(1)
+    require(actual.keys() == expected.keys(), "Backend-Dateibestand weicht vom Checkout ab")
+    require(actual == expected, "Backend-Dateihashes weichen vom Checkout ab")
+    print("PASS BACKEND: Laufender Container entspricht JS-/Paketmanifest-Checkout")
 
 
 def fetch_local(bind: str, port: int, route: str) -> bytes:
@@ -195,8 +226,12 @@ def main() -> int:
     try:
         source_check()
         if args.mode != "source":
-            bind, port = runtime_context()
+            bind, port, backend_id = runtime_context()
             http_check(bind, port, post=args.mode == "postflight")
+            if args.mode == "postflight":
+                backend_image_check(backend_id)
+                require(execute("bash", "scripts/brix-compose.sh", "ps", "-q", "backend") == backend_id,
+                        "Backend-Container hat sich während der Prüfung geändert")
         print("RESULT PASS: Keine Betriebsänderung durchgeführt")
         return 0
     except (Refusal, subprocess.TimeoutExpired, OSError, json.JSONDecodeError) as exc:
