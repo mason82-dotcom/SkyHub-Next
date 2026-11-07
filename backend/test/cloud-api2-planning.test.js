@@ -111,6 +111,41 @@ test('explicit activation lazy-loads one approved tool, retains hidden workspace
   buttons[0].emit('click');
   assert.match(status.textContent,/UNBEKANNT/, 'old frame error must not be promoted to success');
 });
+test('inactive iframe completion is tracked without modifying visible planning status',async()=>{
+  const {initPlanningWorkspace}=await import('../../frontend/public/cloud-api2-planning.mjs');
+  const v=fixture();const ui=initPlanningWorkspace(v.doc);
+  ui.activate('editor');
+  ui.activate('area');
+  v.frames[0].emit('load');
+  assert.match(v.status.textContent,/wird geladen/,'inactive event must not change visible state');
+  ui.activate('editor');
+  assert.match(v.status.textContent,/erneut geöffnet/,'hidden completed editor must be recognized');
+  assert.equal(v.frames[0].getAttribute('src'),'/wpml-editor.html','revisiting must not reload editor');
+});
+test('inactive redirect and stale ready state cannot be presented as trusted',async()=>{
+  const {initPlanningWorkspace}=await import('../../frontend/public/cloud-api2-planning.mjs');
+  const v=fixture();const ui=initPlanningWorkspace(v.doc);
+  ui.activate('editor');
+  v.frames[0].emit('load');
+  assert.match(v.status.textContent,/geladen/);
+  ui.activate('area');
+  v.frames[0].contentWindow.location.href='https://external.invalid/wpml-editor.html';
+  v.frames[0].emit('load');
+  assert.match(v.status.textContent,/wird geladen/,'hidden redirect must not replace active status');
+  ui.activate('editor');
+  assert.match(v.status.textContent,/UNBEKANNT/,'inactive redirect must fail closed');
+  assert.equal(v.open.href,'/wpml-editor.html','fallback remains canonical');
+});
+test('reselection revalidates previously ready frame even if no load event is observed',async()=>{
+  const {initPlanningWorkspace}=await import('../../frontend/public/cloud-api2-planning.mjs');
+  const v=fixture();const ui=initPlanningWorkspace(v.doc);
+  ui.activate('editor');
+  v.frames[0].emit('load');
+  ui.activate('library');
+  v.frames[0].contentDocument.title='404 Not Found';
+  ui.activate('editor');
+  assert.match(v.status.textContent,/UNBEKANNT/);
+});
 test('unknown content, foreign URLs and errors fail closed to direct original module',async()=>{
   const {initPlanningWorkspace}=await import('../../frontend/public/cloud-api2-planning.mjs');
   const v=fixture();const ui=initPlanningWorkspace(v.doc);
