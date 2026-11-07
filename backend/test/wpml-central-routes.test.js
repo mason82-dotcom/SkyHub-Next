@@ -140,3 +140,26 @@ test('no route service is wired to production server or to DJI command interface
   assert.match(source,/latest_revision=\$4/);
   assert.ok(RouteError);
 });
+
+test('ADR-001: workspaceRoles sets a transaction-local workspace role right after BEGIN',async()=>{
+  const {workspaceRole}=require('../wpml-central-routes');
+  assert.equal(workspaceRole(A),'skyhub_wpml_ws_e3dea0f537f24d79ae58490af3228069');
+  assert.throws(()=>workspaceRole('a"; DROP ROLE x; --'),RouteError);
+  assert.throws(()=>createWpmlRouteStore(pool(),{workspaceRoles:'yes'}),/boolean/);
+  const p=pool();
+  const service=createWpmlRouteService({pool:p,authorize:async()=>actor,workspaceRoles:true});
+  await service.listRoutes({credential:'opaque',workspaceId:A});
+  assert.deepEqual(p.sql.slice(0,2).map(q=>q.text),['BEGIN','SET LOCAL ROLE "skyhub_wpml_ws_e3dea0f537f24d79ae58490af3228069"']);
+  // The role comes from the verified workspace, never from a second request field.
+  await assert.rejects(service.listRoutes({credential:'opaque',workspaceId:B}),RouteError);
+  const legacy=pool();
+  await createWpmlRouteService({pool:legacy,authorize:async()=>actor}).listRoutes({credential:'x',workspaceId:A});
+  assert.ok(!legacy.sql.some(q=>q.text.startsWith('SET LOCAL ROLE')));
+});
+
+test('validatePlan accepts every plan key the shared library core emits (round trip, incl. rthHeight)',()=>{
+  const local=require('../../frontend/public/wpml-route-library-core');
+  const saved=local.save(local.blank(),{name:'Round trip',plan:plan(),savedAt:1}).library.routes[0].revisions[0].plan;
+  // A stored, normalized plan must validate again when read back.
+  assert.deepEqual(validatePlan('Round trip',saved),saved);
+});

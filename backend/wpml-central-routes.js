@@ -23,7 +23,8 @@ function canonical(value){
 function validatePlan(name,plan){
   // Reject unknown fields BEFORE the normalizer could discard them. This is
   // critical for untrusted API input with forged dispatch/security fields.
-  const allowed=['name','model','speed','transitionSpeed','takeoffHeight',
+  // Must match the plan keys of frontend/public/wpml-route-library-core.js (rthHeight since the planning tab, #312).
+  const allowed=['name','model','speed','transitionSpeed','takeoffHeight','rthHeight',
     'finishAction','timestamp','waypoints','intervalPhotos','actionGroups'];
   const keys=(v,whitelist)=>{
     if(!v||typeof v!=='object'||Array.isArray(v)||
@@ -70,14 +71,23 @@ function validateActor(actor,workspaceId){
     typeof actor.workspaceId==='string'&&actor.workspaceId===workspaceId&&
     UUID.test(actor.workspaceId)&&typeof actor.id==='string'&&UUID.test(actor.id);
 }
-function createWpmlRouteStore(pool){
+// ADR-001 (docs/adr-wpml-operator-identity-rls.md): one NOLOGIN PostgreSQL role per workspace
+// (005_wpml_runtime_rls_draft.sql). The name is derived only from a validated UUID, never from free text.
+function workspaceRole(workspaceId){
+  requireId(workspaceId);
+  return 'skyhub_wpml_ws_'+workspaceId.toLowerCase().replace(/-/g,'');
+}
+function createWpmlRouteStore(pool,{workspaceRoles=false}={}){
   if(!pool||typeof pool.connect!=='function')throw new TypeError('PostgreSQL pool required');
-  async function transaction(callback){
+  if(typeof workspaceRoles!=='boolean')throw new TypeError('workspaceRoles must be boolean');
+  async function transaction(workspaceId,callback){
     let client,started=false;
     try{
       client=await pool.connect();
       await client.query('BEGIN');
       started=true;
+      // SET LOCAL ends with the transaction, so a pooled connection never keeps a workspace role.
+      if(workspaceRoles)await client.query('SET LOCAL ROLE "'+workspaceRole(workspaceId)+'"');
       const out=await callback(client);
       await client.query('COMMIT');started=false;
       return out;
@@ -96,7 +106,7 @@ function createWpmlRouteStore(pool){
       requireId(workspaceId);requireId(actorId);requireId(routeId);
       const normalized=validatePlan(name,plan);
       name=normalized.name;
-      return transaction(async client=>{
+      return transaction(workspaceId,async client=>{
         // Serialize new-route creation within each workspace so the
         // 32-route limit cannot be bypassed by concurrent transactions.
         await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',
@@ -129,7 +139,7 @@ function createWpmlRouteStore(pool){
       requireId(workspaceId);requireId(actorId);requireId(routeId);
       if(!Number.isSafeInteger(expectedRevision)||expectedRevision<1||
          expectedRevision>=MAX_REVISIONS)throw new RouteError('invalid');
-      return transaction(async client=>{
+      return transaction(workspaceId,async client=>{
         const row=await client.query(
           'SELECT latest_revision,route_name FROM skyhub_wpml_routes '+
           'WHERE workspace_id=$1 AND route_id=$2 AND archived_at IS NULL FOR UPDATE',
@@ -159,7 +169,7 @@ function createWpmlRouteStore(pool){
     },
     async list({workspaceId}){
       requireId(workspaceId);
-      return transaction(async client=>{
+      return transaction(workspaceId,async client=>{
         const data=await client.query(
           'SELECT route_id,route_name,latest_revision FROM skyhub_wpml_routes '+
           'WHERE workspace_id=$1 AND archived_at IS NULL ORDER BY route_id LIMIT 32',
@@ -175,7 +185,7 @@ function createWpmlRouteStore(pool){
       requireId(workspaceId);requireId(routeId);
       if(!Number.isSafeInteger(revision)||revision<1||revision>MAX_REVISIONS)
         throw new RouteError('invalid');
-      return transaction(async client=>{
+      return transaction(workspaceId,async client=>{
         const result=await client.query(
           'SELECT r.route_name,v.plan,v.plan_sha256 FROM skyhub_wpml_routes r '+
           'JOIN skyhub_wpml_route_revisions v ON '+
@@ -192,9 +202,9 @@ function createWpmlRouteStore(pool){
     }
   });
 }
-function createWpmlRouteService({pool,authorize}={}){
+function createWpmlRouteService({pool,authorize,workspaceRoles=false}={}){
   if(typeof authorize!=='function')throw new TypeError('Independent operator resolver required');
-  const store=createWpmlRouteStore(pool);
+  const store=createWpmlRouteStore(pool,{workspaceRoles});
   async function permitted({credential,workspaceId}){
     requireId(workspaceId);
     // The credential is opaque to this module, never included in SQL/logs.
@@ -226,4 +236,4 @@ function createWpmlRouteService({pool,authorize}={}){
   });
 }
 module.exports={createWpmlRouteStore,createWpmlRouteService,RouteError,
-  validateActor,validatePlan,canonical};
+  validateActor,validatePlan,canonical,workspaceRole};
