@@ -25,3 +25,6 @@
 @media(max-width:920px){.planning-flow{grid-template-columns:1fr}.planning-choice{min-height:0;padding:15px;gap:7px}.planning-frame{height:720px}}
 @media(max-width:580px){.planning-frame{height:680px}.planning-workspace-header{align-items:flex-start}}
 @media(prefers-reduced-motion:reduce){.planning-choice{transition:none}}
+
+/* Never label the embedded writable WPML tools as globally read-only. */
+#portalModeBadge.planning-mode{color:#f1c98b}
