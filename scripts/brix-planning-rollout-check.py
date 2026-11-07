@@ -16,7 +16,7 @@ import stat
 import subprocess
 import sys
 from pathlib import Path
-from urllib.request import urlopen
+from http.client import HTTPConnection
 
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED_STATIC = {
@@ -146,24 +146,29 @@ def runtime_context() -> tuple[str, int]:
     return bind, port
 
 
-def fetch_local(base: str, route: str) -> str:
-    # Only the known LAN host and hard-coded GET paths; no user-entered URL.
-    with urlopen(base + route, timeout=5) as response:
+def fetch_local(bind: str, port: int, route: str) -> str:
+    # Direct, non-proxied HTTP GET to the private IPv4 only. HTTPConnection
+    # does not follow redirects, preventing requests from leaving the LAN.
+    connection = HTTPConnection(bind, port, timeout=5)
+    try:
+        connection.request("GET", route, headers={"Connection": "close"})
+        response = connection.getresponse()
         require(response.status == 200, "HTTP nicht 200: " + route)
         payload = response.read(256 * 1024 + 1)
         require(len(payload) <= 256 * 1024, "HTTP-Antwort zu groß: " + route)
-    return payload.decode("utf-8", errors="replace")
+        return payload.decode("utf-8", errors="replace")
+    finally:
+        connection.close()
 
 
 def http_check(bind: str, port: int, *, post: bool) -> None:
-    base = "http://" + bind + ":" + str(port)
     try:
-        health = json.loads(fetch_local(base, "/api/health"))
+        health = json.loads(fetch_local(bind, port, "/api/health"))
         require(health.get("readOnly") is True and health.get("status") in ("online", "degraded"),
                 "Health contract readOnly/status nicht bestätigt")
         if post:
             for route, terms in HTTP_PAGES.items():
-                body = fetch_local(base, route)
+                body = fetch_local(bind, port, route)
                 require(all(term in body for term in terms), "Portal-HTTP-Asset fehlt/alt: " + route)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         raise Refusal("Lokale Backend-HTTP-Prüfung nicht bestätigt (" +
