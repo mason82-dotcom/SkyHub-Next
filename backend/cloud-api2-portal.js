@@ -1,6 +1,7 @@
 'use strict';
 // Keyless SkyHub-owned read-only projection of the existing Cloud API 1.x registry.
 // This is not DJI Cloud API 2 PaaS, native SDK, MQTT bridge or flight controller.
+const {projectPublicContract}=require('./cloud-api2-readonly-contract');
 const SCHEMA='skyhub.cloudapi2.keyless.v1';
 const REFERENCE='DJI Cloud API 2 V1.1.0 reference';
 function batteryValue(value){
@@ -33,7 +34,8 @@ const CAPABILITIES=Object.freeze({
   djiRuntimeInstalled:false,officialDjiSdkInstalled:false,
   officialDjiFrontendLoaded:false,externalMqttBridgeEnabled:false,
   simulator:'isolated-browser-memory',aiTools:'offline-prompt-templates',
-  allowedMethods:['GET'],flightCommandsEnabled:false,missionDispatchEnabled:false
+  allowedMethods:['GET'],flightCommandsEnabled:false,missionDispatchEnabled:false,
+  contract:projectPublicContract()
 });
 function createCloudApi2PortalRouter({express,registry,mqttState}){
   const router=express.Router();

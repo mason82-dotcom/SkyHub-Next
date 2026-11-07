@@ -1,5 +1,9 @@
 # SkyHub Next – Dokumentationswegweiser
 
+## Cloud API 2 V1.1.0: P1-Read-only-Vertragsadapter (07.11.2026)
+
+[GET-only-SDK-Fassade, Versionen, Capability-Matrix und Portalprüfung](cloud-api2-v1.1.0-p1-adapter.md) – keine DJI-API-2-Runtime, keine Flug- oder Hardwarefreigabe.
+
 ## Cloud API 2 V1.1.0: P0-Vertragskatalog und Offline-Regression (07.11.2026)
 
 [Versionierter DJI-SDK-/Geräte-Capability-Vertrag, Read-only-Adapterprüfung und CI-Abnahme](cloud-api2-v1.1.0-p0-contracts.md) – Herstellerstand revisionsgebunden, keine SDK- oder Hardwarefreigabe.
