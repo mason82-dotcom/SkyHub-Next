@@ -1,0 +1,296 @@
+# Grafana 13.x file provisioning (brix-node). Copy to /srv/stacks/monitoring/grafana/alerting/ and restart Grafana.
+apiVersion: 1
+groups:
+- orgId: 1
+  name: brix-skyhub
+  folder: Homelab Alerts
+  interval: 1m
+  rules:
+  - uid: homelab_skyhub_backend_down
+    title: SkyHub-Backend nicht erreichbar
+    condition: C
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: prometheus
+      model:
+        datasource:
+          type: prometheus
+          uid: prometheus
+        editorMode: code
+        expr: 'max(up{job="skyhub-backend"}) or vector(0)'
+        instant: true
+        range: false
+        intervalMs: 1000
+        maxDataPoints: 43200
+        refId: A
+    - refId: B
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: __expr__
+      model:
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: A
+        intervalMs: 1000
+        maxDataPoints: 43200
+        reducer: last
+        refId: B
+        type: reduce
+    - refId: C
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: __expr__
+      model:
+        conditions:
+        - evaluator:
+            params:
+            - 0.5
+            type: lt
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            params: []
+            type: last
+          type: query
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: B
+        intervalMs: 1000
+        maxDataPoints: 43200
+        refId: C
+        type: threshold
+    noDataState: Alerting
+    execErrState: Error
+    for: 3m
+    annotations:
+      summary: 'Prometheus erreicht /api/health/metrics des SkyHub-Backends auf brix-node seit drei Minuten nicht – Pilot 2, Dashboard und Live-Steuerung sind betroffen.'
+    labels:
+      severity: critical
+      scope: homelab
+    isPaused: false
+  - uid: homelab_skyhub_mqtt_degraded
+    title: SkyHub ohne MQTT-Verbindung/Abo
+    condition: C
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: prometheus
+      model:
+        datasource:
+          type: prometheus
+          uid: prometheus
+        editorMode: code
+        expr: 'max(skyhub_online{job="skyhub-backend"})'
+        instant: true
+        range: false
+        intervalMs: 1000
+        maxDataPoints: 43200
+        refId: A
+    - refId: B
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: __expr__
+      model:
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: A
+        intervalMs: 1000
+        maxDataPoints: 43200
+        reducer: last
+        refId: B
+        type: reduce
+    - refId: C
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: __expr__
+      model:
+        conditions:
+        - evaluator:
+            params:
+            - 0.5
+            type: lt
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            params: []
+            type: last
+          type: query
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: B
+        intervalMs: 1000
+        maxDataPoints: 43200
+        refId: C
+        type: threshold
+    noDataState: OK
+    execErrState: Error
+    for: 5m
+    annotations:
+      summary: 'Das SkyHub-Backend meldet seit fünf Minuten "degraded": keine Verbindung zum Mosquitto-Broker oder kein Topic-Abo – Telemetrie kommt nicht an.'
+    labels:
+      severity: critical
+      scope: homelab
+    isPaused: false
+  - uid: homelab_skyhub_redis_down
+    title: SkyHub ohne Redis
+    condition: C
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: prometheus
+      model:
+        datasource:
+          type: prometheus
+          uid: prometheus
+        editorMode: code
+        expr: 'max(skyhub_redis{job="skyhub-backend"})'
+        instant: true
+        range: false
+        intervalMs: 1000
+        maxDataPoints: 43200
+        refId: A
+    - refId: B
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: __expr__
+      model:
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: A
+        intervalMs: 1000
+        maxDataPoints: 43200
+        reducer: last
+        refId: B
+        type: reduce
+    - refId: C
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: __expr__
+      model:
+        conditions:
+        - evaluator:
+            params:
+            - 0.5
+            type: lt
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            params: []
+            type: last
+          type: query
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: B
+        intervalMs: 1000
+        maxDataPoints: 43200
+        refId: C
+        type: threshold
+    noDataState: OK
+    execErrState: Error
+    for: 5m
+    annotations:
+      summary: 'Das SkyHub-Backend erreicht Redis seit fünf Minuten nicht – Geräte-Cache und Topologie werden nicht gespeichert.'
+    labels:
+      severity: critical
+      scope: homelab
+    isPaused: false
+  - uid: homelab_skyhub_container_restarts
+    title: SkyHub-Container startet wiederholt neu
+    condition: C
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: prometheus
+      model:
+        datasource:
+          type: prometheus
+          uid: prometheus
+        editorMode: code
+        expr: 'max(changes(container_start_time_seconds{job="cadvisor-brix",name=~"skyhub-.*"}[30m])) or vector(0)'
+        instant: true
+        range: false
+        intervalMs: 1000
+        maxDataPoints: 43200
+        refId: A
+    - refId: B
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: __expr__
+      model:
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: A
+        intervalMs: 1000
+        maxDataPoints: 43200
+        reducer: last
+        refId: B
+        type: reduce
+    - refId: C
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: __expr__
+      model:
+        conditions:
+        - evaluator:
+            params:
+            - 2
+            type: gt
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            params: []
+            type: last
+          type: query
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: B
+        intervalMs: 1000
+        maxDataPoints: 43200
+        refId: C
+        type: threshold
+    noDataState: OK
+    execErrState: Error
+    for: 0s
+    annotations:
+      summary: 'Ein SkyHub-Container (skyhub-*) wurde in 30 Minuten mehr als zweimal neu gestartet – Neustartschleife prüfen (docker logs).'
+    labels:
+      severity: critical
+      scope: homelab
+    isPaused: false

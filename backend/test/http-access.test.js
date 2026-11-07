@@ -3,6 +3,11 @@ const {before,after,test}=require('node:test');
 const assert=require('node:assert/strict');
 const {once}=require('node:events');
 const {io}=require('socket.io-client');
+const {createDrFixture}=require('./helpers/dr-fixture');
+
+// Synthetic DR evidence; the real, git-ignored dr-status/ is never required.
+const drFixture=createDrFixture();
+process.once('exit',()=>drFixture.cleanup());
 
 // This process starts the real app on an ephemeral port. External services point
 // to the local closed port 1, so the test cannot contact the Pi broker or Redis.
@@ -26,7 +31,9 @@ Object.assign(process.env,{
   SKYHUB_PILOT_MQTT_USER:'test-pilot-user',
   SKYHUB_PILOT_MQTT_PASSWORD:'test-pilot-password',
   SKYHUB_PILOT_WORKSPACE_ID:'123e4567-e89b-42d3-a456-426614174000',
-  SKYHUB_DJI_MAP_ELEMENTS_ENABLED:'true'
+  SKYHUB_DJI_MAP_ELEMENTS_ENABLED:'true',
+  SKYHUB_MINIO_DR_ENABLED:'true',
+  SKYHUB_MINIO_DR_REPORT_DIR:drFixture.status
 });
 delete process.env.DATABASE_URL;
 const {server,stop}=require('../server');
@@ -70,53 +77,47 @@ test('public health does not reveal Pilot credentials',async()=>{
   assert.equal(body.includes(VIEW_TOKEN),false);
 });
 
-test('DJI model diagnostic returns all six whitelisted schema profiles',async()=>{
-  const {fieldDefinitions}=require('../dji-properties');
-  for(const model of ['2:144:0','2:174:0','0:77:0','0:77:1','0:77:2','0:99:1']){
-    const response=await request('/api/diagnostics/dji-fields?model='+model,{token:VIEW_TOKEN});
-    assert.equal(response.status,200,model);
-    const [domain,type,subType]=model.split(':');
-    assert.deepEqual(await response.json(),
-      fieldDefinitions({domain,type:Number(type),subType:Number(subType)}));
-  }
-});
-
-test('DJI model diagnostic rejects malformed and unknown model identifiers',async()=>{
-  const invalid=['','?model=','?model=0:77','?model=0:77:2:1',
-    '?model=1:89:0','?model=0:7777:2','?model=0:-77:2','?model=0:77:2.0',
-    '?model=0:%5Cd:%5Cd','?model=0:77:2&model=2:144:0','?model[type]=77',
-    '?model=0:77:%0A2'];
-  for(const query of invalid){
-    const response=await request('/api/diagnostics/dji-fields'+query,{token:VIEW_TOKEN});
-    assert.equal(response.status,400,query);
-    assert.deepEqual(await response.json(),{error:'Expected domain:type:sub_type'});
-  }
-  const unknown=await request('/api/diagnostics/dji-fields?model=0:999:0',{token:VIEW_TOKEN});
-  assert.equal(unknown.status,404);
-  assert.deepEqual(await unknown.json(),{error:'Model not in schema catalogue'});
-});
-
-test('DJI model diagnostic requires viewer token even from permitted LAN',async()=>{
-  const endpoint='/api/diagnostics/dji-fields?model=0:77:2';
-  for(const options of [{},{lan:'192.168.178.70'},{token:PILOT_TOKEN}]){
-    const response=await request(endpoint,options);
-    assert.equal(response.status,401);
-    assert.deepEqual(await response.json(),{error:'Unauthorized'});
-  }
-});
-
 test('LAN view is read-only; pairing administration still needs the view token',async()=>{
   assert.equal((await request('/api/devices')).status,401);
   assert.equal((await request('/api/devices',{lan:'192.168.178.70'})).status,200);
   assert.equal((await request('/api/devices',{lan:'203.0.113.9'})).status,401);
   assert.equal((await request('/api/diagnostics/mqtt-shapes',{lan:'192.168.178.70'})).status,200);
+  // HMS history is a dashboard read: LAN-visible, here disabled -> explicit 503, outside the LAN 401.
+  const hms=await request('/api/diagnostics/hms-history',{lan:'192.168.178.70'});
+  assert.equal(hms.status,503);
+  assert.deepEqual(await hms.json(),{error:'HMS history disabled',enabled:false});
+  assert.equal((await request('/api/diagnostics/hms-history',{lan:'203.0.113.9'})).status,401);
+  assert.equal((await request('/api/diagnostics/hms-history',{method:'POST',lan:'192.168.178.70'})).status,401);
   assert.equal((await request('/api/drone/AIR01/track',{lan:'192.168.178.70'})).status,200);
   assert.equal((await request('/api/drone/AIR01/telemetry',{lan:'192.168.178.70'})).status,404);
   assert.equal((await request('/api/drone/AIR01/secrets',{lan:'192.168.178.70'})).status,401);
+  // Media gallery and Smart Farming reads need no token from the home LAN (here not enabled: 404, not 401).
+  assert.equal((await request('/api/media/summary',{lan:'192.168.178.70'})).status,404);
+  assert.equal((await request('/api/media/file?bucket=dji-cloud&key=a.jpg',{lan:'192.168.178.70'})).status,404);
+  assert.equal((await request('/api/media/summary',{lan:'203.0.113.9'})).status,401);
+  assert.equal((await request('/api/media/summary',{method:'POST',lan:'192.168.178.70'})).status,401);
+  assert.equal((await request('/api/media/unknown',{lan:'192.168.178.70'})).status,401);
+  assert.equal((await request('/api/thermal/list',{lan:'192.168.178.70'})).status,404);
+  assert.equal((await request('/api/smart-farming/captures',{lan:'192.168.178.70'})).status,404);
+  assert.equal((await request('/api/smart-farming/captures/manifest',{lan:'203.0.113.9'})).status,401);
+  assert.equal((await request('/api/thermal/list',{lan:'203.0.113.9'})).status,401);
+  // The Smart Farming UI requests the catalog with a trailing slash.
+  assert.equal((await request('/api/smart-farming/candidates/',{lan:'192.168.178.70'})).status,404);
+  assert.equal((await request('/api/smart-farming/candidates/',{lan:'203.0.113.9'})).status,401);
+  // RTK & flight-session diagnosis page: its three read-only lists open from the home LAN without a token;
+  // per-device sources, UgCS sections and metric dumps stay behind the view token, as does every other network.
+  for(const p of ['rtk','flights','events']){
+    assert.equal((await request('/api/diagnostics/fh/'+p,{lan:'192.168.178.70'})).status,200,p);
+    assert.equal((await request('/api/diagnostics/fh/'+p,{lan:'203.0.113.9'})).status,401,p);
+    assert.equal((await request('/api/diagnostics/fh/'+p,{method:'POST',lan:'192.168.178.70'})).status,401,p);
+  }
+  assert.equal((await request('/api/diagnostics/fh/metrics',{lan:'192.168.178.70'})).status,401);
+  assert.equal((await request('/api/diagnostics/fh/sources/AIR01',{lan:'192.168.178.70'})).status,401);
+  assert.equal((await request('/api/diagnostics/fh/ugcs/flights',{lan:'192.168.178.70'})).status,401);
   assert.equal((await request('/api/pilot-admin/pairings',{lan:'192.168.178.70'})).status,401);
   assert.equal((await request('/api/unknown-future-route',{lan:'192.168.178.70'})).status,401);
   assert.equal((await request('/api/mission/create',{method:'POST',lan:'192.168.178.70'})).status,401);
-  assert.equal((await request('/api/mission/create',{method:'POST',token:VIEW_TOKEN})).status,501);
+  assert.equal((await request('/api/mission/create',{method:'POST',token:VIEW_TOKEN})).status,404);
 });
 
 test('Pilot bootstrap requires HTTPS and the Pilot token',async()=>{
@@ -124,9 +125,15 @@ test('Pilot bootstrap requires HTTPS and the Pilot token',async()=>{
   assert.equal((await request('/api/pilot/bootstrap',{method:'POST',https:true})).status,401);
   const response=await request('/api/pilot/bootstrap',{method:'POST',token:PILOT_TOKEN,https:true});
   assert.equal(response.status,200);
-  assert.equal((await response.json()).license,LICENSE);
+  const config=await response.json();
+  assert.equal(config.license,LICENSE);
+  // Livestream relay is off here: no RTMP target is handed to the RC.
+  assert.equal(Object.hasOwn(config,'live'),false);
   const status=await request('/api/pilot/status');
-  assert.equal((await status.text()).includes(LICENSE),false);
+  const statusText=await status.text();
+  assert.equal(statusText.includes(LICENSE),false);
+  // Reports the port actually configured for the RC, not a fixed number.
+  assert.equal(JSON.parse(statusText).mqttPort,1884);
 });
 
 test('DJI map-group route requires HTTPS, the configured workspace and x-auth-token',async()=>{
@@ -154,4 +161,118 @@ test('Socket.IO admits only the view token or a configured LAN viewer',async()=>
   assert.equal(await socketOutcome({lan:'203.0.113.9'}),'Unauthorized');
   assert.equal(await socketOutcome({lan:'192.168.178.70'}),'connected');
   assert.equal(await socketOutcome({token:VIEW_TOKEN}),'connected');
+});
+
+test('MinIO DR requires the actual SkyHub view token', async () => {
+  const endpoint = '/api/dr/minio/status';
+
+  assert.equal(
+    (await request(endpoint)).status,
+    401
+  );
+
+  assert.equal(
+    (await request(endpoint, {
+      token: 'invalid-token'
+    })).status,
+    401
+  );
+
+  assert.equal(
+    (await request(endpoint, {
+      lan: '192.168.178.70'
+    })).status,
+    401
+  );
+
+  const response = await request(endpoint, {
+    token: VIEW_TOKEN
+  });
+
+  assert.equal(response.status, 200);
+
+  const result = await response.json();
+
+  assert.equal(result.status, 'incomplete');
+  assert.equal(result.readOnly, true);
+  assert.equal(result.latest.metrics.verifiedFiles, 54887);
+  assert.equal(result.latest.checks.iamReadOnly, 'unknown');
+
+  const reports = await request(
+    '/api/dr/minio/reports',
+    {token: VIEW_TOKEN}
+  );
+
+  assert.equal(reports.status, 200);
+  assert.equal((await reports.json()).count, 1);
+
+  assert.equal(
+    (await request(endpoint, {
+      method: 'POST',
+      token: VIEW_TOKEN
+    })).status,
+    404
+  );
+});
+
+test('DJI field definitions are served for catalogued models and reject everything else',async()=>{
+  const get=model=>request('/api/diagnostics/dji-fields?model='+encodeURIComponent(model),{token:VIEW_TOKEN});
+  for(const [model,profile] of [['0:77:2','mavic3m'],['2:174:0','rcPlus2'],['3:2:0','dock2'],['0:100:1','matrice4D']]){
+    const response=await get(model);
+    assert.equal(response.status,200,model);
+    const body=await response.json();
+    assert.equal(body.profile,profile);
+    assert.ok(body.fields.length>0);
+  }
+  assert.equal((await get('0:67:0')).status,404);
+  assert.equal((await get('3:9:0')).status,404);
+  for(const bad of ['','abc','0:77','4:1:0','0:1000:0','0:77:2;x','0:77:2\\d'])
+    assert.equal((await get(bad)).status,400,bad);
+  assert.equal((await request('/api/diagnostics/dji-fields?model=0:77:2')).status,401);
+});
+
+test('malformed or oversized JSON bodies answer in JSON without parser details',async()=>{
+  const post=(body,headers={})=>fetch(base+'/api/pilot-admin/approve',{method:'POST',
+    headers:{authorization:'Bearer '+VIEW_TOKEN,'content-type':'application/json',...headers},body});
+  const malformed=await post('{"code":');
+  assert.equal(malformed.status,400);
+  assert.match(malformed.headers.get('content-type'),/application\/json/);
+  const text=await malformed.text();
+  assert.deepEqual(JSON.parse(text),{error:'Invalid request body'});
+  assert.doesNotMatch(text,/SyntaxError|at |node_modules/);
+  const large=await post(JSON.stringify({code:'x'.repeat(140*1024)}));
+  assert.equal(large.status,413);
+  assert.deepEqual(await large.json(),{error:'Request body too large'});
+});
+
+test('public health reports skipped device-cache writes while Redis is unavailable',async()=>{
+  const body=await (await request('/api/health')).json();
+  assert.equal(Number.isInteger(body.deviceCacheSkipped),true);
+});
+
+test('self-hosted Leaflet is served publicly with an immutable cache policy',async()=>{
+  const js=await request('/vendor/leaflet/1.9.4/leaflet.js');
+  assert.equal(js.status,200);
+  assert.match(js.headers.get('content-type'),/javascript/);
+  assert.match(js.headers.get('cache-control'),/immutable/);
+  assert.match(await js.text(),/window\.L=/);
+  const icon=await request('/vendor/leaflet/1.9.4/images/marker-icon.png');
+  assert.equal(icon.status,200);
+  const missing=await request('/vendor/leaflet/1.9.4/missing.js');
+  assert.equal(missing.status,404);
+  assert.deepEqual(await missing.json(),{error:'Not found'});
+  assert.equal((await request('/vendor/')).status,404);
+});
+
+test('livestream routes: LAN-readable, disabled by default, never writable',async()=>{
+  const lan=await request('/api/live/status',{lan:'192.168.178.70'});
+  assert.equal(lan.status,503);
+  assert.deepEqual(await lan.json(),{enabled:false});
+  assert.equal((await request('/api/live/hls/pilot/index.m3u8',{lan:'192.168.178.70'})).status,503);
+  assert.equal((await request('/api/live/status',{lan:'203.0.113.9'})).status,401);
+  assert.equal((await request('/api/live/hls/pilot/index.m3u8',{lan:'203.0.113.9'})).status,401);
+  assert.equal((await request('/api/live/hls/other/index.m3u8',{lan:'192.168.178.70'})).status,401);
+  assert.equal((await request('/api/live/status',{method:'POST',lan:'192.168.178.70'})).status,401);
+  const health=await (await request('/api/health')).json();
+  assert.deepEqual(health.liveStream,{enabled:false,playlists:0,segments:0,upstreamErrors:0});
 });

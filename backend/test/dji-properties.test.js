@@ -15,6 +15,8 @@ const models = [
   [{domain:'2',type:144,subType:0},'rcPro','official-device'],
   [{domain:'2',type:174,subType:0},'rcPlus2','official-device-web']
 ];
+// Dock-to-cloud profiles come from the web reference, not from a pinned Git blob.
+const DOCK_PROFILES = ['dock1','dock2','dock3','matrice3D','matrice4D'];
 const receive = (topic,data,timestamp) => parseMessage(topic,Buffer.from(JSON.stringify({
   timestamp,data
 })));
@@ -30,10 +32,10 @@ test('pinned property tables enumerate all nested fields and preserve provenance
   assert.equal(source.profiles.mavic3m.fields.length,6);
   assert.equal(source.profiles.mavic3m.extends,'mavic3');
   assert.equal(source.profiles.aircraftCommon.fields.length,162);
-  assert.equal(source.profiles.matrice4T.fields.length,199);
-  assert.equal(source.profiles.rcPro.fields.length,48);
+  assert.equal(source.profiles.matrice4T.fields.length,202);
+  assert.equal(source.profiles.rcPro.fields.length,55);
   assert.equal(source.profiles.rcPlus2.fields.length,54);
-  for (const profile of Object.values(source.profiles).filter(p=>!p.extends)) {
+  for (const profile of Object.values(source.profiles).filter(p=>!p.extends&&!DOCK_PROFILES.some(n=>source.profiles[n]===p))) {
     if(profile!==source.profiles.rcPlus2) assert.match(profile.source,/dji-sdk\/Cloud-API-Doc\/blob\/4ec6b0c7/);
     else assert.match(profile.source,/developer.dji.com\/doc\/cloud-api-tutorial\/en\/api-reference\/pilot-to-cloud\/mqtt\/dji-rc-plus-2\/properties.html/);
     assert.ok(profile.fields.some(f=>f.path==='latitude' && f.push===0));
@@ -545,7 +547,7 @@ test('ranging sensor errors invalidate target coordinates and distance but keep 
 
 test('field-definition endpoint exposes both pinned and web-only extension provenance',()=>{
   const m=fieldDefinitions(models[3][0]);
-  assert.equal(m.fields.length,199);
+  assert.equal(m.fields.length,202);
   assert.match(m.source,/dji-sdk\/Cloud-API-Doc\/blob\/4ec6b0c7/);
   assert.equal(m.extensionSource,
     'https://developer.dji.com/doc/cloud-api-tutorial/en/api-reference/pilot-to-cloud/mqtt/aircraft/properties.html');

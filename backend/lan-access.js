@@ -3,6 +3,7 @@
 // Optional token-free, read-only dashboard access for one private home network.
 // Requests reach the loopback-bound backend only through Caddy (or local processes);
 // Caddy's LAN site admits 192.168.178.0/24 and sets X-Forwarded-For to the client.
+const {parseTrustedProxyIps,isTrustedProxyIp}=require('./proxy-trust');
 const PRIVATE=[['10.0.0.0',8],['172.16.0.0',12],['192.168.0.0',16]];
 
 function ipv4(value){
@@ -28,24 +29,25 @@ function parseLanCidr(value){
   if(within(base,['172.16.0.0',12]))throw new Error('SKYHUB_LAN_VIEW_CIDR must not overlap Docker networks (172.16.0.0/12)');
   return [match[1],prefix];
 }
-// The direct peer is Docker's gateway or loopback; the client is Caddy's last XFF entry.
-function clientAddress(peer,forwardedFor){
-  const direct=ipv4(peer);
-  const local=peer==='::1' || (direct!==null && (within(direct,['127.0.0.0',8]) ||
-    PRIVATE.some(net=>within(direct,net))));
-  if(local && typeof forwardedFor==='string' && forwardedFor.trim()){
+// Trust X-Forwarded-For ONLY from explicitly allowlisted reverse-proxy socket peers.
+// A Docker container's IP is not automatically trusted just because it is private.
+// The validated Caddy peer address must be configured in SKYHUB_TRUSTED_PROXY_IPS.
+function clientAddress(peer,forwardedFor,trustedProxies=parseTrustedProxyIps()){
+  if(isTrustedProxyIp(peer,trustedProxies) && typeof forwardedFor==='string' && forwardedFor.trim()){
     const hops=forwardedFor.split(',');
     return hops[hops.length-1].trim();
   }
   return peer||null;
 }
-function createLanAccess(cidrValue){
+function createLanAccess(cidrValue,trustedProxies=parseTrustedProxyIps()){
   const cidr=parseLanCidr(cidrValue);
   return {
     enabled:Boolean(cidr),
     allows(peer,forwardedFor){
       if(!cidr)return false;
-      const ip=ipv4(clientAddress(peer,forwardedFor));
+      // A request through the trusted proxy without a client address is not attributable to a LAN client.
+      if(isTrustedProxyIp(peer,trustedProxies)&&!(typeof forwardedFor==='string'&&forwardedFor.trim()))return false;
+      const ip=ipv4(clientAddress(peer,forwardedFor,trustedProxies));
       return ip!==null && within(ip,cidr);
     }
   };

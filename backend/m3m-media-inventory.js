@@ -27,18 +27,85 @@ function identify(name){
   if(m)return {capture:m[1]+'_'+m[2],band:'RGB'};
   return null;
 }
+
+// Conservative classification of UNKNOWN names only. These buckets are fixed
+// labels, NEVER a reflection of input extensions, tokens or object keys.
+// Counts are not proof that a file is a valid image or came from an M3M.
+const UNKNOWN_FORMATS=Object.freeze([
+  'JPEG','TIFF','DNG','PNG','MP4','MOV','LRF','SRT','JSON','XML',
+  'KMZ','OTHER_EXTENSION','NO_EXTENSION'
+]);
+function unknownFormat(name){
+  if(typeof name!=='string')return 'NO_EXTENSION';
+  const ext=/\.([a-z0-9]{1,32})$/i.exec(name);
+  if(!ext)return 'NO_EXTENSION';
+  const suffix=ext[1].toUpperCase();
+  if(suffix==='JPG'||suffix==='JPEG')return 'JPEG';
+  if(suffix==='TIF'||suffix==='TIFF')return 'TIFF';
+  return UNKNOWN_FORMATS.includes(suffix)?suffix:'OTHER_EXTENSION';
+}
+
+// Fixed and deliberately narrow TIFF naming hints. These describe only
+// literal suffix/tokens in the object filename, never verified TIFF contents.
+// Priority is exclusive, so the four categories always sum to the unknown
+// TIFF filename count; arbitrary identifiers never enter the report.
+const TIFF_HINT_BANDS=Object.freeze(['G','R','RE','NIR']);
+function classifyUnknownTiffName(name){
+  const stem=name.replace(/\.TIFF?$/i,'').toUpperCase();
+  const spectral=/(?:^|[_-])MS[_-](G|R|RE|NIR)$/.exec(stem);
+  if(spectral)return {category:'spectralBandSuffix',band:spectral[1]};
+  if(/(?:^|[_-])(NDVI|NDRE|GNDVI|OSAVI|SAVI|EVI)(?:[_-]|$)/.test(stem))
+    return {category:'vegetationIndex'};
+  if(/(?:^|[_-])(ORTHOMOSAIC|ORTHO|MOSAIC|DSM|DTM|DEM)(?:[_-]|$)/.test(stem))
+    return {category:'mosaicOrElevation'};
+  return {category:'other'};
+}
 function inventoryMediaNames(names){
   if(!Array.isArray(names)||names.length>MAX_ENTRIES)
     throw new RangeError('M3M inventory count out of bounds');
   const groups=new Map();
   const bandCounts=Object.fromEntries(BANDS.map(b=>[b,0]));
   let classified=0,unrecognized=0,invalid=0;
+  const unrecognizedFormats=Object.fromEntries(UNKNOWN_FORMATS.map(x=>[x,0]));
+  let unrecognizedDjiPrefixedImages=0;
+  let unrecognizedOtherImages=0;
+  // Cross-tabulation uses fixed labels only. No input strings are echoed.
+  const imageFormats=['JPEG','TIFF','DNG','PNG'];
+  const unrecognizedImagesByPrefix={
+    djiPrefixed:Object.fromEntries(imageFormats.map(x=>[x,0])),
+    other:Object.fromEntries(imageFormats.map(x=>[x,0]))
+  };
+  const unrecognizedTiffNameHints={
+    spectralBandSuffix:Object.fromEntries(TIFF_HINT_BANDS.map(x=>[x,0])),
+    vegetationIndex:0,
+    mosaicOrElevation:0,
+    other:0
+  };
   for(const value of names){
     const n=typeof value==='string'?value:null;
     const item=identify(n);
     if(!item){
-      if(n&&/^[\w.\-]{1,180}$/.test(n))unrecognized++;
-      else invalid++;
+      if(n&&/^[\w.-]{1,180}$/.test(n)){
+        unrecognized++;
+        const format=unknownFormat(n);
+        unrecognizedFormats[format]++;
+        if(format==='TIFF'){
+          const hint=classifyUnknownTiffName(n);
+          if(hint.category==='spectralBandSuffix')
+            unrecognizedTiffNameHints.spectralBandSuffix[hint.band]++;
+          else
+            unrecognizedTiffNameHints[hint.category]++;
+        }
+        if(imageFormats.includes(format)){
+          if(/^DJI_/i.test(n)){
+            unrecognizedDjiPrefixedImages++;
+            unrecognizedImagesByPrefix.djiPrefixed[format]++;
+          }else{
+            unrecognizedOtherImages++;
+            unrecognizedImagesByPrefix.other[format]++;
+          }
+        }
+      }else invalid++;
       continue;
     }
     classified++;
@@ -68,6 +135,8 @@ function inventoryMediaNames(names){
     schema:'skyhub-m3m-media-inventory-v1',
     classification:'filename-hints-only',
     totalEntries:names.length,classified,unrecognized,invalid,
+    unrecognizedFormats,unrecognizedDjiPrefixedImages,unrecognizedOtherImages,
+    unrecognizedImagesByPrefix,unrecognizedTiffNameHints,
     bandCounts,captureGroups:groups.size,
     spectralSets,fiveChannelSets,partialSets,duplicateSets,missingBands,
     radiometricCalibrationVerified:false,bandCoregistrationVerified:false,

@@ -1,0 +1,16 @@
+# Use ONLY when an existing non-SkyHub MinIO has been explicitly adopted.
+# Never activate SkyHub's optional "media" profile with this overlay.
+# This adds just the SkyHub backend to the shared external Docker bridge.
+services:
+  backend:
+    networks:
+      - default
+      - shared_storage
+    environment:
+      SKYHUB_S3_ENDPOINT: http://skyhub-minio:9000
+      SKYHUB_S3_REGION: us-east-1
+
+networks:
+  shared_storage:
+    name: skyhub-storage-net
+    external: true

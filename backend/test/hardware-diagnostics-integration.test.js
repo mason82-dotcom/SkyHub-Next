@@ -55,14 +55,14 @@ test('both device families retain current main safeguards through the real parse
   const m3m=evaluateM3M(devices,health(metrics),[],NOW,shapes.snapshot());
   const m4t=evaluateM4T(devices,health(metrics),[],NOW,pairing);
   assert.equal(m3m.linked,true);
-  assert.equal(m3m.controller.propertyFields.documented,48);
+  assert.equal(m3m.controller.propertyFields.documented,55);
   assert.equal(m3m.aircraft.propertyFields.documented,150);
   assert.equal(m3m.m3mExtensions.accepted,6);
   assert.equal(m3m.stateEvidence.modelRc,1);
   assert.equal(m3m.stateEvidence.modelM3m,1);
   assert.equal(m4t.passed,true);
   assert.equal(m4t.controller.fields.documented,54);
-  assert.equal(m4t.aircraft.fields.documented,199);
+  assert.equal(m4t.aircraft.fields.documented,202);
   for(const report of [m3m,m4t]){
     assert.ok(report.stages.filter(s=>s.step.includes('State')).every(s=>s.status==='BESTÄTIGT'));
   }

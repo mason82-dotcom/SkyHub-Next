@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live-Steuerung · SkyHub</title>
+<link rel="stylesheet" href="/vendor/leaflet/1.9.4/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=">
+<link rel="stylesheet" href="/skyhub-light.css">
+<link rel="stylesheet" href="/drc.css">
+<script defer src="/skyhub-nav.js"></script>
+</head>
+<body class="drc" data-skyhub-page="drc">
+<a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
+<!-- skyhub-appbar -->
+<header class="skyhub-appbar">
+  <a class="skyhub-appbar-brand" href="/"><span class="brand-symbol" aria-hidden="true">✦</span>SkyHub <span>Next</span></a>
+  <nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
+    <a href="/">Lagebild</a>
+    <details class="skyhub-nav-group"><summary>Planen</summary><div class="skyhub-nav-menu">
+      <p class="skyhub-nav-section">Mission</p>
+      <a href="/wpml-editor.html">Missionsentwurf<small>Wegpunkte setzen, KMZ importieren</small></a>
+      <a href="/wpml-route-library.html">Routenbibliothek<small>Gespeicherte Routen und Revisionen</small></a>
+      <a href="/missionsfreigabe.html">Missionsfreigabe<small>Revision für Pilot 2 freigeben</small></a>
+      <p class="skyhub-nav-section">Karte in Pilot 2</p>
+      <a href="/kartenelemente.html">Kartenelemente<small>Punkte, Linien und Flächen</small></a>
+      <p class="skyhub-nav-section is-lab">Labor <span>experimentell, nicht für den Einsatz freigegeben</span></p>
+      <a href="/wpml-survey-preview.html" class="is-lab">Vermessungsvorschau<small>2D-Flächenvermessung, nur Vorschau</small></a>
+    </div></details>
+    <details class="skyhub-nav-group is-active"><summary>Fliegen</summary><div class="skyhub-nav-menu">
+      <a href="/drc.html" aria-current="page">Live-Steuerung<small>Matrice 4 · RC Plus 2</small></a>
+      <a href="/drc.html?rc=pro">Kamera &amp; Gimbal<small>Mavic 3 · RC Pro</small></a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Auswerten</summary><div class="skyhub-nav-menu">
+      <p class="skyhub-nav-section">Medien &amp; Position</p>
+      <a href="/media-gallery.html">Medien<small>Fotos, Videos, TIFFs, Missionsdateien</small></a>
+      <a href="/ppk.html">PPK-Geotagging<small>Zentimetergenaue Kamerapositionen</small></a>
+      <a href="/abdeckung.html">Fotoabdeckung<small>Lücken und Überlappung eines Flugs</small></a>
+      <p class="skyhub-nav-section">Sensorik</p>
+      <a href="/thermal.html">Thermal<small>Temperaturen aus DJI R-JPEG</small></a>
+      <a href="/ndvi.html">Vegetationsindizes<small>NDVI, GNDVI, NDRE · Mavic 3M</small></a>
+      <p class="skyhub-nav-section is-lab">Labor <span>experimentell, nicht für den Einsatz freigegeben</span></p>
+      <a href="/smart-farming.html" class="is-lab">Smart Farming<small>M3M-Indexkandidaten, nur Lesen</small></a>
+      <a href="/smart-farming-map-lab.html" class="is-lab">Vegetationskarte<small>Georeferenzierte Vorschau</small></a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Diagnose</summary><div class="skyhub-nav-menu">
+      <a href="/fh-diagnostics.html">RTK &amp; Flugsitzungen<small>RTK-Status und Sitzungsverlauf</small></a>
+      <a href="/pilot-protokolle.html">Pilot-2-Protokolle<small>Von der Fernsteuerung gesendet</small></a>
+    </div></details>
+  </nav>
+</header>
+<!-- /skyhub-appbar -->
+<header class="skyhub-pagehead drc-top">
+  <div class="drc-title"><strong>Live-Steuerung</strong> <span id="aircraft">kein Fluggerät</span></div>
+  <button id="estop" class="estop" type="button" title="DRC drone_emergency_stop: Fluggerät bremst und schwebt (Taste Leertaste)">NOT-STOPP</button>
+</header>
+
+<section class="drc-warning" role="note">
+  Während der Cloud-Steuerung sind <b>Knüppel, Rückkehr- und Not-Aus-Taste der Fernsteuerung wirkungslos</b> (DJI). Der Pilot bleibt an der
+  Fernsteuerung mit Sichtkontakt. Verliert SkyHub den Bediener (Tab verlassen, Netz weg), werden neutrale Knüppel,
+  Anflugstopp und Rückgabe nach 3 s versucht. Bei Broker-/Netzausfall ist diese Rückgabe <b>nicht garantiert</b>:
+  Der Pilot muss die Kontrolle in DJI Pilot 2 selbst überprüfen und gegebenenfalls wieder übernehmen.
+</section>
+
+<main id="skyhubMain" tabindex="-1" class="drc-grid">
+  <section class="card" id="access">
+    <h2>Verbindung</h2>
+    <p class="small muted">Nur im Heimnetz über https://rpi5.fritz.box:4443 – ohne Token.</p>
+    <button id="connect" type="button" class="secondary">Neu verbinden</button>
+    <p id="conn" class="muted" role="status">verbinde …</p>
+  </section>
+
+  <section class="card" id="state">
+    <h2>Zustand</h2>
+    <dl class="kv">
+      <dt>Ablauf</dt><dd id="phase">–</dd>
+      <dt>Bediener</dt><dd id="operator">–</dd>
+      <dt>Broker / DRC-Kanal</dt><dd id="link">–</dd>
+      <dt>Höhe über Start</dt><dd id="height">–</dd>
+      <dt>Flugzustand</dt><dd id="mode">–</dd>
+      <dt>Anflug</dt><dd id="flyto">–</dd>
+      <dt>Hinweis</dt><dd id="notice">–</dd>
+    </dl>
+    <label class="switch"><input id="active" type="checkbox"> Ich steuere (sendet Lebenszeichen)</label>
+  </section>
+
+  <section class="card" id="steps">
+    <h2>Ablauf</h2>
+    <button id="auth" type="button">1 · Autorisierung anfordern</button>
+    <p class="muted small">Auf der Fernsteuerung erscheint eine Anfrage; der Pilot muss zustimmen.</p>
+    <button id="enter" type="button">2 · Live-Steuermodus starten</button>
+    <button id="exit" type="button">Live-Steuermodus beenden</button>
+    <button id="release" type="button" class="secondary">Kontrolle an Fernsteuerung zurückgeben</button>
+  </section>
+
+  <section class="card wide" id="mapcard">
+    <h2>Zielanflug <span class="muted small">Klick in die Karte setzt das Ziel</span></h2>
+    <div id="map"></div>
+    <div class="row">
+      <label>Höhe über Start (m) <input id="tHeight" type="number" min="20" max="120" step="1" value="40"></label>
+      <label>Geschwindigkeit (m/s) <input id="tSpeed" type="number" min="1" max="15" step="1" value="5"></label>
+      <span id="target" class="muted">kein Ziel</span>
+    </div>
+    <div class="row">
+      <button id="flyto" type="button">Ziel anfliegen</button>
+      <button id="flystop" type="button" class="secondary">Anflug stoppen</button>
+      <button id="takeoff" type="button" class="danger">Abheben zum Ziel …</button>
+    </div>
+  </section>
+
+  <section class="card" id="safety">
+    <h2>Sicherheit</h2>
+    <button id="rth" type="button">Rückkehr zum Startpunkt</button>
+    <button id="rthcancel" type="button" class="secondary">Rückkehr abbrechen (schwebt)</button>
+    <button id="land" type="button" class="danger">Landen …</button>
+  </section>
+
+  <section class="card" id="sticks">
+    <h2>Knüppel <span id="stickstate" class="muted small">aus</span></h2>
+    <p class="small">Tastatur: <b>W/S</b> vor/zurück · <b>A/D</b> seitlich · <b>↑/↓</b> steigen/sinken · <b>←/→</b> drehen. Loslassen = neutral.<br>
+      Gamepad: nur bei gedrückter <b>LB</b>-Taste (Totmann). Ausschlag begrenzt auf <span id="scale">50</span> %.</p>
+    <div class="stickviz"><div id="dotL" class="dot"></div><div id="dotR" class="dot"></div></div>
+  </section>
+
+  <section class="card wide" id="payloadcard">
+    <h2>Kamera &amp; Gimbal <span id="camname" class="muted small">–</span></h2>
+    <div class="payload-grid">
+      <div>
+        <dl class="kv">
+          <dt>Modus</dt><dd id="camMode">–</dd>
+          <dt>Aufnahme</dt><dd id="camRec">–</dd>
+          <dt>Speicher</dt><dd id="camRemain">–</dd>
+          <dt>Zoom</dt><dd id="camZoom">–</dd>
+          <dt>Gimbal</dt><dd id="camGimbal">–</dd>
+          <dt>Letzter Befehl</dt><dd id="camLast">–</dd>
+        </dl>
+        <div class="row">
+          <button type="button" class="secondary" data-pl="camera_mode" data-mode="0">Fotomodus</button>
+          <button type="button" class="secondary" data-pl="camera_mode" data-mode="1">Videomodus</button>
+        </div>
+        <div class="row">
+          <button type="button" data-pl="photo_take">Foto auslösen</button>
+          <button type="button" data-pl="recording_start">Video starten</button>
+          <button type="button" class="secondary" data-pl="recording_stop">Video stoppen</button>
+        </div>
+      </div>
+      <div>
+        <p class="small">Gimbal: Pfeiltasten unten gedrückt halten oder <b>I/K</b> neigen · <b>J/L</b> schwenken. Loslassen = Stopp.</p>
+        <div class="gimbalpad" aria-label="Gimbal bewegen">
+          <button type="button" class="secondary" data-drag="0,1" aria-label="Gimbal hoch">▲</button>
+          <button type="button" class="secondary" data-drag="-1,0" aria-label="Gimbal links">◀</button>
+          <button type="button" class="secondary" data-drag="1,0" aria-label="Gimbal rechts">▶</button>
+          <button type="button" class="secondary" data-drag="0,-1" aria-label="Gimbal runter">▼</button>
+        </div>
+        <div class="row">
+          <button type="button" class="secondary" data-pl="gimbal_reset" data-mode="0">Mitte</button>
+          <button type="button" class="secondary" data-pl="gimbal_reset" data-mode="1">Nach unten</button>
+          <button type="button" class="secondary" data-pl="gimbal_reset" data-mode="2">Schwenk zentrieren</button>
+        </div>
+        <button id="lookat" type="button" class="secondary">Kamera auf Kartenziel richten (Boden)</button>
+      </div>
+      <div>
+        <div class="row">
+          <label>Objektiv <select id="zoomLens"><option value="zoom">Zoom</option><option value="wide">Weitwinkel</option></select></label>
+          <label>Zoomfaktor <input id="zoomFactor" type="number" min="2" max="200" step="1" value="2"></label>
+          <button id="zoomSet" type="button">Zoom setzen</button>
+        </div>
+        <div class="row" aria-label="Objektiv des Livestreams">
+          <span class="muted">Livestream-Bild:</span>
+          <button type="button" class="secondary" data-pl="live_lens" data-video-type="wide">Weitwinkel</button>
+          <button type="button" class="secondary" data-pl="live_lens" data-video-type="zoom">Zoom</button>
+          <button type="button" class="secondary" data-pl="live_lens" data-video-type="thermal" data-needs-ir="true">Wärmebild</button>
+        </div>
+        <div id="irtools" hidden>
+          <div class="row">
+            <label>Temperaturmessung <select id="irMode"><option value="0">aus</option><option value="1">Punkt</option><option value="2">Fläche</option></select></label>
+            <button id="irSet" type="button" class="secondary">Übernehmen</button>
+          </div>
+          <div class="row">
+            <button type="button" class="secondary" data-pl="split_screen" data-enable="true">Bild geteilt: an</button>
+            <button type="button" class="secondary" data-pl="split_screen" data-enable="false">Bild geteilt: aus</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card wide" id="logcard">
+    <h2>Protokoll</h2>
+    <ol id="log" class="log"></ol>
+  </section>
+</main>
+
+<script src="/vendor/leaflet/1.9.4/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="></script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/geozones-layer.js"></script>
+<script src="/skyhub-map-home.js"></script>
+<script src="/drc.js"></script>
+</body>
+</html>

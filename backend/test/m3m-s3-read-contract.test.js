@@ -102,7 +102,7 @@ test('rejects repeated, missing and cyclic cursors without partial success',asyn
 test('rejects duplicate S3 keys crossing pages, rather than inflating counts',async()=>{
   const storage=reader(async input=>input.ContinuationToken?
     page([FILES[0]]):page([FILES[0]],{truncated:true,next:'2'}));
-  await assert.rejects(inventoryM3MFromS3(storage,ROOT),/Duplicate S3 key/);
+  await assert.rejects(inventoryM3MFromS3(storage,ROOT),/Duplicate S3 (?:inventory object )?key/);
 });
 
 test('nested keys and directory markers are excluded from direct capture inventory',async()=>{

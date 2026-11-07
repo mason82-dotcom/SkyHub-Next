@@ -1,54 +1,125 @@
 'use strict';
 
-// S3 name-only aggregation over an independently approved, injected reader.
-// Never serializes keys, prefixes, timestamps, coordinates, ETags or secrets.
-// The existing offline parser is the ONLY producer of public statistics.
-const {inventoryMediaNames,MAX_ENTRIES}=require('./m3m-media-inventory');
-const {BUCKET,PAGE_SIZE,validatePrefix}=require('./m3m-s3-read-contract');
-const MAX_PAGES=101;
-const MAX_TOKEN_LENGTH=4096;
+const path = require('node:path');
+const {
+  inventoryMediaNames,
+  MAX_ENTRIES
+} = require('./m3m-media-inventory');
 
-async function inventoryM3MFromS3(storage,prefix){
-  validatePrefix(prefix);
-  if(!storage||typeof storage.objects!=='function')
-    throw new TypeError('Scoped S3 reader required');
-  const names=[];
-  const cursors=new Set(),keys=new Set();
-  let cursor;
-  for(let pageNo=0;pageNo<MAX_PAGES;pageNo++){
-    const result=await storage.objects(BUCKET,{
-      prefix,limit:PAGE_SIZE,...(cursor?{cursor}:{})
-    });
-    if(!result||!Array.isArray(result.objects)||
-       result.objects.length>PAGE_SIZE||
-       typeof result.truncated!=='boolean')
-      throw new Error('Invalid scoped inventory response');
-    for(const entry of result.objects){
-      const key=entry?.key;
-      if(typeof key!=='string'||key.length>1024||!key.startsWith(prefix)||
-         /[\x00-\x1f\x7f]/.test(key))
-        throw new Error('Invalid scoped inventory object');
-      // Repeated keys are not distinct captures: a moving/paginated source
-      // can produce ambiguous snapshots. Never call that a complete set.
-      if(keys.has(key))throw new Error('Duplicate S3 key across pages');
-      keys.add(key);
-      const relative=key.slice(prefix.length);
-      // Nested keys and prefix directory markers are not capture files.
-      if(!relative||relative.includes('/'))continue;
-      names.push(relative);
-      if(names.length>MAX_ENTRIES)
-        throw new RangeError('Inventory entry limit exceeded');
-    }
-    if(!result.truncated)return inventoryMediaNames(names);
-    const next=result.nextCursor;
-    if(typeof next!=='string'||!next||next.length>MAX_TOKEN_LENGTH||
-       /[\x00-\x1f\x7f]/.test(next)||
-       next===cursor||cursors.has(next))
-      throw new Error('Invalid inventory cursor');
-    cursors.add(next);
-    cursor=next;
+const PAGE_SIZE = 200;
+const MAX_PAGES = 101;
+
+function validatePrefix(prefix) {
+  if (
+    typeof prefix !== 'string' ||
+    prefix.length < 2 ||
+    prefix.length > 512 ||
+    !prefix.endsWith('/') ||
+    prefix.startsWith('/') ||
+    prefix.includes('\\') ||
+    /[\x00-\x1f\x7f]/.test(prefix)
+  ) {
+    const error = new Error('Invalid inventory prefix');
+    error.status = 400;
+    throw error;
   }
-  throw new RangeError('Inventory page limit exceeded');
+
+  const segments = prefix.slice(0, -1).split('/');
+  if (segments.some(segment =>
+    !segment ||
+    segment === '.' ||
+    segment === '..'
+  )) {
+    const error = new Error('Invalid inventory prefix');
+    error.status = 400;
+    throw error;
+  }
 }
 
-module.exports={inventoryM3MFromS3,MAX_PAGES};
+async function inventoryM3MFromS3(storage, prefix) {
+  validatePrefix(prefix);
+
+  const names = [];
+  const seenCursors = new Set();
+  const seenKeys = new Set();
+  let cursor;
+
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const result = await storage.objects('dji-cloud', {
+      prefix,
+      limit: PAGE_SIZE,
+      ...(cursor ? { cursor } : {})
+    });
+
+    if (
+      !result ||
+      !Array.isArray(result.objects) ||
+      result.objects.length > PAGE_SIZE ||
+      typeof result.truncated !== 'boolean'
+    ) {
+      throw new Error('Invalid S3 inventory response');
+    }
+
+    for (const object of result.objects) {
+      const key = object && object.key;
+
+      if (
+        typeof key !== 'string' ||
+        key.length > 1024 ||
+        !key.startsWith(prefix) ||
+        /[\x00-\x1f\x7f]/.test(key)
+      ) {
+        throw new Error('Invalid S3 inventory object');
+      }
+      // Pagination can repeat keys if the source changes during a scan.
+      // Reject the entire report rather than counting a capture twice.
+      if (seenKeys.has(key)) {
+        throw new Error('Duplicate S3 inventory object key');
+      }
+      seenKeys.add(key);
+
+      // Only direct children of the requested directory.
+      const relative = key.slice(prefix.length);
+
+      if (!relative || relative.includes('/')) {
+        continue;
+      }
+
+      names.push(path.posix.basename(relative));
+
+      if (names.length > MAX_ENTRIES) {
+        const error = new Error('Inventory entry limit exceeded');
+        error.status = 413;
+        throw error;
+      }
+    }
+
+    if (!result.truncated) {
+      return inventoryMediaNames(names);
+    }
+
+    const next = result.nextCursor;
+
+    if (
+      typeof next !== 'string' ||
+      !next ||
+      next.length > 4096 ||
+      next === cursor ||
+      seenCursors.has(next)
+    ) {
+      throw new Error('Invalid S3 inventory pagination');
+    }
+
+    seenCursors.add(next);
+    cursor = next;
+  }
+
+  const error = new Error('Inventory page limit exceeded');
+  error.status = 413;
+  throw error;
+}
+
+module.exports = {
+  inventoryM3MFromS3,
+  validatePrefix
+};

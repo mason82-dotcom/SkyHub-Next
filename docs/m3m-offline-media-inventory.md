@@ -1,6 +1,6 @@
 # Mavic 3M – isolierte Dateinamen-Inventur (Phase 1)
 
-**Review-Stand 23.10.2026.** Aus dem historischen [PR #23](https://github.com/mason82-dotcom/SkyHub/pull/23) wurde nur ein eigenständiger Offline-Baustein für den aktuellen SkyHub-Next-Main-Stand portiert. [PR #24](https://github.com/mason82-dotcom/SkyHub/pull/24) enthält eine deutlich größere, **nicht** mit diesem Modul zusammengeführte MinIO-/HTTP-/Pilot-2-Kette. Dieses Dokument ist keine Aussage über aktuell auf dem Pi gestartete Dienste.
+**Review-Stand 23.10.2026.** Aus dem historischen [PR #23](https://github.com/mason82-dotcom/SkyHub-Next/pull/23) wurde nur ein eigenständiger Offline-Baustein für den aktuellen SkyHub-Next-Main-Stand portiert. [PR #24](https://github.com/mason82-dotcom/SkyHub-Next/pull/24) enthält eine deutlich größere, **nicht** mit diesem Modul zusammengeführte MinIO-/HTTP-/Pilot-2-Kette. Dieses Dokument ist keine Aussage über aktuell auf dem Pi gestartete Dienste.
 
 ## Implementierte, feste Grenzen
 

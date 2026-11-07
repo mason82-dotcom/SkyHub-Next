@@ -949,7 +949,7 @@
         },
         {
           "path": "total_flight_time",
-          "type": "int",
+          "type": "float",
           "access": "r",
           "push": 0,
           "unit": "Seconds / s"
@@ -2193,7 +2193,7 @@
         },
         {
           "path": "total_flight_time",
-          "type": "int",
+          "type": "float",
           "access": "r",
           "push": 0,
           "unit": "Seconds / s"
@@ -2840,6 +2840,54 @@
           "min": -180,
           "max": 180,
           "step": 0.01
+        },
+        {
+          "path": "cloud_control_auth",
+          "type": "array",
+          "access": "r",
+          "push": 1,
+          "privacy": "redacted"
+        },
+        {
+          "path": "drc_state",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "path": "wireless_link.4g_freq_band",
+          "type": "float"
+        },
+        {
+          "path": "wireless_link.4g_gnd_quality",
+          "type": "int",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "path": "wireless_link.4g_link_state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "wireless_link.4g_quality",
+          "type": "int",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "path": "wireless_link.4g_uav_quality",
+          "type": "int",
+          "min": 0,
+          "max": 5
         }
       ]
     },
@@ -3213,7 +3261,8 @@
             15,
             16,
             17,
-            18
+            18,
+            19
           ]
         },
         {
@@ -4010,7 +4059,8 @@
             2,
             3,
             4,
-            5
+            5,
+            10
           ]
         },
         {
@@ -4753,6 +4803,36 @@
           "path": "psdk_widget_values.values.value",
           "type": "int",
           "reference": "pilot-to-cloud/aircraft/properties:2024-06-28"
+        },
+        {
+          "path": "commander_flight_mode",
+          "type": "enum_int",
+          "access": "rw",
+          "push": 1,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "rth_mode",
+          "type": "enum_int",
+          "access": "r",
+          "push": 1,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "offline_map_enable",
+          "type": "bool",
+          "access": "r",
+          "push": 1,
+          "enum": [
+            0,
+            1
+          ]
         }
       ],
       "dynamicPayload": {
@@ -4772,6 +4852,5935 @@
         "confidence": "generic-aircraft-only; Matrice 4T applicability unconfirmed"
       },
       "extensionNotes": "PSDK status, widget and speaker paths are generic 2024 Pilot-to-Cloud aircraft candidates, not confirmed Matrice 4T capabilities. Device/file names, serials and object keys are always redacted."
+    },
+    "dock1": {
+      "source": "https://developer.dji.com/doc/cloud-api-tutorial/en/api-reference/dock-to-cloud/mqtt/dock/dock1/properties.html",
+      "verifiedAt": "2026-10-22",
+      "provenance": "official DJI Web reference (dock-to-cloud); read on 2026-10-22, not pinned to a Git blob and without a published edition date. Converted mechanically; no hardware observation.",
+      "fields": [
+        {
+          "path": "longitude",
+          "type": "double",
+          "access": "r",
+          "push": 0,
+          "min": -180,
+          "max": 180,
+          "step": 0.01
+        },
+        {
+          "path": "latitude",
+          "type": "double",
+          "access": "r",
+          "push": 0,
+          "min": -90,
+          "max": 90,
+          "step": 0.01
+        },
+        {
+          "path": "firmware_version",
+          "type": "text",
+          "access": "r",
+          "push": 1,
+          "length": 64
+        },
+        {
+          "path": "firmware_upgrade_status",
+          "type": "enum_int",
+          "access": "r",
+          "push": 1,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "mode_code",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "path": "flighttask_step_code",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            255,
+            256
+          ]
+        },
+        {
+          "path": "sub_device",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "sub_device.device_sn",
+          "type": "text"
+        },
+        {
+          "path": "sub_device.device_online_status",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "sub_device.device_paired",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "cover_state",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "path": "supplement_light_state",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "network_state",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "network_state.type",
+          "type": "enum_int",
+          "enum": [
+            1,
+            2
+          ]
+        },
+        {
+          "path": "network_state.quality",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "path": "network_state.rate",
+          "type": "float",
+          "unit": "Kilobytes per second / KB/s"
+        },
+        {
+          "path": "drone_in_dock",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "job_number",
+          "type": "int",
+          "access": "r",
+          "push": 0,
+          "unit": "Times / count"
+        },
+        {
+          "path": "media_file_detail",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "media_file_detail.remain_upload",
+          "type": "int"
+        },
+        {
+          "path": "wireless_link",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "wireless_link.dongle_number",
+          "type": "int"
+        },
+        {
+          "path": "wireless_link.4g_link_state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "wireless_link.sdr_link_state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "wireless_link.link_workmode",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "wireless_link.sdr_quality",
+          "type": "int",
+          "min": 0,
+          "max": 5,
+          "step": 1
+        },
+        {
+          "path": "wireless_link.4g_quality",
+          "type": "int",
+          "min": 0,
+          "max": 5,
+          "step": 1
+        },
+        {
+          "path": "wireless_link.4g_uav_quality",
+          "type": "int",
+          "min": 0,
+          "max": 5,
+          "step": 1
+        },
+        {
+          "path": "wireless_link.4g_gnd_quality",
+          "type": "int",
+          "min": 0,
+          "max": 5,
+          "step": 1
+        },
+        {
+          "path": "wireless_link.sdr_freq_band",
+          "type": "float"
+        },
+        {
+          "path": "wireless_link.4g_freq_band",
+          "type": "float"
+        },
+        {
+          "path": "live_status",
+          "type": "array",
+          "access": "r",
+          "push": 1
+        },
+        {
+          "path": "live_status.video_type",
+          "type": "text",
+          "length": 24
+        },
+        {
+          "path": "live_status.video_quality",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "path": "live_status.status",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "live_status.error_status",
+          "type": "int",
+          "length": 6
+        },
+        {
+          "path": "live_capacity",
+          "type": "struct",
+          "access": "r",
+          "push": 1
+        },
+        {
+          "path": "live_capacity.available_video_number",
+          "type": "int"
+        },
+        {
+          "path": "live_capacity.coexist_video_number_max",
+          "type": "int"
+        },
+        {
+          "path": "live_capacity.device_list",
+          "type": "array"
+        },
+        {
+          "path": "live_capacity.device_list.sn",
+          "type": "text"
+        },
+        {
+          "path": "live_capacity.device_list.available_video_number",
+          "type": "int"
+        },
+        {
+          "path": "live_capacity.device_list.coexist_video_number_max",
+          "type": "int"
+        },
+        {
+          "path": "live_capacity.device_list.camera_list",
+          "type": "array"
+        },
+        {
+          "path": "live_capacity.device_list.camera_list.available_video_number",
+          "type": "int"
+        },
+        {
+          "path": "live_capacity.device_list.camera_list.coexist_video_number_max",
+          "type": "int"
+        },
+        {
+          "path": "live_capacity.device_list.camera_list.video_list",
+          "type": "array"
+        },
+        {
+          "path": "live_capacity.device_list.camera_list.video_list.video_index",
+          "type": "text"
+        },
+        {
+          "path": "live_capacity.device_list.camera_list.video_list.video_type",
+          "type": "text"
+        },
+        {
+          "path": "live_capacity.device_list.camera_list.video_list.switchable_video_types",
+          "type": "array"
+        },
+        {
+          "path": "rainfall",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "path": "wind_speed",
+          "type": "float",
+          "access": "r",
+          "push": 0,
+          "unit": "0.1 Meters per second / m/s"
+        },
+        {
+          "path": "environment_temperature",
+          "type": "float",
+          "access": "r",
+          "push": 0,
+          "unit": "Celsius / °C"
+        },
+        {
+          "path": "temperature",
+          "type": "float",
+          "access": "r",
+          "push": 0,
+          "unit": "Celsius / °C"
+        },
+        {
+          "path": "humidity",
+          "type": "float",
+          "access": "r",
+          "push": 0,
+          "unit": "Relative humidity / %RH"
+        },
+        {
+          "path": "electric_supply_voltage",
+          "type": "int",
+          "access": "r",
+          "push": 0,
+          "unit": "Volts / V"
+        },
+        {
+          "path": "working_voltage",
+          "type": "int",
+          "access": "r",
+          "push": 0,
+          "unit": "Millivolts / mV"
+        },
+        {
+          "path": "working_current",
+          "type": "float",
+          "access": "r",
+          "push": 0,
+          "unit": "Milliamps / mA"
+        },
+        {
+          "path": "storage",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "storage.total",
+          "type": "int",
+          "unit": "Kilobytes / KB"
+        },
+        {
+          "path": "storage.used",
+          "type": "int",
+          "unit": "Kilobytes / KB"
+        },
+        {
+          "path": "first_power_on",
+          "type": "int",
+          "access": "r",
+          "push": 0,
+          "unit": "Milliseconds / ms"
+        },
+        {
+          "path": "acc_time",
+          "type": "int",
+          "access": "r",
+          "push": 1,
+          "unit": "Seconds / s"
+        },
+        {
+          "path": "compatible_status",
+          "type": "enum_int",
+          "access": "r",
+          "push": 1,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "alternate_land_point",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "alternate_land_point.longitude",
+          "type": "float"
+        },
+        {
+          "path": "alternate_land_point.latitude",
+          "type": "float"
+        },
+        {
+          "path": "alternate_land_point.safe_land_height",
+          "type": "float"
+        },
+        {
+          "path": "alternate_land_point.is_configured",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "alternate_land_point.height",
+          "type": "float"
+        },
+        {
+          "path": "height",
+          "type": "double",
+          "access": "r",
+          "push": 0,
+          "unit": "Meters / m"
+        },
+        {
+          "path": "activation_time",
+          "type": "int",
+          "access": "r",
+          "push": 0,
+          "unit": "Seconds / s"
+        },
+        {
+          "path": "battery_store_mode",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            1,
+            2
+          ]
+        },
+        {
+          "path": "alarm_state",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "backup_battery",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "backup_battery.switch",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "backup_battery.voltage",
+          "type": "int",
+          "min": 0,
+          "max": 30000,
+          "step": 1,
+          "unit": "Millivolts / mV"
+        },
+        {
+          "path": "backup_battery.temperature",
+          "type": "float",
+          "step": 0.1,
+          "unit": "Celsius / °C"
+        },
+        {
+          "path": "drone_charge_state",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "drone_charge_state.capacity_percent",
+          "type": "int",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "path": "drone_charge_state.state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "emergency_stop_state",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "position_state",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "position_state.is_calibration",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "position_state.is_fixed",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "path": "position_state.quality",
+          "type": "enum_int",
+          "enum": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            10
+          ]
+        },
+        {
+          "path": "position_state.gps_number",
+          "type": "int"
+        },
+        {
+          "path": "position_state.rtk_number",
+          "type": "int"
+        },
+        {
+          "path": "maintain_status",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "maintain_status.maintain_status_array",
+          "type": "array"
+        },
+        {
+          "path": "maintain_status.maintain_status_array.state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "maintain_status.maintain_status_array.last_maintain_type",
+          "type": "enum_int",
+          "enum": [
+            0,
+            17,
+            18
+          ]
+        },
+        {
+          "path": "maintain_status.maintain_status_array.last_maintain_time",
+          "type": "date",
+          "unit": "Seconds / s"
+        },
+        {
+          "path": "maintain_status.maintain_status_array.last_maintain_work_sorties",
+          "type": "int",
+          "min": 0,
+          "max": 2147483647,
+          "step": 1
+        },
+        {
+          "path": "putter_state",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "path": "air_conditioner",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "air_conditioner.air_conditioner_state",
+          "type": "enum_int"
+        },
+        {
+          "path": "air_conditioner.switch_time",
+          "type": "int",
+          "unit": "Seconds / s"
+        },
+        {
+          "path": "drone_battery_maintenance_info",
+          "type": "struct",
+          "push": 0
+        },
+        {
+          "path": "drone_battery_maintenance_info.maintenance_state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "path": "drone_battery_maintenance_info.maintenance_time_left",
+          "type": "int",
+          "unit": "Hours / h"
+        },
+        {
+          "path": "drone_battery_maintenance_info.heat_state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "path": "drone_battery_maintenance_info.batteries",
+          "type": "array"
+        },
+        {
+          "path": "drone_battery_maintenance_info.batteries.capacity_percent",
+          "type": "int",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "path": "drone_battery_maintenance_info.batteries.index",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "drone_battery_maintenance_info.batteries.voltage",
+          "type": "int",
+          "unit": "Millivolts / mV"
+        },
+        {
+          "path": "drone_battery_maintenance_info.batteries.temperature",
+          "type": "float",
+          "unit": "Celsius / °C"
+        },
+        {
+          "path": "wpmz_version",
+          "type": "text",
+          "access": "r",
+          "push": 1
+        },
+        {
+          "path": "drc_state",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "path": "drone_authority_info",
+          "type": "struct",
+          "push": 0
+        },
+        {
+          "path": "drone_authority_info.control_source",
+          "type": "enum_string"
+        },
+        {
+          "path": "drone_authority_info.locked",
+          "type": "bool"
+        },
+        {
+          "path": "drone_authority_info.payloads",
+          "type": "array"
+        },
+        {
+          "path": "drone_authority_info.payloads.control_source",
+          "type": "enum_string"
+        },
+        {
+          "path": "drone_authority_info.payloads.sn",
+          "type": "text"
+        },
+        {
+          "path": "user_experience_improvement",
+          "type": "enum_int",
+          "access": "rw",
+          "push": 1,
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "path": "silent_mode",
+          "type": "enum_int",
+          "access": "rw",
+          "push": 1,
+          "enum": [
+            0,
+            1
+          ]
+        }
+      ]
+    },
+    "dock2": {
+      "source": "https://developer.dji.com/doc/cloud-api-tutorial/en/api-reference/dock-to-cloud/mqtt/dock/dock2/properties.html",
+      "verifiedAt": "2026-10-22",
+      "provenance": "official DJI Web reference (dock-to-cloud); read on 2026-10-22, not pinned to a Git blob and without a published edition date. Converted mechanically; no hardware observation.",
+      "fields": [
+        {
+          "path": "home_position_is_valid",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "heading",
+          "type": "double",
+          "access": "r",
+          "push": 0,
+          "min": -180,
+          "max": 180,
+          "unit": "Degrees / °"
+        },
+        {
+          "path": "rtcm_info",
+          "type": "struct",
+          "access": "r",
+          "push": 1
+        },
+        {
+          "path": "rtcm_info.mount_point",
+          "type": "text"
+        },
+        {
+          "path": "rtcm_info.port",
+          "type": "text"
+        },
+        {
+          "path": "rtcm_info.host",
+          "type": "text"
+        },
+        {
+          "path": "rtcm_info.rtcm_device_type",
+          "type": "enum_int",
+          "enum": [
+            1
+          ]
+        },
+        {
+          "path": "rtcm_info.source_type",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "path": "wireless_link_topo",
+          "type": "struct",
+          "access": "r",
+          "push": 1
+        },
+        {
+          "path": "wireless_link_topo.secret_code",
+          "type": "array",
+          "privacy": "redacted"
+        },
+        {
+          "path": "wireless_link_topo.center_node",
+          "type": "struct"
+        },
+        {
+          "path": "wireless_link_topo.center_node.sdr_id",
+          "type": "int"
+        },
+        {
+          "path": "wireless_link_topo.center_node.sn",
+          "type": "text"
+        },
+        {
+          "path": "wireless_link_topo.leaf_nodes",
+          "type": "array"
+        },
+        {
+          "path": "wireless_link_topo.leaf_nodes.sdr_id",
+          "type": "int"
+        },
+        {
+          "path": "wireless_link_topo.leaf_nodes.sn",
+          "type": "text"
+        },
+        {
+          "path": "wireless_link_topo.leaf_nodes.control_source_index",
+          "type": "int",
+          "min": 1,
+          "max": 2,
+          "step": 1,
+          "unit": "None / "
+        },
+        {
+          "path": "air_conditioner",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "air_conditioner.air_conditioner_state",
+          "type": "enum_int"
+        },
+        {
+          "path": "air_conditioner.switch_time",
+          "type": "int",
+          "unit": "Seconds / s"
+        },
+        {
+          "path": "air_transfer_enable",
+          "type": "bool",
+          "access": "rw",
+          "push": 1
+        },
+        {
+          "path": "silent_mode",
+          "type": "enum_int",
+          "access": "rw",
+          "push": 1,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "user_experience_improvement",
+          "type": "enum_int",
+          "access": "rw",
+          "push": 1,
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "path": "dongle_infos",
+          "type": "array",
+          "access": "r",
+          "push": 1
+        },
+        {
+          "path": "dongle_infos.imei",
+          "type": "text"
+        },
+        {
+          "path": "dongle_infos.dongle_type",
+          "type": "enum_int",
+          "enum": [
+            6,
+            10
+          ]
+        },
+        {
+          "path": "dongle_infos.eid",
+          "type": "text"
+        },
+        {
+          "path": "dongle_infos.esim_activate_state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "path": "dongle_infos.sim_card_state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "dongle_infos.sim_slot",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "path": "dongle_infos.esim_infos",
+          "type": "array"
+        },
+        {
+          "path": "dongle_infos.esim_infos.telecom_operator",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "path": "dongle_infos.esim_infos.enabled",
+          "type": "bool"
+        },
+        {
+          "path": "dongle_infos.esim_infos.iccid",
+          "type": "text"
+        },
+        {
+          "path": "dongle_infos.sim_info",
+          "type": "struct"
+        },
+        {
+          "path": "dongle_infos.sim_info.telecom_operator",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "path": "dongle_infos.sim_info.sim_type",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "path": "dongle_infos.sim_info.iccid",
+          "type": "text"
+        },
+        {
+          "path": "drone_battery_maintenance_info",
+          "type": "struct",
+          "push": 0
+        },
+        {
+          "path": "drone_battery_maintenance_info.maintenance_state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "path": "drone_battery_maintenance_info.maintenance_time_left",
+          "type": "int",
+          "unit": "Hours / h"
+        },
+        {
+          "path": "drone_battery_maintenance_info.heat_state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "path": "drone_battery_maintenance_info.batteries",
+          "type": "array"
+        },
+        {
+          "path": "drone_battery_maintenance_info.batteries.capacity_percent",
+          "type": "int",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "path": "drone_battery_maintenance_info.batteries.index",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "drone_battery_maintenance_info.batteries.voltage",
+          "type": "int",
+          "unit": "Millivolts / mV"
+        },
+        {
+          "path": "drone_battery_maintenance_info.batteries.temperature",
+          "type": "float",
+          "unit": "Celsius / °C"
+        },
+        {
+          "path": "maintain_status",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "maintain_status.maintain_status_array",
+          "type": "array"
+        },
+        {
+          "path": "maintain_status.maintain_status_array.state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "maintain_status.maintain_status_array.last_maintain_type",
+          "type": "enum_int",
+          "enum": [
+            0,
+            17,
+            18
+          ]
+        },
+        {
+          "path": "maintain_status.maintain_status_array.last_maintain_time",
+          "type": "date",
+          "unit": "Seconds / s"
+        },
+        {
+          "path": "maintain_status.maintain_status_array.last_maintain_work_sorties",
+          "type": "int",
+          "min": 0,
+          "max": 2147483647,
+          "step": 1
+        },
+        {
+          "path": "position_state",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "position_state.is_calibration",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "position_state.is_fixed",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "path": "position_state.quality",
+          "type": "enum_int",
+          "enum": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            10
+          ]
+        },
+        {
+          "path": "position_state.gps_number",
+          "type": "int"
+        },
+        {
+          "path": "position_state.rtk_number",
+          "type": "int"
+        },
+        {
+          "path": "emergency_stop_state",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "drone_charge_state",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "drone_charge_state.capacity_percent",
+          "type": "int",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "path": "drone_charge_state.state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "backup_battery",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "backup_battery.switch",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "backup_battery.voltage",
+          "type": "int",
+          "min": 0,
+          "max": 30000,
+          "step": 1,
+          "unit": "Millivolts / mV"
+        },
+        {
+          "path": "backup_battery.temperature",
+          "type": "float",
+          "step": 0.1,
+          "unit": "Celsius / °C"
+        },
+        {
+          "path": "alarm_state",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "battery_store_mode",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            1,
+            2
+          ]
+        },
+        {
+          "path": "activation_time",
+          "type": "int",
+          "access": "r",
+          "push": 0,
+          "unit": "Seconds / s"
+        },
+        {
+          "path": "height",
+          "type": "double",
+          "access": "r",
+          "push": 0,
+          "unit": "Meters / m"
+        },
+        {
+          "path": "alternate_land_point",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "alternate_land_point.longitude",
+          "type": "float"
+        },
+        {
+          "path": "alternate_land_point.latitude",
+          "type": "float"
+        },
+        {
+          "path": "alternate_land_point.safe_land_height",
+          "type": "float"
+        },
+        {
+          "path": "alternate_land_point.is_configured",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "alternate_land_point.height",
+          "type": "float"
+        },
+        {
+          "path": "compatible_status",
+          "type": "enum_int",
+          "access": "r",
+          "push": 1,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "acc_time",
+          "type": "int",
+          "access": "r",
+          "push": 1,
+          "unit": "Seconds / s"
+        },
+        {
+          "path": "first_power_on",
+          "type": "int",
+          "access": "r",
+          "push": 0,
+          "unit": "Milliseconds / ms"
+        },
+        {
+          "path": "storage",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "storage.total",
+          "type": "int",
+          "unit": "Kilobytes / KB"
+        },
+        {
+          "path": "storage.used",
+          "type": "int",
+          "unit": "Kilobytes / KB"
+        },
+        {
+          "path": "working_current",
+          "type": "float",
+          "access": "r",
+          "push": 0,
+          "unit": "Milliamps / mA"
+        },
+        {
+          "path": "working_voltage",
+          "type": "int",
+          "access": "r",
+          "push": 0,
+          "unit": "Millivolts / mV"
+        },
+        {
+          "path": "humidity",
+          "type": "float",
+          "access": "r",
+          "push": 0,
+          "min": 0,
+          "max": 100,
+          "step": 0.1,
+          "unit": "Relative humidity / %RH"
+        },
+        {
+          "path": "temperature",
+          "type": "float",
+          "access": "r",
+          "push": 0,
+          "unit": "Celsius / °C"
+        },
+        {
+          "path": "environment_temperature",
+          "type": "float",
+          "access": "r",
+          "push": 0,
+          "unit": "Celsius / °C"
+        },
+        {
+          "path": "wind_speed",
+          "type": "float",
+          "access": "r",
+          "push": 0,
+          "unit": " Meters per second / m/s"
+        },
+        {
+          "path": "rainfall",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "path": "live_capacity",
+          "type": "struct",
+          "access": "r",
+          "push": 1
+        },
+        {
+          "path": "live_capacity.available_video_number",
+          "type": "int"
+        },
+        {
+          "path": "live_capacity.coexist_video_number_max",
+          "type": "int"
+        },
+        {
+          "path": "live_capacity.device_list",
+          "type": "array"
+        },
+        {
+          "path": "live_capacity.device_list.sn",
+          "type": "text"
+        },
+        {
+          "path": "live_capacity.device_list.available_video_number",
+          "type": "int"
+        },
+        {
+          "path": "live_capacity.device_list.coexist_video_number_max",
+          "type": "int"
+        },
+        {
+          "path": "live_capacity.device_list.camera_list",
+          "type": "array"
+        },
+        {
+          "path": "live_capacity.device_list.camera_list.camera_index",
+          "type": "text"
+        },
+        {
+          "path": "live_capacity.device_list.camera_list.available_video_number",
+          "type": "int"
+        },
+        {
+          "path": "live_capacity.device_list.camera_list.coexist_video_number_max",
+          "type": "int"
+        },
+        {
+          "path": "live_capacity.device_list.camera_list.video_list",
+          "type": "array"
+        },
+        {
+          "path": "live_capacity.device_list.camera_list.video_list.video_index",
+          "type": "text"
+        },
+        {
+          "path": "live_capacity.device_list.camera_list.video_list.video_type",
+          "type": "text"
+        },
+        {
+          "path": "live_capacity.device_list.camera_list.video_list.switchable_video_types",
+          "type": "array"
+        },
+        {
+          "path": "live_status",
+          "type": "array",
+          "access": "r",
+          "push": 1
+        },
+        {
+          "path": "live_status.video_id",
+          "type": "text"
+        },
+        {
+          "path": "live_status.video_type",
+          "type": "text",
+          "length": 24
+        },
+        {
+          "path": "live_status.video_quality",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "path": "live_status.status",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "live_status.error_status",
+          "type": "int",
+          "length": 6
+        },
+        {
+          "path": "wireless_link",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "wireless_link.dongle_number",
+          "type": "int"
+        },
+        {
+          "path": "wireless_link.4g_link_state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "wireless_link.sdr_link_state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "wireless_link.link_workmode",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "wireless_link.sdr_quality",
+          "type": "int",
+          "min": 0,
+          "max": 5,
+          "step": 1
+        },
+        {
+          "path": "wireless_link.4g_quality",
+          "type": "int",
+          "min": 0,
+          "max": 5,
+          "step": 1
+        },
+        {
+          "path": "wireless_link.4g_uav_quality",
+          "type": "int",
+          "min": 0,
+          "max": 5,
+          "step": 1
+        },
+        {
+          "path": "wireless_link.4g_gnd_quality",
+          "type": "int",
+          "min": 0,
+          "max": 5,
+          "step": 1
+        },
+        {
+          "path": "wireless_link.sdr_freq_band",
+          "type": "float"
+        },
+        {
+          "path": "wireless_link.4g_freq_band",
+          "type": "float"
+        },
+        {
+          "path": "media_file_detail",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "media_file_detail.remain_upload",
+          "type": "int"
+        },
+        {
+          "path": "job_number",
+          "type": "int",
+          "access": "r",
+          "push": 0,
+          "unit": "Times / count"
+        },
+        {
+          "path": "drone_in_dock",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "network_state",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "network_state.type",
+          "type": "enum_int",
+          "enum": [
+            1,
+            2
+          ]
+        },
+        {
+          "path": "network_state.quality",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "path": "network_state.rate",
+          "type": "float",
+          "unit": "Kilobytes per second / KB/s"
+        },
+        {
+          "path": "supplement_light_state",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "cover_state",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "path": "sub_device",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "sub_device.device_sn",
+          "type": "text"
+        },
+        {
+          "path": "sub_device.device_model_key",
+          "type": "text"
+        },
+        {
+          "path": "sub_device.device_online_status",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "sub_device.device_paired",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "flighttask_step_code",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            255,
+            256
+          ]
+        },
+        {
+          "path": "mode_code",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "path": "firmware_upgrade_status",
+          "type": "enum_int",
+          "access": "r",
+          "push": 1,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "firmware_version",
+          "type": "text",
+          "access": "r",
+          "push": 1,
+          "length": 64
+        },
+        {
+          "path": "latitude",
+          "type": "double",
+          "access": "r",
+          "push": 0,
+          "min": -90,
+          "max": 90,
+          "step": 0.01
+        },
+        {
+          "path": "longitude",
+          "type": "double",
+          "access": "r",
+          "push": 0,
+          "min": -180,
+          "max": 180,
+          "step": 0.01
+        },
+        {
+          "path": "drc_state",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        }
+      ]
+    },
+    "dock3": {
+      "source": "https://developer.dji.com/doc/cloud-api-tutorial/en/api-reference/dock-to-cloud/mqtt/dock/dock3/properties.html",
+      "verifiedAt": "2026-10-22",
+      "provenance": "official DJI Web reference (dock-to-cloud); read on 2026-10-22, not pinned to a Git blob and without a published edition date. Converted mechanically; no hardware observation.",
+      "fields": [
+        {
+          "path": "home_position_is_valid",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "path": "heading",
+          "type": "double",
+          "access": "r",
+          "push": 0,
+          "min": -180,
+          "max": 180,
+          "unit": "Degrees / °"
+        },
+        {
+          "path": "rtcm_info",
+          "type": "struct",
+          "access": "r",
+          "push": 1
+        },
+        {
+          "path": "rtcm_info.mount_point",
+          "type": "text"
+        },
+        {
+          "path": "rtcm_info.port",
+          "type": "text"
+        },
+        {
+          "path": "rtcm_info.host",
+          "type": "text"
+        },
+        {
+          "path": "rtcm_info.rtcm_device_type",
+          "type": "enum_int",
+          "enum": [
+            1
+          ]
+        },
+        {
+          "path": "rtcm_info.source_type",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "path": "wireless_link_topo",
+          "type": "struct",
+          "access": "r",
+          "push": 1
+        },
+        {
+          "path": "wireless_link_topo.secret_code",
+          "type": "array",
+          "privacy": "redacted"
+        },
+        {
+          "path": "wireless_link_topo.center_node",
+          "type": "struct"
+        },
+        {
+          "path": "wireless_link_topo.center_node.sdr_id",
+          "type": "int"
+        },
+        {
+          "path": "wireless_link_topo.center_node.sn",
+          "type": "text"
+        },
+        {
+          "path": "wireless_link_topo.center_node.model",
+          "type": "int"
+        },
+        {
+          "path": "wireless_link_topo.center_node.device_type",
+          "type": "int"
+        },
+        {
+          "path": "wireless_link_topo.leaf_nodes",
+          "type": "array"
+        },
+        {
+          "path": "wireless_link_topo.leaf_nodes.sdr_id",
+          "type": "int"
+        },
+        {
+          "path": "wireless_link_topo.leaf_nodes.sn",
+          "type": "text"
+        },
+        {
+          "path": "wireless_link_topo.leaf_nodes.control_source_index",
+          "type": "int",
+          "min": 1,
+          "max": 2,
+          "step": 1,
+          "unit": "None / "
+        },
+        {
+          "path": "wireless_link_topo.leaf_nodes.model",
+          "type": "int"
+        },
+        {
+          "path": "wireless_link_topo.leaf_nodes.device_type",
+          "type": "int"
+        },
+        {
+          "path": "air_conditioner",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "air_conditioner.air_conditioner_state",
+          "type": "enum_int"
+        },
+        {
+          "path": "air_conditioner.switch_time",
+          "type": "int",
+          "unit": "Second / s"
+        },
+        {
+          "path": "air_transfer_enable",
+          "type": "bool",
+          "access": "rw",
+          "push": 1
+        },
+        {
+          "path": "silent_mode",
+          "type": "enum_int",
+          "access": "rw",
+          "push": 1,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "user_experience_improvement",
+          "type": "enum_int",
+          "access": "rw",
+          "push": 1,
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "path": "dongle_infos",
+          "type": "array",
+          "access": "r",
+          "push": 1
+        },
+        {
+          "path": "dongle_infos.imei",
+          "type": "text"
+        },
+        {
+          "path": "dongle_infos.dongle_type",
+          "type": "enum_int",
+          "enum": [
+            6,
+            10
+          ]
+        },
+        {
+          "path": "dongle_infos.eid",
+          "type": "text"
+        },
+        {
+          "path": "dongle_infos.esim_activate_state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "path": "dongle_infos.sim_card_state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "dongle_infos.sim_slot",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "path": "dongle_infos.esim_infos",
+          "type": "array"
+        },
+        {
+          "path": "dongle_infos.esim_infos.telecom_operator",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "path": "dongle_infos.esim_infos.enabled",
+          "type": "bool"
+        },
+        {
+          "path": "dongle_infos.esim_infos.iccid",
+          "type": "text"
+        },
+        {
+          "path": "dongle_infos.sim_info",
+          "type": "struct"
+        },
+        {
+          "path": "dongle_infos.sim_info.telecom_operator",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "path": "dongle_infos.sim_info.sim_type",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "path": "dongle_infos.sim_info.iccid",
+          "type": "text"
+        },
+        {
+          "path": "drone_battery_maintenance_info",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "drone_battery_maintenance_info.maintenance_state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "path": "drone_battery_maintenance_info.maintenance_time_left",
+          "type": "int",
+          "unit": "Hours / h"
+        },
+        {
+          "path": "drone_battery_maintenance_info.heat_state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "path": "drone_battery_maintenance_info.batteries",
+          "type": "array"
+        },
+        {
+          "path": "drone_battery_maintenance_info.batteries.capacity_percent",
+          "type": "int",
+          "max": 100
+        },
+        {
+          "path": "drone_battery_maintenance_info.batteries.index",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "drone_battery_maintenance_info.batteries.voltage",
+          "type": "int",
+          "unit": "Millivolts / mV"
+        },
+        {
+          "path": "drone_battery_maintenance_info.batteries.temperature",
+          "type": "float",
+          "unit": "Celsius / °C"
+        },
+        {
+          "path": "maintain_status",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "maintain_status.maintain_status_array",
+          "type": "array"
+        },
+        {
+          "path": "maintain_status.maintain_status_array.state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "maintain_status.maintain_status_array.last_maintain_type",
+          "type": "enum_int",
+          "enum": [
+            0,
+            17,
+            18
+          ]
+        },
+        {
+          "path": "maintain_status.maintain_status_array.last_maintain_time",
+          "type": "date",
+          "unit": "Seconds / s"
+        },
+        {
+          "path": "maintain_status.maintain_status_array.last_maintain_work_sorties",
+          "type": "int",
+          "min": 0,
+          "max": 2147483647,
+          "step": 1
+        },
+        {
+          "path": "position_state",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "position_state.is_calibration",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "position_state.is_fixed",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "path": "position_state.quality",
+          "type": "enum_int",
+          "enum": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            10
+          ]
+        },
+        {
+          "path": "position_state.gps_number",
+          "type": "int"
+        },
+        {
+          "path": "position_state.rtk_number",
+          "type": "int"
+        },
+        {
+          "path": "emergency_stop_state",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "drone_charge_state",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "drone_charge_state.capacity_percent",
+          "type": "int",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "path": "drone_charge_state.state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "backup_battery",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "backup_battery.switch",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "backup_battery.voltage",
+          "type": "int",
+          "min": 0,
+          "step": 1,
+          "unit": "Millivolts / mV"
+        },
+        {
+          "path": "backup_battery.temperature",
+          "type": "float",
+          "step": 0.1,
+          "unit": "Celsius / °C"
+        },
+        {
+          "path": "alarm_state",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "battery_store_mode",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            1,
+            2
+          ]
+        },
+        {
+          "path": "activation_time",
+          "type": "int",
+          "access": "r",
+          "push": 0,
+          "unit": "Seconds / s"
+        },
+        {
+          "path": "height",
+          "type": "double",
+          "access": "r",
+          "push": 0,
+          "unit": "Meters / m"
+        },
+        {
+          "path": "alternate_land_point",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "alternate_land_point.longitude",
+          "type": "float"
+        },
+        {
+          "path": "alternate_land_point.latitude",
+          "type": "float"
+        },
+        {
+          "path": "alternate_land_point.safe_land_height",
+          "type": "float"
+        },
+        {
+          "path": "alternate_land_point.is_configured",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "alternate_land_point.height",
+          "type": "float"
+        },
+        {
+          "path": "compatible_status",
+          "type": "enum_int",
+          "access": "r",
+          "push": 1,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "acc_time",
+          "type": "int",
+          "access": "r",
+          "push": 1,
+          "unit": "Seconds / s"
+        },
+        {
+          "path": "first_power_on",
+          "type": "int",
+          "access": "r",
+          "push": 0,
+          "unit": "Milliseconds / ms"
+        },
+        {
+          "path": "storage",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "storage.total",
+          "type": "int",
+          "unit": "Kilobytes / KB"
+        },
+        {
+          "path": "storage.used",
+          "type": "int",
+          "unit": "Kilobytes / KB"
+        },
+        {
+          "path": "working_current",
+          "type": "float",
+          "access": "r",
+          "push": 0,
+          "unit": "Milliamps / mA"
+        },
+        {
+          "path": "working_voltage",
+          "type": "int",
+          "access": "r",
+          "push": 0,
+          "unit": "Millivolts / mV"
+        },
+        {
+          "path": "humidity",
+          "type": "float",
+          "access": "r",
+          "push": 0,
+          "min": 0,
+          "max": 100,
+          "step": 0.1,
+          "unit": "Relative humidity / %RH"
+        },
+        {
+          "path": "temperature",
+          "type": "float",
+          "access": "r",
+          "push": 0,
+          "unit": "Celsius / °C"
+        },
+        {
+          "path": "environment_temperature",
+          "type": "float",
+          "access": "r",
+          "push": 0,
+          "unit": "Celsius / °C"
+        },
+        {
+          "path": "wind_speed",
+          "type": "float",
+          "access": "r",
+          "push": 0,
+          "unit": "Meters per second / m/s"
+        },
+        {
+          "path": "rainfall",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "path": "live_capacity",
+          "type": "struct",
+          "access": "r",
+          "push": 1
+        },
+        {
+          "path": "live_capacity.available_video_number",
+          "type": "int"
+        },
+        {
+          "path": "live_capacity.coexist_video_number_max",
+          "type": "int"
+        },
+        {
+          "path": "live_capacity.device_list",
+          "type": "array"
+        },
+        {
+          "path": "live_capacity.device_list.sn",
+          "type": "text"
+        },
+        {
+          "path": "live_capacity.device_list.available_video_number",
+          "type": "int"
+        },
+        {
+          "path": "live_capacity.device_list.coexist_video_number_max",
+          "type": "int"
+        },
+        {
+          "path": "live_capacity.device_list.camera_list",
+          "type": "array"
+        },
+        {
+          "path": "live_capacity.device_list.camera_list.camera_index",
+          "type": "text"
+        },
+        {
+          "path": "live_capacity.device_list.camera_list.available_video_number",
+          "type": "int"
+        },
+        {
+          "path": "live_capacity.device_list.camera_list.coexist_video_number_max",
+          "type": "int"
+        },
+        {
+          "path": "live_capacity.device_list.camera_list.video_list",
+          "type": "array"
+        },
+        {
+          "path": "live_capacity.device_list.camera_list.video_list.video_index",
+          "type": "text"
+        },
+        {
+          "path": "live_capacity.device_list.camera_list.video_list.video_type",
+          "type": "text"
+        },
+        {
+          "path": "live_capacity.device_list.camera_list.video_list.switchable_video_types",
+          "type": "array"
+        },
+        {
+          "path": "live_status",
+          "type": "array",
+          "access": "r",
+          "push": 1
+        },
+        {
+          "path": "live_status.video_id",
+          "type": "text"
+        },
+        {
+          "path": "live_status.video_type",
+          "type": "text",
+          "length": 24
+        },
+        {
+          "path": "live_status.video_quality",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "path": "live_status.status",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "live_status.error_status",
+          "type": "int",
+          "length": 6
+        },
+        {
+          "path": "wireless_link",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "wireless_link.dongle_number",
+          "type": "int"
+        },
+        {
+          "path": "wireless_link.4g_link_state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "wireless_link.sdr_link_state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "wireless_link.link_workmode",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "wireless_link.sdr_quality",
+          "type": "int",
+          "min": 0,
+          "max": 5,
+          "step": 1
+        },
+        {
+          "path": "wireless_link.4g_quality",
+          "type": "int",
+          "min": 0,
+          "max": 5,
+          "step": 1
+        },
+        {
+          "path": "wireless_link.4g_uav_quality",
+          "type": "int",
+          "min": 0,
+          "max": 5,
+          "step": 1
+        },
+        {
+          "path": "wireless_link.4g_gnd_quality",
+          "type": "int",
+          "min": 0,
+          "max": 5,
+          "step": 1
+        },
+        {
+          "path": "wireless_link.sdr_freq_band",
+          "type": "float"
+        },
+        {
+          "path": "wireless_link.4g_freq_band",
+          "type": "float"
+        },
+        {
+          "path": "media_file_detail",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "media_file_detail.remain_upload",
+          "type": "int"
+        },
+        {
+          "path": "job_number",
+          "type": "int",
+          "access": "r",
+          "push": 0,
+          "unit": "Times / count"
+        },
+        {
+          "path": "drone_in_dock",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "network_state",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "network_state.type",
+          "type": "enum_int",
+          "enum": [
+            1,
+            2
+          ]
+        },
+        {
+          "path": "network_state.quality",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "path": "network_state.rate",
+          "type": "float",
+          "unit": "Kilobytes per second / KB/s"
+        },
+        {
+          "path": "supplement_light_state",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "cover_state",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "path": "sub_device",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "sub_device.device_sn",
+          "type": "text"
+        },
+        {
+          "path": "sub_device.device_model_key",
+          "type": "text"
+        },
+        {
+          "path": "sub_device.device_online_status",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "sub_device.device_paired",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "flighttask_step_code",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            255,
+            256
+          ]
+        },
+        {
+          "path": "mode_code",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "path": "firmware_upgrade_status",
+          "type": "enum_int",
+          "access": "r",
+          "push": 1,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "firmware_version",
+          "type": "text",
+          "access": "r",
+          "push": 1,
+          "length": 64
+        },
+        {
+          "path": "latitude",
+          "type": "double",
+          "access": "r",
+          "push": 0,
+          "min": -90,
+          "max": 90,
+          "step": 0.01
+        },
+        {
+          "path": "longitude",
+          "type": "double",
+          "access": "r",
+          "push": 0,
+          "min": -180,
+          "max": 180,
+          "step": 0.01
+        },
+        {
+          "path": "drc_state",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "path": "self_converge_coordinate",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "self_converge_coordinate.latitude",
+          "type": "double",
+          "min": -90,
+          "max": 90,
+          "step": 0.01
+        },
+        {
+          "path": "self_converge_coordinate.longitude",
+          "type": "double",
+          "min": -180,
+          "max": 180,
+          "step": 0.01
+        },
+        {
+          "path": "self_converge_coordinate.height",
+          "type": "double",
+          "unit": "Meters / m"
+        }
+      ]
+    },
+    "matrice3D": {
+      "source": "https://developer.dji.com/doc/cloud-api-tutorial/en/api-reference/dock-to-cloud/mqtt/aircraft/m3d-properties.html",
+      "verifiedAt": "2026-10-22",
+      "provenance": "official DJI Web reference (dock-to-cloud); read on 2026-10-22, not pinned to a Git blob and without a published edition date. Converted mechanically; no hardware observation.",
+      "fields": [
+        {
+          "path": "best_link_gateway",
+          "type": "text",
+          "access": "r",
+          "push": 1
+        },
+        {
+          "path": "wireless_link_topo",
+          "type": "struct",
+          "access": "r",
+          "push": 1
+        },
+        {
+          "path": "wireless_link_topo.secret_code",
+          "type": "array",
+          "privacy": "redacted"
+        },
+        {
+          "path": "wireless_link_topo.center_node",
+          "type": "struct"
+        },
+        {
+          "path": "wireless_link_topo.center_node.sdr_id",
+          "type": "int"
+        },
+        {
+          "path": "wireless_link_topo.center_node.sn",
+          "type": "text"
+        },
+        {
+          "path": "wireless_link_topo.leaf_nodes",
+          "type": "array"
+        },
+        {
+          "path": "wireless_link_topo.leaf_nodes.sdr_id",
+          "type": "int"
+        },
+        {
+          "path": "wireless_link_topo.leaf_nodes.sn",
+          "type": "text"
+        },
+        {
+          "path": "wireless_link_topo.leaf_nodes.control_source_index",
+          "type": "int",
+          "min": 1,
+          "max": 2,
+          "step": 1,
+          "unit": "None / "
+        },
+        {
+          "path": "cameras",
+          "type": "array",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "cameras.remain_photo_num",
+          "type": "int"
+        },
+        {
+          "path": "cameras.remain_record_duration",
+          "type": "int",
+          "unit": "Seconds / s"
+        },
+        {
+          "path": "cameras.record_time",
+          "type": "int",
+          "unit": "Seconds / s"
+        },
+        {
+          "path": "cameras.camera_mode",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "path": "cameras.photo_state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "cameras.screen_split_enable",
+          "type": "bool",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "cameras.recording_state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "cameras.zoom_factor",
+          "type": "float",
+          "min": 2,
+          "max": 200
+        },
+        {
+          "path": "cameras.ir_zoom_factor",
+          "type": "float",
+          "min": 2,
+          "max": 20
+        },
+        {
+          "path": "cameras.liveview_world_region",
+          "type": "struct"
+        },
+        {
+          "path": "cameras.liveview_world_region.left",
+          "type": "float"
+        },
+        {
+          "path": "cameras.liveview_world_region.top",
+          "type": "float"
+        },
+        {
+          "path": "cameras.liveview_world_region.right",
+          "type": "float"
+        },
+        {
+          "path": "cameras.liveview_world_region.bottom",
+          "type": "float"
+        },
+        {
+          "path": "cameras.photo_storage_settings",
+          "type": "array"
+        },
+        {
+          "path": "cameras.video_storage_settings",
+          "type": "array"
+        },
+        {
+          "path": "cameras.wide_exposure_mode",
+          "type": "enum_int",
+          "enum": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "path": "cameras.wide_iso",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            255
+          ]
+        },
+        {
+          "path": "cameras.wide_shutter_speed",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            65534
+          ]
+        },
+        {
+          "path": "cameras.wide_exposure_value",
+          "type": "enum_int",
+          "enum": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            255
+          ]
+        },
+        {
+          "path": "cameras.zoom_exposure_mode",
+          "type": "enum_int",
+          "enum": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "path": "cameras.zoom_iso",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            255
+          ]
+        },
+        {
+          "path": "cameras.zoom_shutter_speed",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            65534
+          ]
+        },
+        {
+          "path": "cameras.zoom_exposure_value",
+          "type": "enum_int",
+          "enum": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            255
+          ]
+        },
+        {
+          "path": "cameras.zoom_focus_mode",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "path": "cameras.zoom_focus_value",
+          "type": "int"
+        },
+        {
+          "path": "cameras.zoom_max_focus_value",
+          "type": "int"
+        },
+        {
+          "path": "cameras.zoom_min_focus_value",
+          "type": "int"
+        },
+        {
+          "path": "cameras.zoom_calibrate_farthest_focus_value",
+          "type": "int"
+        },
+        {
+          "path": "cameras.zoom_calibrate_nearest_focus_value",
+          "type": "int"
+        },
+        {
+          "path": "cameras.zoom_focus_state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "path": "cameras.ir_metering_mode",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "path": "cameras.ir_metering_point",
+          "type": "struct"
+        },
+        {
+          "path": "cameras.ir_metering_point.x",
+          "type": "double",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "path": "cameras.ir_metering_point.y",
+          "type": "double",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "path": "cameras.ir_metering_point.temperature",
+          "type": "double"
+        },
+        {
+          "path": "cameras.ir_metering_area",
+          "type": "struct"
+        },
+        {
+          "path": "cameras.ir_metering_area.x",
+          "type": "double",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "path": "cameras.ir_metering_area.y",
+          "type": "double",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "path": "cameras.ir_metering_area.width",
+          "type": "double",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "path": "cameras.ir_metering_area.height",
+          "type": "double",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "path": "cameras.ir_metering_area.aver_temperature",
+          "type": "double"
+        },
+        {
+          "path": "cameras.ir_metering_area.min_temperature_point",
+          "type": "struct"
+        },
+        {
+          "path": "cameras.ir_metering_area.min_temperature_point.x",
+          "type": "double",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "path": "cameras.ir_metering_area.min_temperature_point.y",
+          "type": "double",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "path": "cameras.ir_metering_area.min_temperature_point.temperature",
+          "type": "double"
+        },
+        {
+          "path": "cameras.ir_metering_area.max_temperature_point",
+          "type": "struct"
+        },
+        {
+          "path": "cameras.ir_metering_area.max_temperature_point.x",
+          "type": "double",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "path": "cameras.ir_metering_area.max_temperature_point.y",
+          "type": "double",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "path": "cameras.ir_metering_area.max_temperature_point.temperature",
+          "type": "double"
+        },
+        {
+          "path": "flysafe_database_version",
+          "type": "text",
+          "access": "r",
+          "push": 1,
+          "length": 64
+        },
+        {
+          "path": "offline_map_enable",
+          "type": "bool",
+          "access": "r",
+          "push": 1,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "dongle_infos",
+          "type": "array",
+          "access": "r",
+          "push": 1
+        },
+        {
+          "path": "dongle_infos.imei",
+          "type": "text"
+        },
+        {
+          "path": "dongle_infos.dongle_type",
+          "type": "enum_int",
+          "enum": [
+            6,
+            10
+          ]
+        },
+        {
+          "path": "dongle_infos.eid",
+          "type": "text"
+        },
+        {
+          "path": "dongle_infos.esim_activate_state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "path": "dongle_infos.sim_card_state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "dongle_infos.sim_slot",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "path": "dongle_infos.esim_infos",
+          "type": "array"
+        },
+        {
+          "path": "dongle_infos.esim_infos.telecom_operator",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "path": "dongle_infos.esim_infos.enabled",
+          "type": "bool"
+        },
+        {
+          "path": "dongle_infos.esim_infos.iccid",
+          "type": "text"
+        },
+        {
+          "path": "dongle_infos.sim_info",
+          "type": "struct"
+        },
+        {
+          "path": "dongle_infos.sim_info.telecom_operator",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "path": "dongle_infos.sim_info.sim_type",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "path": "dongle_infos.sim_info.iccid",
+          "type": "text"
+        },
+        {
+          "path": "current_rth_mode",
+          "type": "enum_int",
+          "access": "r",
+          "push": 1,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "rth_mode",
+          "type": "enum_int",
+          "access": "r",
+          "push": 1,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "obstacle_avoidance",
+          "type": "struct",
+          "access": "rw",
+          "push": 0
+        },
+        {
+          "path": "obstacle_avoidance.horizon",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "obstacle_avoidance.upside",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "obstacle_avoidance.downside",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "is_near_area_limit",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "is_near_height_limit",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "height_limit",
+          "type": "int",
+          "access": "rw",
+          "push": 0,
+          "min": 20,
+          "max": 1500,
+          "step": 1,
+          "unit": "Meters / m"
+        },
+        {
+          "path": "night_lights_state",
+          "type": "enum_int",
+          "access": "rw",
+          "push": 0,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "activation_time",
+          "type": "int",
+          "access": "r",
+          "push": 0,
+          "unit": "Seconds / s"
+        },
+        {
+          "path": "maintain_status",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "maintain_status.maintain_status_array",
+          "type": "array"
+        },
+        {
+          "path": "maintain_status.maintain_status_array.state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "maintain_status.maintain_status_array.last_maintain_type",
+          "type": "enum_int",
+          "enum": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "path": "maintain_status.maintain_status_array.last_maintain_time",
+          "type": "date",
+          "unit": "Seconds / s"
+        },
+        {
+          "path": "maintain_status.maintain_status_array.last_maintain_flight_time",
+          "type": "int",
+          "unit": "Hours / h"
+        },
+        {
+          "path": "maintain_status.maintain_status_array.last_maintain_flight_sorties",
+          "type": "int",
+          "min": 0,
+          "max": 2147483647,
+          "step": 1
+        },
+        {
+          "path": "total_flight_sorties",
+          "type": "int",
+          "access": "r",
+          "push": 0,
+          "min": 0,
+          "max": 2147483647,
+          "step": 1
+        },
+        {
+          "path": "total_flight_sorties.gimbal_pitch",
+          "type": "double",
+          "min": -180,
+          "max": 180,
+          "step": 0.1,
+          "unit": "Degrees / °"
+        },
+        {
+          "path": "total_flight_sorties.gimbal_roll",
+          "type": "double",
+          "min": -180,
+          "max": 180,
+          "step": 0.1,
+          "unit": "Degrees / °"
+        },
+        {
+          "path": "total_flight_sorties.gimbal_yaw",
+          "type": "double",
+          "min": -180,
+          "max": 180,
+          "step": 0.1,
+          "unit": "Degrees / °"
+        },
+        {
+          "path": "total_flight_sorties.measure_target_longitude",
+          "type": "double",
+          "min": -180,
+          "max": 180,
+          "unit": "Degrees / °"
+        },
+        {
+          "path": "total_flight_sorties.measure_target_latitude",
+          "type": "double",
+          "min": -90,
+          "max": 90,
+          "unit": "Degrees / °"
+        },
+        {
+          "path": "total_flight_sorties.measure_target_altitude",
+          "type": "double",
+          "unit": "Meters / m"
+        },
+        {
+          "path": "total_flight_sorties.measure_target_distance",
+          "type": "double",
+          "unit": "Meters / m"
+        },
+        {
+          "path": "total_flight_sorties.measure_target_error_state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "path": "total_flight_sorties.zoom_factor",
+          "type": "double"
+        },
+        {
+          "path": "total_flight_sorties.thermal_current_palette_style",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            5,
+            6,
+            8,
+            11,
+            12,
+            13
+          ]
+        },
+        {
+          "path": "total_flight_sorties.thermal_supported_palette_styles",
+          "type": "array"
+        },
+        {
+          "path": "total_flight_sorties.thermal_gain_mode",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "path": "total_flight_sorties.thermal_isotherm_state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "total_flight_sorties.thermal_isotherm_upper_limit",
+          "type": "int",
+          "unit": "Celsius / °C"
+        },
+        {
+          "path": "total_flight_sorties.thermal_isotherm_lower_limit",
+          "type": "int",
+          "unit": "Celsius / °C"
+        },
+        {
+          "path": "total_flight_sorties.thermal_global_temperature_min",
+          "type": "float",
+          "unit": "Celsius / °C"
+        },
+        {
+          "path": "total_flight_sorties.thermal_global_temperature_max",
+          "type": "float",
+          "unit": "Celsius / °C"
+        },
+        {
+          "path": "track_id",
+          "type": "text",
+          "access": "r",
+          "push": 0,
+          "length": 64
+        },
+        {
+          "path": "position_state",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "position_state.is_fixed",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "path": "position_state.quality",
+          "type": "enum_int",
+          "enum": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            10
+          ]
+        },
+        {
+          "path": "position_state.gps_number",
+          "type": "int"
+        },
+        {
+          "path": "position_state.rtk_number",
+          "type": "int"
+        },
+        {
+          "path": "storage",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "storage.total",
+          "type": "int",
+          "unit": "Kilobytes / KB"
+        },
+        {
+          "path": "storage.used",
+          "type": "int",
+          "unit": "Kilobytes / KB"
+        },
+        {
+          "path": "battery",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "battery.capacity_percent",
+          "type": "int",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "path": "battery.remain_flight_time",
+          "type": "int",
+          "unit": "Seconds / s"
+        },
+        {
+          "path": "battery.return_home_power",
+          "type": "int",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "path": "battery.landing_power",
+          "type": "int",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "path": "battery.batteries",
+          "type": "array"
+        },
+        {
+          "path": "battery.batteries.capacity_percent",
+          "type": "int",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "path": "battery.batteries.index",
+          "type": "int",
+          "min": 0
+        },
+        {
+          "path": "battery.batteries.sn",
+          "type": "text"
+        },
+        {
+          "path": "battery.batteries.type",
+          "type": "enum_int"
+        },
+        {
+          "path": "battery.batteries.sub_type",
+          "type": "enum_int"
+        },
+        {
+          "path": "battery.batteries.firmware_version",
+          "type": "text"
+        },
+        {
+          "path": "battery.batteries.loop_times",
+          "type": "int"
+        },
+        {
+          "path": "battery.batteries.voltage",
+          "type": "int",
+          "unit": "Millivolts / mV"
+        },
+        {
+          "path": "battery.batteries.temperature",
+          "type": "float",
+          "unit": "Celsius / °C"
+        },
+        {
+          "path": "battery.batteries.high_voltage_storage_days",
+          "type": "int",
+          "unit": "Days / day"
+        },
+        {
+          "path": "total_flight_distance",
+          "type": "float",
+          "access": "r",
+          "push": 0,
+          "unit": "Meters / m"
+        },
+        {
+          "path": "total_flight_time",
+          "type": "float",
+          "access": "r",
+          "push": 0,
+          "unit": "Seconds / s"
+        },
+        {
+          "path": "serious_low_battery_warning_threshold",
+          "type": "int",
+          "access": "r",
+          "push": 1
+        },
+        {
+          "path": "low_battery_warning_threshold",
+          "type": "int",
+          "access": "r",
+          "push": 1
+        },
+        {
+          "path": "control_source",
+          "type": "text",
+          "access": "r",
+          "push": 1
+        },
+        {
+          "path": "wind_direction",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ]
+        },
+        {
+          "path": "wind_speed",
+          "type": "float",
+          "access": "r",
+          "push": 0,
+          "unit": "0.1 Meters per second / m/s"
+        },
+        {
+          "path": "home_distance",
+          "type": "float",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "home_latitude",
+          "type": "double",
+          "access": "r",
+          "push": 1
+        },
+        {
+          "path": "home_longitude",
+          "type": "double",
+          "access": "r",
+          "push": 1
+        },
+        {
+          "path": "attitude_head",
+          "type": "int",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "attitude_roll",
+          "type": "float",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "attitude_pitch",
+          "type": "float",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "elevation",
+          "type": "float",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "height",
+          "type": "double",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "latitude",
+          "type": "double",
+          "access": "r",
+          "push": 0,
+          "min": -1.4e-45,
+          "max": 340282349999999991754788743781432688640,
+          "step": 0.1
+        },
+        {
+          "path": "longitude",
+          "type": "double",
+          "access": "r",
+          "push": 0,
+          "min": -1.4e-45,
+          "max": 340282349999999991754788743781432688640,
+          "step": 0.1
+        },
+        {
+          "path": "vertical_speed",
+          "type": "float",
+          "access": "r",
+          "push": 0,
+          "unit": "Meters per second / m/s"
+        },
+        {
+          "path": "horizontal_speed",
+          "type": "float",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "firmware_upgrade_status",
+          "type": "enum_int",
+          "access": "r",
+          "push": 1,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "compatible_status",
+          "type": "enum_int",
+          "access": "r",
+          "push": 1,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "firmware_version",
+          "type": "text",
+          "access": "r",
+          "push": 1,
+          "length": 64
+        },
+        {
+          "path": "gear",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9
+          ]
+        },
+        {
+          "path": "mode_code_reason",
+          "type": "enum_int",
+          "access": "r",
+          "push": 1,
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23
+          ]
+        },
+        {
+          "path": "commander_flight_height",
+          "type": "float",
+          "access": "rw",
+          "push": 1,
+          "min": 2,
+          "max": 3000,
+          "step": 0.1,
+          "unit": "Meters / m"
+        },
+        {
+          "path": "commander_flight_mode",
+          "type": "enum_int",
+          "access": "rw",
+          "push": 1,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "commander_mode_lost_action",
+          "type": "enum_int",
+          "access": "rw",
+          "push": 1,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "camera_watermark_settings",
+          "type": "struct",
+          "access": "rw",
+          "push": 1
+        },
+        {
+          "path": "camera_watermark_settings.global_enable",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "camera_watermark_settings.drone_type_enable",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "camera_watermark_settings.drone_sn_enable",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "camera_watermark_settings.datetime_enable",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "camera_watermark_settings.gps_enable",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "camera_watermark_settings.user_custom_string_enable",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "camera_watermark_settings.user_custom_string",
+          "type": "text"
+        },
+        {
+          "path": "camera_watermark_settings.layout",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "path": "mode_code",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20
+          ]
+        },
+        {
+          "path": "distance_limit_status",
+          "type": "struct",
+          "access": "rw",
+          "push": 0
+        },
+        {
+          "path": "distance_limit_status.state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "distance_limit_status.distance_limit",
+          "type": "int",
+          "min": 15,
+          "max": 8000,
+          "step": 1,
+          "unit": "Meters / m"
+        },
+        {
+          "path": "distance_limit_status.is_near_distance_limit",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "rth_altitude",
+          "type": "int",
+          "access": "rw",
+          "push": 0,
+          "min": 20,
+          "max": 500,
+          "unit": "Meters / m"
+        },
+        {
+          "path": "psdk_ui_resource",
+          "type": "array",
+          "access": "r",
+          "push": 1
+        },
+        {
+          "path": "psdk_ui_resource.psdk_index",
+          "type": "int",
+          "min": 0
+        },
+        {
+          "path": "psdk_ui_resource.psdk_ready",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "psdk_ui_resource.object_key",
+          "type": "text"
+        },
+        {
+          "path": "psdk_widget_values",
+          "type": "array",
+          "access": "r",
+          "push": 1
+        },
+        {
+          "path": "psdk_widget_values.psdk_index",
+          "type": "int",
+          "min": 0
+        },
+        {
+          "path": "psdk_widget_values.psdk_name",
+          "type": "text"
+        },
+        {
+          "path": "psdk_widget_values.psdk_sn",
+          "type": "text"
+        },
+        {
+          "path": "psdk_widget_values.psdk_version",
+          "type": "text"
+        },
+        {
+          "path": "psdk_widget_values.psdk_lib_version",
+          "type": "text"
+        },
+        {
+          "path": "psdk_widget_values.speaker",
+          "type": "struct"
+        },
+        {
+          "path": "psdk_widget_values.speaker.work_mode",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "psdk_widget_values.speaker.play_mode",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "psdk_widget_values.speaker.play_volume",
+          "type": "int",
+          "min": 0,
+          "max": 100,
+          "step": 1
+        },
+        {
+          "path": "psdk_widget_values.speaker.system_state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            99
+          ]
+        },
+        {
+          "path": "psdk_widget_values.speaker.play_file_name",
+          "type": "text",
+          "unit": "Bytes / B",
+          "length": 128
+        },
+        {
+          "path": "psdk_widget_values.speaker.play_file_md5",
+          "type": "text"
+        },
+        {
+          "path": "psdk_widget_values.values",
+          "type": "array"
+        },
+        {
+          "path": "psdk_widget_values.values.index",
+          "type": "int",
+          "min": 0,
+          "step": 1
+        },
+        {
+          "path": "psdk_widget_values.values.value",
+          "type": "int"
+        }
+      ]
+    },
+    "matrice4D": {
+      "source": "https://developer.dji.com/doc/cloud-api-tutorial/en/api-reference/dock-to-cloud/mqtt/aircraft/m4d-properties.html",
+      "verifiedAt": "2026-10-22",
+      "provenance": "official DJI Web reference (dock-to-cloud); read on 2026-10-22, not pinned to a Git blob and without a published edition date. Converted mechanically; no hardware observation.",
+      "fields": [
+        {
+          "path": "best_link_gateway",
+          "type": "text",
+          "access": "r",
+          "push": 1
+        },
+        {
+          "path": "wireless_link_topo",
+          "type": "struct",
+          "access": "r",
+          "push": 1
+        },
+        {
+          "path": "wireless_link_topo.secret_code",
+          "type": "array",
+          "privacy": "redacted"
+        },
+        {
+          "path": "wireless_link_topo.center_node",
+          "type": "struct"
+        },
+        {
+          "path": "wireless_link_topo.center_node.sdr_id",
+          "type": "int"
+        },
+        {
+          "path": "wireless_link_topo.center_node.sn",
+          "type": "text"
+        },
+        {
+          "path": "wireless_link_topo.leaf_nodes",
+          "type": "array"
+        },
+        {
+          "path": "wireless_link_topo.leaf_nodes.sdr_id",
+          "type": "int"
+        },
+        {
+          "path": "wireless_link_topo.leaf_nodes.sn",
+          "type": "text"
+        },
+        {
+          "path": "wireless_link_topo.leaf_nodes.control_source_index",
+          "type": "int",
+          "min": 1,
+          "max": 2,
+          "step": 1,
+          "unit": "None / "
+        },
+        {
+          "path": "cameras",
+          "type": "array",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "cameras.remain_photo_num",
+          "type": "int"
+        },
+        {
+          "path": "cameras.remain_record_duration",
+          "type": "int",
+          "unit": "Seconds / s"
+        },
+        {
+          "path": "cameras.record_time",
+          "type": "int",
+          "unit": "Seconds / s"
+        },
+        {
+          "path": "cameras.camera_mode",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "path": "cameras.photo_state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "cameras.screen_split_enable",
+          "type": "bool",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "cameras.recording_state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "cameras.zoom_factor",
+          "type": "float",
+          "min": 2,
+          "max": 200
+        },
+        {
+          "path": "cameras.ir_zoom_factor",
+          "type": "float",
+          "min": 2,
+          "max": 20
+        },
+        {
+          "path": "cameras.liveview_world_region",
+          "type": "struct"
+        },
+        {
+          "path": "cameras.liveview_world_region.left",
+          "type": "float"
+        },
+        {
+          "path": "cameras.liveview_world_region.top",
+          "type": "float"
+        },
+        {
+          "path": "cameras.liveview_world_region.right",
+          "type": "float"
+        },
+        {
+          "path": "cameras.liveview_world_region.bottom",
+          "type": "float"
+        },
+        {
+          "path": "cameras.photo_storage_settings",
+          "type": "array"
+        },
+        {
+          "path": "cameras.video_storage_settings",
+          "type": "array"
+        },
+        {
+          "path": "cameras.wide_exposure_mode",
+          "type": "enum_int",
+          "enum": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "path": "cameras.wide_iso",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            255
+          ]
+        },
+        {
+          "path": "cameras.wide_shutter_speed",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            65534
+          ]
+        },
+        {
+          "path": "cameras.wide_exposure_value",
+          "type": "enum_int",
+          "enum": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            255
+          ]
+        },
+        {
+          "path": "cameras.zoom_exposure_mode",
+          "type": "enum_int",
+          "enum": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "path": "cameras.zoom_iso",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            255
+          ]
+        },
+        {
+          "path": "cameras.zoom_shutter_speed",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            65534
+          ]
+        },
+        {
+          "path": "cameras.zoom_exposure_value",
+          "type": "enum_int",
+          "enum": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            255
+          ]
+        },
+        {
+          "path": "cameras.zoom_focus_mode",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "path": "cameras.zoom_focus_value",
+          "type": "int"
+        },
+        {
+          "path": "cameras.zoom_max_focus_value",
+          "type": "int"
+        },
+        {
+          "path": "cameras.zoom_min_focus_value",
+          "type": "int"
+        },
+        {
+          "path": "cameras.zoom_calibrate_farthest_focus_value",
+          "type": "int"
+        },
+        {
+          "path": "cameras.zoom_calibrate_nearest_focus_value",
+          "type": "int"
+        },
+        {
+          "path": "cameras.zoom_focus_state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "path": "cameras.ir_metering_mode",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "path": "cameras.ir_metering_point",
+          "type": "struct"
+        },
+        {
+          "path": "cameras.ir_metering_point.x",
+          "type": "double",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "path": "cameras.ir_metering_point.y",
+          "type": "double",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "path": "cameras.ir_metering_point.temperature",
+          "type": "double"
+        },
+        {
+          "path": "cameras.ir_metering_area",
+          "type": "struct"
+        },
+        {
+          "path": "cameras.ir_metering_area.x",
+          "type": "double",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "path": "cameras.ir_metering_area.y",
+          "type": "double",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "path": "cameras.ir_metering_area.width",
+          "type": "double",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "path": "cameras.ir_metering_area.height",
+          "type": "double",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "path": "cameras.ir_metering_area.aver_temperature",
+          "type": "double"
+        },
+        {
+          "path": "cameras.ir_metering_area.min_temperature_point",
+          "type": "struct"
+        },
+        {
+          "path": "cameras.ir_metering_area.min_temperature_point.x",
+          "type": "double",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "path": "cameras.ir_metering_area.min_temperature_point.y",
+          "type": "double",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "path": "cameras.ir_metering_area.min_temperature_point.temperature",
+          "type": "double"
+        },
+        {
+          "path": "cameras.ir_metering_area.max_temperature_point",
+          "type": "struct"
+        },
+        {
+          "path": "cameras.ir_metering_area.max_temperature_point.x",
+          "type": "double",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "path": "cameras.ir_metering_area.max_temperature_point.y",
+          "type": "double",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "path": "cameras.ir_metering_area.max_temperature_point.temperature",
+          "type": "double"
+        },
+        {
+          "path": "flysafe_database_version",
+          "type": "text",
+          "access": "r",
+          "push": 1,
+          "length": 64
+        },
+        {
+          "path": "offline_map_enable",
+          "type": "bool",
+          "access": "r",
+          "push": 1,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "dongle_infos",
+          "type": "array",
+          "access": "r",
+          "push": 1
+        },
+        {
+          "path": "dongle_infos.imei",
+          "type": "text"
+        },
+        {
+          "path": "dongle_infos.dongle_type",
+          "type": "enum_int",
+          "enum": [
+            6,
+            10
+          ]
+        },
+        {
+          "path": "dongle_infos.eid",
+          "type": "text"
+        },
+        {
+          "path": "dongle_infos.esim_activate_state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "path": "dongle_infos.sim_card_state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "dongle_infos.sim_slot",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "path": "dongle_infos.esim_infos",
+          "type": "array"
+        },
+        {
+          "path": "dongle_infos.esim_infos.telecom_operator",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "path": "dongle_infos.esim_infos.enabled",
+          "type": "bool"
+        },
+        {
+          "path": "dongle_infos.esim_infos.iccid",
+          "type": "text"
+        },
+        {
+          "path": "dongle_infos.sim_info",
+          "type": "struct"
+        },
+        {
+          "path": "dongle_infos.sim_info.telecom_operator",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "path": "dongle_infos.sim_info.sim_type",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "path": "dongle_infos.sim_info.iccid",
+          "type": "text"
+        },
+        {
+          "path": "current_rth_mode",
+          "type": "enum_int",
+          "access": "r",
+          "push": 1,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "rth_mode",
+          "type": "enum_int",
+          "access": "r",
+          "push": 1,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "obstacle_avoidance",
+          "type": "struct",
+          "access": "rw",
+          "push": 0
+        },
+        {
+          "path": "obstacle_avoidance.horizon",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "obstacle_avoidance.upside",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "obstacle_avoidance.downside",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "is_near_area_limit",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "is_near_height_limit",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "height_limit",
+          "type": "int",
+          "access": "rw",
+          "push": 0,
+          "min": 20,
+          "max": 1500,
+          "step": 1,
+          "unit": "Meters / m"
+        },
+        {
+          "path": "night_lights_state",
+          "type": "enum_int",
+          "access": "rw",
+          "push": 0,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "activation_time",
+          "type": "int",
+          "access": "r",
+          "push": 0,
+          "unit": "Seconds / s"
+        },
+        {
+          "path": "maintain_status",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "maintain_status.maintain_status_array",
+          "type": "array"
+        },
+        {
+          "path": "maintain_status.maintain_status_array.state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "maintain_status.maintain_status_array.last_maintain_type",
+          "type": "enum_int",
+          "enum": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "path": "maintain_status.maintain_status_array.last_maintain_time",
+          "type": "date",
+          "unit": "Seconds / s"
+        },
+        {
+          "path": "maintain_status.maintain_status_array.last_maintain_flight_time",
+          "type": "int",
+          "unit": "Hours / h"
+        },
+        {
+          "path": "maintain_status.maintain_status_array.last_maintain_flight_sorties",
+          "type": "int",
+          "min": 0,
+          "max": 2147483647,
+          "step": 1
+        },
+        {
+          "path": "total_flight_sorties",
+          "type": "int",
+          "access": "r",
+          "push": 0,
+          "min": 0,
+          "max": 2147483647,
+          "step": 1
+        },
+        {
+          "path": "total_flight_sorties.gimbal_pitch",
+          "type": "double",
+          "min": -180,
+          "max": 180,
+          "step": 0.1,
+          "unit": "Degrees / °"
+        },
+        {
+          "path": "total_flight_sorties.gimbal_roll",
+          "type": "double",
+          "min": -180,
+          "max": 180,
+          "step": 0.1,
+          "unit": "Degrees / °"
+        },
+        {
+          "path": "total_flight_sorties.gimbal_yaw",
+          "type": "double",
+          "min": -180,
+          "max": 180,
+          "step": 0.1,
+          "unit": "Degrees / °"
+        },
+        {
+          "path": "total_flight_sorties.measure_target_longitude",
+          "type": "double",
+          "min": -180,
+          "max": 180,
+          "unit": "Degrees / °"
+        },
+        {
+          "path": "total_flight_sorties.measure_target_latitude",
+          "type": "double",
+          "min": -90,
+          "max": 90,
+          "unit": "Degrees / °"
+        },
+        {
+          "path": "total_flight_sorties.measure_target_altitude",
+          "type": "double",
+          "unit": "Meters / m"
+        },
+        {
+          "path": "total_flight_sorties.measure_target_distance",
+          "type": "double",
+          "unit": "Meters / m"
+        },
+        {
+          "path": "total_flight_sorties.measure_target_error_state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "path": "total_flight_sorties.zoom_factor",
+          "type": "double"
+        },
+        {
+          "path": "total_flight_sorties.thermal_current_palette_style",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            5,
+            6,
+            8,
+            11,
+            12,
+            13
+          ]
+        },
+        {
+          "path": "total_flight_sorties.thermal_supported_palette_styles",
+          "type": "array"
+        },
+        {
+          "path": "total_flight_sorties.thermal_gain_mode",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "path": "total_flight_sorties.thermal_isotherm_state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "total_flight_sorties.thermal_isotherm_upper_limit",
+          "type": "int",
+          "unit": "Celsius / °C"
+        },
+        {
+          "path": "total_flight_sorties.thermal_isotherm_lower_limit",
+          "type": "int",
+          "unit": "Celsius / °C"
+        },
+        {
+          "path": "total_flight_sorties.thermal_global_temperature_min",
+          "type": "float",
+          "unit": "Celsius / °C"
+        },
+        {
+          "path": "total_flight_sorties.thermal_global_temperature_max",
+          "type": "float",
+          "unit": "Celsius / °C"
+        },
+        {
+          "path": "track_id",
+          "type": "text",
+          "access": "r",
+          "push": 0,
+          "length": 64
+        },
+        {
+          "path": "position_state",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "position_state.is_fixed",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "path": "position_state.quality",
+          "type": "enum_int",
+          "enum": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            10
+          ]
+        },
+        {
+          "path": "position_state.gps_number",
+          "type": "int"
+        },
+        {
+          "path": "position_state.rtk_number",
+          "type": "int"
+        },
+        {
+          "path": "storage",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "storage.total",
+          "type": "int",
+          "unit": "Kilobytes / KB"
+        },
+        {
+          "path": "storage.used",
+          "type": "int",
+          "unit": "Kilobytes / KB"
+        },
+        {
+          "path": "battery",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "battery.capacity_percent",
+          "type": "int",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "path": "battery.remain_flight_time",
+          "type": "int",
+          "unit": "Seconds / s"
+        },
+        {
+          "path": "battery.return_home_power",
+          "type": "int",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "path": "battery.landing_power",
+          "type": "int",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "path": "battery.batteries",
+          "type": "array"
+        },
+        {
+          "path": "battery.batteries.capacity_percent",
+          "type": "int",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "path": "battery.batteries.index",
+          "type": "int",
+          "min": 0
+        },
+        {
+          "path": "battery.batteries.sn",
+          "type": "text"
+        },
+        {
+          "path": "battery.batteries.type",
+          "type": "enum_int"
+        },
+        {
+          "path": "battery.batteries.sub_type",
+          "type": "enum_int"
+        },
+        {
+          "path": "battery.batteries.firmware_version",
+          "type": "text"
+        },
+        {
+          "path": "battery.batteries.loop_times",
+          "type": "int"
+        },
+        {
+          "path": "battery.batteries.voltage",
+          "type": "int",
+          "unit": "Millivolts / mV"
+        },
+        {
+          "path": "battery.batteries.temperature",
+          "type": "float",
+          "unit": "Celsius / °C"
+        },
+        {
+          "path": "battery.batteries.high_voltage_storage_days",
+          "type": "int",
+          "unit": "Days / day"
+        },
+        {
+          "path": "total_flight_distance",
+          "type": "float",
+          "access": "r",
+          "push": 0,
+          "unit": "Meters / m"
+        },
+        {
+          "path": "total_flight_time",
+          "type": "float",
+          "access": "r",
+          "push": 0,
+          "unit": "Seconds / s"
+        },
+        {
+          "path": "serious_low_battery_warning_threshold",
+          "type": "int",
+          "access": "r",
+          "push": 1
+        },
+        {
+          "path": "low_battery_warning_threshold",
+          "type": "int",
+          "access": "r",
+          "push": 1
+        },
+        {
+          "path": "control_source",
+          "type": "text",
+          "access": "r",
+          "push": 1
+        },
+        {
+          "path": "wind_direction",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ]
+        },
+        {
+          "path": "wind_speed",
+          "type": "float",
+          "access": "r",
+          "push": 0,
+          "unit": "0.1 Meters per second / m/s"
+        },
+        {
+          "path": "home_distance",
+          "type": "float",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "home_latitude",
+          "type": "double",
+          "access": "r",
+          "push": 1
+        },
+        {
+          "path": "home_longitude",
+          "type": "double",
+          "access": "r",
+          "push": 1
+        },
+        {
+          "path": "attitude_head",
+          "type": "int",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "attitude_roll",
+          "type": "float",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "attitude_pitch",
+          "type": "float",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "elevation",
+          "type": "float",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "height",
+          "type": "double",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "latitude",
+          "type": "double",
+          "access": "r",
+          "push": 0,
+          "min": -1.4e-45,
+          "max": 340282349999999991754788743781432688640,
+          "step": 0.1
+        },
+        {
+          "path": "longitude",
+          "type": "double",
+          "access": "r",
+          "push": 0,
+          "min": -1.4e-45,
+          "max": 340282349999999991754788743781432688640,
+          "step": 0.1
+        },
+        {
+          "path": "vertical_speed",
+          "type": "float",
+          "access": "r",
+          "push": 0,
+          "unit": "Meters per second / m/s"
+        },
+        {
+          "path": "horizontal_speed",
+          "type": "float",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "firmware_upgrade_status",
+          "type": "enum_int",
+          "access": "r",
+          "push": 1,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "compatible_status",
+          "type": "enum_int",
+          "access": "r",
+          "push": 1,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "firmware_version",
+          "type": "text",
+          "access": "r",
+          "push": 1,
+          "length": 64
+        },
+        {
+          "path": "gear",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9
+          ]
+        },
+        {
+          "path": "mode_code_reason",
+          "type": "enum_int",
+          "access": "r",
+          "push": 1,
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23
+          ]
+        },
+        {
+          "path": "commander_flight_height",
+          "type": "float",
+          "access": "rw",
+          "push": 1,
+          "min": 2,
+          "max": 3000,
+          "step": 0.1,
+          "unit": "Meters / m"
+        },
+        {
+          "path": "commander_flight_mode",
+          "type": "enum_int",
+          "access": "rw",
+          "push": 1,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "commander_mode_lost_action",
+          "type": "enum_int",
+          "access": "rw",
+          "push": 1,
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "camera_watermark_settings",
+          "type": "struct",
+          "access": "rw",
+          "push": 1
+        },
+        {
+          "path": "camera_watermark_settings.global_enable",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "camera_watermark_settings.drone_type_enable",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "camera_watermark_settings.drone_sn_enable",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "camera_watermark_settings.datetime_enable",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "camera_watermark_settings.gps_enable",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "camera_watermark_settings.user_custom_string_enable",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "camera_watermark_settings.user_custom_string",
+          "type": "text"
+        },
+        {
+          "path": "camera_watermark_settings.layout",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "path": "mode_code",
+          "type": "enum_int",
+          "access": "r",
+          "push": 0,
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21
+          ]
+        },
+        {
+          "path": "distance_limit_status",
+          "type": "struct",
+          "access": "rw",
+          "push": 0
+        },
+        {
+          "path": "distance_limit_status.state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "distance_limit_status.distance_limit",
+          "type": "int",
+          "min": 15,
+          "max": 8000,
+          "step": 1,
+          "unit": "Meters / m"
+        },
+        {
+          "path": "distance_limit_status.is_near_distance_limit",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "rth_altitude",
+          "type": "int",
+          "access": "rw",
+          "push": 0,
+          "min": 20,
+          "max": 500,
+          "unit": "Meters / m"
+        },
+        {
+          "path": "psdk_ui_resource",
+          "type": "array",
+          "access": "r",
+          "push": 1
+        },
+        {
+          "path": "psdk_ui_resource.psdk_index",
+          "type": "int",
+          "min": 0
+        },
+        {
+          "path": "psdk_ui_resource.psdk_ready",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "psdk_ui_resource.object_key",
+          "type": "text"
+        },
+        {
+          "path": "psdk_widget_values",
+          "type": "array",
+          "access": "r",
+          "push": 1
+        },
+        {
+          "path": "psdk_widget_values.psdk_index",
+          "type": "int",
+          "min": 0
+        },
+        {
+          "path": "psdk_widget_values.psdk_name",
+          "type": "text"
+        },
+        {
+          "path": "psdk_widget_values.psdk_sn",
+          "type": "text"
+        },
+        {
+          "path": "psdk_widget_values.psdk_version",
+          "type": "text"
+        },
+        {
+          "path": "psdk_widget_values.psdk_lib_version",
+          "type": "text"
+        },
+        {
+          "path": "psdk_widget_values.speaker",
+          "type": "struct"
+        },
+        {
+          "path": "psdk_widget_values.speaker.work_mode",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "psdk_widget_values.speaker.play_mode",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        {
+          "path": "psdk_widget_values.speaker.play_volume",
+          "type": "int",
+          "min": 0,
+          "max": 100,
+          "step": 1
+        },
+        {
+          "path": "psdk_widget_values.speaker.system_state",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            99
+          ]
+        },
+        {
+          "path": "psdk_widget_values.speaker.play_file_name",
+          "type": "text",
+          "unit": "Bytes / B",
+          "length": 128
+        },
+        {
+          "path": "psdk_widget_values.speaker.play_file_md5",
+          "type": "text"
+        },
+        {
+          "path": "psdk_widget_values.values",
+          "type": "array"
+        },
+        {
+          "path": "psdk_widget_values.values.index",
+          "type": "int",
+          "min": 0,
+          "step": 1
+        },
+        {
+          "path": "psdk_widget_values.values.value",
+          "type": "int"
+        },
+        {
+          "path": "fts_info",
+          "type": "struct",
+          "access": "r",
+          "push": 0
+        },
+        {
+          "path": "fts_info.fts_status",
+          "type": "enum_int",
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            99
+          ]
+        },
+        {
+          "path": "fts_info.fts_verification_code",
+          "type": "text"
+        },
+        {
+          "path": "fts_info.fts_valid_duration",
+          "type": "int",
+          "unit": "minute / min"
+        },
+        {
+          "path": "fts_info.fts_timestamp",
+          "type": "int"
+        },
+        {
+          "path": "fts_info.fts_sn",
+          "type": "text"
+        },
+        {
+          "path": "fts_info.fts_firmware_version",
+          "type": "text"
+        }
+      ]
     }
   },
   "devices": {
@@ -4798,6 +10807,34 @@
     "2:174:0": {
       "profile": "rcPlus2",
       "confidence": "official-device-web"
+    },
+    "3:1:0": {
+      "profile": "dock1",
+      "confidence": "official-device-web"
+    },
+    "3:2:0": {
+      "profile": "dock2",
+      "confidence": "official-device-web"
+    },
+    "3:3:0": {
+      "profile": "dock3",
+      "confidence": "official-device-web"
+    },
+    "0:91:0": {
+      "profile": "matrice3D",
+      "confidence": "official-dock-aircraft-web"
+    },
+    "0:91:1": {
+      "profile": "matrice3D",
+      "confidence": "official-dock-aircraft-web"
+    },
+    "0:100:0": {
+      "profile": "matrice4D",
+      "confidence": "official-dock-aircraft-web"
+    },
+    "0:100:1": {
+      "profile": "matrice4D",
+      "confidence": "official-dock-aircraft-web"
     }
   }
 }

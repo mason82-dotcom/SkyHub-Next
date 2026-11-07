@@ -1,0 +1,2271 @@
+{
+  "source": "Official DJI Cloud-API-Doc English dji-wpml reference (retrieved 2026-10-21)",
+  "provenance": [
+    {
+      "file": "20.template-kml.md",
+      "sha": "f593ceb143e77fe8314010bf72c86b464dd1a872"
+    },
+    {
+      "file": "30.waylines-wpml.md",
+      "sha": "00656e89e5f6aaacb1d26471128424b45de61004"
+    },
+    {
+      "file": "40.common-element.md",
+      "sha": "ed9a32a18dc96b57cf6e514832c87782ae58895e"
+    }
+  ],
+  "scope": "Reference field inventory only; presence in this catalog does not mean runtime validation or aircraft support",
+  "count": 250,
+  "fields": [
+    {
+      "field": "wpml:author",
+      "context": "Element Description / Create information (parent element: Document)",
+      "type": "String",
+      "unit": "-",
+      "required": "no",
+      "source": "20.template-kml.md",
+      "line": 149
+    },
+    {
+      "field": "wpml:createTime",
+      "context": "Element Description / Create information (parent element: Document)",
+      "type": "Integer",
+      "unit": "ms",
+      "required": "no",
+      "source": "20.template-kml.md",
+      "line": 150
+    },
+    {
+      "field": "wpml:updateTime",
+      "context": "Element Description / Create information (parent element: Document)",
+      "type": "Integer",
+      "unit": "ms",
+      "required": "no",
+      "source": "20.template-kml.md",
+      "line": 151
+    },
+    {
+      "field": "wpml:flyToWaylineMode",
+      "context": "Element Description / Mission information (parent element: wpml:missionConfig)",
+      "type": "string enumerate",
+      "unit": "-",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 157
+    },
+    {
+      "field": "wpml:finishAction",
+      "context": "Element Description / Mission information (parent element: wpml:missionConfig)",
+      "type": "string enumerate",
+      "unit": "-",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 158
+    },
+    {
+      "field": "wpml:exitOnRCLost",
+      "context": "Element Description / Mission information (parent element: wpml:missionConfig)",
+      "type": "string enumerate",
+      "unit": "-",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 159
+    },
+    {
+      "field": "wpml:executeRCLostAction",
+      "context": "Element Description / Mission information (parent element: wpml:missionConfig)",
+      "type": "string enumerate",
+      "unit": "-",
+      "required": "conditional",
+      "source": "20.template-kml.md",
+      "line": 160
+    },
+    {
+      "field": "wpml:takeOffSecurityHeight",
+      "context": "Element Description / Mission information (parent element: wpml:missionConfig)",
+      "type": "Float",
+      "unit": "m",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 161
+    },
+    {
+      "field": "wpml:globalTransitionalSpeed",
+      "context": "Element Description / Mission information (parent element: wpml:missionConfig)",
+      "type": "Float",
+      "unit": "m/s",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 162
+    },
+    {
+      "field": "wpml:takeOffRefPoint",
+      "context": "Element Description / Mission information (parent element: wpml:missionConfig)",
+      "type": "Float",
+      "unit": "°, °, m",
+      "required": "no",
+      "source": "20.template-kml.md",
+      "line": 163
+    },
+    {
+      "field": "wpml:takeOffRefPointAGLHeight",
+      "context": "Element Description / Mission information (parent element: wpml:missionConfig)",
+      "type": "Float",
+      "unit": "m",
+      "required": "no",
+      "source": "20.template-kml.md",
+      "line": 164
+    },
+    {
+      "field": "wpml:droneInfo",
+      "context": "Element Description / Mission information (parent element: wpml:missionConfig)",
+      "type": "-",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "20.template-kml.md",
+      "line": 165
+    },
+    {
+      "field": "wpml:payloadInfo",
+      "context": "Element Description / Mission information (parent element: wpml:missionConfig)",
+      "type": "-",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "20.template-kml.md",
+      "line": 166
+    },
+    {
+      "field": "wpml:autoRerouteInfo",
+      "context": "Element Description / Mission information (parent element: wpml:missionConfig)",
+      "type": "-",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "20.template-kml.md",
+      "line": 167
+    },
+    {
+      "field": "wpml:templateType",
+      "context": "Element Description / Template information (parent element: Folder) / Template common elements (parent element: Folder)",
+      "type": "string enumerate",
+      "unit": "-",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 177
+    },
+    {
+      "field": "wpml:templateId",
+      "context": "Element Description / Template information (parent element: Folder) / Template common elements (parent element: Folder)",
+      "type": "Integer",
+      "unit": "-",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 178
+    },
+    {
+      "field": "wpml:autoFlightSpeed",
+      "context": "Element Description / Template information (parent element: Folder) / Template common elements (parent element: Folder)",
+      "type": "Float",
+      "unit": "m/s",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 179
+    },
+    {
+      "field": "wpml:waylineCoordinateSysParam",
+      "context": "Element Description / Template information (parent element: Folder) / Template common elements (parent element: Folder)",
+      "type": "-",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "20.template-kml.md",
+      "line": 180
+    },
+    {
+      "field": "wpml:payloadParam",
+      "context": "Element Description / Template information (parent element: Folder) / Template common elements (parent element: Folder)",
+      "type": "-",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "20.template-kml.md",
+      "line": 181
+    },
+    {
+      "field": "wpml:payloadPositionIndex",
+      "context": "Element Description / wpml:payloadParam",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 187
+    },
+    {
+      "field": "wpml:focusMode",
+      "context": "Element Description / wpml:payloadParam",
+      "type": "enum_string",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "20.template-kml.md",
+      "line": 188
+    },
+    {
+      "field": "wpml:meteringMode",
+      "context": "Element Description / wpml:payloadParam",
+      "type": "enum_string",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "20.template-kml.md",
+      "line": 189
+    },
+    {
+      "field": "wpml:dewarpingEnable",
+      "context": "Element Description / wpml:payloadParam",
+      "type": "bool",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "20.template-kml.md",
+      "line": 190
+    },
+    {
+      "field": "wpml:returnMode",
+      "context": "Element Description / wpml:payloadParam",
+      "type": "enum_string",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "20.template-kml.md",
+      "line": 191
+    },
+    {
+      "field": "wpml:samplingRate",
+      "context": "Element Description / wpml:payloadParam",
+      "type": "int",
+      "unit": "Hz",
+      "required": "unspecified",
+      "source": "20.template-kml.md",
+      "line": 192
+    },
+    {
+      "field": "wpml:scanningMode",
+      "context": "Element Description / wpml:payloadParam",
+      "type": "enum_string",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "20.template-kml.md",
+      "line": 193
+    },
+    {
+      "field": "wpml:modelColoringEnable",
+      "context": "Element Description / wpml:payloadParam",
+      "type": "bool",
+      "unit": "",
+      "required": "unspecified",
+      "source": "20.template-kml.md",
+      "line": 194
+    },
+    {
+      "field": "wpml:imageFormat",
+      "context": "Element Description / wpml:payloadParam",
+      "type": "enum_string",
+      "unit": "",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 195
+    },
+    {
+      "field": "wpml:globalWaypointTurnMode",
+      "context": "Element Description / wpml:payloadParam / Waypoint Flight Template Element (Parent Element: Folder)",
+      "type": "string enumerate",
+      "unit": "-",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 202
+    },
+    {
+      "field": "wpml:globalUseStraightLine",
+      "context": "Element Description / wpml:payloadParam / Waypoint Flight Template Element (Parent Element: Folder)",
+      "type": "Boolean",
+      "unit": "",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 203
+    },
+    {
+      "field": "wpml:gimbalPitchMode",
+      "context": "Element Description / wpml:payloadParam / Waypoint Flight Template Element (Parent Element: Folder)",
+      "type": "string enumerate",
+      "unit": "-",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 204
+    },
+    {
+      "field": "wpml:globalHeight",
+      "context": "Element Description / wpml:payloadParam / Waypoint Flight Template Element (Parent Element: Folder)",
+      "type": "float",
+      "unit": "m",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 205
+    },
+    {
+      "field": "wpml:globalWaypointHeadingParam",
+      "context": "Element Description / wpml:payloadParam / Waypoint Flight Template Element (Parent Element: Folder)",
+      "type": "-",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "20.template-kml.md",
+      "line": 206
+    },
+    {
+      "field": "wpml:caliFlightEnable",
+      "context": "Element Description / wpml:payloadParam / Mapping Aerial Template Element (Parent Element: Placemark)",
+      "type": "Boolean",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "20.template-kml.md",
+      "line": 213
+    },
+    {
+      "field": "wpml:elevationOptimizeEnable",
+      "context": "Element Description / wpml:payloadParam / Mapping Aerial Template Element (Parent Element: Placemark)",
+      "type": "Boolean",
+      "unit": "-",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 214
+    },
+    {
+      "field": "wpml:smartObliqueEnable",
+      "context": "Element Description / wpml:payloadParam / Mapping Aerial Template Element (Parent Element: Placemark)",
+      "type": "Boolean",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "20.template-kml.md",
+      "line": 215
+    },
+    {
+      "field": "wpml:smartObliqueGimbalPitch",
+      "context": "Element Description / wpml:payloadParam / Mapping Aerial Template Element (Parent Element: Placemark)",
+      "type": "Integer",
+      "unit": "°",
+      "required": "unspecified",
+      "source": "20.template-kml.md",
+      "line": 216
+    },
+    {
+      "field": "wpml:shootType",
+      "context": "Element Description / wpml:payloadParam / Mapping Aerial Template Element (Parent Element: Placemark)",
+      "type": "string enumerate",
+      "unit": "-",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 217
+    },
+    {
+      "field": "wpml:direction",
+      "context": "Element Description / wpml:payloadParam / Mapping Aerial Template Element (Parent Element: Placemark)",
+      "type": "Integer",
+      "unit": "°",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 218
+    },
+    {
+      "field": "wpml:margin",
+      "context": "Element Description / wpml:payloadParam / Mapping Aerial Template Element (Parent Element: Placemark)",
+      "type": "Integer",
+      "unit": "m",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 219
+    },
+    {
+      "field": "wpml:overlap",
+      "context": "Element Description / wpml:payloadParam / Mapping Aerial Template Element (Parent Element: Placemark)",
+      "type": "-",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "20.template-kml.md",
+      "line": 220
+    },
+    {
+      "field": "wpml:ellipsoidHeight",
+      "context": "Element Description / wpml:payloadParam / Mapping Aerial Template Element (Parent Element: Placemark)",
+      "type": "Float",
+      "unit": "m",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 221
+    },
+    {
+      "field": "wpml:height",
+      "context": "Element Description / wpml:payloadParam / Mapping Aerial Template Element (Parent Element: Placemark)",
+      "type": "Float",
+      "unit": "m",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 222
+    },
+    {
+      "field": "wpml:facadeWaylineEnable",
+      "context": "Element Description / wpml:payloadParam / Mapping Aerial Template Element (Parent Element: Placemark)",
+      "type": "Boolean",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "20.template-kml.md",
+      "line": 223
+    },
+    {
+      "field": "wpml:mappingHeadingParam",
+      "context": "Element Description / wpml:payloadParam / Mapping Aerial Template Element (Parent Element: Placemark)",
+      "type": "-",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "20.template-kml.md",
+      "line": 225
+    },
+    {
+      "field": "wpml:gimbalPitchMode",
+      "context": "Element Description / wpml:payloadParam / Mapping Aerial Template Element (Parent Element: Placemark)",
+      "type": "Enum-string",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "20.template-kml.md",
+      "line": 226
+    },
+    {
+      "field": "wpml:gimbalPitchAngle",
+      "context": "Element Description / wpml:payloadParam / Mapping Aerial Template Element (Parent Element: Placemark)",
+      "type": "°",
+      "unit": "-",
+      "required": "conditional",
+      "source": "20.template-kml.md",
+      "line": 227
+    },
+    {
+      "field": "wpml:caliFlightEnable",
+      "context": "Element Description / wpml:payloadParam / Oblique Photography Template Element (Parent Element: Placemark)",
+      "type": "Boolean",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "20.template-kml.md",
+      "line": 233
+    },
+    {
+      "field": "wpml:inclinedGimbalPitch",
+      "context": "Element Description / wpml:payloadParam / Oblique Photography Template Element (Parent Element: Placemark)",
+      "type": "Integer",
+      "unit": "°",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 234
+    },
+    {
+      "field": "wpml:inclinedFlightSpeed",
+      "context": "Element Description / wpml:payloadParam / Oblique Photography Template Element (Parent Element: Placemark)",
+      "type": "Float",
+      "unit": "m/s",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 235
+    },
+    {
+      "field": "wpml:shootType",
+      "context": "Element Description / wpml:payloadParam / Oblique Photography Template Element (Parent Element: Placemark)",
+      "type": "string enumerate",
+      "unit": "-",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 236
+    },
+    {
+      "field": "wpml:direction",
+      "context": "Element Description / wpml:payloadParam / Oblique Photography Template Element (Parent Element: Placemark)",
+      "type": "Integer",
+      "unit": "°",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 237
+    },
+    {
+      "field": "wpml:margin",
+      "context": "Element Description / wpml:payloadParam / Oblique Photography Template Element (Parent Element: Placemark)",
+      "type": "Integer",
+      "unit": "m",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 238
+    },
+    {
+      "field": "wpml:overlap",
+      "context": "Element Description / wpml:payloadParam / Oblique Photography Template Element (Parent Element: Placemark)",
+      "type": "-",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "20.template-kml.md",
+      "line": 239
+    },
+    {
+      "field": "wpml:ellipsoidHeight",
+      "context": "Element Description / wpml:payloadParam / Oblique Photography Template Element (Parent Element: Placemark)",
+      "type": "Float",
+      "unit": "m",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 240
+    },
+    {
+      "field": "wpml:height",
+      "context": "Element Description / wpml:payloadParam / Oblique Photography Template Element (Parent Element: Placemark)",
+      "type": "Float",
+      "unit": "m",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 241
+    },
+    {
+      "field": "wpml:caliFlightEnable",
+      "context": "Element Description / wpml:payloadParam / Waypoint Segment Flight Template Element (Parent Element: Placemark)",
+      "type": "Boolean",
+      "unit": "-",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 248
+    },
+    {
+      "field": "wpml:shootType",
+      "context": "Element Description / wpml:payloadParam / Waypoint Segment Flight Template Element (Parent Element: Placemark)",
+      "type": "string enumerate",
+      "unit": "-",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 249
+    },
+    {
+      "field": "wpml:direction",
+      "context": "Element Description / wpml:payloadParam / Waypoint Segment Flight Template Element (Parent Element: Placemark)",
+      "type": "Integer",
+      "unit": "°",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 250
+    },
+    {
+      "field": "wpml:margin",
+      "context": "Element Description / wpml:payloadParam / Waypoint Segment Flight Template Element (Parent Element: Placemark)",
+      "type": "Float",
+      "unit": "m",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 251
+    },
+    {
+      "field": "wpml:singleLineEnable",
+      "context": "Element Description / wpml:payloadParam / Waypoint Segment Flight Template Element (Parent Element: Placemark)",
+      "type": "Boolean",
+      "unit": "-",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 252
+    },
+    {
+      "field": "wpml:cuttingDistance",
+      "context": "Element Description / wpml:payloadParam / Waypoint Segment Flight Template Element (Parent Element: Placemark)",
+      "type": "Float",
+      "unit": "m",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 253
+    },
+    {
+      "field": "wpml:boundaryOptimEnable",
+      "context": "Element Description / wpml:payloadParam / Waypoint Segment Flight Template Element (Parent Element: Placemark)",
+      "type": "Boolean",
+      "unit": "-",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 254
+    },
+    {
+      "field": "wpml:leftExtend",
+      "context": "Element Description / wpml:payloadParam / Waypoint Segment Flight Template Element (Parent Element: Placemark)",
+      "type": "Integer",
+      "unit": "m",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 255
+    },
+    {
+      "field": "wpml:rightExtend",
+      "context": "Element Description / wpml:payloadParam / Waypoint Segment Flight Template Element (Parent Element: Placemark)",
+      "type": "Integer",
+      "unit": "m",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 256
+    },
+    {
+      "field": "wpml:includeCenterEnable",
+      "context": "Element Description / wpml:payloadParam / Waypoint Segment Flight Template Element (Parent Element: Placemark)",
+      "type": "Boolean",
+      "unit": "-",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 257
+    },
+    {
+      "field": "wpml:overlap",
+      "context": "Element Description / wpml:payloadParam / Waypoint Segment Flight Template Element (Parent Element: Placemark)",
+      "type": "-",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "20.template-kml.md",
+      "line": 258
+    },
+    {
+      "field": "wpml:ellipsoidHeight",
+      "context": "Element Description / wpml:payloadParam / Waypoint Segment Flight Template Element (Parent Element: Placemark)",
+      "type": "Float",
+      "unit": "m",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 259
+    },
+    {
+      "field": "wpml:height",
+      "context": "Element Description / wpml:payloadParam / Waypoint Segment Flight Template Element (Parent Element: Placemark)",
+      "type": "Float",
+      "unit": "m",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 260
+    },
+    {
+      "field": "wpml:stripUseTemplateAltitude",
+      "context": "Element Description / wpml:payloadParam / Waypoint Segment Flight Template Element (Parent Element: Placemark)",
+      "type": "bool",
+      "unit": "-",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 261
+    },
+    {
+      "field": "wpml:isRisky",
+      "context": "Element Description / Waypoint Info (Parent Element: Placemark)",
+      "type": "bool",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "20.template-kml.md",
+      "line": 267
+    },
+    {
+      "field": "wpml:index",
+      "context": "Element Description / Waypoint Info (Parent Element: Placemark)",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 269
+    },
+    {
+      "field": "wpml:useGlobalHeight",
+      "context": "Element Description / Waypoint Info (Parent Element: Placemark)",
+      "type": "bool",
+      "unit": "-",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 270
+    },
+    {
+      "field": "wpml:ellipsoidHeight",
+      "context": "Element Description / Waypoint Info (Parent Element: Placemark)",
+      "type": "float",
+      "unit": "m",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 271
+    },
+    {
+      "field": "wpml:height",
+      "context": "Element Description / Waypoint Info (Parent Element: Placemark)",
+      "type": "float",
+      "unit": "m",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 272
+    },
+    {
+      "field": "wpml:useGlobalSpeed",
+      "context": "Element Description / Waypoint Info (Parent Element: Placemark)",
+      "type": "bool",
+      "unit": "-",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 273
+    },
+    {
+      "field": "wpml:waypointSpeed",
+      "context": "Element Description / Waypoint Info (Parent Element: Placemark)",
+      "type": "float",
+      "unit": "m/s",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 274
+    },
+    {
+      "field": "wpml:useGlobalHeadingParam",
+      "context": "Element Description / Waypoint Info (Parent Element: Placemark)",
+      "type": "bool",
+      "unit": "-",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 275
+    },
+    {
+      "field": "wpml:waypointHeadingParam",
+      "context": "Element Description / Waypoint Info (Parent Element: Placemark)",
+      "type": "-",
+      "unit": "-",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 276
+    },
+    {
+      "field": "wpml:useGlobalTurnParam",
+      "context": "Element Description / Waypoint Info (Parent Element: Placemark)",
+      "type": "bool",
+      "unit": "-",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 277
+    },
+    {
+      "field": "wpml:waypointTurnParam",
+      "context": "Element Description / Waypoint Info (Parent Element: Placemark)",
+      "type": "-",
+      "unit": "-",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 278
+    },
+    {
+      "field": "wpml:useStraightLine",
+      "context": "Element Description / Waypoint Info (Parent Element: Placemark)",
+      "type": "bool",
+      "unit": "-",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 279
+    },
+    {
+      "field": "wpml:gimbalPitchAngle",
+      "context": "Element Description / Waypoint Info (Parent Element: Placemark)",
+      "type": "float",
+      "unit": "°",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 280
+    },
+    {
+      "field": "wpml:coordinateMode",
+      "context": "Element Description / Coordinate Parameter Info (Parent Element: wpml:waylineCoordinateSysParam)",
+      "type": "enum",
+      "unit": "-",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 286
+    },
+    {
+      "field": "wpml:heightMode",
+      "context": "Element Description / Coordinate Parameter Info (Parent Element: wpml:waylineCoordinateSysParam)",
+      "type": "enum",
+      "unit": "-",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 287
+    },
+    {
+      "field": "wpml:positioningType",
+      "context": "Element Description / Coordinate Parameter Info (Parent Element: wpml:waylineCoordinateSysParam)",
+      "type": "enum",
+      "unit": "-",
+      "required": "no",
+      "source": "20.template-kml.md",
+      "line": 288
+    },
+    {
+      "field": "wpml:globalShootHeight",
+      "context": "Element Description / Coordinate Parameter Info (Parent Element: wpml:waylineCoordinateSysParam)",
+      "type": "float",
+      "unit": "m",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 289
+    },
+    {
+      "field": "wpml:surfaceFollowModeEnable",
+      "context": "Element Description / Coordinate Parameter Info (Parent Element: wpml:waylineCoordinateSysParam)",
+      "type": "bool",
+      "unit": "-",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 290
+    },
+    {
+      "field": "wpml:surfaceRelativeHeight",
+      "context": "Element Description / Coordinate Parameter Info (Parent Element: wpml:waylineCoordinateSysParam)",
+      "type": "float",
+      "unit": "m",
+      "required": "yes",
+      "source": "20.template-kml.md",
+      "line": 291
+    },
+    {
+      "field": "wpml:orthoLidarOverlapH",
+      "context": "Element Description / Coordinate Parameter Info (Parent Element: wpml:waylineCoordinateSysParam) / Overlap Rate Information (Parent Element: wpml:overlap)",
+      "type": "Integer",
+      "unit": "Percentage",
+      "required": "unspecified",
+      "source": "20.template-kml.md",
+      "line": 298
+    },
+    {
+      "field": "wpml:orthoLidarOverlapW",
+      "context": "Element Description / Coordinate Parameter Info (Parent Element: wpml:waylineCoordinateSysParam) / Overlap Rate Information (Parent Element: wpml:overlap)",
+      "type": "Integer",
+      "unit": "Percentage",
+      "required": "unspecified",
+      "source": "20.template-kml.md",
+      "line": 299
+    },
+    {
+      "field": "wpml:orthoCameraOverlapH",
+      "context": "Element Description / Coordinate Parameter Info (Parent Element: wpml:waylineCoordinateSysParam) / Overlap Rate Information (Parent Element: wpml:overlap)",
+      "type": "Integer",
+      "unit": "Percentage",
+      "required": "unspecified",
+      "source": "20.template-kml.md",
+      "line": 300
+    },
+    {
+      "field": "wpml:orthoCameraOverlapW",
+      "context": "Element Description / Coordinate Parameter Info (Parent Element: wpml:waylineCoordinateSysParam) / Overlap Rate Information (Parent Element: wpml:overlap)",
+      "type": "Integer",
+      "unit": "Percentage",
+      "required": "unspecified",
+      "source": "20.template-kml.md",
+      "line": 301
+    },
+    {
+      "field": "wpml:inclinedLidarOverlapH",
+      "context": "Element Description / Coordinate Parameter Info (Parent Element: wpml:waylineCoordinateSysParam) / Overlap Rate Information (Parent Element: wpml:overlap)",
+      "type": "Integer",
+      "unit": "Percentage",
+      "required": "unspecified",
+      "source": "20.template-kml.md",
+      "line": 302
+    },
+    {
+      "field": "wpml:inclinedLidarOverlapW",
+      "context": "Element Description / Coordinate Parameter Info (Parent Element: wpml:waylineCoordinateSysParam) / Overlap Rate Information (Parent Element: wpml:overlap)",
+      "type": "Integer",
+      "unit": "Percentage",
+      "required": "unspecified",
+      "source": "20.template-kml.md",
+      "line": 303
+    },
+    {
+      "field": "wpml:inclinedCameraOverlapH",
+      "context": "Element Description / Coordinate Parameter Info (Parent Element: wpml:waylineCoordinateSysParam) / Overlap Rate Information (Parent Element: wpml:overlap)",
+      "type": "Integer",
+      "unit": "Percentage",
+      "required": "unspecified",
+      "source": "20.template-kml.md",
+      "line": 304
+    },
+    {
+      "field": "wpml:inclinedCameraOverlapW",
+      "context": "Element Description / Coordinate Parameter Info (Parent Element: wpml:waylineCoordinateSysParam) / Overlap Rate Information (Parent Element: wpml:overlap)",
+      "type": "Integer",
+      "unit": "Percentage",
+      "required": "unspecified",
+      "source": "20.template-kml.md",
+      "line": 305
+    },
+    {
+      "field": "wpml:mappingHeadingMode",
+      "context": "Element Description / Coordinate Parameter Info (Parent Element: wpml:waylineCoordinateSysParam) / Orientation Parameter of Drone in Mapping (Parent Element: wpml:mappingHeadingPar",
+      "type": "Enum-string",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "20.template-kml.md",
+      "line": 311
+    },
+    {
+      "field": "wpml:mappingHeadingAngle",
+      "context": "Element Description / Coordinate Parameter Info (Parent Element: wpml:waylineCoordinateSysParam) / Orientation Parameter of Drone in Mapping (Parent Element: wpml:mappingHeadingPar",
+      "type": "Integer",
+      "unit": "°",
+      "required": "conditional",
+      "source": "20.template-kml.md",
+      "line": 312
+    },
+    {
+      "field": "wpml:flyToWaylineMode",
+      "context": "Element Introduction / Mission Information(Parent Element:wpml:missionConfig)",
+      "type": "enum",
+      "unit": "-",
+      "required": "yes",
+      "source": "30.waylines-wpml.md",
+      "line": 129
+    },
+    {
+      "field": "wpml:finishAction",
+      "context": "Element Introduction / Mission Information(Parent Element:wpml:missionConfig)",
+      "type": "enum",
+      "unit": "-",
+      "required": "yes",
+      "source": "30.waylines-wpml.md",
+      "line": 130
+    },
+    {
+      "field": "wpml:exitOnRCLost",
+      "context": "Element Introduction / Mission Information(Parent Element:wpml:missionConfig)",
+      "type": "enum",
+      "unit": "-",
+      "required": "yes",
+      "source": "30.waylines-wpml.md",
+      "line": 131
+    },
+    {
+      "field": "wpml:executeRCLostAction",
+      "context": "Element Introduction / Mission Information(Parent Element:wpml:missionConfig)",
+      "type": "enum",
+      "unit": "-",
+      "required": "conditional",
+      "source": "30.waylines-wpml.md",
+      "line": 132
+    },
+    {
+      "field": "wpml:takeOffSecurityHeight",
+      "context": "Element Introduction / Mission Information(Parent Element:wpml:missionConfig)",
+      "type": "float",
+      "unit": "m",
+      "required": "yes",
+      "source": "30.waylines-wpml.md",
+      "line": 133
+    },
+    {
+      "field": "wpml:globalTransitionalSpeed",
+      "context": "Element Introduction / Mission Information(Parent Element:wpml:missionConfig)",
+      "type": "float",
+      "unit": "m/s",
+      "required": "yes",
+      "source": "30.waylines-wpml.md",
+      "line": 134
+    },
+    {
+      "field": "wpml:globalRTHHeight",
+      "context": "Element Introduction / Mission Information(Parent Element:wpml:missionConfig)",
+      "type": "float",
+      "unit": "m",
+      "required": "yes",
+      "source": "30.waylines-wpml.md",
+      "line": 135
+    },
+    {
+      "field": "wpml:droneInfo",
+      "context": "Element Introduction / Mission Information(Parent Element:wpml:missionConfig)",
+      "type": "-",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "30.waylines-wpml.md",
+      "line": 136
+    },
+    {
+      "field": "wpml:payloadInfo",
+      "context": "Element Introduction / Mission Information(Parent Element:wpml:missionConfig)",
+      "type": "-",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "30.waylines-wpml.md",
+      "line": 137
+    },
+    {
+      "field": "wpml:autoRerouteInfo",
+      "context": "Element Introduction / Mission Information(Parent Element:wpml:missionConfig)",
+      "type": "-",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "30.waylines-wpml.md",
+      "line": 138
+    },
+    {
+      "field": "wpml:templateId",
+      "context": "Element Introduction / Waylines Information(Parent Element:Folder)",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "30.waylines-wpml.md",
+      "line": 145
+    },
+    {
+      "field": "wpml:waylineId",
+      "context": "Element Introduction / Waylines Information(Parent Element:Folder)",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "30.waylines-wpml.md",
+      "line": 146
+    },
+    {
+      "field": "wpml:autoFlightSpeed",
+      "context": "Element Introduction / Waylines Information(Parent Element:Folder)",
+      "type": "float",
+      "unit": "m/s",
+      "required": "yes",
+      "source": "30.waylines-wpml.md",
+      "line": 147
+    },
+    {
+      "field": "wpml:executeHeightMode",
+      "context": "Element Introduction / Waylines Information(Parent Element:Folder)",
+      "type": "enum",
+      "unit": "-",
+      "required": "yes",
+      "source": "30.waylines-wpml.md",
+      "line": 148
+    },
+    {
+      "field": "wpml:startActionGroup",
+      "context": "Element Introduction / Waylines Information(Parent Element:Folder)",
+      "type": "-",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "30.waylines-wpml.md",
+      "line": 150
+    },
+    {
+      "field": "wpml:isRisky",
+      "context": "Element Introduction / Waypoint Info (Placemark)",
+      "type": "bool",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "30.waylines-wpml.md",
+      "line": 155
+    },
+    {
+      "field": "wpml:index",
+      "context": "Element Introduction / Waypoint Info (Placemark)",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "30.waylines-wpml.md",
+      "line": 157
+    },
+    {
+      "field": "wpml:executeHeight",
+      "context": "Element Introduction / Waypoint Info (Placemark)",
+      "type": "float",
+      "unit": "m",
+      "required": "yes",
+      "source": "30.waylines-wpml.md",
+      "line": 158
+    },
+    {
+      "field": "wpml:waypointSpeed",
+      "context": "Element Introduction / Waypoint Info (Placemark)",
+      "type": "float",
+      "unit": "m/s",
+      "required": "yes",
+      "source": "30.waylines-wpml.md",
+      "line": 159
+    },
+    {
+      "field": "wpml:waypointHeadingParam",
+      "context": "Element Introduction / Waypoint Info (Placemark)",
+      "type": "-",
+      "unit": "-",
+      "required": "yes",
+      "source": "30.waylines-wpml.md",
+      "line": 160
+    },
+    {
+      "field": "wpml:waypointTurnParam",
+      "context": "Element Introduction / Waypoint Info (Placemark)",
+      "type": "-",
+      "unit": "-",
+      "required": "yes",
+      "source": "30.waylines-wpml.md",
+      "line": 161
+    },
+    {
+      "field": "wpml:useStraightLine",
+      "context": "Element Introduction / Waypoint Info (Placemark)",
+      "type": "bool",
+      "unit": "-",
+      "required": "yes",
+      "source": "30.waylines-wpml.md",
+      "line": 162
+    },
+    {
+      "field": "wpml:droneEnumValue",
+      "context": "Common Element / wpml:droneInfo",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 14
+    },
+    {
+      "field": "wpml:droneSubEnumValue",
+      "context": "Common Element / wpml:droneInfo",
+      "type": "int",
+      "unit": "-",
+      "required": "conditional",
+      "source": "40.common-element.md",
+      "line": 15
+    },
+    {
+      "field": "wpml:payloadEnumValue",
+      "context": "Common Element / wpml:payloadInfo",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 21
+    },
+    {
+      "field": "wpml:payloadPositionIndex",
+      "context": "Common Element / wpml:payloadInfo",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 22
+    },
+    {
+      "field": "wpml:payloadPositionIndex",
+      "context": "Common Element / wpml:payloadParam",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 28
+    },
+    {
+      "field": "wpml:focusMode",
+      "context": "Common Element / wpml:payloadParam",
+      "type": "enum_string",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "40.common-element.md",
+      "line": 29
+    },
+    {
+      "field": "wpml:meteringMode",
+      "context": "Common Element / wpml:payloadParam",
+      "type": "enum_string",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "40.common-element.md",
+      "line": 30
+    },
+    {
+      "field": "wpml:dewarpingEnable",
+      "context": "Common Element / wpml:payloadParam",
+      "type": "bool",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "40.common-element.md",
+      "line": 31
+    },
+    {
+      "field": "wpml:returnMode",
+      "context": "Common Element / wpml:payloadParam",
+      "type": "enum_string",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "40.common-element.md",
+      "line": 32
+    },
+    {
+      "field": "wpml:samplingRate",
+      "context": "Common Element / wpml:payloadParam",
+      "type": "int",
+      "unit": "Hz",
+      "required": "unspecified",
+      "source": "40.common-element.md",
+      "line": 33
+    },
+    {
+      "field": "wpml:scanningMode",
+      "context": "Common Element / wpml:payloadParam",
+      "type": "enum_string",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "40.common-element.md",
+      "line": 34
+    },
+    {
+      "field": "wpml:modelColoringEnable",
+      "context": "Common Element / wpml:payloadParam",
+      "type": "bool",
+      "unit": "",
+      "required": "unspecified",
+      "source": "40.common-element.md",
+      "line": 35
+    },
+    {
+      "field": "wpml:imageFormat",
+      "context": "Common Element / wpml:payloadParam",
+      "type": "enum_string",
+      "unit": "",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 36
+    },
+    {
+      "field": "wpml:waypointHeadingMode",
+      "context": "Common Element / wpml:waypointHeadingParam & wpml:globalWaypointHeadingParam",
+      "type": "enum",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 42
+    },
+    {
+      "field": "wpml:waypointHeadingAngle",
+      "context": "Common Element / wpml:waypointHeadingParam & wpml:globalWaypointHeadingParam",
+      "type": "float",
+      "unit": "°",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 43
+    },
+    {
+      "field": "wpml:waypointPoiPoint",
+      "context": "Common Element / wpml:waypointHeadingParam & wpml:globalWaypointHeadingParam",
+      "type": "-",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 44
+    },
+    {
+      "field": "wpml:waypointHeadingPathMode",
+      "context": "Common Element / wpml:waypointHeadingParam & wpml:globalWaypointHeadingParam",
+      "type": "enum",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 45
+    },
+    {
+      "field": "wpml:waypointTurnMode",
+      "context": "Common Element / wpml:waypointTurnParam",
+      "type": "enum",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 51
+    },
+    {
+      "field": "wpml:waypointTurnDampingDist",
+      "context": "Common Element / wpml:waypointTurnParam",
+      "type": "float",
+      "unit": "m",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 52
+    },
+    {
+      "field": "wpml:missionAutoRerouteMode",
+      "context": "Common Element / wpml:autoRerouteInfo",
+      "type": "bool",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 58
+    },
+    {
+      "field": "wpml:transitionalAutoRerouteMode",
+      "context": "Common Element / wpml:autoRerouteInfo",
+      "type": "bool",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 59
+    },
+    {
+      "field": "wpml:actionGroupId",
+      "context": "Common Element / wpml:actionGroup",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 65
+    },
+    {
+      "field": "wpml:actionGroupStartIndex",
+      "context": "Common Element / wpml:actionGroup",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 66
+    },
+    {
+      "field": "wpml:actionGroupEndIndex",
+      "context": "Common Element / wpml:actionGroup",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 67
+    },
+    {
+      "field": "wpml:actionGroupMode",
+      "context": "Common Element / wpml:actionGroup",
+      "type": "enum",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 68
+    },
+    {
+      "field": "wpml:actionTrigger",
+      "context": "Common Element / wpml:actionGroup",
+      "type": "-",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "40.common-element.md",
+      "line": 69
+    },
+    {
+      "field": "wpml:action",
+      "context": "Common Element / wpml:actionGroup",
+      "type": "-",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "40.common-element.md",
+      "line": 70
+    },
+    {
+      "field": "wpml:actionTriggerType",
+      "context": "Common Element / wpml:actionTrigger",
+      "type": "enum",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 76
+    },
+    {
+      "field": "wpml:actionTriggerParam",
+      "context": "Common Element / wpml:actionTrigger",
+      "type": "float",
+      "unit": "s or m",
+      "required": "unspecified",
+      "source": "40.common-element.md",
+      "line": 77
+    },
+    {
+      "field": "wpml:actionId",
+      "context": "Common Element / wpml:action",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 83
+    },
+    {
+      "field": "wpml:actionActuatorFunc",
+      "context": "Common Element / wpml:action",
+      "type": "enum",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 84
+    },
+    {
+      "field": "wpml:actionActuatorFuncParam",
+      "context": "Common Element / wpml:action",
+      "type": "-",
+      "unit": "-",
+      "required": "unspecified",
+      "source": "40.common-element.md",
+      "line": 85
+    },
+    {
+      "field": "wpml:payloadPositionIndex",
+      "context": "Common Element / wpml:actionActuatorFuncParam / takePhoto",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 93
+    },
+    {
+      "field": "wpml:fileSuffix",
+      "context": "Common Element / wpml:actionActuatorFuncParam / takePhoto",
+      "type": "string",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 94
+    },
+    {
+      "field": "wpml:payloadLensIndex",
+      "context": "Common Element / wpml:actionActuatorFuncParam / takePhoto",
+      "type": "List of photo format",
+      "unit": "enum-string (list)",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 95
+    },
+    {
+      "field": "wpml:useGlobalPayloadLensIndex",
+      "context": "Common Element / wpml:actionActuatorFuncParam / takePhoto",
+      "type": "bool",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 96
+    },
+    {
+      "field": "wpml:payloadPositionIndex",
+      "context": "Common Element / wpml:actionActuatorFuncParam / startRecord",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 102
+    },
+    {
+      "field": "wpml:fileSuffix",
+      "context": "Common Element / wpml:actionActuatorFuncParam / startRecord",
+      "type": "string",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 103
+    },
+    {
+      "field": "wpml:payloadLensIndex",
+      "context": "Common Element / wpml:actionActuatorFuncParam / startRecord",
+      "type": "List of video format",
+      "unit": "enum-string(list)",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 104
+    },
+    {
+      "field": "wpml:useGlobalPayloadLensIndex",
+      "context": "Common Element / wpml:actionActuatorFuncParam / startRecord",
+      "type": "bool",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 105
+    },
+    {
+      "field": "wpml:payloadPositionIndex",
+      "context": "Common Element / wpml:actionActuatorFuncParam / stopRecord",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 111
+    },
+    {
+      "field": "wpml:payloadLensIndex",
+      "context": "Common Element / wpml:actionActuatorFuncParam / stopRecord",
+      "type": "List of video format",
+      "unit": "enum-string(list)",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 112
+    },
+    {
+      "field": "wpml:payloadPositionIndex",
+      "context": "Common Element / wpml:actionActuatorFuncParam / focus",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 118
+    },
+    {
+      "field": "wpml:isPointFocus",
+      "context": "Common Element / wpml:actionActuatorFuncParam / focus",
+      "type": "bool",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 119
+    },
+    {
+      "field": "wpml:focusX",
+      "context": "Common Element / wpml:actionActuatorFuncParam / focus",
+      "type": "float",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 120
+    },
+    {
+      "field": "wpml:focusY",
+      "context": "Common Element / wpml:actionActuatorFuncParam / focus",
+      "type": "float",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 121
+    },
+    {
+      "field": "wpml:focusRegionWidth",
+      "context": "Common Element / wpml:actionActuatorFuncParam / focus",
+      "type": "float",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 122
+    },
+    {
+      "field": "wpml:focusRegionHeight",
+      "context": "Common Element / wpml:actionActuatorFuncParam / focus",
+      "type": "float",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 123
+    },
+    {
+      "field": "wpml:isInfiniteFocus",
+      "context": "Common Element / wpml:actionActuatorFuncParam / focus",
+      "type": "bool",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 124
+    },
+    {
+      "field": "wpml:payloadPositionIndex",
+      "context": "Common Element / wpml:actionActuatorFuncParam / zoom",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 130
+    },
+    {
+      "field": "wpml:focalLength",
+      "context": "Common Element / wpml:actionActuatorFuncParam / zoom",
+      "type": "float",
+      "unit": "mm",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 131
+    },
+    {
+      "field": "wpml:payloadPositionIndex",
+      "context": "Common Element / wpml:actionActuatorFuncParam / customDirName",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 137
+    },
+    {
+      "field": "wpml:directoryName",
+      "context": "Common Element / wpml:actionActuatorFuncParam / customDirName",
+      "type": "string",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 138
+    },
+    {
+      "field": "wpml:payloadPositionIndex",
+      "context": "Common Element / wpml:actionActuatorFuncParam / gimbalRotate",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 144
+    },
+    {
+      "field": "wpml:gimbalHeadingYawBase",
+      "context": "Common Element / wpml:actionActuatorFuncParam / gimbalRotate",
+      "type": "enum",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 145
+    },
+    {
+      "field": "wpml:gimbalRotateMode",
+      "context": "Common Element / wpml:actionActuatorFuncParam / gimbalRotate",
+      "type": "enum",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 146
+    },
+    {
+      "field": "wpml:gimbalPitchRotateEnable",
+      "context": "Common Element / wpml:actionActuatorFuncParam / gimbalRotate",
+      "type": "bool",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 147
+    },
+    {
+      "field": "wpml:gimbalPitchRotateAngle",
+      "context": "Common Element / wpml:actionActuatorFuncParam / gimbalRotate",
+      "type": "float",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 148
+    },
+    {
+      "field": "wpml:gimbalRollRotateEnable",
+      "context": "Common Element / wpml:actionActuatorFuncParam / gimbalRotate",
+      "type": "bool",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 149
+    },
+    {
+      "field": "wpml:gimbalRollRotateAngle",
+      "context": "Common Element / wpml:actionActuatorFuncParam / gimbalRotate",
+      "type": "float",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 150
+    },
+    {
+      "field": "wpml:gimbalYawRotateEnable",
+      "context": "Common Element / wpml:actionActuatorFuncParam / gimbalRotate",
+      "type": "bool",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 151
+    },
+    {
+      "field": "wpml:gimbalYawRotateAngle",
+      "context": "Common Element / wpml:actionActuatorFuncParam / gimbalRotate",
+      "type": "float",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 152
+    },
+    {
+      "field": "wpml:gimbalRotateTimeEnable",
+      "context": "Common Element / wpml:actionActuatorFuncParam / gimbalRotate",
+      "type": "bool",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 153
+    },
+    {
+      "field": "wpml:gimbalRotateTime",
+      "context": "Common Element / wpml:actionActuatorFuncParam / gimbalRotate",
+      "type": "float",
+      "unit": "s",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 154
+    },
+    {
+      "field": "wpml:gimbalPitchRotateAngle",
+      "context": "Common Element / wpml:actionActuatorFuncParam / gimbalEvenlyRotate",
+      "type": "float",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 160
+    },
+    {
+      "field": "wpml:payloadPositionIndex",
+      "context": "Common Element / wpml:actionActuatorFuncParam / gimbalEvenlyRotate",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 161
+    },
+    {
+      "field": "wpml:aircraftHeading",
+      "context": "Common Element / wpml:actionActuatorFuncParam / rotateYaw",
+      "type": "float",
+      "unit": "°",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 171
+    },
+    {
+      "field": "wpml:aircraftPathMode",
+      "context": "Common Element / wpml:actionActuatorFuncParam / rotateYaw",
+      "type": "enum",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 172
+    },
+    {
+      "field": "wpml:hoverTime",
+      "context": "Common Element / wpml:actionActuatorFuncParam / hover",
+      "type": "float",
+      "unit": "s",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 178
+    },
+    {
+      "field": "wpml:gimbalPitchRotateAngle",
+      "context": "Common Element / wpml:actionActuatorFuncParam / accurateShoot",
+      "type": "float",
+      "unit": "°",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 186
+    },
+    {
+      "field": "wpml:gimbalYawRotateAngle",
+      "context": "Common Element / wpml:actionActuatorFuncParam / accurateShoot",
+      "type": "float",
+      "unit": "°",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 187
+    },
+    {
+      "field": "wpml:focusX",
+      "context": "Common Element / wpml:actionActuatorFuncParam / accurateShoot",
+      "type": "int",
+      "unit": "px",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 188
+    },
+    {
+      "field": "wpml:focusY",
+      "context": "Common Element / wpml:actionActuatorFuncParam / accurateShoot",
+      "type": "int",
+      "unit": "px",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 189
+    },
+    {
+      "field": "wpml:focusRegionWidth",
+      "context": "Common Element / wpml:actionActuatorFuncParam / accurateShoot",
+      "type": "int",
+      "unit": "px",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 190
+    },
+    {
+      "field": "wpml:focusRegionHeight",
+      "context": "Common Element / wpml:actionActuatorFuncParam / accurateShoot",
+      "type": "int",
+      "unit": "px",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 191
+    },
+    {
+      "field": "wpml:focalLength",
+      "context": "Common Element / wpml:actionActuatorFuncParam / accurateShoot",
+      "type": "float",
+      "unit": "mm",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 192
+    },
+    {
+      "field": "wpml:aircraftHeading",
+      "context": "Common Element / wpml:actionActuatorFuncParam / accurateShoot",
+      "type": "float",
+      "unit": "°",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 193
+    },
+    {
+      "field": "wpml:accurateFrameValid",
+      "context": "Common Element / wpml:actionActuatorFuncParam / accurateShoot",
+      "type": "bool",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 194
+    },
+    {
+      "field": "wpml:payloadPositionIndex",
+      "context": "Common Element / wpml:actionActuatorFuncParam / accurateShoot",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 195
+    },
+    {
+      "field": "wpml:payloadLensIndex",
+      "context": "Common Element / wpml:actionActuatorFuncParam / accurateShoot",
+      "type": "-",
+      "unit": "enum-string",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 196
+    },
+    {
+      "field": "wpml:useGlobalPayloadLensIndex",
+      "context": "Common Element / wpml:actionActuatorFuncParam / accurateShoot",
+      "type": "bool",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 197
+    },
+    {
+      "field": "wpml:targetAngle",
+      "context": "Common Element / wpml:actionActuatorFuncParam / accurateShoot",
+      "type": "float",
+      "unit": "°",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 198
+    },
+    {
+      "field": "wpml:imageWidth",
+      "context": "Common Element / wpml:actionActuatorFuncParam / accurateShoot",
+      "type": "int",
+      "unit": "px",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 199
+    },
+    {
+      "field": "wpml:imageHeight",
+      "context": "Common Element / wpml:actionActuatorFuncParam / accurateShoot",
+      "type": "int",
+      "unit": "px",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 200
+    },
+    {
+      "field": "wpml:AFPos",
+      "context": "Common Element / wpml:actionActuatorFuncParam / accurateShoot",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 201
+    },
+    {
+      "field": "wpml:gimbalPort",
+      "context": "Common Element / wpml:actionActuatorFuncParam / accurateShoot",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 202
+    },
+    {
+      "field": "wpml:accurateCameraType",
+      "context": "Common Element / wpml:actionActuatorFuncParam / accurateShoot",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 203
+    },
+    {
+      "field": "wpml:accurateFilePath",
+      "context": "Common Element / wpml:actionActuatorFuncParam / accurateShoot",
+      "type": "string",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 204
+    },
+    {
+      "field": "wpml:accurateFileMD5",
+      "context": "Common Element / wpml:actionActuatorFuncParam / accurateShoot",
+      "type": "string",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 205
+    },
+    {
+      "field": "wpml:accurateFileSize",
+      "context": "Common Element / wpml:actionActuatorFuncParam / accurateShoot",
+      "type": "int",
+      "unit": "Byte",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 206
+    },
+    {
+      "field": "wpml:accurateFileSuffix",
+      "context": "Common Element / wpml:actionActuatorFuncParam / accurateShoot",
+      "type": "string",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 207
+    },
+    {
+      "field": "wpml:accurateCameraApertue",
+      "context": "Common Element / wpml:actionActuatorFuncParam / accurateShoot",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 208
+    },
+    {
+      "field": "wpml:accurateCameraLuminance",
+      "context": "Common Element / wpml:actionActuatorFuncParam / accurateShoot",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 209
+    },
+    {
+      "field": "wpml:accurateCameraShutterTime",
+      "context": "Common Element / wpml:actionActuatorFuncParam / accurateShoot",
+      "type": "float",
+      "unit": "second",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 210
+    },
+    {
+      "field": "wpml:accurateCameraISO",
+      "context": "Common Element / wpml:actionActuatorFuncParam / accurateShoot",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 211
+    },
+    {
+      "field": "wpml:gimbalPitchRotateAngle",
+      "context": "Common Element / wpml:actionActuatorFuncParam / orientedShoot",
+      "type": "float",
+      "unit": "°",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 217
+    },
+    {
+      "field": "wpml:gimbalYawRotateAngle",
+      "context": "Common Element / wpml:actionActuatorFuncParam / orientedShoot",
+      "type": "float",
+      "unit": "°",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 218
+    },
+    {
+      "field": "wpml:focusX",
+      "context": "Common Element / wpml:actionActuatorFuncParam / orientedShoot",
+      "type": "int",
+      "unit": "px",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 219
+    },
+    {
+      "field": "wpml:focusY",
+      "context": "Common Element / wpml:actionActuatorFuncParam / orientedShoot",
+      "type": "int",
+      "unit": "px",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 220
+    },
+    {
+      "field": "wpml:focusRegionWidth",
+      "context": "Common Element / wpml:actionActuatorFuncParam / orientedShoot",
+      "type": "int",
+      "unit": "px",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 221
+    },
+    {
+      "field": "wpml:focusRegionHeight",
+      "context": "Common Element / wpml:actionActuatorFuncParam / orientedShoot",
+      "type": "int",
+      "unit": "px",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 222
+    },
+    {
+      "field": "wpml:focalLength",
+      "context": "Common Element / wpml:actionActuatorFuncParam / orientedShoot",
+      "type": "float",
+      "unit": "mm",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 223
+    },
+    {
+      "field": "wpml:aircraftHeading",
+      "context": "Common Element / wpml:actionActuatorFuncParam / orientedShoot",
+      "type": "float",
+      "unit": "°",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 224
+    },
+    {
+      "field": "wpml:accurateFrameValid",
+      "context": "Common Element / wpml:actionActuatorFuncParam / orientedShoot",
+      "type": "bool",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 225
+    },
+    {
+      "field": "wpml:payloadPositionIndex",
+      "context": "Common Element / wpml:actionActuatorFuncParam / orientedShoot",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 226
+    },
+    {
+      "field": "wpml:payloadLensIndex",
+      "context": "Common Element / wpml:actionActuatorFuncParam / orientedShoot",
+      "type": "-",
+      "unit": "enum-string",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 227
+    },
+    {
+      "field": "wpml:useGlobalPayloadLensIndex",
+      "context": "Common Element / wpml:actionActuatorFuncParam / orientedShoot",
+      "type": "bool",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 228
+    },
+    {
+      "field": "wpml:targetAngle",
+      "context": "Common Element / wpml:actionActuatorFuncParam / orientedShoot",
+      "type": "float",
+      "unit": "°",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 229
+    },
+    {
+      "field": "wpml:actionUUID",
+      "context": "Common Element / wpml:actionActuatorFuncParam / orientedShoot",
+      "type": "-",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 230
+    },
+    {
+      "field": "wpml:imageWidth",
+      "context": "Common Element / wpml:actionActuatorFuncParam / orientedShoot",
+      "type": "int",
+      "unit": "px",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 231
+    },
+    {
+      "field": "wpml:imageHeight",
+      "context": "Common Element / wpml:actionActuatorFuncParam / orientedShoot",
+      "type": "int",
+      "unit": "px",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 232
+    },
+    {
+      "field": "wpml:AFPos",
+      "context": "Common Element / wpml:actionActuatorFuncParam / orientedShoot",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 233
+    },
+    {
+      "field": "wpml:gimbalPort",
+      "context": "Common Element / wpml:actionActuatorFuncParam / orientedShoot",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 234
+    },
+    {
+      "field": "wpml:orientedCameraType",
+      "context": "Common Element / wpml:actionActuatorFuncParam / orientedShoot",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 235
+    },
+    {
+      "field": "wpml:orientedFilePath",
+      "context": "Common Element / wpml:actionActuatorFuncParam / orientedShoot",
+      "type": "string",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 236
+    },
+    {
+      "field": "wpml:orientedFileMD5",
+      "context": "Common Element / wpml:actionActuatorFuncParam / orientedShoot",
+      "type": "string",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 237
+    },
+    {
+      "field": "wpml:orientedFileSize",
+      "context": "Common Element / wpml:actionActuatorFuncParam / orientedShoot",
+      "type": "int",
+      "unit": "Byte",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 238
+    },
+    {
+      "field": "wpml:orientedFileSuffix",
+      "context": "Common Element / wpml:actionActuatorFuncParam / orientedShoot",
+      "type": "string",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 239
+    },
+    {
+      "field": "wpml:orientedCameraApertue",
+      "context": "Common Element / wpml:actionActuatorFuncParam / orientedShoot",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 240
+    },
+    {
+      "field": "wpml:orientedCameraLuminance",
+      "context": "Common Element / wpml:actionActuatorFuncParam / orientedShoot",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 241
+    },
+    {
+      "field": "wpml:orientedCameraShutterTime",
+      "context": "Common Element / wpml:actionActuatorFuncParam / orientedShoot",
+      "type": "float",
+      "unit": "second",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 242
+    },
+    {
+      "field": "wpml:orientedCameraISO",
+      "context": "Common Element / wpml:actionActuatorFuncParam / orientedShoot",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 243
+    },
+    {
+      "field": "wpml:orientedPhotoMode",
+      "context": "Common Element / wpml:actionActuatorFuncParam / orientedShoot",
+      "type": "enum-string",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 244
+    },
+    {
+      "field": "wpml:payloadPositionIndex",
+      "context": "Common Element / wpml:actionActuatorFuncParam / panoShot",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 250
+    },
+    {
+      "field": "wpml:payloadLensIndex",
+      "context": "Common Element / wpml:actionActuatorFuncParam / panoShot",
+      "type": "List of photo format",
+      "unit": "enum-string (list)",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 251
+    },
+    {
+      "field": "wpml:useGlobalPayloadLensIndex",
+      "context": "Common Element / wpml:actionActuatorFuncParam / panoShot",
+      "type": "bool",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 252
+    },
+    {
+      "field": "wpml:panoShotSubMode",
+      "context": "Common Element / wpml:actionActuatorFuncParam / panoShot",
+      "type": "string",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 253
+    },
+    {
+      "field": "wpml:payloadPositionIndex",
+      "context": "Common Element / wpml:actionActuatorFuncParam / recordPointCloud",
+      "type": "int",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 259
+    },
+    {
+      "field": "wpml:recordPointCloudOperate",
+      "context": "Common Element / wpml:actionActuatorFuncParam / recordPointCloud",
+      "type": "string",
+      "unit": "-",
+      "required": "yes",
+      "source": "40.common-element.md",
+      "line": 260
+    }
+  ]
+}

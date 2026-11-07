@@ -1,0 +1,199 @@
+#!/usr/bin/env python3
+"""Fail-closed SQL migration inventory audit. Reads repository files only.
+
+This program NEVER connects to a database or executes any SQL.
+File-number prefixes are historical labels; order is scoped by family.
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import re
+import subprocess
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+INVENTORY = Path("backend/db/migration-inventory.json")
+MIGRATIONS = Path("backend/db/migrations")
+SCHEMA = "skyhub-sql-migration-inventory-v2"
+ENTRY_KEYS = {"id", "family", "order", "path", "status", "requires", "git_blob_sha", "applied"}
+STATUSES = {"offline_only", "blocked_draft"}
+FILENAME = re.compile(r"^backend/db/migrations/([0-9]{3})_[a-z0-9_]+\.sql$")
+IDENTIFIER = re.compile(r"^[a-z][a-z0-9-]{2,63}$")
+# Lowercase SHA-1 Git blob IDs: this repository uses the default sha1 object format.
+BLOB_SHA = re.compile(r"^[0-9a-f]{40}$")
+
+
+def git_blob_sha(payload: bytes) -> str:
+    """Git blob object ID of exact file bytes (equals `git hash-object` with *.sql -text)."""
+    return hashlib.sha1(b"blob " + str(len(payload)).encode("ascii") + b"\0" + payload).hexdigest()
+
+
+def audit_inventory(root: Path = ROOT) -> list[str]:
+    """Report all safe-to-display violations; no mutation or SQL execution."""
+    errors: list[str] = []
+    root = root.resolve()
+    inventory_path = root / INVENTORY
+    migrations = root / MIGRATIONS
+    try:
+        raw = json.loads(inventory_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return ["Migration inventory is missing or invalid JSON"]
+    if not isinstance(raw, dict) or set(raw) != {"schema", "auto_apply", "entries"}:
+        return ["Migration inventory has unexpected top-level fields"]
+    if raw["schema"] != SCHEMA:
+        errors.append(f"Unsupported migration inventory schema (expected {SCHEMA})")
+    if raw["auto_apply"] is not False:
+        errors.append("Automatic SQL migration execution is forbidden")
+    entries = raw["entries"]
+    if not isinstance(entries, list) or not entries:
+        return errors + ["Migration inventory must enumerate nonempty entries"]
+    actual: set[str] = set()
+    if not migrations.is_dir():
+        return errors + ["Migration directory is absent"]
+    for candidate in migrations.rglob("*.sql"):
+        if candidate.is_symlink():
+            errors.append("Symlinked SQL migration is forbidden")
+            continue
+        if candidate.is_file():
+            actual.add(candidate.relative_to(root).as_posix())
+
+    ids: set[str] = set()
+    key_by_id: dict[str, tuple[str, int, str]] = {}
+    deps_by_id: dict[str, list[str]] = {}
+    paths: set[str] = set()
+    family_steps: set[tuple[str, int]] = set()
+    for index, item in enumerate(entries):
+        if not isinstance(item, dict) or set(item) != ENTRY_KEYS:
+            errors.append(f"Entry {index} has unexpected or missing keys")
+            continue
+        ident, family, order = item["id"], item["family"], item["order"]
+        name, status, requires = item["path"], item["status"], item["requires"]
+        if not isinstance(ident, str) or not IDENTIFIER.fullmatch(ident):
+            errors.append(f"Entry {index} has an invalid ID")
+            continue
+        if ident in ids:
+            errors.append(f"Duplicate migration ID: {ident}")
+        ids.add(ident)
+        if not isinstance(family, str) or not IDENTIFIER.fullmatch(family):
+            errors.append(f"Invalid migration family: {ident}")
+            continue
+        if type(order) is not int or not 1 <= order <= 999:
+            errors.append(f"Invalid migration order: {ident}")
+            continue
+        if (family, order) in family_steps:
+            errors.append(f"Duplicate family/order in {family}: {order:03d}")
+        family_steps.add((family, order))
+        if not isinstance(name, str) or not FILENAME.fullmatch(name):
+            errors.append(f"Migration path not in approved flat directory: {ident}")
+            continue
+        if int(FILENAME.fullmatch(name).group(1)) != order:
+            errors.append(f"Filename/order mismatch: {ident}")
+        if name in paths:
+            errors.append(f"Duplicate SQL file in inventory: {name}")
+        paths.add(name)
+        # A migration ID must not silently change its contents on disk.
+        # Git object IDs are review fingerprints, NOT deployment approval.
+        pin = item["git_blob_sha"]
+        if not isinstance(pin, str) or not BLOB_SHA.fullmatch(pin):
+            errors.append(f"Invalid Git blob SHA: {ident}")
+        elif name in actual:
+            try:
+                payload = (root / name).read_bytes()
+            except OSError:
+                errors.append(f"Cannot read migration contents: {ident}")
+            else:
+                if git_blob_sha(payload) != pin:
+                    errors.append(f"Migration contents differ from pinned Git blob SHA: {ident}")
+        applied = item["applied"]
+        if not isinstance(applied, bool):
+            errors.append(f"Applied flag must be true or false: {ident}")
+        elif applied and status == "blocked_draft":
+            errors.append(f"Blocked draft cannot be marked applied: {ident}")
+        if not isinstance(status, str) or status not in STATUSES:
+            errors.append(f"Unreviewed or deployable migration status: {ident}")
+        if name.endswith("_draft.sql") != (status == "blocked_draft"):
+            errors.append(f"Draft is not explicitly blocked: {ident}")
+        if not isinstance(requires, list) or not all(
+            isinstance(dep, str) and IDENTIFIER.fullmatch(dep) for dep in requires
+        ) or len(requires) != len(set(requires)):
+            errors.append(f"Invalid dependencies: {ident}")
+            continue
+        key_by_id[ident] = (family, order, status)
+        deps_by_id[ident] = requires
+
+    for ident, dependencies in deps_by_id.items():
+        family, order, status = key_by_id[ident]
+        for dependency in dependencies:
+            predecessor = key_by_id.get(dependency)
+            if predecessor is None:
+                errors.append(f"Unknown dependency {dependency} for {ident}")
+            elif predecessor[0] != family or predecessor[1] >= order:
+                errors.append(f"Non-preceding or cross-family dependency for {ident}")
+            elif predecessor[2] == "blocked_draft" and status != "blocked_draft":
+                errors.append(f"Active candidate depends on blocked draft: {ident}")
+
+    for missing in sorted(actual - paths):
+        errors.append(f"SQL file absent from inventory: {missing}")
+    for missing in sorted(paths - actual):
+        errors.append(f"Inventory references missing SQL file: {missing}")
+    return errors
+
+
+def audit_applied_lock(base_ref: str, root: Path = ROOT) -> list[str]:
+    """Migrations already applied somewhere are immutable: compare against the inventory at base_ref.
+
+    Read-only: runs `git show <base_ref>:<inventory>` only. An entry that is `applied: true` at the base
+    must keep its ID, path and Git blob pin, and must stay applied. Editing the pin in the same PR does
+    not help; a changed applied migration needs a NEW migration ID.
+    """
+    try:
+        shown = subprocess.run(["git", "-C", str(root), "show", f"{base_ref}:{INVENTORY.as_posix()}"],
+                               capture_output=True, text=True, timeout=30, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return [f"Cannot read migration inventory at base {base_ref}"]
+    if shown.returncode != 0:
+        return [f"Cannot read migration inventory at base {base_ref}"]
+    try:
+        base = json.loads(shown.stdout)
+        current = json.loads((root / INVENTORY).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return ["Migration inventory is missing or invalid JSON"]
+    now = {e.get("id"): e for e in current.get("entries", []) if isinstance(e, dict)}
+    errors: list[str] = []
+    for old in base.get("entries", []):
+        if not isinstance(old, dict) or old.get("applied") is not True:
+            continue
+        ident = old.get("id")
+        new = now.get(ident)
+        if new is None:
+            errors.append(f"Applied migration removed from inventory: {ident}")
+        elif new.get("applied") is not True:
+            errors.append(f"Applied migration cannot be un-applied: {ident}")
+        elif (new.get("path"), new.get("git_blob_sha")) != (old.get("path"), old.get("git_blob_sha")):
+            errors.append(f"Applied migration is immutable (path or Git blob pin changed): {ident}")
+    return errors
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=Path, default=ROOT,
+                        help="Repository root for read-only inspection")
+    parser.add_argument("--base", metavar="GIT_REF",
+                        help="Also verify that migrations applied at this ref are unchanged (read-only git show)")
+    args = parser.parse_args()
+    failures = audit_inventory(args.root)
+    if args.base:
+        failures += audit_applied_lock(args.base, args.root)
+    if failures:
+        for problem in failures:
+            print("FAIL:", problem)
+        return 1
+    print("PASS: SQL migration inventory and immutable Git blob pins are complete, offline-only and fail-closed.")
+    print("NOTE: numeric file prefixes are scoped to families; no SQL was executed.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

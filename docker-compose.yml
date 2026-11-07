@@ -1,8 +1,24 @@
 name: skyhub-next
+# ACHTUNG Raspberry Pi: nie `docker compose up -d` mit dieser Datei allein. Auf dem Pi gehoert docker-compose.arm64.yml dazu
+# (arm64-PostGIS-Image und Volume skyhub-next_pgdata_arm64). Immer: bash scripts/pi-compose.sh ... (siehe docs/ops.md).
+# Log-Rotation fuer alle Dienste: ohne Grenze wachsen die json-Logs unbegrenzt. Gilt beim naechsten `up`, wenn der Container neu
+# angelegt wird. Nicht per logrotate/copytruncate von aussen kuerzen: dann haengt `docker logs --tail`.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+# Watchtower auf dem Pi (ohne --label-enable) aktualisiert sonst nachts jedes Image mit beweglichem Tag und startet abhaengige
+# Container neu (27.10.2026: redis:7-alpine, dabei auch das Backend). SkyHub-Next wird bewusst von Hand aktualisiert.
+# Wie die Log-Grenze gilt das Label erst, wenn der Container neu angelegt wird.
+x-labels: &no-watchtower
+  com.centurylinklabs.watchtower.enable: "false"
 services:
   postgres:
     image: postgis/postgis:15-3.3
     restart: unless-stopped
+    logging: *default-logging
+    labels: *no-watchtower
     environment:
       POSTGRES_USER: skyhub_next
       POSTGRES_PASSWORD: ${SKYHUB_DB_PASSWORD:?Set SKYHUB_DB_PASSWORD}
@@ -17,6 +33,8 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    logging: *default-logging
+    labels: *no-watchtower
     command: ["redis-server", "--save", "60", "1", "--appendonly", "yes"]
     volumes:
       - redis_data:/data
@@ -26,8 +44,10 @@ services:
       retries: 5
   minio:
     profiles: ["media"]
-    image: minio/minio:RELEASE.2023-09-04T19-57-37Z
+    image: ${SKYHUB_MINIO_IMAGE:-minio/minio:RELEASE.2023-09-04T19-57-37Z}
     restart: unless-stopped
+    logging: *default-logging
+    labels: *no-watchtower
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${SKYHUB_MINIO_USER:?Set SKYHUB_MINIO_USER}
@@ -40,20 +60,106 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     restart: unless-stopped
+    logging: *default-logging
+    labels: *no-watchtower
+    # Node needs no Linux capabilities (port 4000/4002 > 1024, runs as user node).
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    # Liveness only: /api/health answers 200 even while MQTT is degraded.
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/api/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
     ports:
       - "${SKYHUB_BIND_ADDRESS:-127.0.0.1}:${SKYHUB_HTTP_PORT:-4001}:4000"
+      # Narrow S3 upload proxy for DJI Pilot 2 media sync (only answers when enabled; Caddy :9446 in front).
+      - "127.0.0.1:${SKYHUB_S3_UPLOAD_PROXY_HOST_PORT:-4002}:4002"
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    volumes:
+      - type: bind
+        source: ./dr-status
+        target: /app/dr-status
+        read_only: true
+      # Offline OpenStreetMap tile cache (only written with SKYHUB_TILE_CACHE_ENABLED=true).
+      - tile_cache:/app/tile-cache
     environment:
       PORT: "4000"
+      # MinIO DR status API enabled by default; composite requires opt-in.
+      SKYHUB_MINIO_DR_ENABLED: ${SKYHUB_MINIO_DR_ENABLED:-true}
+      SKYHUB_MINIO_DR_REPORT_DIR: /app/dr-status
+      SKYHUB_MINIO_DR_COMPOSITE_ENABLED: ${SKYHUB_MINIO_DR_COMPOSITE_ENABLED:-false}
+      # Optional read-only S3 media API: OFF unless SKYHUB_MEDIA_ENABLED=true is set in .env.
+      # Use a dedicated read-only MinIO user here, never the MinIO root credentials.
+      SKYHUB_MEDIA_ENABLED: ${SKYHUB_MEDIA_ENABLED:-false}
+      SKYHUB_S3_ENDPOINT: ${SKYHUB_S3_ENDPOINT:-}
+      SKYHUB_S3_ACCESS_KEY: ${SKYHUB_S3_ACCESS_KEY:-}
+      SKYHUB_S3_SECRET_KEY: ${SKYHUB_S3_SECRET_KEY:-}
+      SKYHUB_WPML_STORE_ENABLED: ${SKYHUB_WPML_STORE_ENABLED:-false}
+      SKYHUB_WPML_LAN_NO_TOKEN_ENABLED: ${SKYHUB_WPML_LAN_NO_TOKEN_ENABLED:-false}
+      SKYHUB_WPML_LAN_ORIGINS: ${SKYHUB_WPML_LAN_ORIGINS:-}
+      SKYHUB_WPML_S3_BUCKET: ${SKYHUB_WPML_S3_BUCKET:-skyhub-wpml}
+      SKYHUB_WPML_S3_ENDPOINT: ${SKYHUB_WPML_S3_ENDPOINT:-}
+      SKYHUB_WPML_S3_ACCESS_KEY: ${SKYHUB_WPML_S3_ACCESS_KEY:-}
+      SKYHUB_WPML_S3_SECRET_KEY: ${SKYHUB_WPML_S3_SECRET_KEY:-}
+      SKYHUB_WPML_S3_PUBLIC_ENDPOINT: ${SKYHUB_WPML_S3_PUBLIC_ENDPOINT:-}
+      SKYHUB_PILOT_WAYLINE_ENABLED: ${SKYHUB_PILOT_WAYLINE_ENABLED:-false}
+      SKYHUB_MISSION_RELEASE_ENABLED: ${SKYHUB_MISSION_RELEASE_ENABLED:-false}
+      SKYHUB_MISSION_RELEASE_TOKEN: ${SKYHUB_MISSION_RELEASE_TOKEN:-}
+      SKYHUB_MISSION_RELEASE_HOURS: ${SKYHUB_MISSION_RELEASE_HOURS:-72}
+      SKYHUB_MISSION_MAX_HEIGHT_M: ${SKYHUB_MISSION_MAX_HEIGHT_M:-}
+      SKYHUB_MISSION_MAX_RTH_HEIGHT_M: ${SKYHUB_MISSION_MAX_RTH_HEIGHT_M:-}
+      SKYHUB_MISSION_MAX_SPEED_MS: ${SKYHUB_MISSION_MAX_SPEED_MS:-}
+      SKYHUB_MISSION_MAX_DURATION_MIN: ${SKYHUB_MISSION_MAX_DURATION_MIN:-}
+      SKYHUB_MISSION_MAX_DISTANCE_M: ${SKYHUB_MISSION_MAX_DISTANCE_M:-}
+      SKYHUB_TERRAIN_URL: ${SKYHUB_TERRAIN_URL:-}
+      SKYHUB_PPK_URL: ${SKYHUB_PPK_URL:-}
+      SKYHUB_PPK_TOKEN: ${SKYHUB_PPK_TOKEN:-}
+      SKYHUB_TERRAIN_DATASET: ${SKYHUB_TERRAIN_DATASET:-}
+      SKYHUB_TERRAIN_MIN_AGL_M: ${SKYHUB_TERRAIN_MIN_AGL_M:-}
+      SKYHUB_DRC_ENABLED: ${SKYHUB_DRC_ENABLED:-false}
+      SKYHUB_DRC_TOKEN: ${SKYHUB_DRC_TOKEN:-}
+      SKYHUB_DRC_GATEWAY_SN: ${SKYHUB_DRC_GATEWAY_SN:-}
+      SKYHUB_DRC_RCPRO_GATEWAY_SN: ${SKYHUB_DRC_RCPRO_GATEWAY_SN:-}
+      SKYHUB_DRC_MQTT_URL: ${SKYHUB_DRC_MQTT_URL:-}
+      SKYHUB_DRC_MQTT_USERNAME: ${SKYHUB_DRC_MQTT_USERNAME:-}
+      SKYHUB_DRC_MQTT_PASSWORD: ${SKYHUB_DRC_MQTT_PASSWORD:-}
+      SKYHUB_DRC_BROKER_ADDRESS: ${SKYHUB_DRC_BROKER_ADDRESS:-}
+      SKYHUB_DRC_BROKER_USERNAME: ${SKYHUB_DRC_BROKER_USERNAME:-}
+      SKYHUB_DRC_BROKER_PASSWORD: ${SKYHUB_DRC_BROKER_PASSWORD:-}
+      SKYHUB_DRC_BROKER_TLS: ${SKYHUB_DRC_BROKER_TLS:-false}
+      SKYHUB_DRC_MAX_SPEED_MS: ${SKYHUB_DRC_MAX_SPEED_MS:-}
+      SKYHUB_DRC_MAX_HEIGHT_M: ${SKYHUB_DRC_MAX_HEIGHT_M:-}
+      SKYHUB_DRC_MAX_DISTANCE_M: ${SKYHUB_DRC_MAX_DISTANCE_M:-}
+      SKYHUB_DRC_STICK_SCALE: ${SKYHUB_DRC_STICK_SCALE:-}
+      SKYHUB_DRC_CALLSIGN: ${SKYHUB_DRC_CALLSIGN:-}
+      # Optional DJI Thermal SDK service (profile "thermal-sdk"); empty = thermal estimate only.
+      SKYHUB_THERMAL_SDK_URL: ${SKYHUB_THERMAL_SDK_URL:-}
+      SKYHUB_THERMAL_SDK_TOKEN: ${SKYHUB_THERMAL_SDK_TOKEN:-}
+      # Pilot 2 verified library stays off until migrations 003-005 and the
+      # separate identity, backup and Pi acceptance gates have passed.
+      SKYHUB_MEDIA_LIBRARY_ENABLED: ${SKYHUB_MEDIA_LIBRARY_ENABLED:-false}
+      SKYHUB_MEDIA_LIBRARY_CURSOR_SECRET: ${SKYHUB_MEDIA_LIBRARY_CURSOR_SECRET:-}
+      # DJI Pilot 2 media synchronisation: OFF unless enabled. Needs a dedicated MinIO uploader account
+      # (scripts/pi-minio-pilot-uploader.sh), SKYHUB_PILOT_PUBLIC_URL and the Caddy routes
+      # (scripts/pi-caddy-pilot-media.sh). Temporary credentials only allow uploads below one session prefix.
+      SKYHUB_PILOT_MEDIA_UPLOAD_ENABLED: ${SKYHUB_PILOT_MEDIA_UPLOAD_ENABLED:-false}
+      SKYHUB_PILOT_MEDIA_S3_PUBLIC_ENDPOINT: ${SKYHUB_PILOT_MEDIA_S3_PUBLIC_ENDPOINT:-}
+      SKYHUB_PILOT_UPLOAD_S3_ACCESS_KEY: ${SKYHUB_PILOT_UPLOAD_S3_ACCESS_KEY:-}
+      SKYHUB_PILOT_UPLOAD_S3_SECRET_KEY: ${SKYHUB_PILOT_UPLOAD_S3_SECRET_KEY:-}
       SKYHUB_BIND_ADDRESS: ${SKYHUB_BIND_ADDRESS:-127.0.0.1}
       SKYHUB_VIEW_TOKEN: ${SKYHUB_VIEW_TOKEN:?Set SKYHUB_VIEW_TOKEN}
-      # Pi host broker runs on 1884; refuse any accidental fallback to 1883.
-      MQTT_BROKER_URL: ${MQTT_BROKER_URL:?Set MQTT_BROKER_URL to the Pi broker on port 1884}
-      SKYHUB_MQTT_REQUIRED_PORT: "1884"
+      # EMQX/1884 by default; Mosquitto/1883 requires explicit opt-in in .env.
+      # Neither broker is launched, reconfigured or modified by this Compose.
+      MQTT_BROKER_URL: ${MQTT_BROKER_URL:?Set MQTT_BROKER_URL to the selected Pi broker}
+      SKYHUB_MQTT_BROKER_KIND: ${SKYHUB_MQTT_BROKER_KIND:-emqx}
+      SKYHUB_MQTT_REQUIRED_PORT: "${SKYHUB_MQTT_REQUIRED_PORT:-1884}"
       MQTT_USER: ${MQTT_USER:-}
       MQTT_PASSWORD: ${MQTT_PASSWORD:-}
       SKYHUB_PILOT_ENABLED: ${SKYHUB_PILOT_ENABLED:-false}
+      SKYHUB_PILOT_DIAGNOSTICS_ENABLED: ${SKYHUB_PILOT_DIAGNOSTICS_ENABLED:-false}
       SKYHUB_PILOT_ACCESS_TOKEN: ${SKYHUB_PILOT_ACCESS_TOKEN:-}
       SKYHUB_DJI_APP_ID: ${SKYHUB_DJI_APP_ID:-}
       SKYHUB_DJI_APP_KEY: ${SKYHUB_DJI_APP_KEY:-}
@@ -62,16 +168,53 @@ services:
       SKYHUB_PILOT_MQTT_USER: ${SKYHUB_PILOT_MQTT_USER:-}
       SKYHUB_PILOT_MQTT_PASSWORD: ${SKYHUB_PILOT_MQTT_PASSWORD:-}
       SKYHUB_PILOT_WORKSPACE_ID: ${SKYHUB_PILOT_WORKSPACE_ID:-}
+      # DJI map-group GET route (Pilot 2 api module); OFF by default.
+      SKYHUB_DJI_MAP_ELEMENTS_ENABLED: ${SKYHUB_DJI_MAP_ELEMENTS_ENABLED:-false}
+      SKYHUB_DJI_MAP_WRITES_ENABLED: ${SKYHUB_DJI_MAP_WRITES_ENABLED:-false}
+      # DJI Pilot 2 situation awareness (WebSocket /ws/tsa + topology list); OFF by default.
+      # Needs the public https origin the RC uses for /pilot-login, e.g. https://rpi5.fritz.box
+      SKYHUB_DJI_TSA_ENABLED: ${SKYHUB_DJI_TSA_ENABLED:-false}
+      SKYHUB_PILOT_PUBLIC_URL: ${SKYHUB_PILOT_PUBLIC_URL:-}
+      SKYHUB_DJI_TSA_TRUSTED_PROXY_IPS: ${SKYHUB_DJI_TSA_TRUSTED_PROXY_IPS:-127.0.0.1,::1}
       # Optional DJI protocol reply; requires dedicated MQTT publish-only ACL.
       SKYHUB_TOPOLOGY_ACK_ENABLED: ${SKYHUB_TOPOLOGY_ACK_ENABLED:-false}
       SKYHUB_TOPOLOGY_ACK_MQTT_USER: ${SKYHUB_TOPOLOGY_ACK_MQTT_USER:-}
       SKYHUB_TOPOLOGY_ACK_MQTT_PASSWORD: ${SKYHUB_TOPOLOGY_ACK_MQTT_PASSWORD:-}
       # Optional token-free read-only dashboard for one private LAN (e.g. 192.168.178.0/24).
       SKYHUB_LAN_VIEW_CIDR: ${SKYHUB_LAN_VIEW_CIDR:-}
+      # Explicit Caddy/Docker gateway socket peers only; no subnet trust.
+      SKYHUB_TRUSTED_PROXY_IPS: ${SKYHUB_TRUSTED_PROXY_IPS:-}
       # New position history is OFF by default; live OSD remains ON.
       SKYHUB_TRACK_RECORDING_ENABLED: ${SKYHUB_TRACK_RECORDING_ENABLED:-false}
+      SKYHUB_HMS_HISTORY_ENABLED: ${SKYHUB_HMS_HISTORY_ENABLED:-false}
+      # All FH-Clone additions stay read-only and require no new service or port.
+      SKYHUB_FH_MSDK_OBSERVER_ENABLED: ${SKYHUB_FH_MSDK_OBSERVER_ENABLED:-false}
+      SKYHUB_FH_MSDK_OBSERVER_TOKEN: ${SKYHUB_FH_MSDK_OBSERVER_TOKEN:-}
+      SKYHUB_FH_UGCS_URL: ${SKYHUB_FH_UGCS_URL:-}
+      # DJI Pilot 2 livestream (overlay docker-compose.live.yml): RC -> RTMP -> MediaMTX -> HLS via backend. OFF by default.
+      SKYHUB_LIVE_ENABLED: ${SKYHUB_LIVE_ENABLED:-false}
+      SKYHUB_LIVE_RTMP_URL: ${SKYHUB_LIVE_RTMP_URL:-}
+      SKYHUB_LIVE_PUBLISH_PASS: ${SKYHUB_LIVE_PUBLISH_PASS:-}
+      SKYHUB_LIVE_READ_PASS: ${SKYHUB_LIVE_READ_PASS:-}
+      SKYHUB_LIVE_CONTROL_ENABLED: ${SKYHUB_LIVE_CONTROL_ENABLED:-false}
+      SKYHUB_GEOZONES_ENABLED: ${SKYHUB_GEOZONES_ENABLED:-false}
+      SKYHUB_TAK_ENABLED: ${SKYHUB_TAK_ENABLED:-false}
+      SKYHUB_TAK_SERVER: ${SKYHUB_TAK_SERVER:-}
+      SKYHUB_TAK_CERT: ${SKYHUB_TAK_CERT:-}
+      SKYHUB_TAK_KEY: ${SKYHUB_TAK_KEY:-}
+      SKYHUB_TAK_CA: ${SKYHUB_TAK_CA:-}
+      SKYHUB_TAK_KEY_PASSPHRASE: ${SKYHUB_TAK_KEY_PASSPHRASE:-}
+      SKYHUB_TAK_MULTICAST_ENABLED: ${SKYHUB_TAK_MULTICAST_ENABLED:-false}
+      SKYHUB_TAK_INCLUDE_RC: ${SKYHUB_TAK_INCLUDE_RC:-false}
+      SKYHUB_TAK_AIRCRAFT_TYPE: ${SKYHUB_TAK_AIRCRAFT_TYPE:-}
+      SKYHUB_TAK_TEAM: ${SKYHUB_TAK_TEAM:-}
       # Retention applies only while recording is enabled.
       SKYHUB_TRACK_RETENTION_DAYS: ${SKYHUB_TRACK_RETENTION_DAYS:-30}
+      # Map tiles: OFF = redirect to tile.openstreetmap.org (as before); ON = on-demand disk cache that
+      # keeps viewed areas available without internet. No prefetch/bulk download (OSMF tile policy).
+      SKYHUB_TILE_CACHE_ENABLED: ${SKYHUB_TILE_CACHE_ENABLED:-false}
+      SKYHUB_TILE_CACHE_DIR: /app/tile-cache
+      SKYHUB_TILE_CACHE_MAX_MB: ${SKYHUB_TILE_CACHE_MAX_MB:-512}
       REDIS_URL: redis://redis:6379
       DATABASE_URL: postgres://skyhub_next:${SKYHUB_DB_PASSWORD:?Set SKYHUB_DB_PASSWORD}@postgres:5432/skyhub_next
     depends_on:
@@ -79,7 +222,128 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - default
+      - thermal_sdk
+      - live
+      - terrain
+      - ppk
+  # DJI Thermal SDK (dji_irp, x86-64) via box64 on the Pi 5. Opt-in: compose profile "thermal-sdk".
+  # Internal network only (no host port, no internet); the SDK directory is mounted read-only and is
+  # never part of the image (DJI license). The backend talks to it with SKYHUB_THERMAL_SDK_TOKEN.
+  thermal-sdk:
+    profiles: ["thermal-sdk"]
+    build:
+      context: docker/dji-tsdk-box64
+    image: skyhub-dji-box64:trixie
+    restart: unless-stopped
+    # Init-Prozess als PID 1: reicht SIGTERM weiter und sammelt Zombie-Prozesse von dji_irp ein.
+    init: true
+    logging: *default-logging
+    labels: *no-watchtower
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=128m
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 1g
+    cpus: 1.0
+    pids_limit: 64
+    environment:
+      SKYHUB_THERMAL_SDK_TOKEN: ${SKYHUB_THERMAL_SDK_TOKEN:-}
+    volumes:
+      - type: bind
+        source: ${SKYHUB_DJI_TSDK_DIR:-./storage/dji-tsdk-not-configured}
+        target: /sdk
+        read_only: true
+    networks:
+      - thermal_sdk
+  # Own elevation service for the terrain check of the mission release (backend/mission-terrain.js). Opt-in: compose
+  # profile "terrain". Open Topo Data (ajnisbet/opentopodata, MIT) built from a pinned upstream commit (v1.10.0);
+  # data and config from ops/terrain (scripts/terrain-dem-fetch.sh). Internal network only: no host port, no internet,
+  # route coordinates never leave the stack. Backend: SKYHUB_TERRAIN_URL=http://opentopodata:5000.
+  opentopodata:
+    profiles: ["terrain"]
+    build:
+      context: https://github.com/ajnisbet/opentopodata.git#b6d115663076476ef5ee795a5bff2e87e1a3c68f
+      dockerfile: docker/Dockerfile
+    image: skyhub-opentopodata:1.10.0
+    restart: unless-stopped
+    logging: *default-logging
+    labels: *no-watchtower
+    cap_drop: [ALL]
+    # KILL: supervisord (root) must be able to signal the uwsgi/nginx workers that run as another user;
+    # without it every stop ends in "PermissionError: Operation not permitted" and a hard kill after the timeout.
+    cap_add: [CHOWN, SETUID, SETGID, DAC_OVERRIDE, KILL]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:5000/health', timeout=4)"]
+      interval: 60s
+      timeout: 6s
+      retries: 3
+      start_period: 60s
+    mem_limit: 768m
+    cpus: 1.0
+    pids_limit: 128
+    volumes:
+      - type: bind
+        source: ${SKYHUB_TERRAIN_DIR:-./ops/terrain}/config.yaml
+        target: /app/config.yaml
+        read_only: true
+      - type: bind
+        source: ${SKYHUB_TERRAIN_DIR:-./ops/terrain}/data
+        target: /app/data
+        read_only: true
+    networks:
+      - terrain
+  # PPK geotagging (dji-geotagger, BSD-2 + RTKLIB 2.4.3, BSD-2), opt-in: compose profile "ppk". Offline: internal network,
+  # SAPOS RINEX as base, broadcast ephemeris (no CSRS-PPP, no IGS download). Jobs and results in the ppk_jobs volume (24 h).
+  ppk:
+    profiles: ["ppk"]
+    build:
+      context: docker/ppk
+    image: skyhub-ppk:3.1.1
+    restart: unless-stopped
+    # /health needs no token; python is in the image (no curl).
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8090/health',timeout=5).status==200 else 1)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    logging: *default-logging
+    labels: *no-watchtower
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=512m
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 3g
+    cpus: 2.0
+    pids_limit: 128
+    environment:
+      SKYHUB_PPK_TOKEN: ${SKYHUB_PPK_TOKEN:-}
+      MPLCONFIGDIR: /tmp
+      HOME: /tmp
+    volumes:
+      - ppk_jobs:/jobs
+    networks:
+      - ppk
 volumes:
+  ppk_jobs:
   pgdata:
   redis_data:
   minio_data:
+  tile_cache:
+networks:
+  # Backend <-> ppk only; internal: no route to the outside.
+  ppk:
+    internal: true
+  # Backend <-> opentopodata only; internal: no route to the outside.
+  terrain:
+    internal: true
+  # Backend <-> thermal-sdk only; internal: no route to the outside.
+  thermal_sdk:
+    internal: true
+  # Backend <-> MediaMTX (HLS/API); not internal because the RTMP port is published from it.
+  live:

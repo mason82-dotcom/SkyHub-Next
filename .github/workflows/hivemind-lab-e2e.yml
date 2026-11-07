@@ -1,0 +1,73 @@
+name: HiveMind isolated runtime acceptance
+
+on:
+  push:
+    branches:
+      - feature/hivemind-reference-lab-20261023
+    paths:
+      - 'simulators/hivemind/**'
+      - '.github/workflows/hivemind-lab-e2e.yml'
+      - 'backend/**'
+      - 'docker-compose.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hivemind-lab-acceptance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  isolated-hivemind-pilot-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Verify pinned upstream and shell contracts (no hardware)
+        run: |
+          bash -n simulators/hivemind/lab.sh
+          bash -n simulators/hivemind/prepare.sh
+          python3 -m unittest discover -s tests -p 'test_hivemind*.py'
+          node --check simulators/hivemind/dock-mock.js
+          node --test simulators/hivemind/dock-mock.test.js simulators/hivemind/mission-probe.test.js simulators/hivemind/media-probe.test.js
+          node --check simulators/hivemind/mission-probe.js
+          node --check simulators/hivemind/media-probe.js
+
+      - name: Provision distinct lab credentials and fetch/build pinned AGPL upstream
+        run: |
+          bash simulators/hivemind/lab.sh init-env
+          bash simulators/hivemind/lab.sh prepare
+
+      - name: Validate isolated Docker Compose graph
+        run: bash simulators/hivemind/lab.sh config
+
+      - name: Start isolated simulator and SkyHub lab (no real Pi broker or devices)
+        run: bash simulators/hivemind/lab.sh up
+
+      - name: Verify synthetic Pilot topology and OSD through actual MQTT
+        run: bash simulators/hivemind/lab.sh smoke
+
+      - name: Start opt-in Dock RPC mock for a separate E2E registration pass
+        run: bash simulators/hivemind/lab.sh dock-up
+
+      - name: Verify complete Dock bind and status/topology handshake
+        run: bash simulators/hivemind/lab.sh dock-smoke
+
+      - name: Print non-sensitive container statuses on failure
+        if: failure()
+        run: |
+          bash simulators/hivemind/lab.sh ps
+          # No container logs or environment dumps: upstream logs may expose SNs,
+          # configuration values or credentials.
+
+      - name: Stop only isolated lab, preserving volumes (always)
+        if: always()
+        run: |
+          if test -f simulators/hivemind/lab.env; then
+            bash simulators/hivemind/lab.sh down
+          fi

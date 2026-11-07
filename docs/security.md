@@ -6,10 +6,14 @@ Diese Regeln gelten für den aktiven Root-Stack. Die historische Konfiguration u
 
 **Weiterführend:** [MQTT/OSD und EMQX](mqtt-osd-integration.md), [Betrieb](ops.md), [Migration](legacy-migration.md).
 
+## Geplante Proxy-Trust-Härtung (separater Draft; 25.10.2026)
+
+Der [Code-Audit](engineering-audit-2026-10-25.md) zeigt eine breiter als nötig definierte `X-Forwarded-*`-Vertrauensgrenze im bis dahin gültigen `main`. Ein eigener **nicht gemergter** Sicherheitsbranch erprobt die Umstellung auf `SKYHUB_TRUSTED_PROXY_IPS` als explizite Liste exakter Caddy-Socket-Adressen. **Default nur Loopback.** Da bisher ein beliebiger Docker-Bridge-Peer als Header-Proxy gelten konnte, erfordert diese Korrektur vor jedem produktiven Pi-Update eine Prüfung der tatsächlichen Caddy-Peer-IP und der Pilot-/LAN-HTTPS-Erreichbarkeit. [Rollout-Gate](proxy-trust-rollout.md). Nicht mit dem gesonderten TSA-Trust-Flag verwechseln.
+
 ## Status und Sicherheitsabgrenzung (23.10.2026)
 
 Bezieht sich auf `main`, Commit `496a1f84f22b15f85ad5442965b2cd218a93969a`.
-Die experimentellen STS-/Medien-/XMP-/YOLO-/Thermal-/WPML-Module der
+Die experimentellen STS-/XMP-/YOLO-/Thermal-/WPML-Module der
 [PR-Übersicht](projektstand-2026-10-23.md) sind **nicht** Teil der hier beschriebenen
 freigegebenen Runtime und erhalten durch ein grünes CI-Ergebnis keine automatische
 Produktivberechtigung. In Main ist die Spuraufzeichnung standardmäßig deaktiviert.
@@ -84,3 +88,8 @@ zu verlangen. Die Kartenkacheln senden einen Referer
 (`strict-origin-when-cross-origin`), wie es die OSM-Nutzungsregeln verlangen.
 
 **DJI-1.18-Paritätsaudit:** Der nach `main` übernommene Offline-Checker besitzt weder MQTT-Verbindung noch HTTP-Route und erzeugt ausschließlich Ergebnisse über mitgelieferte synthetische Testfälle. [Verifikationsgrenzen](dji-protocol-parity-audit.md). Ein GitHub-Merge startet keinen Prozess auf dem Pi.
+
+
+## PR #24: nur lesende M3M-Medien-API (Integrationsstand)
+
+Die optionale API `/api/media/*` aus PR #24 ist ausschließlich bei explizitem `SKYHUB_MEDIA_ENABLED=true` erreichbar, hinter Bearer-Authentifizierung. Die Inventur liefert Summen, keine Objektkennungen. Die S3-Reader-Rolle darf keine PUT-/DELETE-Rechte besitzen; die `GET /api/media/objects`-Antwort enthält dagegen Objektnamen für authentifizierte Betreiber und ist **nicht** anonym. Keine dieser Schnittstellen erteilt Upload-, Radiometrie- oder DJI-Steuerberechtigungen. Eine CI-Abnahme ist keine Produktionsfreigabe auf dem Raspberry Pi.

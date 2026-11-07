@@ -39,7 +39,7 @@ test('OSD channel timestamp does not falsely refresh absent nested DJI fields',(
   assert.ok(!r.freshDocumented.includes('osd:battery.capacity_percent'));
   assert.ok(r.freshDocumented.includes('osd:wind_speed'));
   assert.ok(!r.freshDocumented.includes('state:firmware_version'));
-  assert.doesNotMatch(JSON.stringify(r),/\"capacity_percent\"\s*:\s*60|AIR01|RC01/);
+  assert.doesNotMatch(JSON.stringify(r),/"capacity_percent"\s*:\s*60|AIR01|RC01/);
 });
 
 test('dynamic gimbal freshness uses field names, and model changes clear timestamps',()=>{

@@ -71,6 +71,8 @@ async function main(){
   console.log('Gekoppelte Geräte:');
   if(!res.json.devices.length)console.log('  keine');
   for(const d of res.json.devices)
-    console.log('  '+d.id+'  '+d.model+'  gekoppelt '+time(d.createdAt)+'  zuletzt '+time(d.lastUsedAt));
+    console.log('  '+d.id+'  '+d.model+'  gekoppelt '+time(d.createdAt)+'  zuletzt '+time(d.lastUsedAt)+
+      // Paired before the workspace binding: the RC is asked to pair again; the old entry can then be revoked.
+      (d.workspaceId?'':'  OHNE ARBEITSBEREICH: neu koppeln, danach --revoke '+d.id));
 }
 main().catch(()=>{console.error('Backend auf 127.0.0.1:'+port+' nicht erreichbar.');process.exitCode=1;});

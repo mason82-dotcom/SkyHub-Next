@@ -1,0 +1,18 @@
+# OPT-IN overlay: give the SkyHub Next default network a fixed subnet and gateway, so the Docker gateway that Caddy's
+# requests arrive from (SKYHUB_TRUSTED_PROXY_IPS) can never change on its own.
+#
+# DO NOT add this to a running stack casually: Docker cannot change the subnet of an existing network. Applying it
+# means stopping every service on skyhub-next_default (Postgres, Redis, backend), removing that network and creating it
+# again (docker compose down WITHOUT -v keeps the data volumes). See docs/proxy-trust-rollout.md, "Festes Subnetz".
+# Pick a subnet that no other Docker network or route uses (docker network ls; ip -4 route): on the Pi the
+# automatic pool already uses 172.17 to 172.28, so 172.28.x as an example would collide.
+# Without this overlay scripts/pi-proxy-peer-check.sh (run by pi-update-backend.sh) detects a changed gateway instead.
+#
+#   SKYHUB_NETWORK_SUBNET=10.250.40.0/24 SKYHUB_NETWORK_GATEWAY=10.250.40.1 \
+#     docker compose -f docker-compose.yml -f docker-compose.fixed-subnet.yml config --quiet
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: ${SKYHUB_NETWORK_SUBNET:?set SKYHUB_NETWORK_SUBNET, e.g. 10.250.40.0/24}
+          gateway: ${SKYHUB_NETWORK_GATEWAY:?set SKYHUB_NETWORK_GATEWAY, e.g. 10.250.40.1}

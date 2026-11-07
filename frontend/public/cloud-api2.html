@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><meta name="theme-color" content="#0a1724">
+<title>Cloud API 2 Lab | SkyHub Next</title>
+<link rel="stylesheet" href="/cloud-api2.css">
+<link rel="stylesheet" href="/cloud-api2-p2.css">
+<link rel="stylesheet" href="/cloud-api2-planning.css">
+<script defer type="module" src="/cloud-api2.js"></script>
+<script defer type="module" src="/cloud-api2-p2-ui.mjs"></script>
+<script defer type="module" src="/cloud-api2-planning.mjs"></script>
+</head>
+<body>
+<a class="skip" href="#main">Zum Inhalt springen</a>
+<div class="shell">
+<aside class="side">
+  <a class="brand" href="/"><span class="mark">✳</span><span>SKYHUB <strong>NEXT</strong><small>OPERATIONS SYSTEM</small></span></a>
+  <div class="nav-label">WORKSPACE / DEVELOPMENT</div>
+  <nav aria-label="Portalnavigation">
+    <button type="button" class="active" data-view="overview">◈ <span>Übersicht</span></button>
+    <button type="button" data-view="devices">▦ <span>Geräte-Backend</span></button>
+    <button type="button" data-view="mavic3">✣ <span>Mavic 3 Enterprise</span></button>
+    <button type="button" data-view="m4t-hardware">▧ <span>M4T + RC Plus 2 Tests</span></button>
+    <button type="button" data-view="evidence">▣ <span>Nachweise</span></button>
+    <button type="button" data-view="planning">⌖ <span>Missionsplanung</span></button>
+    <button type="button" data-view="simulator">◇ <span>Simulator</span><i>LAB</i></button>
+    <button type="button" data-view="contracts">◉ <span>API-2-Vertragsprüfung</span></button>
+    <button type="button" data-view="sdk">⌘ <span>SDK &amp; Bausteine</span></button>
+    <button type="button" data-view="integrations">▤ <span>Module &amp; Skills</span></button>
+    <button type="button" data-view="ai">✳ <span>KI-Werkstatt</span></button>
+  </nav>
+  <div class="side-footer"><p><span id="indicator" class="dot"></span><b id="connection">Backend nicht geprüft</b></p>
+  <small>SkyHub Cloud API 1.x → eigener Leseadapter. DJI API 2 V1.1.0 ist die Dokumentationsreferenz, nicht die installierte Laufzeit.</small>
+  <a href="/">← SkyHub-Lagebild öffnen</a></div>
+</aside>
+<div class="content">
+  <header class="topbar"><span>SKYHUB NEXT <i>/</i> DJI INTEGRATION <i>/</i> <b>CLOUD API 2 LAB</b></span><div><span id="portalModeBadge" class="ro">● READ ONLY</span> <time id="localtime">—</time></div></header>
+  <div class="p2-tools"><label for="p2-language">Sprache / Language</label><select id="p2-language"><option value="de">Deutsch</option><option value="en">English</option></select><span id="p2-mock-banner" class="p2-mock" role="status">DJI-DevKit auf BRIX: MOCK – keine Live-Geräte</span></div>
+  <main id="main" tabindex="-1">
+    <section id="view-overview" class="view">
+      <p class="eyebrow">KEYLESS INTEGRATION · REFERENCE V1.1.0</p>
+      <div class="hero"><div><h1>DJI-Entwicklung.<br><em>Neu gedacht.</em></h1>
+      <p>Eine moderne Entwicklungs- und Testzentrale für SkyHub-Next. Live-Geräte beobachten, die objektorientierte Leseschnittstelle nutzen, sichere Simulationen durchführen und Integrationen planen – ohne DJI-Key.</p>
+      <div class="actions"><button id="refresh" class="primary" type="button">Backend überprüfen ↗</button><button type="button" data-open="simulator" class="secondary">Simulator starten</button></div></div>
+      <div class="orb" aria-hidden="true"><span class="ring outer"></span><span class="ring middle"></span><span class="ring inner"></span><span class="symbol">✳</span><small>DEV / 02</small></div></div>
+      <div class="stats">
+        <article><small>REGISTRIERTE GERÄTE</small><strong id="count">—</strong><span>SkyHub-Live-Registry</span></article>
+        <article><small>FRISCHE TELEMETRIE</small><strong id="online">—</strong><span>OSD und Topologie</span></article>
+        <article><small>DJI API 2 RUNTIME</small><strong class="amber">Nicht installiert</strong><span>Proprietäre PaaS-Laufzeit</span></article>
+        <article><small>FLUGBEFEHLE</small><strong class="green">Gesperrt</strong><span>Kein MQTT-Publish / DRC</span></article>
+      </div>
+      <div class="columns"><article class="card">
+        <div class="card-top"><b>INTEGRATIONS-PIPELINE</b><span>ARCHITEKTUR</span></div>
+        <div class="pipe"><span>01</span><div><b>DJI Cloud API 1.x</b><small>Bestehende SkyHub-Telemetrie</small></div><em>BESTEHEND</em></div>
+        <div class="pipe"><span>02</span><div><b>SkyHub DaaS-Adapter</b><small>GET-only, kein DJI-Key</small></div><em class="good">KEYLESS</em></div>
+        <div class="pipe"><span>03</span><div><b>DJI Cloud API 2 PaaS</b><small>Hersteller-Backend und Java/JNI SDK</small></div><em class="warn">EXTERN</em></div>
+        <div class="pipe"><span>04</span><div><b>Simulations- und KI-Labor</b><small>Isoliert, lokal, ohne Live-Schreibweg</small></div><em class="good">KEYLESS</em></div>
+      </article><article class="card">
+        <div class="card-top"><b>SAFETY BY DESIGN</b><span>FAIL CLOSED</span></div>
+        <div class="shield">◇</div><h2>Entwickeln ohne Eingriff in den Flugbetrieb.</h2>
+        <p>Die Seite beobachtet ausschließlich erlaubte SkyHub-Daten. Synthetische Laborzustände werden niemals an reale Controller oder Drohnen übertragen.</p>
+        <p class="notice" role="status" id="status">Backend wird geprüft …</p>
+      </article></div>
+    </section>
+    <section id="view-devices" class="view" hidden>
+      <p class="eyebrow">DEVICE BACKEND / LIVE OBSERVATION</p>
+      <div class="heading"><div><h1>Geräte-Backend</h1><p>Read-only-Ansicht auf die bestehende, validierte SkyHub-Geräteregistrierung. Keine DJI-API-2-Geräteanmeldung.</p></div><button id="reload" type="button" class="secondary">Aktualisieren ↻</button></div>
+      <div class="bar"><span id="deviceStatus">Noch keine Live-Abfrage.</span><span class="pill">CLOUD 1.x SOURCE</span></div>
+      <div id="devices" class="device-grid" aria-live="polite"><p class="empty">Lade Gerätestatus …</p></div>
+      <p class="hint">Diese Ansicht gibt keine Seriennummern, Gerätegeheimnisse oder Positionsdaten aus. Ein Gerät gilt nur bei aktueller OSD-Telemetrie und bestätigter Topologie als frisch.</p>
+    </section>
+    <section id="view-evidence" class="view" hidden>
+      <p class="eyebrow">OBSERVATION / PROVENANCE / READ-ONLY</p>
+      <div class="heading"><div><h1>Gemeinsame Nachweisübersicht</h1>
+        <p>WPML-Missionsrevisionen, Mapping-Eingangsflüge und Thermal-Dateikandidaten werden unabhängig ausgewertet. Kein Nachweis einer gerätespezifischen Zuordnung oder Flugfreigabe.</p></div>
+        <button id="loadEvidence" type="button" class="secondary">Nachweise lesend prüfen</button>
+      </div>
+      <div class="bar"><span id="evidenceStatus" role="status" aria-live="polite">Noch nicht abgefragt. Eine Abfrage erfolgt ausschließlich nach Klick.</span>
+        <span class="pill">ANSICHTSTOKEN ERFORDERLICH</span></div>
+      <div id="evidenceModules" class="integration-grid" aria-live="polite"></div>
+      <article class="card below"><div class="card-top"><b>GERÄTEBEZUG UND DATENQUALITÄT</b><span>NICHT BESTÄTIGT</span></div>
+        <p id="evidenceLinkage">Keine Verbindung zwischen den inventarisierten Modulen und einer bestimmten Drohne wird behauptet.</p>
+        <p class="warning">Gespeicherte Missionen sind keine Flugaufträge; Fotoeingänge sind keine verifizierte Flächenabdeckung; Thermal-Dateien sind keine kalibrierten Temperaturmessungen. Fehlende bzw. nicht erreichbare Daten bleiben UNBEKANNT.</p>
+        <p class="hint">Der Endpunkt /api/cloud-api2/evidence ist ausschließlich mit bestehendem SkyHub-Ansichtstoken zugänglich. Das Portal fordert keine Zugangsdaten an; bei HTTP 401 bleiben die Daten verborgen.</p>
+      </article>
+      <article class="card below" id="linkagePanel">
+        <div class="card-top"><b>GERÄT ↔ MISSION ↔ MEDIEN</b><span>UNABHÄNGIGE NACHWEISE</span></div>
+        <p>Modellkompatibilität ist eine technische Vorprüfung, keine Zuordnung zu einem realen Flug. Einzelne Datensätze werden nicht über ähnliche Namen oder Zeitstempel verbunden.</p>
+        <button type="button" id="loadLinkage" class="secondary">Zuordnungsnachweise prüfen (GET)</button>
+        <p class="hint" id="linkageStatus" role="status" aria-live="polite">Noch nicht abgefragt; Zugriff über konfigurierte SkyHub-LAN-Lesefreigabe oder Ansichtstoken.</p>
+        <div id="linkageReport" class="integration-grid" aria-live="polite"></div>
+        <p class="warning">Verifizierte Beziehungen zwischen Gerät, konkreter WPML-Mission und Medien erfordern einen zusätzlichen unabhängigen Ausführungs-/Aufnahmebeleg. Ein Modelltreffer allein beweist nichts über den Einsatz.</p>
+      </article>
+    </section>
+    <section id="view-mavic3" class="view" hidden>
+      <p class="eyebrow">MODEL FAMILY / KEYLESS / READ-ONLY</p>
+      <div class="heading"><div><h1>Mavic 3 Enterprise &amp; Multispectral</h1><p>Herstellerbasierte Modellprofile und Live-Registry-Abgleich. Mavic 3M wird als verwandte, eigenständige Multispectral-Produktlinie berücksichtigt.</p></div><span class="pill lab">MODELLKATALOG · KEINE FREIGABE</span></div>
+      <p class="family-safety">Keine implizite Cloud-API-2-Geräteunterstützung, keine DJI-Schlüssel und keine Missions- oder Flugbefehle. Modelldaten sind Referenzangaben; Verbindungszustände stammen ausschließlich aus der bestehenden SkyHub-Registry.</p>
+      <div id="mavic3-models" class="family-grid" aria-label="Mavic-3-Modell wählen"></div>
+      <div class="columns family-columns">
+        <article class="card" id="mavic3-detail" aria-live="polite"></article>
+        <article class="card"><div class="card-top"><b>LIVE-REGISTRY-ABGLEICH</b><span>CLOUD API 1.x</span></div>
+          <p id="mavic3-count">Noch nicht abgefragt.</p><div id="mavic3-registry" aria-live="polite"><p class="empty">Keine aktuelle Abfrage.</p></div>
+          <p class="hint">Geräte werden nur anhand gemeldeter Modellnamen zugeordnet. Keine Seriennummern, Positionen oder unbestätigten Nutzdaten.</p>
+        </article>
+      </div>
+      <p class="hint">Quellen: offizielle DJI Mavic 3 Enterprise / Mavic 3 Multispectral Produktdaten. Mavic 3D/3TD gehören zur Dock-Baureihe und sind nicht Teil dieser Übersicht.</p>
+    </section>
+    <section id="view-m4t-hardware" class="view" hidden>
+      <p class="eyebrow">HARDWARE EVIDENCE / DJI CLOUD API 1.x / READ-ONLY</p>
+      <div class="heading"><div><h1>Matrice 4T &amp; RC Plus 2</h1>
+        <p>Hardwarediagnostik für Controller und Fluggerät. Live-Smoketest, Runtime-Modulprüfung und Pi-Preflight bleiben getrennte Nachweise.</p></div>
+        <span class="pill lab">KEINE FLUGFREIGABE</span></div>
+      <p class="family-safety">Eine erfolgreiche Transportprüfung bedeutet weder vollständige Hardwareabnahme noch Freigabe von Kamera, Thermal, Laser, Missionen oder DRC. Synthetische Tests und historische Pi-Messungen werden nicht als aktueller Live-Nachweis ausgegeben.</p>
+      <div class="hardware-actions">
+        <button type="button" class="primary" id="loadM4tHardware">Aktuellen Hardware-Smoke lesend prüfen</button>
+        <label for="m4tReceiptFile" class="hardware-upload">Anonymisierten Pi-Beleg (JSON) öffnen</label>
+        <input id="m4tReceiptFile" type="file" accept=".json,application/json" aria-describedby="m4tImportHelp">
+      </div>
+      <p id="m4tImportHelp" class="hint">JSON-Belege von <code>scripts/pi-rc-plus2-m4t-check.js --preflight --json</code>, <code>--runtime-check --json</code> oder <code>--json</code> lokal prüfen. Die Datei wird nicht hochgeladen. Die Serverabfrage benötigt bestehende SkyHub-Berechtigung; keine Tokenabfrage in dieser Seite.</p>
+      <div class="bar"><span id="m4tHardwareStatus" role="status" aria-live="polite">Kein aktueller Test ausgeführt oder importiert. Ausschließlich lesende Aufrufe auf ausdrücklichen Klick.</span><span class="pill">GET / HARDWARE / VIEW TOKEN</span></div>
+      <div id="m4tHardwareReceipts" class="hardware-receipts" aria-live="polite">
+        <p class="empty">Noch kein aktueller Hardware-Nachweis geladen. Der unten dokumentierte historische Smoketest wird nicht automatisch übernommen.</p>
+      </div>
+      <article class="card below">
+        <div class="card-top"><b>LETZTER DOKUMENTIERTER PI-TEST</b><span>HISTORISCH · 25.10.2026</span></div>
+        <div class="hardware-history">
+          <div><small>RC PLUS 2</small><strong>21 / 54</strong><span>statische Felder beobachtet</span></div>
+          <div><small>MATRICE 4T</small><strong>100 / 202</strong><span>vorläufig katalogisierte Felder beobachtet</span></div>
+          <div><small>PAIRING / OSD</small><strong>1 Paar</strong><span>OSD-Alter je 1 s</span></div>
+          <div><small>ABNAHME</small><strong>OFFEN</strong><span>Transport-Smoke ≠ Flugfreigabe</span></div>
+        </div>
+        <p class="hint">Dokumentierter Folgebeleg: 25.10.2026, 21:22:23 UTC. Diese Werte sind keine aktuelle Telemetrie. <a href="https://github.com/mason82-dotcom/SkyHub-Next/blob/main/docs/hardware-acceptance-status-2026-10-24.md" target="_blank" rel="noopener noreferrer">Hardware-Evidence-Dokumentation ↗</a></p>
+      </article>
+    </section>
+    <section id="view-planning" class="view" hidden>
+      <p class="eyebrow">SKYHUB WPML · PLANUNG / NICHT FLIEGBAR</p>
+      <div class="heading">
+        <div><h1>Missionseditor &amp; Routenplaner</h1>
+          <p class="planning-intro">Ein gemeinsamer Zugang zu den bestehenden SkyHub-WPML-Werkzeugen: Wegpunktmissionen bearbeiten, Flächen- und Scanrouten planen und Entwurfsrevisionen verwalten. Es werden keine neuen Flug- oder DJI-API-2-Befehle eingeführt.</p></div>
+        <span class="pill lab">ENTWURF · KEIN MISSIONSVERSAND</span>
+      </div>
+      <div class="planning-flow" role="group" aria-label="Planungswerkzeug wählen">
+        <button type="button" class="planning-choice" data-planning-tool="editor" aria-controls="planningFrame-editor" aria-pressed="false">
+          <strong>WPML-Missionseditor</strong>
+          <small>Wegpunkte auf der Karte, Missionsparameter, Pilot-2-KMZ-Entwurf und lokale Prüfungen.</small>
+          <em>WEGPUNKTROUTE · BESTEHENDES MODUL</em>
+        </button>
+        <button type="button" class="planning-choice" data-planning-tool="area" aria-controls="planningFrame-area" aria-pressed="false">
+          <strong>Flächen- und Routenplaner</strong>
+          <small>Polygonflächen, Scanstreifen, 2D-Abdeckung, fünf Blickrichtungen und optionale DEM-Stichprobe.</small>
+          <em>GEOMETRIEVORSCHAU · NICHT FLIEGBAR</em>
+        </button>
+        <button type="button" class="planning-choice" data-planning-tool="library" aria-controls="planningFrame-library" aria-pressed="false">
+          <strong>Routenbibliothek</strong>
+          <small>Entwurfsrevisionen vergleichen, lokal speichern und ausdrücklich ausgelöste Bibliotheksaktionen nutzen.</small>
+          <em>REVISIONEN · KEINE FLUGFREIGABE</em>
+        </button>
+      </div>
+      <p class="planning-safety"><strong>Planung ist keine Flugfreigabe.</strong> Kartenkacheln und optionale Höhendaten können externe Dienste verwenden. Höhenbezug, Hindernisse, Flugzonen, Nutzlast und Gerätekompatibilität sind gesondert zu verifizieren. Der Flächenplaner erzeugt ausdrücklich keine ausführbaren Waylines. Kein DJI Cloud API 2 Runtime-Zugriff, keine Missionsübertragung, keine automatische MinIO-Synchronisierung. Die bestehenden Editor- und Bibliotheksseiten enthalten separat ausgelöste Speicher- und Löschaktionen (lokal beziehungsweise über die autorisierte MinIO-Schnittstelle); diese werden hier nicht erweitert oder automatisch betätigt.</p>
+      <article class="card below" aria-label="Planungsarbeitsbereich">
+        <div class="planning-workspace-header">
+          <p id="planningStatus" role="status" aria-live="polite">Planungswerkzeug auswählen. Originalmodule werden erst nach Klick geladen.</p>
+          <a id="planningOpenFull" class="secondary" href="/wpml-editor.html" target="_blank" rel="noopener noreferrer">Missionseditor separat öffnen</a>
+        </div>
+        <div class="planning-frame-wrap">
+          <p id="planningEmpty" class="planning-empty">Wähle oben ein Werkzeug aus. Für größere Karten oder auf Smartphones kannst du den Editor jederzeit separat öffnen.</p>
+          <iframe id="planningFrame-editor" class="planning-frame" title="SkyHub WPML-Missionseditor" referrerpolicy="strict-origin-when-cross-origin" hidden></iframe>
+          <iframe id="planningFrame-area" class="planning-frame" title="SkyHub Flächen- und Routenplaner" referrerpolicy="strict-origin-when-cross-origin" hidden></iframe>
+          <iframe id="planningFrame-library" class="planning-frame" title="SkyHub Routenbibliothek" referrerpolicy="strict-origin-when-cross-origin" hidden></iframe>
+        </div>
+        <p class="hint">Bei fehlender Einbettungsfreigabe oder engem Smartphone-Viewport das Originalmodul über „separat öffnen“ verwenden. Zwischen den Ansichten bleiben bereits geladene Frames bestehen; dies ist keine dauerhafte Speicherung offener Eingaben.</p>
+      </article>
+    </section>
+    <section id="view-simulator" class="view" hidden>
+      <p class="eyebrow">OFFLINE / SANDBOX</p>
+      <div class="heading"><div><h1>Gerätesimulator</h1><p>Deterministisches Testprofil für eine fiktive Matrice 4T mit RC Plus 2. Kein DJI-Gerät, kein Broker, keine geografische Position.</p></div><span class="pill lab">SYNTHETISCH / KEIN FLUG</span></div>
+      <div class="sim-layout"><article class="card"><div class="card-top"><b>LAB-DEVICE-01</b><span id="frame">FRAME 01 / 05</span></div>
+        <div class="sim-visual"><div class="mesh"></div><div class="halo large"></div><div class="halo small"></div><div class="drone">✣</div><span>SCHEMATISCHE ANSICHT / KEINE REALPOSITION</span></div>
+        <div class="sim-metrics"><div><small>FLUGPHASE</small><b id="phase">Bereit</b></div><div><small>HÖHE (LAB)</small><b id="height">0 m</b></div><div><small>AKKU (LAB)</small><b id="battery">96 %</b></div><div><small>LINK (LAB)</small><b id="link">100 %</b></div></div>
+        <div class="actions"><button id="next" class="primary" type="button">Nächster Labor-Frame →</button><button id="reset" class="secondary" type="button">Zurücksetzen</button><button id="download" class="secondary" type="button">JSON exportieren</button></div>
+      </article><article class="card"><div class="card-top"><b>LABORPROTOKOLL</b><span>IN-MEMORY</span></div><ol id="labLog" class="log"></ol><p class="warning">Alle Zustände sind vorgefertigt und synthetisch. Die Buttons erzeugen keine Start-, Missions-, Rückkehr- oder Landebefehle.</p></article></div>
+    </section>
+    <section id="view-contracts" class="view" hidden>
+      <p class="eyebrow">P1 / OFFLINE CONTRACT / EXISTING SKYHUB GET ONLY</p>
+      <div class="heading"><div><h1>API-2-Vertragsprüfung</h1>
+        <p>Versionsgebundener DJI-Cloud-API-2-V1.1.0-Katalog gegen die vorhandene SkyHub-DaaS-Lesefassade. Modellnennung ist keine Hardwarefreigabe.</p></div>
+        <button id="inspectReadOnlyAdapter" type="button" class="secondary">Lesevertrag prüfen (GET)</button>
+      </div>
+      <div class="bar"><span id="readonlyAdapterStatus" role="status" aria-live="polite">Noch nicht geprüft. Die Abfrage erfolgt ausschließlich nach Klick.</span><span class="pill">SCHREIBWEGE GESPERRT</span></div>
+      <article class="card below">
+        <div class="card-top"><b>VERTRAG &amp; SDK-STAND</b><span>KEINE DJI-RUNTIME</span></div>
+        <div id="readonlyAdapterSummary" class="features" aria-live="polite"></div>
+        <p class="hint">Quelle: revisionsgebundener, statischer Herstellerkatalog. Das Ergebnis ist keine Live-/Lizenz-/Firmware-/Flugabnahme und kein Geräte- oder Medien-Herkunftsnachweis.</p>
+      </article>
+      <article class="card below">
+        <div class="card-top"><b>GERÄTEFAMILIEN</b><span>7 REFERENZPROFILE</span></div>
+        <div id="readonlyAdapterDevices" class="integration-grid" aria-live="polite"></div>
+      </article>
+      <article class="card below">
+        <div class="card-top"><b>SDK-CAPABILITY-MATRIX</b><span>13 VERTRÄGE</span></div>
+        <div id="readonlyAdapterModules" class="integration-grid" aria-live="polite"></div>
+        <p class="warning">Mission-Dispatch, DRC und DJI-MCP-Aktionen sind nicht Teil dieser Fassade. Es werden weder Authentifizierungsdaten angefordert noch Gerätebefehle übertragen.</p>
+      </article>
+      <article class="card below p2-provenance"><div class="card-top"><b id="p2-compare-title">Datenherkunft &amp; Vergleich</b><span>READ ONLY / MOCK</span></div><p id="p2-compare-intro">Vergleich getrennter Datenquellen.</p><div id="p2-provenance"></div><p id="p2-compare-status" role="status" aria-live="polite">Kein automatischer Cross-System-Abgleich</p></article>
+    </section>
+    <section id="view-sdk" class="view" hidden>
+      <p class="eyebrow">KEYLESS API / DEVELOPER KIT</p><div class="heading"><div><h1>SDK &amp; Bausteine</h1><p>SkyHub-eigene objektorientierte GET-Fassade, lokale Komponenten und Schnittstellenstatus. Keine Behauptung einer installierten DJI-Java-Runtime.</p></div><span class="pill">NO DJI KEY</span></div>
+      <div class="columns"><article class="card"><div class="card-top"><b>OBJECT-ORIENTED CLIENT</b><span>ES MODULE</span></div>
+        <h2>Drei sichere Leseoperationen.</h2><pre><code>import { SkyHubDaaSClient } from
+  '/cloud-api2-sdk.mjs';
+
+const client = new SkyHubDaaSClient();
+const status = await client.getStatus();
+const devices = await client.listDevices();
+const modules = await client.getCapabilities();</code></pre><p>Der Client verwendet nur same-origin-GET. Die vorhandene SkyHub-Authentifizierung gilt unverändert.</p>
+      </article><article class="card"><div class="card-top"><b>BAUSTEIN-MATRIX</b><span>VERFÜGBARKEIT</span></div><div id="modules" class="features"></div></article></div>
+      <article class="card below"><div class="card-top"><b>DJI HERSTELLERKOMPONENTEN</b><span>REFERENZ</span></div><p>Das offizielle Cloud API 2 Java/JNI SDK, der DJI-PaaS-Dienst sowie proprietäre Frontend-Skripte sind nicht Bestandteil dieser Implementierung. Sie werden nicht von unbekannten Quellen nachgeladen, und die Webseite funktioniert ohne sie.</p><a href="https://github.com/dji-sdk/Cloud-API-2/tree/main/docs/cn" target="_blank" rel="noopener noreferrer">DJI Cloud API 2 Dokumentation ↗</a></article>
+    </section>
+    <section id="view-integrations" class="view" hidden>
+      <p class="eyebrow">SKYHUB MODULES / DJI DEVELOPER REFERENCES</p>
+      <div class="heading"><div><h1>Module &amp; Developer Skills</h1>
+        <p>Sichere Einstiegspunkte in bestehende SkyHub-Seiten und geprüfte Verweise auf die DJI-Entwicklerressourcen. Diese Übersicht installiert weder SDK noch Plugin und führt keine DJI-Aktionen aus.</p></div>
+        <span class="pill">REFERENCE ONLY</span>
+      </div>
+      <article class="card"><div class="card-top"><b>SKYHUB-EIGENE MODULE</b><span>NAVIGATION / KEINE CLOUD-2-BRIDGE</span></div>
+        <div id="moduleCatalog" class="integration-grid"></div>
+        <p class="hint">Die Navigation bestätigt keine Verfügbarkeit auf dem laufenden Raspberry Pi. Missionsvorschau und Kartenvorschau sind keine Flugfreigabe; Thermalwerte benötigen gesonderte Genauigkeitsnachweise.</p>
+      </article>
+      <article class="card below"><div class="card-top"><b>OFFIZIELLE DJI DEVELOPER SKILLS</b><span>NICHT INSTALLIERT</span></div>
+        <div id="skillCatalog" class="skill-grid"></div>
+        <p class="warning">Die Links zeigen auf Herstellerdokumentation. Es erfolgt keine automatische Installation, SDK-Initialisierung oder MCP-Verbindung. Der offizielle DJI-MCP-Server enthält auch Flugsteuerungsfunktionen und bleibt außerhalb des read-only-Umfangs.</p>
+      </article>
+    </section>
+    <section id="view-ai" class="view" hidden>
+      <p class="eyebrow">AI ENGINEERING / LOCAL</p><div class="heading"><div><h1>KI-Entwicklungswerkstatt</h1><p>Vorlagen für Architektur, Protokollprüfung, Simulation, Frontend und Sicherheits-Audits. Keine Modellanfragen, keine Automatisierung und keine Geräteaktionen.</p></div><span class="pill lab">OFFLINE</span></div>
+      <div class="columns"><article class="card"><div class="card-top"><b>PROMPT-WERKZEUG</b><span>LOCAL ONLY</span></div>
+        <label for="task">Arbeitsbereich</label><select id="task"><option value="parity">Cloud API 1.x / API 2 Feldvergleich</option><option value="backend">DaaS Backend-Adapter</option><option value="sim">Offline-Simulator</option><option value="frontend">Frontend-Komponenten</option><option value="security">Read-only-Sicherheits-Audit</option></select>
+        <label for="target">Konkretes Entwicklungsziel</label><textarea id="target" maxlength="600" rows="4" placeholder="z. B. doppelte Topologie-Events erkennen"></textarea>
+        <div class="actions"><button id="generate" class="primary" type="button">Vorlage erzeugen</button><button id="copy" class="secondary" type="button">Kopieren</button></div><p class="hint" id="promptStatus" role="status">Verarbeitung ausschließlich im Browser.</p>
+      </article><article class="card"><div class="card-top"><b>GENERIERTE VORLAGE</b><span>MANUELL VERWENDEN</span></div><pre class="prompt" id="prompt">Wählen Sie einen Bereich und erzeugen Sie eine Vorlage.</pre></article></div>
+      <article class="card below"><div class="card-top"><b>DJI AI PLUGIN / MCP</b><span>NICHT AKTIV</span></div><p>Die originalen DJI AI Skills und MCP-Werkzeuge sind hier nicht installiert. Dieser Baustein bietet eigenständige Schlüssel-freie Vorlagen und schaltet ausdrücklich keine KI-gestützte Flugsteuerung frei.</p></article>
+    </section>
+    <footer>SKYHUB NEXT <span>·</span> CLOUD API 2 LAB <span>·</span> ENTWICKLUNGSSTAND <span>·</span> KEINE HARDWARE- ODER FLUGFREIGABE</footer>
+  </main>
+</div></div>
+</body></html>

@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Smart Farming · SkyHub (Labor)</title>
+<style>
+
+*{box-sizing:border-box}
+body{margin:0}
+a{color:#a3ebff}
+:focus-visible{outline:2px solid #a3ebff;outline-offset:3px}
+[hidden]{display:none!important}
+header.skyhub-pagehead{border-bottom:1px solid var(--line);padding:18px clamp(16px,4vw,44px);display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+header.skyhub-pagehead h1{font-size:clamp(21px,3vw,29px);margin:0}
+main{max-width:1220px;margin:0 auto;padding:22px clamp(16px,4vw,44px) 80px}
+.intro{max-width:75ch;color:var(--muted)}
+.tag{display:inline-block;color:#fde2a9;border:1px solid #735c37;border-radius:100px;padding:3px 10px;font-size:12px;margin-bottom:8px}
+.warning{border:1px solid #866b3d;background:#281f17;padding:16px;border-radius:12px;line-height:1.65}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;margin-top:22px}
+.panel h2{font-size:19px;margin:0 0 14px}
+label{display:block;font-weight:600;margin:12px 0 7px}
+.form{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+input,button{font:inherit;color:inherit;padding:10px 14px;border-radius:9px;border:1px solid #476077}
+input{background:#081524;min-width:min(260px,100%);flex:1;max-width:480px}
+button{background:#12697f;cursor:pointer;font-weight:600}
+button:hover{background:#1c839c}button:disabled{opacity:.6;cursor:wait}
+button.secondary{background:#243b51}
+#catalogStatus{margin:14px 0 2px;min-height:26px;color:var(--muted)}
+#catalogStatus[data-kind="error"]{color:#ffbeae}
+.layout{display:grid;grid-template-columns:minmax(260px,1fr) minmax(0,2.2fr);gap:20px}
+.candidate-button{width:100%;text-align:left;background:#132b3d;margin:4px 0;overflow-wrap:anywhere;font:13px ui-monospace,monospace}
+.candidate-button[aria-pressed="true"]{border-color:var(--accent);background:#18495a}
+.metric-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.metric-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.metric-card h3{color:#a9f1e4;margin:0 0 8px}
+.metric-stats{display:grid;grid-template-columns:1fr auto;gap:5px 12px;margin:0}
+.metric-stats dt{color:var(--muted)}.metric-stats dd{margin:0;font-variant-numeric:tabular-nums;font-weight:600}
+.metric-note,.empty-state,.fine{color:var(--muted);font-size:13px}
+a.fine{display:inline-flex;align-items:center;min-height:32px}
+.metric-note{margin:14px 0 0}
+small{color:var(--muted)}
+.capture-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.capture-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr));gap:16px;margin-top:14px}
+.capture-card{min-width:0;overflow-wrap:anywhere;border:1px solid var(--sky-border,#334c63);border-radius:12px;padding:14px;background:var(--sky-white,#182b41);display:grid;gap:10px;align-content:start}
+.capture-card h3{margin:0;font-size:16px}
+.capture-card figure{margin:0}
+.capture-card img{width:100%;height:auto;border-radius:8px;display:block;background:#0b1928}
+.capture-card figcaption{font-size:12px;color:var(--sky-muted,#b1c2d2);margin-top:4px}
+.capture-status{display:inline-block;font-size:12px;font-weight:700;border-radius:100px;padding:2px 10px;border:1px solid}
+.capture-status.ok{color:var(--sky-success,#8fe3b0);background:var(--sky-success-soft,transparent)}
+.capture-status.bad{color:var(--sky-warning,#ffbeae);background:var(--sky-warning-soft,transparent)}
+.band-row{display:flex;flex-wrap:wrap;gap:6px}
+.band-chip{font-size:12px;border:1px solid var(--sky-border,#476077);border-radius:8px;padding:3px 8px;text-decoration:none}
+.band-chip.missing{opacity:.55;border-style:dashed}
+.capture-table{width:100%;border-collapse:collapse;font-size:13px}
+.capture-table th,.capture-table td{text-align:left;padding:4px 6px;border-bottom:1px solid var(--sky-border,#334c63)}
+.capture-issues{margin:0;padding-left:18px;font-size:13px;color:var(--sky-warning,#ffbeae)}
+@media(max-width:800px){.layout{grid-template-columns:1fr}.metric-grid{grid-template-columns:1fr}header.skyhub-pagehead{align-items:flex-start}}
+</style>
+<link rel="stylesheet" href="/skyhub-light.css">
+<script defer src="/skyhub-nav.js"></script>
+</head>
+<body data-skyhub-page="smart-farming">
+<a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
+<!-- skyhub-appbar -->
+<header class="skyhub-appbar">
+  <a class="skyhub-appbar-brand" href="/"><span class="brand-symbol" aria-hidden="true">✦</span>SkyHub <span>Next</span></a>
+  <nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
+    <a href="/">Lagebild</a>
+    <details class="skyhub-nav-group"><summary>Planen</summary><div class="skyhub-nav-menu">
+      <p class="skyhub-nav-section">Mission</p>
+      <a href="/wpml-editor.html">Missionsentwurf<small>Wegpunkte setzen, KMZ importieren</small></a>
+      <a href="/wpml-route-library.html">Routenbibliothek<small>Gespeicherte Routen und Revisionen</small></a>
+      <a href="/missionsfreigabe.html">Missionsfreigabe<small>Revision für Pilot 2 freigeben</small></a>
+      <p class="skyhub-nav-section">Karte in Pilot 2</p>
+      <a href="/kartenelemente.html">Kartenelemente<small>Punkte, Linien und Flächen</small></a>
+      <p class="skyhub-nav-section is-lab">Labor <span>experimentell, nicht für den Einsatz freigegeben</span></p>
+      <a href="/wpml-survey-preview.html" class="is-lab">Vermessungsvorschau<small>2D-Flächenvermessung, nur Vorschau</small></a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Fliegen</summary><div class="skyhub-nav-menu">
+      <a href="/drc.html">Live-Steuerung<small>Matrice 4 · RC Plus 2</small></a>
+      <a href="/drc.html?rc=pro">Kamera &amp; Gimbal<small>Mavic 3 · RC Pro</small></a>
+    </div></details>
+    <details class="skyhub-nav-group is-active"><summary>Auswerten</summary><div class="skyhub-nav-menu">
+      <p class="skyhub-nav-section">Medien &amp; Position</p>
+      <a href="/media-gallery.html">Medien<small>Fotos, Videos, TIFFs, Missionsdateien</small></a>
+      <a href="/ppk.html">PPK-Geotagging<small>Zentimetergenaue Kamerapositionen</small></a>
+      <a href="/abdeckung.html">Fotoabdeckung<small>Lücken und Überlappung eines Flugs</small></a>
+      <p class="skyhub-nav-section">Sensorik</p>
+      <a href="/thermal.html">Thermal<small>Temperaturen aus DJI R-JPEG</small></a>
+      <a href="/ndvi.html">Vegetationsindizes<small>NDVI, GNDVI, NDRE · Mavic 3M</small></a>
+      <p class="skyhub-nav-section is-lab">Labor <span>experimentell, nicht für den Einsatz freigegeben</span></p>
+      <a href="/smart-farming.html" class="is-lab" aria-current="page">Smart Farming<small>M3M-Indexkandidaten, nur Lesen</small></a>
+      <a href="/smart-farming-map-lab.html" class="is-lab">Vegetationskarte<small>Georeferenzierte Vorschau</small></a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Diagnose</summary><div class="skyhub-nav-menu">
+      <a href="/fh-diagnostics.html">RTK &amp; Flugsitzungen<small>RTK-Status und Sitzungsverlauf</small></a>
+      <a href="/pilot-protokolle.html">Pilot-2-Protokolle<small>Von der Fernsteuerung gesendet</small></a>
+    </div></details>
+  </nav>
+</header>
+<!-- /skyhub-appbar -->
+<header class="skyhub-pagehead">
+  <div>
+    <span class="tag">Experimentell · Nicht kalibriert</span>
+    <h1>Smart Farming <span class="muted">Labor · M3M-Indexkandidaten, nur Lesen</span></h1>
+  </div>
+</header>
+<main id="skyhubMain" tabindex="-1">
+  <p class="intro">Read-only-Übersicht für geprüfte, aber wissenschaftlich noch nicht freigegebene Mavic-3M-Indexkandidaten. Die Katalogschnittstelle ist standardmäßig deaktiviert.</p>
+  <p class="fine"><a href="/smart-farming-map-lab.html">Privates Kartenlabor öffnen (lokale Dateien, ohne Upload)</a> – experimentelle georeferenzierte Vorschau; keine aktiven GIS-Dienste oder Flugfreigaben.</p>
+  <section class="warning" aria-label="Sicherheitshinweis">
+    <strong>Keine kalibrierte Vegetationskarte.</strong>
+    Die Ergebnisse sind ausschließlich experimentelle Metadaten. Es gibt weder GIS-/Kartenkacheln noch bestätigte Reflexionskalibrierung, Düngeempfehlungen, Ausbringkarten, Flugmissionen oder Agras-Ansteuerung.
+    Ein gültiger Kataloghash bestätigt nur die Kandidatendaten am Lesezeitpunkt; keine erneute Rasterprüfung.
+  </section>
+  <section class="panel" aria-labelledby="capturesHeading">
+    <div class="capture-head">
+      <h2 id="capturesHeading">Multispektral-Aufnahmen (Mavic 3M)</h2>
+      <div class="form">
+        <button id="loadCaptures" type="button">Aufnahmen neu einlesen</button>
+        <a id="captureManifest" class="fine" href="/api/smart-farming/captures/manifest" download>Aufnahme-Manifest (JSON) für die Orthomosaik-Pipeline</a>
+      </div>
+    </div>
+    <p class="fine">Band-TIFFs (Grün, Rot, RedEdge, NIR) werden über die CaptureUUID zusammengeführt, auch aus SD-Import und Pilot-2-Upload. Mehrdeutige Bänder bleiben gesperrt. Vollständigkeit und Metadaten-Kandidaten werden getrennt bewertet. Einzelbilder, kein Orthomosaik und keine kalibrierte Reflexion.</p>
+    <p id="captureStatus" class="fine" role="status" aria-live="polite">Aufnahmen werden eingelesen …</p>
+    <div id="captureList" class="capture-grid" aria-label="Multispektral-Aufnahmen"></div>
+  </section>
+  <section class="panel" aria-labelledby="accessHeading">
+    <h2 id="accessHeading">Katalog</h2>
+    <div class="form">
+      <button id="loadCatalog" type="button">Katalog neu laden</button>
+      <button id="clearCatalog" type="button" class="secondary">Ansicht leeren</button>
+    </div>
+    <p class="fine">Im Heimnetz wird der Katalog automatisch und ohne Anmeldung geladen. Alle Smart-Farming-Dateien (Multispektral-TIFFs, Vorschauen, GeoJSON) zeigt die <a href="/media-gallery.html#b=farming">Mediengalerie · farming</a>.</p>
+    <p id="catalogStatus" data-kind="normal" role="status" aria-live="polite">Kein Katalog geladen.</p>
+  </section>
+  <section class="layout" aria-label="Experimentelle Analysen">
+    <div class="panel">
+      <h2>Registrierte Kandidaten (<span id="catalogCount">—</span>)</h2>
+      <div id="candidateList" aria-label="Kandidaten-Auswahl"></div>
+    </div>
+    <div class="panel" id="candidateDetails" hidden>
+      <h2>Indexkennzahlen</h2>
+      <p id="candidateName" class="fine"></p>
+      <div class="metric-grid" id="layerGrid"></div>
+      <p class="fine">NDVI, NDRE, GNDVI und OSAVI sind dimensionslose Indexwerte. Die Pixelanzahl bezeichnet gültige Analysepixel, nicht die abgedeckte Feldfläche.</p>
+    </div>
+  </section>
+</main>
+<script src="/smart-farming-ui.js"></script>
+<script src="/smart-farming-captures.js"></script>
+<script>
+'use strict';
+if(window.SkyHubSmartFarming)window.SkyHubSmartFarming.mount(document);
+</script>
+</body>
+</html>

@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="referrer" content="no-referrer">
-  <title>SkyHub Next – DJI Pilot 2</title>
+  <title>SkyHub Next · DJI Pilot 2</title>
   <style>
-    :root{font-family:system-ui,"Segoe UI",sans-serif;color-scheme:dark}
+    :root{font-family:system-ui,"Segoe UI",sans-serif;color-scheme:light}
     *{box-sizing:border-box}
     body{margin:0;background:#0b1220;color:#f1f5f9}
     main{max-width:720px;margin:0 auto;padding:28px 20px}
@@ -94,10 +94,12 @@ main > p.detail:last-child {
 }
 
 </style>
+<link rel="stylesheet" href="/skyhub-light.css">
 </head>
-<body>
-<main>
-  <header><strong>SkyHub <span style="color:#38bdf8">Next</span></strong><span class="tag">DJI Pilot 2 · Cloud API</span></header>
+<body data-skyhub-page="pilot">
+<a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
+<main id="skyhubMain" tabindex="-1">
+  <header><strong>SkyHub <span class="pilot-brand-accent">Next</span></strong><span class="tag">DJI Pilot 2 · Cloud API</span></header>
   <h1>Drittanbieter-Cloud-Verbindung</h1>
   <p>Diese Seite stellt die DJI-Lizenzprüfung und den MQTT-Verbindungsaufbau bereit, sobald die Plattform sicher konfiguriert ist. Eine geladene Webseite ist <strong>noch keine MQTT-Verbindung</strong>.</p>
   <section class="panel">
@@ -113,16 +115,30 @@ main > p.detail:last-child {
     <button id="diagnose" type="button" disabled>DJI-Status prüfen</button>
     <button id="unpair" type="button" hidden disabled>Kopplung entfernen</button>
     <pre id="diagnostics" aria-label="DJI-Statusdiagnose"></pre>
-    <details>
-      <summary>Manuell mit Zugangstoken verbinden</summary>
-      <label for="access">SkyHub-Pilot-Zugangstoken</label>
-      <input id="access" type="password" autocomplete="off" spellcheck="false" placeholder="Pilot-Zugangstoken eingeben">
-      <button id="start" type="button" disabled>DJI Cloud verbinden</button>
-    </details>
     <p class="warning" id="security">Die Übermittlung der Zugangsdaten erfordert HTTPS.</p>
     <p id="result" role="status" aria-live="polite"></p>
   </section>
-  <p class="detail">Die Konfiguration verwendet ausschließlich den bestehenden EMQX-Broker auf Raspberry-Pi-Port 1884. Die Übernahme des bisherigen SkyHub-Dienstes auf Port 4000 erfolgt erst nach einem getrennten Freigabetest.</p>
+  <section id="livePanel" class="panel" hidden aria-labelledby="liveHeadline">
+    <strong id="liveHeadline">Livestream an SkyHub</strong>
+    <p class="detail">Überträgt das Kamerabild an das SkyHub-Dashboard im Heimnetz. Start und Stopp nur hier oder in der DJI-Übertragungsansicht; SkyHub startet den Stream nie selbst.</p>
+    <p id="liveState" class="detail" role="status" aria-live="polite">Livestream nicht aktiv.</p>
+    <button id="liveStart" type="button" hidden disabled>Livestream starten</button>
+    <button id="liveStop" type="button" hidden disabled>Livestream beenden</button>
+  </section>
+  <section id="uploadPanel" class="panel" hidden aria-labelledby="uploadHeadline">
+    <strong id="uploadHeadline">Letzte Routen-Uploads an SkyHub</strong>
+    <p class="detail">Pilot 2 meldet jede Ablehnung nur als „Netzwerkfehler“ – hier steht der Grund.</p>
+    <ul id="uploadList" class="detail" aria-live="polite"></ul>
+  </section>
+  <section id="logPanel" class="panel" hidden aria-labelledby="logHeadline">
+    <strong id="logHeadline">Pilot-2-Protokoll an SkyHub senden</strong>
+    <p class="detail">Bei Fehlern in Pilot 2: Protokolldatei wählen und senden. Sie wird in SkyHub entschlüsselt (Protokollansicht, 30 Tage).</p>
+    <p id="logPath" class="detail"></p>
+    <input id="logFile" type="file" aria-label="Protokolldatei auswählen">
+    <button id="logSend" type="button" disabled>Protokoll senden</button>
+    <p id="logState" class="detail" role="status" aria-live="polite"></p>
+  </section>
+  <p class="detail">Die MQTT-Verbindung und der verwendete Broker-Port werden durch die serverseitige SkyHub-Konfiguration vorgegeben. Die geladene Kopplungsseite bestätigt weder die aktive Verbindung noch eine Freigabe zur Übernahme anderer SkyHub-Dienste.</p>
 </main>
 <script src="/pilot-login.js" defer></script>
 </body>

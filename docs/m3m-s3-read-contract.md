@@ -1,6 +1,6 @@
 # M3M: isolierter, prefixgebundener S3-ListObjectsV2-Vertrag
 
-**Stand 23.10.2026.** Ausgangsbasis: [PR #24](https://github.com/mason82-dotcom/SkyHub/pull/24) enthält eine funktionsreiche MinIO-/HTTP-/Pilot-2-Integration. Für diesen kleinen, unabhängigen PR wurde **nur das Lese-/Pagination-Konzept** herausgelöst und gegen den aktuellen Main-Stand sowie die bereits gemergte [lokale Dateinamen-Inventur #68](https://github.com/mason82-dotcom/SkyHub/pull/68) gehärtet. **Nicht Teil der aktuellen SkyHub-HTTP-Runtime.**
+**Stand 23.10.2026.** Ausgangsbasis: [PR #24](https://github.com/mason82-dotcom/SkyHub-Next/pull/24) enthält eine funktionsreiche MinIO-/HTTP-/Pilot-2-Integration. Für diesen kleinen, unabhängigen PR wurde **nur das Lese-/Pagination-Konzept** herausgelöst und gegen den aktuellen Main-Stand sowie die bereits gemergte [lokale Dateinamen-Inventur #68](https://github.com/mason82-dotcom/SkyHub-Next/pull/68) gehärtet. **Nicht Teil der aktuellen SkyHub-HTTP-Runtime.**
 
 ## Komponenten und echte Grenzen
 

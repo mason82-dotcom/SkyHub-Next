@@ -48,7 +48,7 @@ test('healthy paired RC Pro Enterprise and Mavic 3M are linked and have current 
   assert.equal(report.controller.osdFresh,true);
   assert.equal(report.aircraft.osdFresh,true);
   assert.equal(report.aircraft.aircraftConnected,true);
-  assert.equal(report.controller.propertyFields.documented,48);
+  assert.equal(report.controller.propertyFields.documented,55);
   assert.equal(report.aircraft.propertyFields.documented,150);
   assert.ok(report.aircraft.propertyFields.freshNames.includes('osd:mode_code'));
   const text=formatReport(report);
@@ -121,7 +121,7 @@ test('legacy backend without new DJI-property API remains transport-valid but fi
   assert.equal(report.aircraft.osdFresh,true);
   assert.equal(report.controller.propertyDiagnosticsAvailable,false);
   assert.equal(report.aircraft.propertyDiagnosticsAvailable,false);
-  assert.equal(report.controller.propertyFields.documented,48);
+  assert.equal(report.controller.propertyFields.documented,55);
   assert.equal(report.aircraft.propertyFields.documented,150);
   assert.equal(report.controller.propertyFields.observed,null);
   assert.equal(report.aircraft.propertyFields.missing,null);
