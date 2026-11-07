@@ -56,7 +56,7 @@ services:
 
   mosquitto:
     # Same config as /etc/skyhub-mosquitto on the Pi (auth, ACL, port 1884); files in ops/brix/mosquitto (600, uid 1000).
-    image: eclipse-mosquitto:2.0.22
+    image: eclipse-mosquitto:2.1.2-alpine
     restart: unless-stopped
     logging: *default-logging
     labels: *no-watchtower
