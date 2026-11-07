@@ -7,6 +7,7 @@
 - [`backend/db/migration-inventory.json`](../backend/db/migration-inventory.json) erfasst **jede** `.sql`-Datei direkt oder indirekt im Verzeichnis `backend/db/migrations/`.
 - `auto_apply:false` ist vorgeschrieben. Aktuell enthält das Register **keine** deploybare Kategorie. `offline_only` heißt ausschließlich, dass die Datei für isolierte Tests zur Verfügung steht; `blocked_draft` blockiert ausdrücklich die WPML-SQL-Skizze.
 - [`scripts/audit_sql_migrations.py`](../scripts/audit_sql_migrations.py) prüft Lesbarkeit, vollständige Inventur, eindeutige IDs, Versionen **innerhalb** einer Fachfamilie, Abhängigkeitsordnung, unbekannte Dateien und die Draft-Sperre. Weder eine Datenbankverbindung noch SQL-Ausführung oder Dateischreibzugriffe gehören zum Prüfer.
+- **Nachtrag 07.11.2026 (Register v2):** Jede SQL-Datei ist zusätzlich mit ihrem geprüften Git-Blob-SHA (`git_blob_sha`) fest verbunden. Jede Änderung an den Datei-Bytes ohne ausdrückliche, im PR sichtbare Aktualisierung des Pins führt zu FAIL. Der Prüfwert lässt sich ohne Datenbankzugriff durch `git hash-object backend/db/migrations/DATEI.sql` bestimmen. Ein geänderter Pin ist **keine** Freigabe zur Ausführung: SQL-Diff, Abhängigkeiten und bestehende Installationen müssen separat begutachtet werden.
 - Die CI führt diesen statischen Prüfer und dessen negativen Regressionstests aus. Der Python-Check ist **kein** Ersatz für isolierte PostGIS-Tests oder späteren Backup-/Restore-Nachweis.
 
 ## Bestandsaufnahme
