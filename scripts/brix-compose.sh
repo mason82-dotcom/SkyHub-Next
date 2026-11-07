@@ -28,5 +28,5 @@ case "$cmd" in
       exit 2
     fi ;;
 esac
-echo "+ ${compose[*]} $cmd ${args[*]:-}" >&2
+{ printf "+"; printf " %q" "${compose[@]}" "$cmd" ${args[@]+"${args[@]}"}; printf "\n"; } >&2   # one line, also for multi-line SQL arguments
 exec "${compose[@]}" "$cmd" ${args[@]+"${args[@]}"}
