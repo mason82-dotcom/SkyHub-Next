@@ -21,7 +21,7 @@ class DrcError extends Error{constructor(message,status=409){super(message);this
 
 function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=()=>{},aircraft,broker,limits={},audit=()=>{},onChange=()=>{},
   clock={now:()=>Date.now(),setInterval,clearInterval,setTimeout,clearTimeout},userId='skyhub',userCallsign='SkyHub Leitstand',
-  variant='rc-plus-2'}){
+  variant='rc-plus-2',transportReady=()=>true}){
   // variant 'rc-pro': RC Pro + Mavic 3 series, payload only (mqtt/rc-pro/drc): commands on services, no flight methods at all.
   const rcPro=variant==='rc-pro';
   const noFlight=()=>{if(rcPro)throw new DrcError('RC Pro: DJI erlaubt über die Cloud nur Kamera und Gimbal, keine Flugbefehle',409);};
@@ -51,6 +51,7 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
   // RC Pro camera-only is intentionally not treated as verified flight control.
   function linkProof(){
     if(rcPro)return {ready:false,reason:'RC Pro: kein Cloud-Flugsteuerkanal'};
+    if(!transportReady())return {ready:false,reason:'DRC-Broker nicht verbunden'};
     if(s.phase!=='drc_active')return {ready:false,reason:'DRC-Modus nicht aktiv'};
     if(s.rcDrcState!==2||s.rcDrcStateAt===null||now()-s.rcDrcStateAt>L.drcStateFreshMs)
       return {ready:false,reason:'Fernsteuerung bestätigt den DRC-Kanal nicht frisch'};
@@ -145,6 +146,16 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
     releaseTimer=clock.setTimeout(()=>{releaseTimer=null;if(s.failsafe?.pending)handBack('Fail-safe: '+reason);},L.releaseAfterMs);
     changed();
   }
+  // An interrupted MQTT connection invalidates every proof from that session.
+  // Motion frames or a returning browser lease must not revive the old link.
+  function invalidateLink(reason='DRC-Broker getrennt'){
+    s.rcDrcState=null;s.rcDrcStateAt=null;s.lastUpHeartbeat=null;
+    s.lastStick=null;
+    if(s.phase==='drc_active'||s.phase==='drc_pending'||s.phase==='authorized')
+      triggerFailsafe(reason);
+    changed();
+  }
+
   // Give control back to the RC: exit DRC, release cloud control. Errors are logged, the local state is reset regardless.
   async function handBack(why){
     log('hand-back',{why});
@@ -466,7 +477,7 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
     if(releaseTimer)clock.clearTimeout(releaseTimer);
   }
   return {acquire,holds,requestAuthorization,enterLiveControl,exitLiveControl,release,flyTo,flyToStop,takeoff,returnHome,
-    returnHomeCancel,emergencyStop,landing,stickInput,payload,lookAt,gimbalDrag,onUp,snapshot,shutdown,triggerFailsafe};
+    returnHomeCancel,emergencyStop,landing,stickInput,payload,lookAt,gimbalDrag,onUp,snapshot,shutdown,triggerFailsafe,invalidateLink};
 }
 
 function distance(a,b){
