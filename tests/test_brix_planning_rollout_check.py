@@ -160,7 +160,7 @@ class BrixPlanningRolloutCheckTests(unittest.TestCase):
                 return FakeResponse(source.read_bytes())
 
         with patch.object(checker, "HTTPConnection", CorruptConnection):
-            with self.assertRaises(UnicodeDecodeError):
+            with self.assertRaisesRegex(checker.Refusal, "Lokale Backend-HTTP-Prüfung nicht bestätigt"):
                 checker.http_check("192.168.178.50", 4001, post=True)
 
     def test_http_redirect_is_not_followed(self):
