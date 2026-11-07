@@ -1,0 +1,73 @@
+name: PV disposable PostgreSQL 16 contract
+
+# Development branch only. No production credentials, deployments or Pi access.
+on:
+  push:
+    branches:
+      - feature/pv-postgres-concurrency-ci-20261023
+    paths:
+      - '.github/workflows/pv-postgres-concurrency.yml'
+      - 'backend/test/pv-postgres-concurrency.integration.cjs'
+      - 'backend/experimental/pv_job_store.cjs'
+      - 'backend/experimental/pv_jobs_isolated.sql'
+      - 'docs/pv-postgres-concurrency-ci.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pv-postgres-disposable-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pv-disposable-postgres:
+    if: github.ref == 'refs/heads/feature/pv-postgres-concurrency-ci-20261023'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: skyhub_pv_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci_postgres_root_disposable_only
+        ports:
+          - '127.0.0.1:55439:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d skyhub_pv_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      - name: Checkout feature branch, do not retain credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install exact SkyHub backend test dependencies
+        run: npm ci --prefix backend --ignore-scripts --no-audit --no-fund
+      - name: Provision nonprivileged disposable role
+        env:
+          PV_ADMIN_CI_DSN: postgresql://postgres:ci_postgres_root_disposable_only@127.0.0.1:55439/skyhub_pv_ci
+        run: |
+          node <<'NODE'
+          'use strict';
+          const {Client}=require('./backend/node_modules/pg');
+          (async()=>{
+            const c=new Client({connectionString:process.env.PV_ADMIN_CI_DSN});
+            await c.connect();
+            try{
+              await c.query("CREATE ROLE pv_ci LOGIN PASSWORD 'ci_pv_disposable_only'");
+              await c.query('GRANT CONNECT,CREATE ON DATABASE skyhub_pv_ci TO pv_ci');
+            }finally{await c.end();}
+          })().catch(()=>{console.error('Disposable database provisioning failed');process.exitCode=1;});
+          NODE
+      - name: Execute genuine PostgreSQL transaction and concurrency checks
+        env:
+          PV_CI_DISPOSABLE: 'yes'
+          PV_CI_DATABASE_URL: postgresql://pv_ci:ci_pv_disposable_only@127.0.0.1:55439/skyhub_pv_ci
+        run: node --test backend/test/pv-postgres-concurrency.integration.cjs

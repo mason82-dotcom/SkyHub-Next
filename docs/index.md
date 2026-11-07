@@ -140,6 +140,7 @@ Diese Dokumente waren bisher nur über Suche oder PR-Beschreibungen erreichbar. 
 - [DJI Pilot 2 – Mediensynchronisation RC Plus 2 / RC Pro (manueller Upload)](dji-pilot2-media-sync.md)
 - [SkyHub Next – Thermalmodul (31.10.2026)](thermal.md)
 - [DJI Thermal SDK 1.9: isolierter Pi-5-A/B-Vergleich gegen SDK 1.7 (kein Upgrade)](thermal-tsdk19-parity.md)
+- [PV-Job-Store (experimentell): Nebenläufigkeit gegen PostgreSQL 16 in der CI, nicht in `server.js`](pv-postgres-concurrency-ci.md)
 - [DJI Pilot 2 – isolierte HTTPS-Medienendpunkte](dji-pilot2-media-https-api.md)
 - [DJI Pilot 2 Media STS – isolierte HTTPS-Autorisierungsgrenze](dji-pilot2-media-sts-boundary.md)
 - [SkyHub Next – Verifizierte DJI-Pilot-2-Medienbibliothek (Read-only)](dji-pilot2-verified-media-library.md)
