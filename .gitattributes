@@ -1,0 +1,2 @@
+# SQL migrations are pinned by Git blob SHA: never convert line endings on checkout (CRLF would break the pin).
+backend/db/migrations/*.sql -text

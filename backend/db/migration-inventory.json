@@ -1,5 +1,5 @@
 {
-  "schema": "skyhub-sql-migration-inventory-v1",
+  "schema": "skyhub-sql-migration-inventory-v2",
   "auto_apply": false,
   "entries": [
     {
@@ -8,7 +8,9 @@
       "order": 1,
       "path": "backend/db/migrations/001_dji_map_elements.sql",
       "status": "offline_only",
-      "requires": []
+      "requires": [],
+      "git_blob_sha": "86980b9ed86fff15084daed30b7695165631f646",
+      "applied": false
     },
     {
       "id": "map-contract-002",
@@ -18,7 +20,9 @@
       "status": "offline_only",
       "requires": [
         "map-elements-001"
-      ]
+      ],
+      "git_blob_sha": "f327920fa398337d559ea928f7eebba6d764a6a0",
+      "applied": false
     },
     {
       "id": "pilot-media-verified-003",
@@ -26,7 +30,9 @@
       "order": 3,
       "path": "backend/db/migrations/003_dji_pilot_media_verified.sql",
       "status": "offline_only",
-      "requires": []
+      "requires": [],
+      "git_blob_sha": "d34aaecf58725af717f6a554762d6714cde5615b",
+      "applied": true
     },
     {
       "id": "wpml-library-draft-003",
@@ -34,7 +40,9 @@
       "order": 3,
       "path": "backend/db/migrations/003_wpml_route_library_draft.sql",
       "status": "blocked_draft",
-      "requires": []
+      "requires": [],
+      "git_blob_sha": "61f6024e069525aad789eccb407ec8c62dd7d2cf",
+      "applied": false
     },
     {
       "id": "wpml-audit-draft-004",
@@ -44,7 +52,21 @@
       "status": "blocked_draft",
       "requires": [
         "wpml-library-draft-003"
-      ]
+      ],
+      "git_blob_sha": "eca262be6d630f6d2e9987cddd08f92988e3ceda",
+      "applied": false
+    },
+    {
+      "id": "wpml-runtime-rls-draft-005",
+      "family": "wpml-draft",
+      "order": 5,
+      "path": "backend/db/migrations/005_wpml_runtime_rls_draft.sql",
+      "status": "blocked_draft",
+      "requires": [
+        "wpml-audit-draft-004"
+      ],
+      "git_blob_sha": "31478dc7cd4f53bd5a5d7ac056ad4aae98c18201",
+      "applied": false
     },
     {
       "id": "pilot-media-http-004",
@@ -54,7 +76,9 @@
       "status": "offline_only",
       "requires": [
         "pilot-media-verified-003"
-      ]
+      ],
+      "git_blob_sha": "feb95c8510b3123ac098e4c0247a118b25eff692",
+      "applied": true
     },
     {
       "id": "pilot-media-library-005",
@@ -64,7 +88,9 @@
       "status": "offline_only",
       "requires": [
         "pilot-media-http-004"
-      ]
+      ],
+      "git_blob_sha": "8abe69f9517ad6ce9ca12701edb85772293f133a",
+      "applied": true
     },
     {
       "id": "hms-transitions-006",
@@ -72,7 +98,9 @@
       "order": 6,
       "path": "backend/db/migrations/006_hms_transition_history.sql",
       "status": "offline_only",
-      "requires": []
+      "requires": [],
+      "git_blob_sha": "1b552632c36e01520df70f5dd017981c186f2a99",
+      "applied": false
     }
   ]
 }
