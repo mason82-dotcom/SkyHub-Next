@@ -1,0 +1,50 @@
+name: DJI Cloud API 2 V1.1.0 P0 offline contracts
+
+on:
+  push:
+    branches:
+      - feature/cloudapi2-v110-contract-p0-20261107
+    paths:
+      - 'backend/cloud-api2-*.js'
+      - 'backend/data/dji-cloud-api2-v1.1.0-p0.json'
+      - 'backend/test/cloud-api2-*.test.js'
+      - 'frontend/public/cloud-api2-*'
+      - '.github/workflows/cloud-api2-p0-contracts.yml'
+  pull_request:
+    paths:
+      - 'backend/cloud-api2-*.js'
+      - 'backend/data/dji-cloud-api2-v1.1.0-p0.json'
+      - 'backend/test/cloud-api2-*.test.js'
+      - 'frontend/public/cloud-api2-*'
+      - '.github/workflows/cloud-api2-p0-contracts.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  pinned-reference-and-readonly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check static P0 module and test
+        run: |
+          node --check backend/cloud-api2-contracts.js
+          node --check backend/test/cloud-api2-p0-contracts.test.js
+          node -e "require('./backend/cloud-api2-contracts').validateContract()"
+      # Dependencies are installed for the existing linkage code; tests make
+      # no live DJI/HTTP/MQTT/S3 requests, start no brokers, and deploy nothing.
+      - name: Install locked Node dependencies
+        run: npm ci --prefix backend --ignore-scripts --no-audit --no-fund
+      - name: Run Cloud API 2 P0 offline regression and existing portal suites
+        run: |
+          node --test \
+            backend/test/cloud-api2-p0-contracts.test.js \
+            backend/test/cloud-api2-keyless.test.js \
+            backend/test/cloud-api2-module-catalog.test.js \
+            backend/test/cloud-api2-evidence.test.js \
+            backend/test/cloud-api2-linkage.test.js \
+            backend/test/cloud-api2-hardware.test.js
