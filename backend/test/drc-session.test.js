@@ -46,6 +46,8 @@ async function liveControl(x){
   x.session.onUp({gateway:'RCP2SN',channel:'events',method:'cloud_control_auth_notify',status:'ok'});
   x.session.acquire('op1');
   await x.session.enterLiveControl('op1');
+  x.session.onUp({gateway:'RCP2SN',channel:'osd',drcState:2});
+  x.session.onUp({gateway:'RCP2SN',channel:'drc/up',method:'heart_beat',timestamp:x.clock.now()});
 }
 
 test('full path: authorisation by the pilot, DRC channel, heartbeat both ways',async()=>{
@@ -56,6 +58,10 @@ test('full path: authorisation by the pilot, DRC channel, heartbeat both ways',a
   x.session.onUp({gateway:'RCP2SN',channel:'events',method:'cloud_control_auth_notify',status:'ok'});
   assert.equal(x.session.snapshot().phase,'authorized');
   await x.session.enterLiveControl('op1');
+  assert.equal(x.session.snapshot().controlLink.ready,false,'service ack alone cannot arm flight');
+  x.session.onUp({gateway:'RCP2SN',channel:'osd',drcState:2});
+  x.session.onUp({gateway:'RCP2SN',channel:'drc/up',method:'heart_beat',timestamp:x.clock.now()});
+  assert.equal(x.session.snapshot().controlLink.ready,true);
   assert.equal(x.session.snapshot().phase,'drc_active');
   assert.equal(x.sent[1].method,'drc_mode_enter');
   assert.equal(x.sent[1].data.mqtt_broker.client_id,'drc-RCP2SN');
@@ -64,6 +70,30 @@ test('full path: authorisation by the pilot, DRC channel, heartbeat both ways',a
   assert.ok(x.drc.some(m=>m.method==='heart_beat'),'heartbeat sent');
   const seqs=x.drc.map(m=>m.seq);
   assert.deepEqual(seqs,[...seqs].sort((a,b)=>a-b),'seq increases');
+});
+
+test('DRC: services reply alone, wrong RC state and stale uplink all block flight control',async()=>{
+  const x=setup();await x.session.requestAuthorization('op1');
+  x.session.onUp({gateway:'RCP2SN',channel:'events',method:'cloud_control_auth_notify',status:'ok'});
+  await x.session.enterLiveControl('op1');
+  assert.equal(x.session.snapshot().controlLink.ready,false);
+  assert.throws(()=>x.session.stickInput('op1',{pitch:1}),/Steuerung gesperrt/);
+  await assert.rejects(x.session.flyTo('op1',{latitude:49.1005,longitude:8.5005,heightAboveTakeoff:50}),
+    /Steuerung gesperrt/);
+  x.session.onUp({gateway:'RCP2SN',channel:'state',drcState:1});
+  x.session.onUp({gateway:'RCP2SN',channel:'drc\/up',method:'heart_beat',timestamp:x.clock.now()});
+  assert.equal(x.session.snapshot().controlLink.ready,false,'connecting state is not ready');
+  x.session.onUp({gateway:'RCP2SN',channel:'osd',drcState:2});
+  assert.equal(x.session.snapshot().controlLink.ready,true);
+  await x.clock.advance(5001);
+  assert.equal(x.session.snapshot().controlLink.ready,false,'uplink must be fresh');
+  assert.throws(()=>x.session.stickInput('op1',{pitch:1}),/Lease|Steuerung gesperrt/);
+  // A current heartbeat alone cannot rescue a stale RC state.
+  x.session.acquire('op1');
+  x.session.onUp({gateway:'RCP2SN',channel:'drc\/up',method:'heart_beat',timestamp:x.clock.now()});
+  assert.equal(x.session.snapshot().controlLink.ready,true);
+  await x.clock.advance(2001);
+  assert.equal(x.session.snapshot().controlLink.ready,false,'RC state needs freshness as well');
 });
 
 test('pilot denies: back to idle, nothing else happens',async()=>{
