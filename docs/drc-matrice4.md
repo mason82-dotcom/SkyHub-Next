@@ -51,6 +51,41 @@ kommt auf `drc/up` und wird über `seq` **und** Methode zugeordnet (5 s Zeitlimi
 - **`drc_state`** kommt laut *dji-rc-plus-2/properties* (pushMode 0) in der **OSD der RC** (0,5 Hz), nicht in `state`. SkyHub liest beide;
   dafür braucht `skyhub_commander` Leserecht auf `thing/product/+/osd` (siehe unten).
 
+## P0: nachgewiesene DRC-Kanalbereitschaft (07.11.2026)
+
+**Entwicklungsbranch, kein Produktions-Rollout.** Die vorhandene DRC-Implementierung ist opt-in
+(`SKYHUB_DRC_ENABLED=false` bis zur bewussten Freigabe). Neue Sicherheitsbedingung:
+
+1. Die Bestätigung für `drc_mode_enter` über `services_reply` ist **noch keine** Freigabe für Bewegung oder Matrice-4-Nutzlastbefehle.
+2. Erst wenn die RC Plus 2 `drc_state=2` frisch auf ihrem eigenen `osd`/`state`-Topic meldet (maximal 7 Sekunden alt)
+   **und** ein frischer `heart_beat` über `drc/up` vorliegt (maximal 5 Sekunden alt), wird `controlLink.ready=true`.
+   Die beiden Belege müssen aus der **neuen** DRC-Verbindung stammen, nicht aus einer vorherigen Sitzung.
+3. Ohne beide Nachweise blockiert der Server Stick, Zielanflug, Abheben, Landen, Matrice-4-Kamera/Gimbal
+   und Rückkehrabbruch mit HTTP 423 beziehungsweise Socket-Fehler. Die Oberfläche deaktiviert Bewegungsaktionen
+   und nennt den fehlenden Nachweis; eine reine `services_reply`-Bestätigung ist kein Hardware-PASS.
+4. Ein ausbleibender Nachweis oder späterer Verlust bei weiterhin aktivem Bediener-Lease löst den vorhandenen Fail-safe aus;
+   ein Broker-Disconnect entwertet sofort den bisher bestätigten Link. Retained MQTT-Nachrichten werden nicht als
+   frischer Nachweis gewertet. Stick/Gimbal-Pakete erneuern niemals selbst das Bediener-Lease.
+5. Not-Stopp, Abbruch, Rückgabe und Rückkehr als Sicherheitsaktionen bleiben unabhängig vom Bewegungsfreigabe-Gate
+   erreichbar, sofern der Transport diese noch übermitteln kann. **Bei Netzwerk-/Brokerverlust kann keine Software
+   garantieren, dass die Fernsteuerung die Kontrolle zurückerhalten hat.** Pilot 2 muss den Rückgabezustand unabhängig bestätigen.
+
+**Abnahmefolge vor Realbetrieb:** Offline-/Simulator-CI, isolierter MQTT-Kanaltest,
+manueller RC-Plus-2-/M4T-Bodentest mit Propellern ab, Netzunterbrechung/RC-Rückgabe, dokumentierter Pilot-2-Zustand,
+dann gesonderte Operatorfreigabe. Nicht mit dem Cloud-API-2-PaaS-Portal verwechseln:
+Diese DRC-Laufzeit nutzt die vorhandene DJI Cloud API 1.x. Das Cloud-API-2-Keyless-Portal bleibt lesend.
+
+**Nur nach dieser Freigabe** dürfen Betreiber im eigenen Stack die vorhandene Konfiguration
+`SKYHUB_DRC_ENABLED=true` und getrennte Broker-ACL/Steuerzugänge setzen. Das im Repo vorhandene
+`scripts/brix-drc-setup.sh` führt tatsächliche Broker-/Backendänderungen durch und wird **nicht**
+durch einen Merge oder die CI ausgeführt. Der PR selbst ändert keine .env, keinen Pi/BRIX und keine DJI-Geräte.
+
+Tests:
+```sh
+node --test backend/test/drc-session.test.js backend/test/drc-runtime.test.js backend/test/drc-payload.test.js
+node --check frontend/public/drc.js
+```
+
 ## Einrichten
 **brix-node (Stand 04.11.2026):** Schritt 1–3 erledigt ein Aufruf als mason im Stack-Ordner (Sicherungen, keine Anzeige von
 Geheimnissen, Token danach in `~/.config/skyhub/drc-token`):
