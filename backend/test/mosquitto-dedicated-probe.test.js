@@ -46,11 +46,27 @@ test('optional DRC accounts: commander reads the RC OSD (drc_state) and never re
   const m=require('../../scripts/pi-mosquitto-dedicated.js');
   const base={reader:{username:'r'},ack:{username:'t'},pilot:{username:'p'}};
   assert.doesNotMatch(m.aclText(base),/skyhub_commander|drc_link/);
-  const acl=m.aclText({...base,commander:{username:'skyhub_commander'},drcLink:{username:'skyhub_drc_link'}});
+  const acl=m.aclText({...base,commander:{username:'skyhub_commander',gatewaySn:'SIMRCP2'},drcLink:{username:'skyhub_drc_link',gatewaySn:'SIMRCP2'}});
   const block=name=>acl.split('\n\n').find(b=>b.startsWith('user '+name+'\n'));
   const cmd=block('skyhub_commander');
-  assert.match(cmd,/topic read thing\/product\/\+\/osd/);
-  assert.match(cmd,/topic write thing\/product\/\+\/drc\/down/);
-  assert.doesNotMatch(cmd,/topic read thing\/product\/\+\/services\n/,'must not read services (drc_mode_enter carries the DRC password)');
-  assert.equal(block('skyhub_drc_link').trim(),'user skyhub_drc_link\ntopic write thing/product/+/drc/up\ntopic read thing/product/+/drc/down');
+  assert.match(cmd,/topic read thing\/product\/SIMRCP2\/osd/);
+  assert.match(cmd,/topic write thing\/product\/SIMRCP2\/drc\/down/);
+  assert.doesNotMatch(cmd,/topic read thing\/product\/SIMRCP2\/services\n/,'must not read services (drc_mode_enter carries the DRC password)');
+  assert.equal(block('skyhub_drc_link').trim(),'user skyhub_drc_link\ntopic write thing/product/SIMRCP2/drc/up\ntopic read thing/product/SIMRCP2/drc/down');
+});
+
+
+test('DRC ACL generation fails closed for missing, mismatched or wildcard gateway serials',()=>{
+  const roles={
+    reader:{username:'r'},ack:{username:'a'},pilot:{username:'p'},
+    commander:{username:'cmd',gatewaySn:'SIMRCP2'},
+    drcLink:{username:'link',gatewaySn:'SIMRCP2'}
+  };
+  const render=mod=>aclText({...roles,...mod});
+  assert.match(render({}),/thing\/product\/SIMRCP2\/services/);
+  assert.doesNotMatch(render({}),/thing\/product\/\+\/drc\/down/);
+  assert.throws(()=>render({commander:{username:'cmd'}}),/gatewaySn/);
+  assert.throws(()=>render({drcLink:{username:'link',gatewaySn:'OTHER-RC2'}}),/dieselbe RC-Seriennummer/);
+  assert.throws(()=>render({commander:{username:'cmd',gatewaySn:'+'},drcLink:{username:'link',gatewaySn:'+'}}),/gatewaySn/);
+  assert.throws(()=>render({commander:{username:'cmd',gatewaySn:'SERIAL/other'},drcLink:{username:'link',gatewaySn:'SERIAL/other'}}),/gatewaySn/);
 });
