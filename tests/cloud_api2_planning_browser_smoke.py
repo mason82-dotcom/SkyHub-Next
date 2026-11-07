@@ -89,7 +89,7 @@ def run():
                     const f=document.getElementById('planningFrame-editor');
                     return f && f.contentDocument && f.contentDocument.title.startsWith('Missionsentwurf');
                 }""", timeout=15000)
-                page.locator("#planningStatus").filter(has_text="geladen").wait_for(timeout=15000)
+                page.locator("#planningStatus").filter(has_text="geladen. Entwurfs-").wait_for(timeout=15000)
                 check(page.frame_locator("#planningFrame-editor").locator("#map").count() == 1,
                       "Original WPML map not available in embedded editor")
                 check(page.locator("#planningOpenFull").get_attribute("href") == "/wpml-editor.html",
@@ -99,7 +99,7 @@ def run():
                     const f=document.getElementById('planningFrame-area');
                     return f && f.contentDocument && f.contentDocument.title.startsWith('Vermessungsvorschau');
                 }""", timeout=15000)
-                page.locator("#planningStatus").filter(has_text="geladen").wait_for(timeout=15000)
+                page.locator("#planningStatus").filter(has_text="geladen. Entwurfs-").wait_for(timeout=15000)
                 check(page.frame_locator("#planningFrame-area").locator("#preview").count() == 1,
                       "Original area planner control missing")
                 check(page.locator("#planningFrame-editor").get_attribute("src") == "/wpml-editor.html",
@@ -109,7 +109,7 @@ def run():
                     const f=document.getElementById('planningFrame-library');
                     return f && f.contentDocument && f.contentDocument.title.startsWith('Routenbibliothek');
                 }""", timeout=15000)
-                page.locator("#planningStatus").filter(has_text="geladen").wait_for(timeout=15000)
+                page.locator("#planningStatus").filter(has_text="geladen. Entwurfs-").wait_for(timeout=15000)
                 check(page.frame_locator("#planningFrame-library").locator("#save").count() == 1,
                       "Original route library revision action missing")
                 check(page.locator("#planningOpenFull").get_attribute("href") == "/wpml-route-library.html",
