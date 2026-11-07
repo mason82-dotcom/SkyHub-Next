@@ -6,8 +6,10 @@
 <title>Cloud API 2 Lab | SkyHub Next</title>
 <link rel="stylesheet" href="/cloud-api2.css">
 <link rel="stylesheet" href="/cloud-api2-p2.css">
+<link rel="stylesheet" href="/cloud-api2-planning.css">
 <script defer type="module" src="/cloud-api2.js"></script>
 <script defer type="module" src="/cloud-api2-p2-ui.mjs"></script>
+<script defer type="module" src="/cloud-api2-planning.mjs"></script>
 </head>
 <body>
 <a class="skip" href="#main">Zum Inhalt springen</a>
@@ -21,6 +23,7 @@
     <button type="button" data-view="mavic3">✣ <span>Mavic 3 Enterprise</span></button>
     <button type="button" data-view="m4t-hardware">▧ <span>M4T + RC Plus 2 Tests</span></button>
     <button type="button" data-view="evidence">▣ <span>Nachweise</span></button>
+    <button type="button" data-view="planning">⌖ <span>Missionsplanung</span></button>
     <button type="button" data-view="simulator">◇ <span>Simulator</span><i>LAB</i></button>
     <button type="button" data-view="contracts">◉ <span>API-2-Vertragsprüfung</span></button>
     <button type="button" data-view="sdk">⌘ <span>SDK &amp; Bausteine</span></button>
@@ -129,6 +132,45 @@
           <div><small>ABNAHME</small><strong>OFFEN</strong><span>Transport-Smoke ≠ Flugfreigabe</span></div>
         </div>
         <p class="hint">Dokumentierter Folgebeleg: 25.10.2026, 21:22:23 UTC. Diese Werte sind keine aktuelle Telemetrie. <a href="https://github.com/mason82-dotcom/SkyHub-Next/blob/main/docs/hardware-acceptance-status-2026-10-24.md" target="_blank" rel="noopener noreferrer">Hardware-Evidence-Dokumentation ↗</a></p>
+      </article>
+    </section>
+    <section id="view-planning" class="view" hidden>
+      <p class="eyebrow">SKYHUB WPML · PLANUNG / NICHT FLIEGBAR</p>
+      <div class="heading">
+        <div><h1>Missionseditor &amp; Routenplaner</h1>
+          <p class="planning-intro">Ein gemeinsamer Zugang zu den bestehenden SkyHub-WPML-Werkzeugen: Wegpunktmissionen bearbeiten, Flächen- und Scanrouten planen und Entwurfsrevisionen verwalten. Es werden keine neuen Flug- oder DJI-API-2-Befehle eingeführt.</p></div>
+        <span class="pill lab">ENTWURF · KEIN MISSIONSVERSAND</span>
+      </div>
+      <div class="planning-flow" role="group" aria-label="Planungswerkzeug wählen">
+        <button type="button" class="planning-choice" data-planning-tool="editor" aria-controls="planningFrame-editor" aria-pressed="false">
+          <strong>WPML-Missionseditor</strong>
+          <small>Wegpunkte auf der Karte, Missionsparameter, Pilot-2-KMZ-Entwurf und lokale Prüfungen.</small>
+          <em>WEGPUNKTROUTE · BESTEHENDES MODUL</em>
+        </button>
+        <button type="button" class="planning-choice" data-planning-tool="area" aria-controls="planningFrame-area" aria-pressed="false">
+          <strong>Flächen- und Routenplaner</strong>
+          <small>Polygonflächen, Scanstreifen, 2D-Abdeckung, fünf Blickrichtungen und optionale DEM-Stichprobe.</small>
+          <em>GEOMETRIEVORSCHAU · NICHT FLIEGBAR</em>
+        </button>
+        <button type="button" class="planning-choice" data-planning-tool="library" aria-controls="planningFrame-library" aria-pressed="false">
+          <strong>Routenbibliothek</strong>
+          <small>Entwurfsrevisionen vergleichen, lokal speichern und ausdrücklich ausgelöste Bibliotheksaktionen nutzen.</small>
+          <em>REVISIONEN · KEINE FLUGFREIGABE</em>
+        </button>
+      </div>
+      <p class="planning-safety"><strong>Planung ist keine Flugfreigabe.</strong> Kartenkacheln und optionale Höhendaten können externe Dienste verwenden. Höhenbezug, Hindernisse, Flugzonen, Nutzlast und Gerätekompatibilität sind gesondert zu verifizieren. Der Flächenplaner erzeugt ausdrücklich keine ausführbaren Waylines. Kein DJI Cloud API 2 Runtime-Zugriff, keine Missionsübertragung, keine automatische MinIO-Synchronisierung.</p>
+      <article class="card below" aria-label="Planungsarbeitsbereich">
+        <div class="planning-workspace-header">
+          <p id="planningStatus" role="status" aria-live="polite">Planungswerkzeug auswählen. Originalmodule werden erst nach Klick geladen.</p>
+          <a id="planningOpenFull" class="secondary" href="/wpml-editor.html" target="_blank" rel="noopener noreferrer">Missionseditor separat öffnen</a>
+        </div>
+        <div class="planning-frame-wrap">
+          <p id="planningEmpty" class="planning-empty">Wähle oben ein Werkzeug aus. Für größere Karten oder auf Smartphones kannst du den Editor jederzeit separat öffnen.</p>
+          <iframe id="planningFrame-editor" class="planning-frame" title="SkyHub WPML-Missionseditor" referrerpolicy="strict-origin-when-cross-origin" hidden></iframe>
+          <iframe id="planningFrame-area" class="planning-frame" title="SkyHub Flächen- und Routenplaner" referrerpolicy="strict-origin-when-cross-origin" hidden></iframe>
+          <iframe id="planningFrame-library" class="planning-frame" title="SkyHub Routenbibliothek" referrerpolicy="strict-origin-when-cross-origin" hidden></iframe>
+        </div>
+        <p class="hint">Bei fehlender Einbettungsfreigabe oder engem Smartphone-Viewport das Originalmodul über „separat öffnen“ verwenden. Zwischen den Ansichten bleiben bereits geladene Frames bestehen; dies ist keine dauerhafte Speicherung offener Eingaben.</p>
       </article>
     </section>
     <section id="view-simulator" class="view" hidden>
