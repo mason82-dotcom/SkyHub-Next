@@ -183,11 +183,13 @@ function createDrcRuntime({config,registry,pool,io,express,mqttConnect,socketAut
       catch(err){if(typeof ack==='function')ack({ok:false,error:err.message});}
     });
     socket.on('stick',(v)=>{
-      try{session.acquire(op);session.stickInput(op,v||{});}
+      // Motion frames must NEVER grant/renew a lease or cancel the dead-man fail-safe.
+      try{session.stickInput(op,v||{});}
       catch(err){socket.emit('drc-error',err.message);}
     });
     socket.on('gimbal',(v)=>{
-      try{session.acquire(op);session.gimbalDrag(op,v&&typeof v==='object'?{pitch:v.pitch,yaw:v.yaw}:{});}
+      // Only explicit lease heartbeats may renew operator authority.
+      try{session.gimbalDrag(op,v&&typeof v==='object'?{pitch:v.pitch,yaw:v.yaw}:{});}
       catch(err){socket.emit('drc-error',err.message);}
     });
     socket.on('emergency-stop',()=>{try{session.emergencyStop(op);}catch(err){socket.emit('drc-error',err.message);}});
