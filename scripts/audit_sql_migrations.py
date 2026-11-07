@@ -95,7 +95,7 @@ def audit_inventory(root: Path = ROOT) -> list[str]:
                 errors.append(f"Cannot read migration contents: {ident}")
             else:
                 actual_sha = hashlib.sha1(
-                    b"blob " + str(len(payload)).encode("ascii") + b"\\0" + payload
+                    b"blob " + str(len(payload)).encode("ascii") + b"\0" + payload
                 ).hexdigest()
                 if actual_sha != pin:
                     errors.append(f"Migration contents differ from pinned Git blob SHA: {ident}")
