@@ -85,7 +85,7 @@ test('DRC: services reply alone, wrong RC state and stale uplink all block fligh
   assert.equal(x.session.snapshot().controlLink.ready,false,'connecting state is not ready');
   x.session.onUp({gateway:'RCP2SN',channel:'osd',drcState:2});
   assert.equal(x.session.snapshot().controlLink.ready,true);
-  await x.clock.advance(5001);
+  for(let i=0;i<11;i++){x.session.acquire('op1');await x.clock.advance(500);}
   assert.equal(x.session.snapshot().controlLink.ready,false,'uplink must be fresh');
   assert.throws(()=>x.session.stickInput('op1',{pitch:1}),/Lease|Steuerung gesperrt/);
   // A current heartbeat alone cannot rescue a stale RC state.
