@@ -39,6 +39,15 @@ function el(tag,cls,txt) {
 function view(key){
   if(!sections.includes(key))return;
   for(const name of sections)get('view-'+name).hidden=name!==key;
+  // The portal's observation panels are read-only; the embedded canonical
+  // mission tools may persist local drafts or opt-in MinIO data on user click.
+  const badge=get('portalModeBadge');
+  if(badge){
+    badge.textContent=key==='planning'
+      ? '● ENTWURF · MANUELLES SPEICHERN MÖGLICH'
+      : '● READ ONLY';
+    badge.classList.toggle('planning-mode',key==='planning');
+  }
   document.querySelectorAll('[data-view]').forEach(button=>{
     const selected=button.dataset.view===key;
     button.classList.toggle('active',selected);
