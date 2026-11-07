@@ -95,3 +95,25 @@ ein späterer Wechsel A → B nur Konfiguration.
        v2-Redis-Datensatz, Abmelden/Widerruf. Unit-Tests mit lokalem Test-IdP (JWKS-Fixture).
 4. [ ] Forgejo: OAuth2-Anwendung „SkyHub WPML“, Organisation mit Teams `skyhub-ws-<workspace>-operator|admin`.
 5. [ ] Eigene Sicherheitsprüfung von Issuer + RLS, dann erst Einbindung in `server.js` hinter Feature-Flag.
+
+## Umsetzungsstand (07.11.2026)
+
+- **Schritt 1 erledigt:** `005_wpml_runtime_rls_draft.sql` plus Integrationstest `wpml-runtime-rls.integration.test.js`.
+- **Schritt 2 erledigt:** `createWpmlRouteStore(pool,{workspaceRoles:true})` setzt je Transaktion `SET LOCAL ROLE`.
+- **Schritt 3 erledigt:** `backend/wpml-operator-issuer.js` (`beginLogin`, `completeLogin`, `reissue`, `revoke`), getestet
+  gegen einen lokalen Test-IdP; ausgestellte Tokens prüft der vorhandene Verifier samt Redis-Sitzung. Sicherheitsprüfung
+  ohne Befund ab Vertrauen 8. Sitzungsdauer standardmäßig 1 h: `reissue()` prüft die Team-Mitgliedschaft nicht erneut,
+  eine Entfernung aus dem Forgejo-Team wirkt also spätestens nach einer Sitzung (sofort: `revoke()`).
+
+### Schritt 4: Forgejo einrichten (Betreiber)
+
+1. **Organisation** anlegen, z. B. `skyhub` (Wert für `oidc.organization`).
+2. Je Workspace zwei **Teams**: `ws-<workspace>-operator` und `ws-<workspace>-admin` (Workspace-Name 3–32 Zeichen,
+   Kleinbuchstaben, Ziffern, `-`). Mitglieder hinzufügen. Teams brauchen keine Repository-Rechte.
+3. **OAuth2-Anwendung** unter *Einstellungen → Anwendungen* (bzw. als Organisation): Name „SkyHub WPML“,
+   Weiterleitungs-URI exakt die spätere `oidc.redirectUri` (HTTPS), vertraulicher Client. Client-ID und -Secret als
+   Secret auf brix-node ablegen, nie im Repo.
+4. Prüfen, dass Forgejo bei `scope=openid profile groups` den Claim `groups` mit Einträgen `skyhub:ws-<workspace>-…`
+   liefert (einmal mit einem Testkonto anmelden und das ID-Token ansehen). Erst danach Schritt 5.
+5. `oidc.issuer` ist die `ROOT_URL` von Forgejo (derzeit `https://rpi5-pironman.tailf59dac.ts.net:9445/`). Die
+   Browser-Weiterleitung muss diese Adresse erreichen können.
