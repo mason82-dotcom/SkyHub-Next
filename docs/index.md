@@ -212,6 +212,7 @@ Diese Dokumente waren bisher nur über Suche oder PR-Beschreibungen erreichbar. 
 **Weitere**
 
 - [Flighttask-Korrelation – isolierter, nicht angebundener Auswahlhelfer](dji-flighttask-correlation-guard.md)
+- [Flighttask-Snapshot: verschlüsselter Offline-Stand und idempotenter Wiederanlauf nach Neustart (nicht angebunden)](dji-flighttask-snapshot-recovery.md)
 
 ## Historische Momentaufnahmen – nicht als Live-Betriebszustand verwenden
 
