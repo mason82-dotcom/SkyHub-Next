@@ -46,6 +46,20 @@ function requestKind(method,url){
   if(method==='POST')return 'PostObject';
   return method==='HEAD'?'HeadObject':'GetObject';
 }
+// DJI Pilot 2 (AWS SDK on Android) signs Content-Type even when it is empty – e.g. for DNG files,
+// which have no Android MIME type – but its HTTP client then omits the empty header. AWS S3
+// canonicalises a missing header as empty and accepts the request; MinIO rejects a signed header
+// that is absent ("AccessDenied: There were headers present in the request which were not
+// signed", HTTP 400 – observed 07.11.2026 for every DNG CreateMultipartUpload). Restoring the
+// header with the empty value the client signed reproduces the signed request exactly; the
+// signature is still verified by MinIO.
+function restoreEmptySignedHeaders(headers){
+  const auth=typeof headers.authorization==='string'?headers.authorization:'';
+  const signed=(/SignedHeaders=([a-z0-9;-]{1,512})/.exec(auth)||[])[1];
+  if(signed&&signed.split(';').includes('content-type')&&!('content-type' in headers))
+    return {...headers,'content-type':''};
+  return headers;
+}
 function forwardHeaders(headers){
   const out={};
   for(const [name,value] of Object.entries(headers)){
@@ -75,7 +89,7 @@ function createS3UploadProxy({target,workspace,trustedProxyIps,downloadBucket=nu
     if(!upload&&!fetchWayline)return reject(res,403);
     const outbound=client.request({
       protocol:upstream.protocol,hostname:upstream.hostname,port:upstream.port,
-      method:req.method,path:req.url,headers:forwardHeaders(req.headers)
+      method:req.method,path:req.url,headers:restoreEmptySignedHeaders(forwardHeaders(req.headers))
     },response=>{
       stats.forwarded++;stats.lastAt=new Date().toISOString();
       res.writeHead(response.statusCode,forwardHeaders(response.headers));
@@ -93,7 +107,8 @@ function createS3UploadProxy({target,workspace,trustedProxyIps,downloadBucket=nu
           const auth=req.headers.authorization?'header':/X-Amz-Signature=/.test(q)?'query':'none';
           const token=req.headers['x-amz-security-token']?'header':/X-Amz-Security-Token=/.test(q)?'query':'none';
           log('[s3 upload] '+req.method+' '+requestKind(req.method,url)+' -> HTTP '+response.statusCode+' '+code+
-            ' auth='+auth+' token='+token+' session='+((/\/media\/([0-9a-f]{8})[0-9a-f]{24}\//.exec(url)||[])[1]||'-')+(amz?' headers '+amz:''));
+            ' auth='+auth+' token='+token+' signed='+(((/SignedHeaders=([a-z0-9;-]{1,512})/.exec(req.headers.authorization||'')||[])[1])||'-')+
+            ' present='+Object.keys(req.headers).filter(h=>!/^x-amz-/.test(h)).sort().join(',')+' session='+((/\/media\/([0-9a-f]{8})[0-9a-f]{24}\//.exec(url)||[])[1]||'-')+(amz?' headers '+amz:''));
         });
       }
       response.pipe(res);
@@ -117,4 +132,4 @@ function createS3UploadProxy({target,workspace,trustedProxyIps,downloadBucket=nu
   return {handler,listen,stats:()=>({...stats})};
 }
 
-module.exports={createS3UploadProxy,uploadPath,downloadPath,plainObjectPath,requestKind};
+module.exports={createS3UploadProxy,uploadPath,downloadPath,plainObjectPath,requestKind,restoreEmptySignedHeaders};
