@@ -93,7 +93,7 @@ def read_env_flags() -> dict[str, str]:
     return flags
 
 
-def runtime_context() -> tuple[str, int]:
+def runtime_context() -> tuple[str, int, str]:
     require(platform.system() == "Linux" and platform.machine() == "x86_64",
             "Nur Linux x86_64 (brix-node), kein Pi-/ARM64-Update")
     require(execute("git", "branch", "--show-current") == "main",
@@ -157,7 +157,7 @@ def runtime_context() -> tuple[str, int]:
 
 
 def backend_image_check(backend_id: str) -> None:
-    """Bind the running image\u0027s first-party JS and package manifests to checked-out source."""
+    """Bind the running image's first-party JS and package manifests to checked-out source."""
     require(bool(re.fullmatch(r"[a-f0-9]{12,64}", backend_id)),
             "Ungültige Backend-Containerkennung")
     source_dir = ROOT / "backend"
