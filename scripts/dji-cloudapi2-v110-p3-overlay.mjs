@@ -21,6 +21,9 @@ const files = [
   'src/components/dashboard/TaskPanel.vue',
   'src/components/dashboard/StatGrid.vue',
   'src/components/dashboard/TimeRangeSelector.vue',
+  'src/components/dashboard/TaskDistributionChart.vue',
+  'src/components/dashboard/ExecutionResultChart.vue',
+  'src/components/dashboard/FlightDataSection.vue',
   'src/views/DashboardView.vue',
 ]
 const args = process.argv.slice(2)
@@ -87,7 +90,7 @@ try {
         console.log('PASS: Overlay staged in local vendor working tree')
         console.log('Backup:',dir)
         console.log('Rollback: node scripts/dji-cloudapi2-v110-p3-overlay.mjs --restore --vendor '+vendor+' --backup '+dir)
-        console.log('Next: cd '+join(vendor,prefix,'web').replace('/web/web','/web')+' && npm ci && npm run build')
+        console.log('Next: cd '+join(vendor,prefix)+' && npm ci && npm run build')
       }
     } else console.log('PASS: Pinned DJI tree and all overlay targets validated; no files changed')
   }
