@@ -183,7 +183,8 @@ class SqlMigrationInventoryTest(unittest.TestCase):
 
     def test_pilot_media_migrations_are_marked_applied(self) -> None:
         applied = {e["id"] for e in self.data()["entries"] if e["applied"]}
-        self.assertEqual({"pilot-media-verified-003", "pilot-media-http-004", "pilot-media-library-005"}, applied)
+        self.assertEqual({"pilot-media-verified-003", "pilot-media-http-004", "pilot-media-library-005",
+                          "pilot-media-dji-names-007"}, applied)   # 007: brix-node, 07.11.2026, manuell
 
     def test_git_blob_sha_matches_git_hash_object(self) -> None:
         sample = self.root / DIRECTORY / "001_dji_map_elements.sql"

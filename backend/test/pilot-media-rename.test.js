@@ -79,6 +79,15 @@ test('existing target, short copy and a changed record never lose the original',
   r=await createPilotMediaRenamer({s3,db:fakeDb([row()],{rowCount:0}),workspace:WS,log:()=>{}}).renameKey(ORIG);
   assert.equal(r.reason,'Eintrag geändert');
   assert.ok(s3.objects[ORIG]&&!s3.objects[target]);
+
+  // Parallel run took the copy over (record now points to the DJI name): the copy must never be deleted.
+  s3=fakeS3({[ORIG]:{size:8159232,etag:'"o"'}});
+  const raced=fakeDb([row()],{rowCount:0});
+  const q=raced.query;
+  raced.query=async(sql,params)=>/^SELECT 1 FROM/.test(sql)&&params[1]===target?{rows:[{}]}:q(sql,params);
+  r=await createPilotMediaRenamer({s3,db:raced,workspace:WS,log:()=>{}}).renameKey(ORIG);
+  assert.equal(r.reason,'Eintrag geändert');
+  assert.ok(s3.objects[target],'referenced copy kept');
 });
 
 test('backfill dry run plans without writing; apply renames and reports skips',async()=>{

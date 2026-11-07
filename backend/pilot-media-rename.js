@@ -54,6 +54,14 @@ function createPilotMediaRenamer({s3,db,workspace,log=m=>console.log(m)}){
     }
   }
 
+  // A copy may only be removed again when no record points to it (a parallel run may already have taken it over).
+  async function dropCopy(key){
+    const {rows}=await db.query('SELECT 1 FROM dji_pilot_media_verified WHERE workspace_id=$1 AND object_key=$2',[workspace,key]);
+    if(rows.length)return false;
+    await s3.send(new DeleteObjectCommand({Bucket:BUCKET,Key:key})).catch(()=>{});
+    return true;
+  }
+
   async function renameRow(row,{apply=true}={}){
     const from=row.object_key,to=targetKey(row);
     if(!to)return {status:'skip',from,reason:DJI_NAME.test(row.file_name||'')?'schon umbenannt':'kein DJI-Name'};
@@ -63,15 +71,15 @@ function createPilotMediaRenamer({s3,db,workspace,log=m=>console.log(m)}){
     await s3.send(new CopyObjectCommand({Bucket:BUCKET,Key:to,CopySource:copySource(from),MetadataDirective:'COPY'}));
     const copy=await head(to);
     if(!copy||Number(copy.size)!==Number(row.size_bytes)){
-      await s3.send(new DeleteObjectCommand({Bucket:BUCKET,Key:to})).catch(()=>{});
+      await dropCopy(to);
       throw new Error('Kopie unvollständig');
     }
     const res=await db.query(
       'UPDATE dji_pilot_media_verified SET object_key=$3,pilot_object_key=$2,etag=$4,object_last_modified=$5 '+
       'WHERE workspace_id=$1 AND object_key=$2 AND pilot_object_key IS NULL',
       [workspace,from,to,copy.etag,copy.lastModified]);
-    if(res.rowCount!==1){                      // zwischendurch geaendert: Kopie wieder weg, Original bleibt
-      await s3.send(new DeleteObjectCommand({Bucket:BUCKET,Key:to})).catch(()=>{});
+    if(res.rowCount!==1){                      // zwischendurch geaendert: eigene Kopie weg (nie eine referenzierte), Original bleibt
+      await dropCopy(to);
       return {status:'skip',from,to,reason:'Eintrag geändert'};
     }
     // Original erst nach der Datenbank loeschen: schlaegt es fehl, bleibt nur eine ueberzaehlige Kopie (erneut ausfuehrbar).
