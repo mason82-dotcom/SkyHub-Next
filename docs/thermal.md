@@ -1,6 +1,6 @@
 # SkyHub Next – Thermalmodul
 
-`/thermal.html` liest experimentell DJI-R-JPEG-Kandidaten aus den freigegebenen Medien-Buckets. Die Oberfläche bietet Paletten, Messpunkte, rechteckige Pixelbereiche, Isothermen, Histogramm, Serienstatistik und Exporte. Sie steuert keine Kamera und schreibt keine Medienobjekte.
+`/thermal.html` liest experimentell DJI-R-JPEG-Kandidaten aus den freigegebenen Medien-Buckets. Die Oberfläche bietet Paletten, Messpunkte, rechteckige Pixelbereiche, Linien-, Kreis- und Ellipsen-ROI, Isothermen, Histogramm, Serienstatistik und Exporte. Sie steuert keine Kamera und schreibt keine Medienobjekte.
 
 ## Temperatur und Korrektur
 
@@ -120,3 +120,34 @@ Aktivieren auf dem Pi:
 
 Rückweg: `SKYHUB_THERMAL_SDK_URL` leeren, Backend neu erzeugen, `bash scripts/pi-compose.sh stop thermal-sdk`.
 Gemessen auf dem Pi 5: etwa 1 s je Bild (640 × 512).
+
+## Geometrische Temperaturmessungen (SDKs-DjiImage-Referenz, 06.11.2026)
+
+Die **Werkzeuge Linie, Kreis, Ellipse** werden auf der bereits berechneten Float32-Temperaturmatrix ausgeführt. Die
+ROI-Auswertung ruft weder das DJI Thermal SDK noch DJI Cloud API erneut auf; sie verändert keine Kamera,
+Medien oder gespeicherte Datei. Die Messtemperaturen folgen dem aktuell ausgewählten Modus (DJI SDK
+oder Schätzung) und ändern sich daher bei Neuberechnung der Bildmatrix.
+
+- **Linie**: Ganzzahl-Bresenham mit beiden Endpunkten, jeder Raster-Pixelmittelpunkt höchstens einmal.
+  Horizontal und vertikal sind erlaubt.
+- **Ellipse**: Bounding Box der Zugbewegung, Pixelmittelpunkte innerhalb der Ellipsengleichung.
+- **Kreis**: Inscribed Circle der Bounding Box (Mittelpunkt der Box, Radius = halbe kürzere Seitenlänge).
+  Bei nichtquadratischem Aufziehen wird die kürzere Seite verwendet.
+- Pixelkoordinaten sind ganzzahlig und werden auf die Bildgrenzen begrenzt. Fehlerhafte Matrizen
+  oder nicht-endliche Koordinaten werden abgelehnt; nicht-endliche Temperaturen werden ausgelassen.
+  Eine Messung ohne gültige Temperaturwerte ergibt kein Statistikobjekt.
+- Ausgewertet werden Minimum, Mittel, Median, Maximum und Anzahl der tatsächlich eingeschlossenen
+  Pixel; CSV enthält Messgeometrie, Eck-/Endpunkte, Quellversion und Berechnungsprovenienz.
+- Beim Wechsel von Bild oder Berechnungsmodus werden Messwerte neu aus derselben Bildversion ermittelt.
+  Historische Bildversionen werden weiter über den SHA-256-Snapshot getrennt gehalten.
+- Touch-Drag wird anhand der aktiven Pointer-ID verarbeitet; Pointer-Abbruch verwirft nur die
+  nicht abgeschlossene Zeichnung.
+
+Technische Inspiration: [Jazous/SDKs-DjiImage](https://github.com/Jazous/SDKs-DjiImage)
+(MIT-lizenzierter .NET-Wrapper). Die Raster-Geometrie wurde für SkyHub unabhängig in JavaScript
+implementiert; es werden weder die .NET-Bibliothek noch native DJI-Binärdateien eingebunden.
+
+**Abnahmegrenze:** Diese Erweiterung verändert nur die Auswertung. Aus einer SDK-berechneten
+Temperaturmatrix lässt sich keine unabhängig nachgewiesene Messgenauigkeit ableiten.
+Tests: `backend/test/thermal-geometry.test.js` und
+`backend/test/thermal-ui-integrity.test.js`.

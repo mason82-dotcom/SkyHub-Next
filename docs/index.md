@@ -1,5 +1,25 @@
 # SkyHub Next – Dokumentationswegweiser
 
+## Cloud API 2 P2: Mobile UI, lokale Sprachausgabe und Mock-Abgrenzung (07.11.2026)
+
+[DE/EN-Teilübersetzung, responsive Ansicht und Trennung der BRIX-DevKit-Demo](cloud-api2-p2-ui-provenance.md) – Quellenvergleich ohne BRIX-Datenabruf, keine vollständige Portalübersetzung und keine Hardwarefreigabe.
+
+## Cloud API 2 V1.1.0: P1-Read-only-Vertragsadapter (07.11.2026)
+
+[GET-only-SDK-Fassade, Versionen, Capability-Matrix und Portalprüfung](cloud-api2-v1.1.0-p1-adapter.md) – keine DJI-API-2-Runtime, keine Flug- oder Hardwarefreigabe.
+
+## Cloud API 2 V1.1.0: P0-Vertragskatalog und Offline-Regression (07.11.2026)
+
+[Versionierter DJI-SDK-/Geräte-Capability-Vertrag, Read-only-Adapterprüfung und CI-Abnahme](cloud-api2-v1.1.0-p0-contracts.md) – Herstellerstand revisionsgebunden, keine SDK- oder Hardwarefreigabe.
+
+## Cloud API 2: prüfbare Zuordnungsvorstufe (07.11.2026)
+
+[Nachweisstufen für Geräte, Missionen und Pilot-2-Medien](cloud-api2-linkage-evidence.md) – modellbasierte Kandidaten, überprüfte Datenquellen, niemals implizite Flug- oder Medienzuordnung.
+
+## Cloud API 2: Keyless-Webportal (06.11.2026)
+
+[Neue Website, Geräte-Backend, eigene DaaS-Lesefassade, Offline-Simulator und KI-Werkstatt](cloud-api2-keyless-portal.md) – kein DJI-Key, keine DJI-Runtime und keine Flugfreigabe.
+
 **Repository:** https://github.com/mason82-dotcom/SkyHub-Next. Historische GitHub-Links wurden auf den neuen Slug normalisiert; die lokalen Pi-Verzeichnisse `SkyHub` (Legacy) und `SkyHub-Next` (Entwicklung) bleiben unterschiedlich.
 
 **GitHub-Audit 02.11.2026:** [Aktuelle Bestandsaufnahme, PR-Triage und sichere Bereinigung](repository-audit-2026-11-02.md). Diese Momentaufnahme ersetzt nicht die auf dem Pi zu verifizierenden Betriebsdaten.
@@ -7,6 +27,20 @@
 **Repository und PRs:** [Offene Pull Requests](https://github.com/mason82-dotcom/SkyHub-Next/pulls) und [`main`](https://github.com/mason82-dotcom/SkyHub-Next/tree/main) sind die Live-Ansichten. Die [GitHub-Bestandsaufnahme vom 25.10.2026](repository-status-2026-10-25.md), die [Hygieneprüfung](repository-hygiene-2026-10-25.md) und der [PR-Triagebericht](pr-triage-2026-10-24.md) sind datierte Momentaufnahmen, keine Live-Zahlen oder Mergefreigaben.
 
 **Navigationsstand ergänzt am 02.11.2026; dokumentierter Raspberry-Pi-Betriebsstand weiter vom 27.10.2026.** Primäre Einstiegspunkte sind der [Betriebsstand des Pi vom 27.10.2026](stand-2026-10-27-betriebsstand.md), der [Main-Audit des Quellcodes](stand-2026-10-25-main-audit.md) und die [Dokumentationspflege](dokumentationspflege.md). Die bisherige Repository-Statusdatei und die umfangreichen PR-Triageberichte sind ältere Messungen **desselben Tages** und kein Ersatz für eine aktuelle GitHub-Abfrage. Diese Navigation gilt für den Root-Stack `skyhub-next`. Die wichtigste Unterscheidung ist die zwischen dem **Code auf `main`** und **noch nicht integrierten Entwicklungszweigen**.
+
+## Planar Wayline P0–P2 (06.11.2026)
+
+[Flächen-/Schrägbildplanung und abgesicherte KMZ-Referenzprüfung](planar-wayline-integration.md) – experimentelles Vermessungslabor, read-only DEM-Profil und Offline-Kompatibilitätsprüfung; keine DJI-Flugfreigabe.
+
+## Fotoabdeckung: AGL, GSD und M4T/M3M (06.11.2026)
+
+[Geländekorrigierte Fotoabdeckung P0–P2](coverage-terrain-qa-p0-p2.md) – lokale DEM-Höhendifferenz mit explizitem Startpunkt,
+GSD-Qualitätsstatus, getrennte M4T-Thermal- und M3M-Multispektral-Verarbeitung. Ausschließlich Offline-/Synthetiknachweise,
+keine DJI-Flugfreigabe oder Hardwareabnahme.
+
+## Passiver MAVLink-2-Telemetrieadapter (RosettaDrone-Referenz, 06.11.2026)
+
+[Isolierte MAVLink-2-OSD-Projektion für Mavic 3M und Matrice 4T](mavlink-telemetry-readonly.md) – ausschließlich Offline-Frames; keine DJI-Steuerung, keine UDP-Liveübertragung, kein GPS-MSL-Nachweis und keine QGC-Flugfreigabe.
 
 ## Missionsfreigabe, NDVI, TAK/CloudTAK (04.11.2026)
 
@@ -32,6 +66,10 @@ TAK/CloudTAK-Ausgang (CoT der Live-Positionen, standardmäßig aus): [tak.md](ta
 - [Gemeinsamer MinIO-Objektspeicher](minio-shared-storage.md) (Entwurfsstand 21.10., Betrieb siehe Betriebsstand) und das [Backup-/Restore-Paket `pi-minio-acceptance`](../pi-minio-acceptance/README.md) mit [Validierung](../pi-minio-acceptance/VALIDIERUNG.md).
 - [Betriebswerkzeuge – Wirkung und Freigabe](scripts.md), [Mosquitto-Migration](pi-mosquitto-migration.md), [Host-InfluxDB absichern](pi-influxdb-hardening.md), [TSA-/Proxy-Härtung](tsa-proxy-hardening-2026-10-24.md).
 - [Cloud-API-Demo als lokaler Testweg](cloud-api-demo-lokal.md) und das Begleitprojekt [Pi-Hub](pi-hub.md) (Weboberfläche für den Pi-Betrieb, eigenes lokales Repository).
+
+## GitHub-Repository-Pflege (06.11.2026)
+
+[Read-only-Portfolioaudit und optionales Branch-Pruning](github-portfolio-hygiene.md) – schützt PR-Abhängigkeiten, Default-/Protected-Branches und ungemergte Commits; remote Löschvorgänge ausschließlich nach manueller Einzel-Repo-Bestätigung.
 
 ## Sicherheit und Engineering-Review
 
@@ -101,6 +139,7 @@ Diese Dokumente waren bisher nur über Suche oder PR-Beschreibungen erreichbar. 
 - [DJI Pilot 2 ↔ SkyHub WPML: kontrollierte Offline-Abnahme](dji-pilot2-kmz-acceptance.md)
 - [DJI Pilot 2 – Mediensynchronisation RC Plus 2 / RC Pro (manueller Upload)](dji-pilot2-media-sync.md)
 - [SkyHub Next – Thermalmodul (31.10.2026)](thermal.md)
+- [DJI Thermal SDK 1.9: isolierter Pi-5-A/B-Vergleich gegen SDK 1.7 (kein Upgrade)](thermal-tsdk19-parity.md)
 - [DJI Pilot 2 – isolierte HTTPS-Medienendpunkte](dji-pilot2-media-https-api.md)
 - [DJI Pilot 2 Media STS – isolierte HTTPS-Autorisierungsgrenze](dji-pilot2-media-sts-boundary.md)
 - [SkyHub Next – Verifizierte DJI-Pilot-2-Medienbibliothek (Read-only)](dji-pilot2-verified-media-library.md)
@@ -108,6 +147,8 @@ Diese Dokumente waren bisher nur über Suche oder PR-Beschreibungen erreichbar. 
 - [SkyHub Next – Mediengalerie (31.10.2026)](media-gallery.md)
 
 **WPML, Waylines und Missionsplanung**
+
+- [Cloud API 2: integrierter Missionseditor, Flächen-Routenplaner und Routenbibliothek (P0, UI-Entwurf)](cloud-api2-mission-planning-workspace.md) – vorhandene SkyHub-WPML-Werkzeuge, kein zusätzlicher DJI-Missionsversand, Browserabnahme ausstehend.
 
 - [Motecshine DJI Waylines SDK als SkyHub-Next-Referenz](dji-waylines-sdk-reference.md)
 - [FlightHub-inspirierte Missionsprüfung – reiner Offline-Entwurf](dji-wpml-draft-review.md)

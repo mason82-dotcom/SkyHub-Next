@@ -28,24 +28,26 @@ function fakeClock(start=1793800000000){
 }
 const M4T={modelKey:'0-99-1',modelName:'Matrice 4T',heightEllipsoid:180,heightAboveTakeoff:30,position:{latitude:49.1,longitude:8.5},home:{latitude:49.1,longitude:8.5}};
 
-function setup({aircraft=M4T,autoReply=true,result=0}={}){
+function setup({aircraft=M4T,autoReply=true,result=0,limits={}}={}){
   const clock=fakeClock(),sent=[],drc=[],log=[];
-  let session;
+  let session,respond=autoReply;
   const publishService=(gw,msg)=>{
     sent.push(msg);
-    if(autoReply)queueMicrotask(()=>session.onUp({gateway:gw,channel:'services_reply',method:msg.method,tid:msg.tid,result}));
+    if(respond)queueMicrotask(()=>session.onUp({gateway:gw,channel:'services_reply',method:msg.method,tid:msg.tid,result}));
   };
   const replies=[];
   session=createDrcSession({gateway:'RCP2SN',publishService,publishDrc:(gw,m)=>drc.push(m),publishEventsReply:(gw,m)=>replies.push(m),aircraft:()=>aircraft,clock,
     broker:()=>({address:'192.168.178.63:1884',clientId:'drc-RCP2SN',username:'drc',password:'pw',expireTime:1793900000,enableTls:false}),
-    audit:e=>log.push(e)});
-  return {session,clock,sent,drc,log,replies};
+    audit:e=>log.push(e),limits});
+  return {session,clock,sent,drc,log,replies,setReplies(v){respond=Boolean(v);}};
 }
 async function liveControl(x){
   await x.session.requestAuthorization('op1');
   x.session.onUp({gateway:'RCP2SN',channel:'events',method:'cloud_control_auth_notify',status:'ok'});
   x.session.acquire('op1');
   await x.session.enterLiveControl('op1');
+  x.session.onUp({gateway:'RCP2SN',channel:'osd',drcState:2});
+  x.session.onUp({gateway:'RCP2SN',channel:'drc/up',method:'heart_beat',timestamp:x.clock.now()});
 }
 
 test('full path: authorisation by the pilot, DRC channel, heartbeat both ways',async()=>{
@@ -56,6 +58,10 @@ test('full path: authorisation by the pilot, DRC channel, heartbeat both ways',a
   x.session.onUp({gateway:'RCP2SN',channel:'events',method:'cloud_control_auth_notify',status:'ok'});
   assert.equal(x.session.snapshot().phase,'authorized');
   await x.session.enterLiveControl('op1');
+  assert.equal(x.session.snapshot().controlLink.ready,false,'service ack alone cannot arm flight');
+  x.session.onUp({gateway:'RCP2SN',channel:'osd',drcState:2});
+  x.session.onUp({gateway:'RCP2SN',channel:'drc/up',method:'heart_beat',timestamp:x.clock.now()});
+  assert.equal(x.session.snapshot().controlLink.ready,true);
   assert.equal(x.session.snapshot().phase,'drc_active');
   assert.equal(x.sent[1].method,'drc_mode_enter');
   assert.equal(x.sent[1].data.mqtt_broker.client_id,'drc-RCP2SN');
@@ -64,6 +70,75 @@ test('full path: authorisation by the pilot, DRC channel, heartbeat both ways',a
   assert.ok(x.drc.some(m=>m.method==='heart_beat'),'heartbeat sent');
   const seqs=x.drc.map(m=>m.seq);
   assert.deepEqual(seqs,[...seqs].sort((a,b)=>a-b),'seq increases');
+});
+
+test('DRC: services reply alone, wrong RC state and stale uplink all block flight control',async()=>{
+  const x=setup();await x.session.requestAuthorization('op1');
+  x.session.onUp({gateway:'RCP2SN',channel:'events',method:'cloud_control_auth_notify',status:'ok'});
+  await x.session.enterLiveControl('op1');
+  assert.equal(x.session.snapshot().controlLink.ready,false);
+  assert.throws(()=>x.session.stickInput('op1',{pitch:1}),/Steuerung gesperrt/);
+  await assert.rejects(x.session.flyTo('op1',{latitude:49.1005,longitude:8.5005,heightAboveTakeoff:50}),
+    /Steuerung gesperrt/);
+  x.session.onUp({gateway:'RCP2SN',channel:'state',drcState:1});
+  x.session.onUp({gateway:'RCP2SN',channel:'drc\/up',method:'heart_beat',timestamp:x.clock.now()});
+  assert.equal(x.session.snapshot().controlLink.ready,false,'connecting state is not ready');
+  x.session.onUp({gateway:'RCP2SN',channel:'osd',drcState:2});
+  assert.equal(x.session.snapshot().controlLink.ready,true);
+  for(let i=0;i<11;i++){x.session.acquire('op1');await x.clock.advance(500);}
+  assert.equal(x.session.snapshot().controlLink.ready,false,'uplink must be fresh');
+  assert.throws(()=>x.session.stickInput('op1',{pitch:1}),/Lease|Steuerung gesperrt/);
+  // A current heartbeat alone cannot rescue a stale RC state.
+  x.session.acquire('op1');
+  x.session.onUp({gateway:'RCP2SN',channel:'drc\/up',method:'heart_beat',timestamp:x.clock.now()});
+  assert.equal(x.session.snapshot().controlLink.ready,true);
+  await x.clock.advance(2001);
+  assert.equal(x.session.snapshot().controlLink.ready,false,'RC state needs freshness as well');
+});
+
+test('MQTT transport loss invalidates proofs immediately; motion cannot cancel the fail-safe',async()=>{
+  const x=setup();await liveControl(x);
+  assert.equal(x.session.snapshot().controlLink.ready,true);
+  x.session.invalidateLink('Broker-Verbindung unterbrochen');
+  assert.equal(x.session.snapshot().controlLink.ready,false);
+  assert.equal(x.session.snapshot().recoveryRequired,true);
+  assert.equal(x.session.snapshot().failsafe.pending,true);
+  x.session.acquire('op1');
+  assert.equal(x.session.snapshot().failsafe.pending,true,'new lease cannot override a broken link');
+  assert.throws(()=>x.session.stickInput('op1',{pitch:1}),/Steuerung gesperrt/);
+  await x.clock.advance(3200);
+  assert.equal(x.session.snapshot().phase,'idle');
+  assert.equal(x.session.snapshot().recoveryRequired,false,'successful reply confirms handback');
+  assert.ok(x.sent.some(m=>m.method==='cloud_control_release'));
+});
+
+test('unconfirmed handback remains latched; reauthorization blocked until manual RC recovery',async()=>{
+  const x=setup();await liveControl(x);
+  x.setReplies(false);
+  x.session.invalidateLink('MQTT down');
+  await x.clock.advance(15000);
+  const state=x.session.snapshot();
+  assert.equal(state.phase,'idle');
+  assert.equal(state.recoveryRequired,true);
+  assert.match(state.lastError,/nicht bestätigt/);
+  await assert.rejects(x.session.requestAuthorization('op1'),/nicht bestätigt/);
+});
+
+test('active stick and gimbal streams stop when the uplink proof expires',async()=>{
+  const x=setup({limits:{upLinkLostMs:700,drcStateFreshMs:2000,stickStaleMs:8000,dragStaleMs:8000}});
+  await liveControl(x);
+  x.session.stickInput('op1',{roll:0.5});
+  x.session.gimbalDrag('op1',{pitch:0.5});
+  await x.clock.advance(900);
+  assert.equal(x.session.snapshot().controlLink.ready,false);
+  assert.equal(x.session.snapshot().sticksActive,false);
+  assert.equal(x.session.snapshot().gimbalDragActive,false);
+  const sticks=x.drc.filter(m=>m.method==='stick_control');
+  assert.ok(sticks.some(m=>m.data.roll!==P.NEUTRAL.roll),'positive commands existed before expiry');
+  assert.deepEqual(sticks.at(-1).data,P.NEUTRAL,'uplink loss must end with neutral stick');
+  const drags=x.drc.filter(m=>m.method==='drc_camera_screen_drag');
+  assert.ok(drags.some(m=>m.data.pitch_speed!==0));
+  assert.equal(drags.at(-1).data.pitch_speed,0,'uplink loss must end with zero gimbal speed');
 });
 
 test('pilot denies: back to idle, nothing else happens',async()=>{

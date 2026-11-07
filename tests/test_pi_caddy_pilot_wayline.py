@@ -77,7 +77,7 @@ class PilotWaylineCaddyTest(unittest.TestCase):
         self.assertLess(main.index("@skyhub_pilot_wayline"), main.index("reverse_proxy 127.0.0.1:11000"))
         # Download only from the home LAN, read methods only, before the catch-all 403.
         block = s3[s3.index("@wayline_download {"):s3.index("handle @wayline_download")]
-        self.assertIn("remote_ip 192.168.178.0/24", block)
+        self.assertIn("remote_ip 192.168.178.0/24 fd1a:baaf:283e::/64 2a02:8071:3184:88c0::/64", block)
         self.assertIn("method GET HEAD", block)
         self.assertIn("path /skyhub-wpml/missions/*", block)
         self.assertLess(s3.index("handle @wayline_download"), s3.index('respond "Forbidden" 403'))

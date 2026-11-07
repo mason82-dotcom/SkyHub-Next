@@ -24,21 +24,21 @@ const c=require("crypto");let d="";process.stdin.on("data",x=>d+=x).on("end",()=
 const s=c.randomBytes(12),h=c.pbkdf2Sync(p,s,101,64,"sha512");process.stdout.write(u+":$7$101$"+s.toString("base64")+"$"+h.toString("base64")+"\n");});'; }
 hash skyhub_commander "$pc" >> $M/passwd
 hash skyhub_drc_link "$pl" >> $M/passwd
-cat >> $M/acl <<'ACL'
+cat >> $M/acl <<ACL
 
 user skyhub_commander
-topic write thing/product/+/services
-topic write thing/product/+/drc/down
-topic write thing/product/+/events_reply
-topic read thing/product/+/services_reply
-topic read thing/product/+/events
-topic read thing/product/+/osd
-topic read thing/product/+/state
-topic read thing/product/+/drc/up
+topic write thing/product/${GATEWAY}/services
+topic write thing/product/${GATEWAY}/drc/down
+topic write thing/product/${GATEWAY}/events_reply
+topic read thing/product/${GATEWAY}/services_reply
+topic read thing/product/${GATEWAY}/events
+topic read thing/product/${GATEWAY}/osd
+topic read thing/product/${GATEWAY}/state
+topic read thing/product/${GATEWAY}/drc/up
 
 user skyhub_drc_link
-topic write thing/product/+/drc/up
-topic read thing/product/+/drc/down
+topic write thing/product/${GATEWAY}/drc/up
+topic read thing/product/${GATEWAY}/drc/down
 ACL
 {
   printf '\n# Live-Steuerung (DRC), eingerichtet %s mit scripts/brix-drc-setup.sh (docs/drc-matrice4.md)\n' "$ts"

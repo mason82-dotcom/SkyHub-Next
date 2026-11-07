@@ -1,0 +1,42 @@
+name: DJI Cloud API 2 pinned vendor UI overlay
+
+on:
+  push:
+    branches:
+      - feature/cloudapi2-v110-devkit-vue-lab-p3-20261107
+    paths:
+      - 'integrations/dji-cloud-api2-v110-overlay/**'
+      - 'scripts/dji-cloudapi2-v110-p3-overlay.mjs'
+      - '.github/workflows/cloud-api2-p3-vendor-ui.yml'
+  pull_request:
+    paths:
+      - 'integrations/dji-cloudapi2-v110-overlay/**'
+      - 'integrations/dji-cloud-api2-v110-overlay/**'
+      - 'scripts/dji-cloudapi2-v110-p3-overlay.mjs'
+      - '.github/workflows/cloud-api2-p3-vendor-ui.yml'
+permissions:
+  contents: read
+jobs:
+  vendor-ui-compile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Fetch pinned upstream source
+        run: |
+          git clone --filter=blob:none --no-checkout https://github.com/dji-sdk/Cloud-API-2.git /tmp/cloud-api2-v110
+          git -C /tmp/cloud-api2-v110 fetch --depth 1 origin 705c73f48a77bb5120b28d73436d73594d289359
+          git -C /tmp/cloud-api2-v110 checkout --detach 705c73f48a77bb5120b28d73436d73594d289359
+      - name: Dry-run and stage without Docker or production deployment
+        run: |
+          node scripts/dji-cloudapi2-v110-p3-overlay.mjs --check --vendor /tmp/cloud-api2-v110
+          node scripts/dji-cloudapi2-v110-p3-overlay.mjs --apply --vendor /tmp/cloud-api2-v110
+      - name: Test and typecheck vendor UI with overlay
+        working-directory: /tmp/cloud-api2-v110/devkit/skeleton/web
+        run: |
+          npm ci
+          npm run build
+          npx vitest run src/components/AppTopNav.test.ts src/components/UserDropdown.test.ts

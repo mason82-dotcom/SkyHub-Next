@@ -1,0 +1,435 @@
+import {SkyHubDaaSClient} from './cloud-api2-sdk.mjs';
+import {SkyHubLabSimulator} from './cloud-api2-lab.mjs';
+import {MODULES,SKILLS,VENDOR_SKILLS} from './cloud-api2-modules.mjs';
+import {MAVIC3_MODELS,countMavic3Registry} from './cloud-api2-mavic3.mjs';
+import {normalizeEvidence} from './cloud-api2-evidence.mjs';
+import {normalizeLinkage} from './cloud-api2-linkage.mjs';
+import {normalizeHardwareReceipt} from './cloud-api2-hardware.mjs';
+import {SkyHubReadOnlyContractAdapter} from './cloud-api2-readonly-adapter.mjs';
+const get=id=>document.getElementById(id);
+const client=new SkyHubDaaSClient();
+const lab=new SkyHubLabSimulator();
+const sections=['overview','devices','evidence','mavic3','m4t-hardware','planning','simulator','sdk','contracts','integrations','ai'];
+const hardwareEvidence=new Map();
+let observedDevices=[];
+let chosenMavic3='m3e';
+const features=[
+  ['SkyHub Geräte-Backend','KEYLESS'],
+  ['Objektorientierte GET-Fassade','KEYLESS'],
+  ['Offline-Gerätesimulator','KEYLESS'],
+  ['KI-Entwicklungs-Prompts','KEYLESS'],
+  ['Vorhandene WPML-/Medienmodule','BESTEHEND'],
+  ['Offizielles DJI Java/JNI SDK','NICHT INSTALLIERT'],
+  ['DJI PaaS / Frontend Runtime','NICHT INSTALLIERT'],
+  ['DJI API 2 MQTT Bridge','NICHT AKTIV'],
+  ['DRC / Flugbetrieb / Missionsversand','GESPERRT']
+];
+const promptTopics={
+  parity:'Vergleiche typisierte Cloud API 1.x Gerätefelder und die dokumentierten Cloud API 2 DaaS-Leseinterfaces. Liefere eine Feldmatrix mit belegten, fehlenden und noch zu prüfenden Werten. Niemals Telemetriedaten interpolieren.',
+  backend:'Entwerfe eine strikt lesende SkyHub-Backend-Fassade über die vorhandene Registry. Verwende ausschließlich GET und eine eindeutige Datenherkunft; keine MQTT-Publikation, keine Geräteänderung, keine neue Berechtigung.',
+  sim:'Erzeuge reproduzierbare synthetische RC Plus 2 / Matrice 4T Simulationsprofile mit Offline-Testfällen. Keine Weitergabe an Live-Dienste und keine voreilige Hardwarefreigabe.',
+  frontend:'Prüfe SkyHub-Frontend-Module auf saubere Komponentenlebenszyklen, HTML-Escaping, Barrierefreiheit, Token-Grenzen, klare Fehlerzustände und strikt getrennte Simulationsdaten.',
+  security:'Prüfe SkyHub auf ungewollte Writes, DRC-Kommandos, MQTT-Topic-Schleifen, Doppelantworten, Datenabfluss, Token-Speicherung und Verwechslung von Live-/Laborzuständen.'
+};
+function el(tag,cls,txt) {
+  const node=document.createElement(tag);if(cls)node.className=cls;
+  if(txt!==undefined)node.textContent=String(txt);
+  return node;
+}
+function view(key){
+  if(!sections.includes(key))return;
+  for(const name of sections)get('view-'+name).hidden=name!==key;
+  // The portal's observation panels are read-only; the embedded canonical
+  // mission tools may persist local drafts or opt-in MinIO data on user click.
+  const badge=get('portalModeBadge');
+  if(badge){
+    badge.textContent=key==='planning'
+      ? '● ENTWURF · MANUELLES SPEICHERN MÖGLICH'
+      : '● READ ONLY';
+    badge.classList.toggle('planning-mode',key==='planning');
+  }
+  document.querySelectorAll('[data-view]').forEach(button=>{
+    const selected=button.dataset.view===key;
+    button.classList.toggle('active',selected);
+    if(selected)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');
+  });
+  try{history.replaceState(null,'','#'+key);}catch(_){}
+}
+document.querySelectorAll('[data-view]').forEach(button=>
+  button.addEventListener('click',()=>view(button.dataset.view)));
+document.querySelectorAll('[data-open]').forEach(button=>
+  button.addEventListener('click',()=>view(button.dataset.open)));
+function renderMavic3Detail(){
+  const model=MAVIC3_MODELS.find(x=>x.id===chosenMavic3)||MAVIC3_MODELS[0];
+  const root=get('mavic3-detail');root.replaceChildren();
+  const top=el('div','card-top');top.append(el('b','',model.name.toUpperCase()),el('span','',model.group.toUpperCase()));root.append(top);
+  root.append(el('h2','',model.focus));
+  const dl=el('dl');
+  dl.className='family-facts';
+  for(const [name,value] of [['Bildgebung',model.imaging],['Thermal',model.hasThermal?'Herstellerseitige Kamera vorhanden':'Nicht vorhanden'],
+    ['Multispektral',model.hasMultispectral?'4 Spektralbänder vorhanden':'Nicht vorhanden'],
+    ['Betriebsstatus','Referenzdaten · keine Hardwarefreigabe']]){
+    const item=el('div','family-data');item.append(el('dt','',name),el('dd','',value));dl.append(item);
+  }
+  root.append(dl);
+  const tags=el('div','family-tags');for(const item of model.modules)tags.append(el('span','',item));root.append(tags);
+  root.append(el('p','notice',model.note));
+  root.append(el('p','hint','Module sind thematische Zuordnungen und keine Aussage über einen betriebsbereiten DJI Cloud API 2 SDK-Treiber.'));
+  document.querySelectorAll('[data-mavic3-id]').forEach(button=>{
+    const selected=button.dataset.mavic3Id===model.id;
+    button.classList.toggle('selected',selected);
+    button.setAttribute('aria-pressed',String(selected));
+  });
+}
+function renderMavic3Registry(){
+  const matches=countMavic3Registry(observedDevices);
+  const root=get('mavic3-registry');root.replaceChildren();
+  get('mavic3-count').textContent=matches.length+' zugeordnete Registry-Geräte · Live-Status nur bei frischer OSD + Topologie';
+  if(!matches.length){root.append(el('p','empty','Keine Mavic-3-Geräte aus der aktuell erreichbaren Registry bestätigt. Modellprofile bleiben als Referenz sichtbar.'));return;}
+  for(const {device,model} of matches){
+    const item=el('div','family-device');
+    item.append(el('b','',model.name));
+    const state=el('small','',device.online===true?'● Frische Live-Telemetrie gemeldet':'○ Offline / nicht verifiziert');
+    const chip=el('em',device.online===true?'live':'',device.batteryPercent===null||device.batteryPercent===undefined?'Akku unbekannt':'Akku '+device.batteryPercent+' %');
+    state.append(' · ',chip);item.append(state);root.append(item);
+  }
+}
+function setupMavic3(){
+  const root=get('mavic3-models');root.replaceChildren();
+  for(const model of MAVIC3_MODELS){
+    const button=el('button','family-model');button.type='button';button.dataset.mavic3Id=model.id;
+    button.append(el('small','',model.group),el('strong','',model.name),el('span','',model.focus));
+    button.addEventListener('click',()=>{chosenMavic3=model.id;renderMavic3Detail();});
+    root.append(button);
+  }
+  renderMavic3Detail();renderMavic3Registry();
+}
+function connected(value,text){
+  get('indicator').classList.toggle('ok',value);
+  get('connection').textContent=text;
+}
+function paintDevices(devices){
+  const root=get('devices');root.replaceChildren();
+  if(!devices.length){
+    root.append(el('p','empty','Keine bestätigten Live-Geräte vorhanden oder Zugang eingeschränkt. Der Simulator ist weiterhin nutzbar.'));
+    return;
+  }
+  for(const device of devices){
+    const article=el('article','device');
+    article.append(el('div','live'+(device.online?'':' off'),device.online?'● FRISCHE TELEMETRIE':'○ OFFLINE / UNBEKANNT'));
+    article.append(el('h2','',device.modelName));
+    article.append(el('p','',device.role==='gateway'?'Gateway / Fernsteuerung':device.role==='subdevice'?'Fluggerät / Untergerät':'Gerätetyp unbekannt'));
+    const dl=el('dl');
+    for(const [name,value] of [
+      ['Topologie',device.topologyOnline===true?'Gemeldet':device.topologyOnline===false?'Nicht online':'Unbekannt'],
+      ['Akku',device.batteryPercent===null?'—':device.batteryPercent+' %'],
+      ['OSD Alter',device.telemetryAgeSeconds===null?'Unbekannt':device.telemetryAgeSeconds+' s'],
+      ['Qualität',device.online?'Frisch':'Nicht verifiziert']
+    ])dl.append(el('dt','',name),el('dd','',value));
+    article.append(dl);root.append(article);
+  }
+}
+async function refresh(){
+  get('status').textContent='SkyHub wird ausschließlich lesend abgefragt …';
+  try{
+    const [status,list]=await Promise.all([client.getStatus(),client.listDevices()]);
+    const devices=Array.isArray(list.devices)?list.devices:[];
+    observedDevices=devices;renderMavic3Registry();
+    get('count').textContent=Number.isInteger(list.total)?list.total:'—';
+    get('online').textContent=Number.isInteger(list.online)?list.online:'—';
+    get('deviceStatus').textContent=String(list.total)+' registriert · '+String(list.online)+' frisch · MQTT '+(status.mqttConnected?'verbunden':'nicht verbunden');
+    get('status').textContent='SkyHub-Backend erreichbar. Quelle: bestehende Cloud API 1.x, nicht DJI Cloud API 2.';
+    get('status').classList.add('ok');
+    connected(true,'SkyHub erreichbar');
+    paintDevices(devices);
+  }catch(err){
+    get('count').textContent='—';get('online').textContent='—';
+    get('deviceStatus').textContent='Live-Backend nicht erreichbar / nicht autorisiert';
+    get('status').textContent=err instanceof Error?err.message:'Keine Verbindung';
+    get('status').classList.remove('ok');
+    connected(false,'Live-Daten nicht verfügbar');
+    observedDevices=[];renderMavic3Registry();
+    paintDevices([]);
+  }
+}
+get('refresh').addEventListener('click',refresh);
+get('reload').addEventListener('click',refresh);
+function paintEvidence(data){
+  const parsed=normalizeEvidence(data);
+  const root=get('evidenceModules');
+  root.replaceChildren();
+  for(const module of parsed.modules){
+    const article=el('article','integration-item');
+    article.append(el('small','',module.label),el('h2','',module.title));
+    article.append(el('p','',module.meaning));
+    const countText=module.count===null?'Zählwert nicht verfügbar':
+      module.count+' Einträge im vorhandenen Speicher';
+    article.append(el('b','evidence-count',countText));
+    root.append(article);
+  }
+  get('evidenceLinkage').textContent=
+    'Quelle: vorhandene SkyHub-Speicherindizes. Gerätezuordnung: nicht nachgewiesen. '+
+    'Flugfreigabe: nein. Messgenauigkeit: nicht nachgewiesen.';
+}
+async function inspectEvidence(){
+  const button=get('loadEvidence');
+  if(button.disabled)return;
+  button.disabled=true;
+  get('evidenceStatus').textContent='Lesende Prüfung gestartet. Keine Geräteaktion.';
+  get('evidenceModules').replaceChildren();
+  try{
+    const result=await client.getEvidence();
+    paintEvidence(result);
+    get('evidenceStatus').textContent='Inventarstände geladen. Quelle: bestehende SkyHub-Speicher, keine DJI Cloud API 2 Runtime.';
+  }catch(error){
+    get('evidenceStatus').textContent=error instanceof Error?error.message:'Nachweise nicht erreichbar';
+    get('evidenceModules').append(el('p','empty','Keine Nachweise verfügbar. Unbekannt ist kein negativer Hardwarebefund.'));
+    get('evidenceLinkage').textContent='Keine neue Evidenz. Gerätezuordnung und Flugfreigabe weiterhin nicht nachgewiesen.';
+  }finally{button.disabled=false;}
+}
+get('loadEvidence').addEventListener('click',inspectEvidence);
+// Hardware evidence is requested only on explicit action; no timers or auto polling.
+function renderM4tHardware(){
+  const root=get('m4tHardwareReceipts');root.replaceChildren();
+  if(hardwareEvidence.size===0){
+    root.append(el('p','empty','Keine aktuelle Prüfung vorhanden. Der historische Test wird nicht als Live-Datenpunkt gezählt.'));
+    return;
+  }
+  for(const receipt of hardwareEvidence.values()){
+    const card=el('article','card hardware-receipt');
+    const top=el('div','card-top');
+    const measuredAge=Math.max(0,Math.floor((Date.now()-Date.parse(receipt.measuredAt))/1000));
+    const freshness=measuredAge<=20?'ZEITNAH':'HISTORISCH';
+    top.append(el('b','',receipt.title),el('span','',freshness));
+    card.append(top);
+    const info=el('p','hardware-provenance',receipt.origin+' · '+receipt.measuredAt+' · '+measuredAge+' s seit Messung');
+    card.append(info);
+    const ok=receipt.result==='READY'||receipt.result==='TRANSPORT_SMOKE_OK';
+    card.append(el('strong','hardware-result'+(ok?' hardware-ok':' hardware-warn'),
+      receipt.result==='TRANSPORT_SMOKE_OK'?'TRANSPORT-SMOKE PASS':receipt.result==='READY'?'MODUL/VORAUSSETZUNG BEREIT':'UNVOLLSTÄNDIG'));
+    const checks=el('dl','hardware-checks');
+    for(const check of receipt.checks){
+      const wrapper=el('div','hardware-check');
+      wrapper.append(el('dt','',check.name),el('dd',check.status==='PASS'?'hw-pass':check.status==='NICHT BESTÄTIGT'||check.status==='UNVOLLSTÄNDIG'?'hw-unknown':'',check.status));
+      checks.append(wrapper);
+    }
+    card.append(checks);
+    card.append(el('p','hint','hardwareAcceptanceComplete=false · flightReady=false · dispatchAllowed=false. Eine erfolgreiche Transportprüfung ersetzt keine Hardware- oder Flugabnahme.'));
+    root.append(card);
+  }
+}
+function registerHardwareReceipt(data,origin){
+  const normalized=normalizeHardwareReceipt(data,{origin});
+  hardwareEvidence.set(normalized.mode,normalized);
+  renderM4tHardware();
+  get('m4tHardwareStatus').textContent=normalized.title+' geladen: '+normalized.result+' ('+normalized.origin+' · '+normalized.measuredAt+'). Kein Flugkommando.';
+}
+async function inspectM4tHardware(){
+  const button=get('loadM4tHardware');if(button.disabled)return;
+  button.disabled=true;
+  get('m4tHardwareStatus').textContent='Aktuelle Backend-Zustände werden ausschließlich lesend geprüft …';
+  try{
+    const data=await client.getRcPlus2M4tEvidence();
+    registerHardwareReceipt(data,'backend-live');
+  }catch(error){
+    hardwareEvidence.delete('live-transport-smoke');
+    renderM4tHardware();
+    get('m4tHardwareStatus').textContent=(error instanceof Error?error.message:'Hardware-Nachweis nicht erreichbar')+
+      ' · Kein aktueller Hardware-Nachweis. Alternative: anonymisierten lokalen JSON-Beleg prüfen.';
+  }finally{button.disabled=false;}
+}
+get('loadM4tHardware').addEventListener('click',inspectM4tHardware);
+get('m4tReceiptFile').addEventListener('change',async()=>{
+  const input=get('m4tReceiptFile'),file=input.files?.[0];if(!file)return;
+  try{
+    if(file.size>32768)throw new TypeError('JSON-Datei zu groß (max. 32 KiB)');
+    const parsed=JSON.parse(await file.text());
+    registerHardwareReceipt(parsed,'operator-file');
+  }catch(_error){
+    get('m4tHardwareStatus').textContent='JSON-Beleg abgelehnt: Format, Inhalt oder Prüfsummenbedingungen ungültig. Keine Rohdaten angezeigt.';
+  }finally{input.value='';}
+});
+function renderLinkage(data){
+  const report=normalizeLinkage(data);
+  const root=get('linkageReport');
+  root.replaceChildren();
+  const inventories=[
+    ['Gerätebestand',report.inventory.device,'Cloud API 1.x Topologie'],
+    ['WPML-Speicher',report.inventory.mission,'S3-Missionsmetadaten'],
+    ['Pilot-2-Medien',report.inventory.media,'Beim Upload per S3 HEAD bestätigte Datensätze']
+  ];
+  for(const [title,record,source] of inventories){
+    const article=el('article','integration-item');
+    article.append(el('small','',record.status.toUpperCase()),el('h2','',title),
+      el('p','',source));
+    article.append(el('b','evidence-count',
+      record.count===null?'Anzahl unbekannt':record.count+' Einträge'));
+    root.append(article);
+  }
+  const entries=[
+    ['Gerät ↔ Mission',report.deviceMission,'Keine unabhängige DJI-Ausführungsbestätigung'],
+    ['Mission ↔ Medien',report.missionMedia,'Keine authentische missionsgebundene Medienreferenz'],
+    ['Gerät ↔ Medien',report.deviceMedia,'Keine bestätigte Gerätekennung aus geprüftem Medieninhalt']
+  ];
+  for(const [title,_,detail] of entries){
+    const article=el('article','integration-item');
+    article.append(el('small','','NICHT NACHGEWIESEN'),el('h2','',title),el('p','',detail));
+    root.append(article);
+  }
+  const model=el('article','integration-item');
+  model.append(el('small','','NUR MODELL-KANDIDATEN'),
+    el('h2','','Modellkompatibilität'),
+    el('p','','Abgleich von zeitlich gültiger Topologie und hashkonsistenten WPML-Metadaten – keine dokumentierte Ausführung.'));
+  model.append(el('b','evidence-count',report.modelCandidatePairs===null?
+    'UNBEKANNT':report.modelCandidatePairs+' Modellkombinationen'));
+  root.append(model);
+}
+async function inspectLinkage(){
+  const button=get('loadLinkage');
+  if(button.disabled)return;
+  button.disabled=true;
+  get('linkageReport').replaceChildren();
+  get('linkageStatus').textContent='Prüfung läuft; ausschließlich lesende Bestandsabfragen.';
+  try{
+    renderLinkage(await client.getLinkage());
+    get('linkageStatus').textContent='Quellbestände geprüft. Kein Geräte-, Missions- oder Medienlink ohne eigenständigen Nachweis.';
+  }catch(err){
+    get('linkageStatus').textContent=err instanceof Error?err.message:'Nicht erreichbar';
+    get('linkageReport').append(el('p','empty','Verknüpfungsnachweise unbekannt. Keine Zuordnung freigegeben.'));
+  }finally{button.disabled=false;}
+}
+get('loadLinkage').addEventListener('click',inspectLinkage);
+
+function renderLab(){
+  const state=lab.current();
+  get('frame').textContent='FRAME '+String(state.index+1).padStart(2,'0')+' / '+state.count;
+  get('phase').textContent=state.phase;
+  get('height').textContent=state.altitude+' m';
+  get('battery').textContent=state.battery+' %';
+  get('link').textContent=state.link+' %';
+  get('next').disabled=state.index===state.count-1;
+  const list=get('labLog');list.replaceChildren();
+  for(const entry of lab.history)list.append(el('li','',String(entry.index+1).padStart(2,'0')+' · '+entry.note));
+}
+get('next').addEventListener('click',()=>{lab.advance();renderLab();});
+get('reset').addEventListener('click',()=>{lab.reset();renderLab();});
+get('download').addEventListener('click',()=>{
+  const blob=new Blob([JSON.stringify(lab.exportData(),null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const anchor=el('a');anchor.href=url;anchor.download='skyhub-cloudapi2-lab.json';
+  anchor.click();URL.revokeObjectURL(url);
+});
+
+const readOnlyAdapter=new SkyHubReadOnlyContractAdapter({client});
+function paintReadOnlyContract(contract){
+  const summary=get('readonlyAdapterSummary');
+  const devices=get('readonlyAdapterDevices');
+  const modules=get('readonlyAdapterModules');
+  summary.replaceChildren();devices.replaceChildren();modules.replaceChildren();
+  for(const [key,value] of [
+    ['DJI Plattform',contract.vendorPlatformVersion],
+    ['DJI Revision',contract.vendorCommit.slice(0,12)],
+    ['SDK-Quellen',contract.sdkSourceVersion],
+    ['DevKit-JAR',contract.devkitJarVersion],
+    ['API-2-SDK installiert','NEIN / NUR REFERENZ'],
+    ['Flug- und Missionsfreigabe','NICHT NACHGEWIESEN']
+  ]){
+    const line=el('div','feature');
+    line.append(el('span','',key),el('b','',value));summary.append(line);
+  }
+  const support={
+    'explicitly-listed-not-hardware-certified':'DJI MODELLREFERENZ · NICHT ABGENOMMEN',
+    'family-listed-not-specific-certified':'DJI FAMILIENREFERENZ · NICHT ABGENOMMEN',
+    'not-explicitly-listed':'DJI API 2: NICHT EINZELN BELEGT',
+    'sdk-controller-class-only':'NUR SDK CONTROLLER-ABSTRAKTION'
+  };
+  for(const d of contract.devices){
+    const card=el('article','integration-item');
+    card.append(el('small','',support[d.vendorSupport]),el('h2','',d.name),
+      el('p','','Keine bestätigte API-2-Hardwareabnahme und keine Flugfreigabe.'));
+    devices.append(card);
+  }
+  for(const c of contract.capabilities){
+    const card=el('article','integration-item');
+    const mode=c.skyhubMode==='read-only-projection'?'SKYHUB GET · API-1.x-DATEN':
+      c.skyhubMode==='disabled'?'GESPERRT':'DJI REFERENZ / KEINE RUNTIME';
+    card.append(el('small','',mode),el('h2','',c.vendorModule),
+      el('p','',c.id+' · keine Cloud-API-2-SDK-Abnahme.'));
+    modules.append(card);
+  }
+}
+async function inspectReadOnlyContract(){
+  const button=get('inspectReadOnlyAdapter');
+  if(button.disabled)return;
+  button.disabled=true;
+  get('readonlyAdapterSummary').replaceChildren();
+  get('readonlyAdapterDevices').replaceChildren();
+  get('readonlyAdapterModules').replaceChildren();
+  get('readonlyAdapterStatus').textContent='Vertrag wird über vorhandene SkyHub-GET-Schnittstelle geprüft …';
+  try{
+    const contract=await readOnlyAdapter.inspect();
+    paintReadOnlyContract(contract);
+    get('readonlyAdapterStatus').textContent=
+      'PASS: Version, 7 Gerätereferenzen, 13 Capabilities und READ-ONLY-Gates geprüft. Keine Hardwareabnahme.';
+  }catch(_){
+    get('readonlyAdapterSummary').replaceChildren();
+    get('readonlyAdapterDevices').replaceChildren();
+    get('readonlyAdapterModules').replaceChildren();
+    get('readonlyAdapterStatus').textContent=
+      'UNBEKANNT: Vertrag nicht erreichbar, nicht autorisiert oder widersprüchlich. Keine Freigabe.';
+  }finally{button.disabled=false;}
+}
+get('inspectReadOnlyAdapter').addEventListener('click',inspectReadOnlyContract);
+function renderFeatures(){
+  const target=get('modules');
+  for(const [name,state] of features){
+    const item=el('div','feature');
+    item.append(el('span','',name),el('b',['KEYLESS','BESTEHEND'].includes(state)?'yes':'',state));
+    target.append(item);
+  }
+}
+function renderIntegrations(){
+  const modules=get('moduleCatalog');
+  const skills=get('skillCatalog');
+  for(const item of MODULES){
+    const article=el('article','integration-item');
+    article.append(el('small','',item.scope),el('h2','',item.title),el('p','',item.detail));
+    const status=el('span','integration-state',item.state);
+    const link=el('a','integration-link','Bestehende Seite öffnen ↗');
+    link.href=item.href;
+    article.append(status,link);
+    modules.append(article);
+  }
+  for(const item of SKILLS){
+    const article=el('article','skill-item');
+    article.append(el('b','',item.title),el('p','',item.scope));
+    const link=el('a','integration-link','Herstellerreferenz ↗');
+    link.href=VENDOR_SKILLS+'/'+item.id;
+    link.target='_blank';link.rel='noopener noreferrer';
+    article.append(link);
+    skills.append(article);
+  }
+}
+function makePrompt(){
+  const topic=promptTopics[get('task').value];
+  const detail=get('target').value.trim().slice(0,600);
+  get('prompt').textContent=[
+    'Rolle: Senior-Entwickler und Sicherheitsprüfer für SkyHub-Next.',
+    'Kontext: Die bestehende Live-Anbindung nutzt DJI Cloud API 1.x. Cloud API 2 V1.1.0 ist Dokumentationsreferenz; die Originalruntime ist nicht installiert.',
+    'Aufgabe: '+topic,
+    'Konkretes Ziel: '+(detail||'Führe einen reproduzierbaren Offline-Test der genannten Komponente durch.'),
+    'Sicherheitsregeln: Nur Lesen; keine Flug-, Last-, Lösch-, Konfigurations- oder MQTT-Schreibbefehle; keine DJI-Keys; Labor und Live strikt trennen.',
+    'Ergebnis: Dokumentierte Architektur, sichere Änderungsvorschläge, synthetische Testfälle, PASS/FAIL/UNBEKANNT und offene Risiken. Kein unbelegter Hardwareerfolg.'
+  ].join('\n\n');
+  get('promptStatus').textContent='Vorlage lokal erzeugt. Keine Netzwerkübertragung.';
+}
+get('generate').addEventListener('click',makePrompt);
+get('copy').addEventListener('click',async()=>{
+  try{await navigator.clipboard.writeText(get('prompt').textContent);get('promptStatus').textContent='Vorlage kopiert.';}
+  catch(_){get('promptStatus').textContent='Zwischenablage nicht verfügbar; Text manuell markieren.';}
+});
+function updateTime(){get('localtime').textContent=new Intl.DateTimeFormat('de-DE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date());}
+setupMavic3();renderFeatures();renderIntegrations();renderLab();updateTime();setInterval(updateTime,60000);
+// Refresh only the displayed age; never repeat a hardware/HTTP request automatically.
+setInterval(()=>{if(!get('view-m4t-hardware').hidden&&hardwareEvidence.size)renderM4tHardware();},15000);
+view(location.hash.slice(1)||'overview');refresh();

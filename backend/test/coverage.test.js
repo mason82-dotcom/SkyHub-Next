@@ -2,7 +2,7 @@
 // Photo coverage: footprints from DJI XMP/EXIF and gap detection.
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {exifInfo,xmpInfo,footprint,computeCoverage}=require('../coverage');
+const {exifInfo,xmpInfo,photoInfo,footprint,computeCoverage}=require('../coverage');
 
 const span=fp=>[Math.max(...fp.map(p=>p[0]))-Math.min(...fp.map(p=>p[0])),Math.max(...fp.map(p=>p[1]))-Math.min(...fp.map(p=>p[1]))];
 test('nadir footprint at 100 m with 24 mm equivalent 4:3: about 144 m x 108 m, image width east-west when heading north',()=>{
@@ -32,7 +32,14 @@ test('EXIF 35 mm focal length and pixel size; DJI XMP fields',()=>{
   assert.deepEqual(exifInfo(jpg),{focal35:24,width:4032,height:3024});
   const x=xmpInfo(Buffer.from('<x:xmpmeta drone-dji:GpsLatitude="+49.167218744" drone-dji:GpsLongitude="+8.591312139" drone-dji:RelativeAltitude="+111.834" '+
     'drone-dji:GimbalYawDegree="+40.70" drone-dji:GimbalPitchDegree="-108.00" drone-dji:DroneModel="M4T"></x:xmpmeta>','latin1'));
-  assert.deepEqual(x,{lat:49.167218744,lon:8.591312139,relAlt:111.834,yaw:40.7,pitch:-108,roll:0,model:'M4T'});
+  assert.equal(x.lat,49.167218744);
+  assert.equal(x.lon,8.591312139);
+  assert.equal(x.relAlt,111.834);
+  assert.equal(x.yaw,40.7);
+  assert.equal(x.pitch,-108);
+  assert.equal(x.roll,0);
+  assert.equal(x.model,'M4T');
+  assert.equal(x.absAlt,null); // not invented or silently treated as EGM96
 });
 test('two strips with a gap between them: gap found inside the flown area, outside ignored',()=>{
   const photos=[];
@@ -57,4 +64,28 @@ test('a level test shot far from the survey is neither counted nor stretches the
   photos.push({name:'test0001',info:{lat:49.1-270*dLat,lon:8.6+100*dLon,relAlt:2,yaw:0,pitch:0,roll:0,focal35:24,width:4000,height:3000}});
   const r=computeCoverage(photos,{minOverlap:1});
   assert.equal(r.level,1);assert.equal(r.stats.aoiM2,base.stats.aoiM2);assert.equal(r.stats.uncoveredPct,0);
+});
+
+test('photoInfo rejects M4T thermal and M3M TIFF in photo-coverage geometry',()=>{
+  const header=Buffer.from('<x:xmpmeta drone-dji:GpsLatitude="49.12" drone-dji:GpsLongitude="8.6" '+
+    'drone-dji:RelativeAltitude="70" drone-dji:GimbalPitchDegree="-90" '+
+    'drone-dji:GimbalYawDegree="0"></x:xmpmeta>');
+  assert.equal(photoInfo(header,'DJI_20261106010101_0001_T.JPG'),null);
+  assert.equal(photoInfo(header,'DJI_20261106010101_0001_MS_NIR.TIF'),null);
+  assert.equal(photoInfo(header,'DJI_20261106010101_0001_D.JPG').lens,'D');
+  assert.equal(photoInfo(header,'DJI_20261106010101_0001_W.JPG').lens,'W');
+});
+test('GSD remains source-bound and unknown focal length is not assumed as 24 mm',()=>{
+  const base={lat:49.1,lon:8.6,relAlt:100,yaw:0,pitch:-90,roll:0,width:4000,height:3000};
+  const input=[
+    {name:'rgb1',info:{...base,focal35:24}},
+    {name:'rgb2',info:{...base,lat:49.1002,focal35:24}},
+    {name:'tele3',info:{...base,lat:49.1003,focal35:null}}
+  ];
+  const result=computeCoverage(input,{minOverlap:1,cellM:5});
+  assert.equal(result.status,'ok');
+  assert.equal(result.used,2);
+  assert.equal(result.skipped,1);
+  assert.equal(result.gsdCmPx.samples,2);
+  assert.ok(result.gsdCmPx.median>3&&result.gsdCmPx.median<4);
 });
