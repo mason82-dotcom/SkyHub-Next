@@ -74,6 +74,23 @@
     </div>
   </section>
 
+  <section class="card wide" id="fhSection" aria-labelledby="h-fh" hidden>
+    <h2 id="h-fh">Aus FlightHub übernehmen</h2>
+    <p class="small muted">Routen aus FlightHub Keyless (DroneRoute, Flächenplaner, Uploads). Die Datei wird unverändert
+      übernommen und vom Server geprüft. In Pilot 2 erscheint sie erst, wenn du sie oben prüfst und freigibst.</p>
+    <div class="row-inline"><button id="fhReload" type="button" class="secondary">FlightHub-Liste neu laden</button>
+      <p id="fhStatus" class="muted" role="status" aria-live="polite"></p></div>
+    <div class="tablewrap">
+      <table>
+        <caption class="sr-only">Routen in FlightHub Keyless</caption>
+        <thead><tr><th scope="col">Route</th><th scope="col">Fluggerät</th><th scope="col">Wegpunkte</th>
+          <th scope="col">Hinweise</th><th scope="col"><span class="sr-only">Aktion</span></th></tr></thead>
+        <tbody id="fhRoutes"></tbody>
+      </table>
+    </div>
+    <div id="fhErrorsBox" hidden><h3 class="bad">Nicht übernommen – Prüfmeldungen</h3><ul id="fhErrors" class="msgs"></ul></div>
+  </section>
+
   <section class="card wide" id="detail" aria-labelledby="h-detail" hidden>
     <h2 id="h-detail" tabindex="-1">Prüfung: <span id="dName"></span></h2>
     <p id="dState" role="status"></p>

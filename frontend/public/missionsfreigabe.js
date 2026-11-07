@@ -73,6 +73,74 @@
     }
   }
 
+  // --- Aus FlightHub übernehmen (FlightHub ADR-002) -------------------------------------------------------------------------
+  // The server pulls the KMZ from FlightHub Keyless and stores it unchanged; nothing is released here.
+  let fhItems=[],fhBusy=false;
+  const FH_TEXT=[
+    [/^FlightHub not reachable/,'FlightHub ist nicht erreichbar. Läuft FlightHub Keyless auf brix?'],
+    [/^FlightHub answered HTTP/,'FlightHub hat mit einem Fehler geantwortet. Später erneut versuchen.'],
+    [/^FlightHub (list unreadable|answer too large)/,'Die Antwort von FlightHub ist unlesbar. FlightHub neu laden und erneut versuchen.'],
+    [/^FlightHub file does not match/,'Die Datei in FlightHub hat sich geändert. FlightHub-Liste neu laden und erneut übernehmen.'],
+    [/^Route not found in FlightHub/,'Die Route gibt es in FlightHub nicht mehr. FlightHub-Liste neu laden.'],
+    [/^A different wayline with this name already exists/,'In der Bibliothek liegt schon eine andere Route mit diesem Namen. Route in FlightHub umbenennen und erneut übernehmen.'],
+    [/^WPML validation failed|^KMZ archive rejected|^KMZ lacks/,'Die WPML-Prüfung hat Fehler gefunden. Route im Editor korrigieren und erneut übernehmen.'],
+    [/^KMZ exceeds/,'Die Datei ist größer als 12 MB und kann nicht übernommen werden.']
+  ];
+  const fhText=msg=>{for(const [re,t] of FH_TEXT)if(re.test(msg))return t;return msg;};
+  const inLibrary=id=>missions.find(m=>typeof m.sha256==='string'&&m.sha256.startsWith(id));
+  async function loadFlightHub(){
+    setStatus('fhStatus','Lade FlightHub-Liste …');
+    try{
+      fhItems=(await api('/api/wpml/missions/flighthub')).items||[];
+      $('fhSection').hidden=false;
+      renderFlightHub();
+      setStatus('fhStatus',fhItems.length+' Routen in FlightHub.','ok');
+    }catch(err){
+      // 404 with configured:false: the server has no FlightHub address – the section stays hidden.
+      if(err.status===404&&err.data&&err.data.configured===false){$('fhSection').hidden=true;return;}
+      $('fhSection').hidden=false;$('fhRoutes').replaceChildren();
+      setStatus('fhStatus',fhText(err.message),'bad');
+    }
+  }
+  function renderFlightHub(){
+    const body=$('fhRoutes');body.replaceChildren();
+    if(!fhItems.length){
+      body.append(el('tr',{},el('td',{colSpan:5,class:'muted'},'Keine Routen in FlightHub. Routen dort hochladen oder aus DroneRoute bzw. dem Flächenplaner senden.')));
+      return;
+    }
+    const wanted=new URLSearchParams(location.search).get('flighthub');
+    for(const w of fhItems){
+      const known=inLibrary(w.id);
+      const btn=el('button',{type:'button',class:'secondary'},known?'Prüfen':'In Bibliothek übernehmen');
+      btn.setAttribute('aria-label',(known?'Route ':'In Bibliothek übernehmen: ')+(w.name||w.id)+(known?' prüfen':''));
+      btn.addEventListener('click',()=>known?select(known.id,true):importFlightHub(w,btn));
+      const row=el('tr',{class:w.id===wanted?'sel':'','data-fh':w.id},
+        el('td',{},w.name||w.id),el('td',{},w.model||'–'),el('td',{},num(w.waypoints)),
+        el('td',{class:known?'ok':(w.issues||[]).length?'bad':'muted'},
+          known?'schon in der Bibliothek':(w.issues||[]).length?w.issues.join(' · '):'–'),
+        el('td',{},btn));
+      body.append(row);
+      if(w.id===wanted&&!fhItems.scrolled){fhItems.scrolled=true;row.scrollIntoView({block:'center'});btn.focus({preventScroll:true});}
+    }
+  }
+  async function importFlightHub(w,btn){
+    if(fhBusy)return;                                  // one take-over at a time, no double POST
+    fhBusy=true;btn.disabled=true;$('fhErrorsBox').hidden=true;
+    setStatus('fhStatus','Übernehme „'+(w.name||w.id)+'“ …');
+    try{
+      const r=await api('/api/wpml/missions/import/flighthub',{method:'POST',body:{id:w.id}});
+      await load((r.created?'Übernommen':'Schon vorhanden')+': „'+r.name+'“. Jetzt prüfen und freigeben.');
+      renderFlightHub();
+      setStatus('fhStatus','„'+r.name+'“ liegt in der Bibliothek – noch nicht freigegeben.','ok');
+      await select(r.id,true);
+    }catch(err){
+      setStatus('fhStatus','„'+(w.name||w.id)+'“ nicht übernommen: '+fhText(err.message),'bad');
+      const errs=(err.data&&err.data.errors)||[];
+      $('fhErrors').replaceChildren(...errs.map(e=>el('li',{},(e.path?e.path+': ':'')+e.message)));
+      $('fhErrorsBox').hidden=!errs.length;
+    }finally{fhBusy=false;btn.disabled=false;}
+  }
+
   // German display of the server check messages (mission-envelope.js). The confirmation still sends the original text.
   const DE=[
     [/^WPML 1\.0\.6 as written by DJI Pilot 2/,()=>'Route im Format WPML 1.0.6 aus DJI Pilot 2: SkyHub hat die Flughülle geprüft, die Datei wird unverändert freigegeben (der SkyHub-Editor schreibt 1.0.2).'],
@@ -243,8 +311,11 @@
     }catch(err){setStatus('releaseHint',err.message,'bad');}
   }
 
-  $('reload').addEventListener('click',load);
+  // load(done) takes a status prefix; a bare listener would pass the click event ("[object PointerEvent]").
+  $('reload').addEventListener('click',()=>load().then(()=>{if(!$('fhSection').hidden)renderFlightHub();}));
+  $('fhReload').addEventListener('click',()=>loadFlightHub());
   $('release').addEventListener('click',release);
   $('revoke').addEventListener('click',revoke);
-  load();
+  // FlightHub list after the library: "schon in der Bibliothek" compares with the loaded routes.
+  load().then(loadFlightHub);
 })();

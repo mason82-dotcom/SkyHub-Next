@@ -77,6 +77,18 @@ test('tokenfree GET only accesses exact mission-store paths',()=>{
     '/wpml/missions/x/extra','/wpml/missions/status/more','/pilot-admin/pairings','/wpml/release/x','/wpml/release/'+UUID+'/release'])
     assert.deepEqual(request(handler,{method:'GET',path}),{granted:false,status:401},path);
 });
+test('FlightHub route import (ADR-002): list token-free, take-over only with the browser same-origin proof',()=>{
+  const handler=auth();
+  assert.deepEqual(request(handler,{method:'GET',path:'/wpml/missions/flighthub'}),{granted:true,status:0});
+  const path='/wpml/missions/import/flighthub';
+  assert.deepEqual(request(handler,{path}),{granted:true,status:0});
+  assert.deepEqual(request(handler,{path,headers:{origin:undefined}}),{granted:false,status:401});
+  assert.deepEqual(request(handler,{path,headers:{'sec-fetch-site':'cross-site'}}),{granted:false,status:401});
+  assert.deepEqual(request(handler,{path,headers:{'x-forwarded-for':'100.64.0.7'}}),{granted:false,status:401});
+  for(const [method,p] of [['GET','/wpml/missions/import/flighthub'],['POST','/wpml/missions/flighthub'],
+    ['POST','/wpml/missions/import/flighthub/x'],['DELETE','/wpml/missions/import/flighthub']])
+    assert.deepEqual(request(handler,{method,path:p}),{granted:false,status:401},method+' '+p);
+});
 test('explicit valid token is accepted irrespective of the LAN no-token flag',()=>{
   assert.deepEqual(request(auth(false),{secure:false,headers:{authorization:'Bearer '+SECRET}}),
     {granted:true,status:0});
