@@ -24,9 +24,11 @@ function publicJob(row){
   return Object.freeze(data);
 }
 async function tx(db,fn){
-  const c=await db.connect();guard(c&&typeof c.query==='function'&&typeof c.release==='function');
+  const c=await db.connect();
   let opened=false;
   try{
+    // Check inside try: an unusable client must still be handed back to the pool (finally).
+    guard(c&&typeof c.query==='function'&&typeof c.release==='function');
     await c.query('BEGIN');opened=true;
     const result=await fn(c);
     await c.query('COMMIT');opened=false;
@@ -34,7 +36,7 @@ async function tx(db,fn){
   }catch(e){
     if(opened){try{await c.query('ROLLBACK');}catch(_ignored){}}
     throw e;
-  }finally{c.release();}
+  }finally{if(c&&typeof c.release==='function')c.release();}
 }
 const FIELDS='job_id,workspace_id,asset_id,state,source_sha256';
 function createPvJobStore({db,authorize,auditDenied}={}){
