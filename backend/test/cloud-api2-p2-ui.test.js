@@ -16,7 +16,9 @@ test('P2 assets are wired and manual read-only P1 inspection remains',()=>{
 });
 test('P2 has no transport, browser storage, credentials or device dispatch',()=>{
   assert.doesNotMatch(script,/\b(fetch|XMLHttpRequest|WebSocket|EventSource|localStorage|sessionStorage|postMessage|setInterval|setTimeout)\s*\(/);
-  assert.doesNotMatch(script,/\b(MQTT|publish|dispatch|Authorization|password|token)\b/i);
+  // Inspect executable call patterns, not legitimate warning words in UI copy.
+  assert.doesNotMatch(script,/\b(MQTT|publish|dispatch|sendFlightCommand|sendDeviceCommand)\s*\(/i);
+  assert.doesNotMatch(script,/\b(Authorization|password|token)\s*:/i);
   assert.match(script,/replaceChildren\(wrap/);
   assert.match(script,/textContent/);
 });
