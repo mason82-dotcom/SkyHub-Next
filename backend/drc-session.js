@@ -30,7 +30,7 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
   const s={phase:'idle',lease:null,lastStick:null,stickSending:false,seq:0,pending:new Map(),lastUpHeartbeat:null,latencyMs:null,
     osd:null,flyTo:null,takeoff:null,returnHome:null,joystickInvalid:null,failsafe:null,lastError:null,
     pendingDrc:new Map(),camera:{state:null,lens:null,photo:null,lastCommand:null},lastDrag:null,
-    linkStartAt:null,rcDrcState:null,rcDrcStateAt:null};
+    linkStartAt:null,rcDrcState:null,rcDrcStateAt:null,recoveryRequired:false};
   let stickTimer=null,heartbeatTimer=null,leaseTimer=null,releaseTimer=null,dragTimer=null;
 
   const now=()=>clock.now();
@@ -51,6 +51,7 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
   // RC Pro camera-only is intentionally not treated as verified flight control.
   function linkProof(){
     if(rcPro)return {ready:false,reason:'RC Pro: kein Cloud-Flugsteuerkanal'};
+    if(s.recoveryRequired)return {ready:false,reason:'Rückgabe an Fernsteuerung nach Verbindungsfehler ausstehend'};
     if(!transportReady())return {ready:false,reason:'DRC-Broker nicht verbunden'};
     if(s.phase!=='drc_active')return {ready:false,reason:'DRC-Modus nicht aktiv'};
     if(s.rcDrcState!==2||s.rcDrcStateAt===null||now()-s.rcDrcStateAt>L.drcStateFreshMs)
@@ -149,6 +150,7 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
   // An interrupted MQTT connection invalidates every proof from that session.
   // Motion frames or a returning browser lease must not revive the old link.
   function invalidateLink(reason='DRC-Broker getrennt'){
+    if(s.phase!=='idle')s.recoveryRequired=true;
     s.rcDrcState=null;s.rcDrcStateAt=null;s.lastUpHeartbeat=null;
     s.lastStick=null;
     if(s.phase==='drc_active'||s.phase==='drc_pending'||s.phase==='authorized')
@@ -161,10 +163,19 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
     log('hand-back',{why});
     stopSticks();stopDrag(true);
     const steps=[];
-    if(s.phase==='drc_active'||s.phase==='drc_pending')steps.push(service('drc_mode_exit',{}).catch(err=>log('hand-back-exit-failed',{error:err.message})));
-    if(s.phase!=='idle')steps.push(service('cloud_control_release',P.authRelease()).catch(err=>log('hand-back-release-failed',{error:err.message})));
-    await Promise.all(steps);
-    if(s.failsafe)s.failsafe={...s.failsafe,pending:false,done:now()};
+    if(s.phase==='drc_active'||s.phase==='drc_pending')
+      steps.push(service('drc_mode_exit',{}).then(()=>true,err=>{log('hand-back-exit-failed',{error:err.message});return false;}));
+    if(s.phase!=='idle')
+      steps.push(service('cloud_control_release',P.authRelease()).then(()=>true,err=>{log('hand-back-release-failed',{error:err.message});return false;}));
+    const confirmed=await Promise.all(steps);
+    if(confirmed.length){
+      s.recoveryRequired=confirmed.some(ok=>!ok);
+      if(s.recoveryRequired){
+        s.lastError='Rückgabe an RC nicht bestätigt: Pilot muss Übernahme in Pilot 2 prüfen';
+        log('hand-back-unconfirmed');
+      }
+    }
+    if(s.failsafe)s.failsafe={...s.failsafe,pending:false,done:now(),confirmed:confirmed.length>0&&confirmed.every(Boolean)};
     s.flyTo=null;
     setPhase('idle',why);
   }
@@ -277,6 +288,7 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
 
   // --- public commands -----------------------------------------------------------------------------------------------
   async function requestAuthorization(operator){
+    if(s.recoveryRequired)throw new DrcError('Fernsteuerungs-Übernahme nach Netzfehler nicht bestätigt; Pilot 2 prüfen, DRC-Dienst kontrolliert neu starten',423);
     acquire(operator);
     aircraftState();
     if(s.phase!=='idle')throw new DrcError('Autorisierung läuft bereits oder ist erteilt');
@@ -460,7 +472,8 @@ function createDrcSession({gateway,publishService,publishDrc,publishEventsReply=
 
   function snapshot(){
     const t=now();
-    return {gateway,variant,phase:s.phase,operator:s.lease&&s.lease.expiresAt>t?s.lease.operator:null,
+    return {gateway,variant,phase:s.phase,recoveryRequired:s.recoveryRequired,
+      operator:s.lease&&s.lease.expiresAt>t?s.lease.operator:null,
       upLink:s.lastUpHeartbeat===null?'unbekannt':t-s.lastUpHeartbeat>L.upLinkLostMs?'verloren':'ok',latencyMs:s.latencyMs,
       controlLink:linkProof(),
       osd:s.osd,flyTo:s.flyTo,takeoff:s.takeoff,returnHome:s.returnHome,joystickInvalid:s.joystickInvalid,failsafe:s.failsafe,
