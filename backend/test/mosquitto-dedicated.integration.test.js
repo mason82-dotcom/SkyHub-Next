@@ -30,8 +30,8 @@ const accounts={
 };
 // Synthetic users only: the test broker never sees any production credentials.
 const drcAccounts={...accounts,
-  commander:{username:'t_drc_commander',password:'test-drc-commander-pass-0123456789'},
-  drcLink:{username:'t_drc_link',password:'test-drc-link-pass-0123456789'}
+  commander:{username:'t_drc_commander',password:'test-drc-commander-pass-0123456789',gatewaySn:'SIMRCP2'},
+  drcLink:{username:'t_drc_link',password:'test-drc-link-pass-0123456789',gatewaySn:'SIMRCP2'}
 };
 const freePort=()=>new Promise((resolve,reject)=>{
   const server=net.createServer();
@@ -164,6 +164,16 @@ test('DRC ACL on real Mosquitto: service, uplink, and RC OSD deliveries stay rol
       for(const [role,channel] of denied){
         const err=await publishAck(client[role],drcTopic(channel));
         assert.ok(err,role+' -> '+channel+' MUST fail');
+        assert.match(String(err.code||err.message),/135|not.authorized|Not.authorized|unauthorized/i);
+      }
+      const crossDeviceDenied=[
+        ['commander','thing/product/DIFFERENT_RC/services'],
+        ['commander','thing/product/DIFFERENT_RC/drc/down'],
+        ['drcLink','thing/product/DIFFERENT_RC/drc/up']
+      ];
+      for(const [role,topic] of crossDeviceDenied){
+        const err=await publishAck(client[role],topic);
+        assert.ok(err,role+' must not publish another RC: '+topic);
         assert.match(String(err.code||err.message),/135|not.authorized|Not.authorized|unauthorized/i);
       }
       await wait(300);
