@@ -22,6 +22,8 @@ const messages: Record<LabLocale, Record<string, string>> = {
     recent_week: 'Letzte 7 Tage', recent_month: 'Letzte 30 Tage',
     half_year: 'Letzte 6 Monate', year: 'Letztes Jahr',
     noLive: 'Unbestätigte Laborwerte – nicht mit SkyHub-Telemetrie verwechseln',
+    admin: 'Administrator', regularUser: 'Benutzer', manageUsers: 'Benutzerverwaltung',
+    themeColor: 'Akzentfarbe', guide: 'Handbuch', logout: 'Abmelden',
   },
   en: {
     dashboard: 'Dashboard', stream: 'Live video', devices: 'Device management',
@@ -39,6 +41,8 @@ const messages: Record<LabLocale, Record<string, string>> = {
     recent_week: 'Last 7 days', recent_month: 'Last 30 days',
     half_year: 'Last 6 months', year: 'Last year',
     noLive: 'Unverified lab values – not SkyHub live telemetry',
+    admin: 'Administrator', regularUser: 'User', manageUsers: 'User management',
+    themeColor: 'Accent color', guide: 'User guide', logout: 'Sign out',
   },
 }
 export function useLabLocale() {
