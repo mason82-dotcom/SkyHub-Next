@@ -22,6 +22,7 @@
     'unknown-photo-trigger':'Unbekannter Kamera-Auslösetyp.',
     'invalid-name':'Missionsname fehlt oder enthält ungültige Zeichen.',
     'invalid-takeoff-height':'Sicherheitssteighöhe außerhalb des Entwurfsbereichs.',
+    'invalid-rth-height':'Rückkehrhöhe (RTH) außerhalb von 20–120 m.',
     'invalid-finish-action':'Abschlussaktion nicht unterstützt.',
     'invalid-photo-interval':'Fotointervall außerhalb des Entwurfsbereichs.',
     'invalid-camera-min-interval':'Angegebenes minimales Kameraaufnahmeintervall ist ungültig.',
@@ -56,6 +57,8 @@
         input.name.length>70 || /[\u0000-\u001f\u007f]/.test(input.name))
       issues.add('invalid-name');
     if (!inRange(input.takeoffHeight,1.2,120)) issues.add('invalid-takeoff-height');
+    // Optional for older callers; when given it must fit DJI's globalRTHHeight draft range.
+    if (input.rthHeight!==undefined && !inRange(input.rthHeight,20,120)) issues.add('invalid-rth-height');
     if (input.finishAction!=='goHome' && input.finishAction!=='noAction')
       issues.add('invalid-finish-action');
     if (!allowedModels.has(input.model)) issues.add('unsupported-model');
@@ -117,7 +120,7 @@
       'insufficient-waypoints','unsupported-model','invalid-speed',
       'invalid-coordinate','duplicate-neighbors','invalid-height',
       'missing-ellipsoid','unknown-photo-trigger','invalid-name',
-      'invalid-takeoff-height','invalid-finish-action','invalid-photo-interval',
+      'invalid-takeoff-height','invalid-rth-height','invalid-finish-action','invalid-photo-interval',
       'invalid-camera-min-interval','camera-interval-too-short','photo-mode-conflict'
     ]);
     const hasErrors=issueCodes.some(c=>errorCodes.has(c));

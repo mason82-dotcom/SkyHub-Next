@@ -110,3 +110,22 @@ test('ordinary DJI events continue to use the existing registry path unchanged',
   assert.equal(f.mqttStats.snapshot().mqttChannelCounts.events,1);
   f.ingest.stop();
 });
+
+test('device cache writes are skipped, not queued, while Redis is not ready',()=>{
+  let writes=0;
+  const client=new EventEmitter();
+  client.end=()=>{};
+  client.subscribe=(_t,_o,done)=>done(null,_t.map(topic=>({topic,qos:0})));
+  const ingest=createMqttIngest({
+    broker:{url:'mqtt://localhost:1884'},env:{},
+    registry:{ingest(){return {updates:[{sn:'TEST-RC'},{sn:'TEST-AC'}],event:null,point:null};},get(){return null;}},
+    io:{emit(){}},redis:{status:'reconnecting',set(){writes++;return Promise.resolve();}},
+    topologyStore:{save(){}},trackRecorder:{record(){}},trackRecordingEnabled:false,pool:null,
+    mqttStats:createMqttMetrics(),mqttConnect:()=>client,
+    mqttShapes:{record(){}},mqttModelShapes:{record(){}}
+  });
+  client.emit('message','thing/product/TEST-RC/osd',
+    Buffer.from(JSON.stringify({tid:'t',bid:'b',timestamp:Date.now(),data:{}})),{retain:false});
+  assert.equal(writes,0);
+  assert.equal(ingest.cacheStats().deviceCacheSkipped,2);
+});

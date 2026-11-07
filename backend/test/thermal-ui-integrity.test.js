@@ -19,7 +19,7 @@ function harness(){
     click(){if(this.tag==='a')downloads.push({name:this.download,blob:blobs.get(this.href)});}
   }
   function canvas(){const c=new Element('canvas');c.width=4;c.height=3;
-    const ctx={clearRect(){},putImageData(){},beginPath(){},moveTo(){},lineTo(){},stroke(){},strokeRect(){},setLineDash(){},fillRect(){},strokeText(){},
+    const ctx={clearRect(){},putImageData(){},beginPath(){},moveTo(){},lineTo(){},ellipse(){},stroke(){},strokeRect(){},setLineDash(){},fillRect(){},strokeText(){},
       fillText:(text)=>drawn.push({canvas:c,text}),measureText:text=>({width:text.length*7}),drawImage(){}};
     c.getContext=()=>ctx;c.toBlob=cb=>encoders.push(()=>cb(new Blob(['synthetic-png'])));return c;}
   const el=id=>{if(!elements.has(id))elements.set(id,['thermal','histogram'].includes(id)?canvas():new Element(['palette','series-select'].includes(id)?'select':'div'));return elements.get(id);};
@@ -96,4 +96,22 @@ test('late completion of an older image request cannot replace current data',asy
   const h=harness();h.mode('slow');const old=h.hook.open(h.item('slow'));
   await new Promise(r=>setImmediate(r));await h.hook.open(h.item('new'));
   h.release();await old;assert.equal(h.hook.state.current.key,'new');assert.equal(h.hook.state.ready,true);
+});
+
+
+test('new geometric tools preserve SDK/estimate-independent ROI and CSV provenance',async()=>{
+  const h=harness();await h.hook.open(h.item());
+  h.hook.state.measurements.push(
+    {type:'line',rect:{x0:0,y0:0,x1:3,y1:0}},
+    {type:'circle',rect:{x0:0,y0:0,x1:4,y1:4}},
+    {type:'ellipse',rect:{x0:0,y0:0,x1:4,y1:2}}
+  );
+  await h.hook.recompute();
+  assert.equal(h.hook.state.measurements.map(m=>m.stats.pixels).join(','),'4,13,7');
+  assert.deepEqual(h.el('measurements').children.map(row=>row.children[1].textContent),
+    ['Linie','Kreis','Ellipse']);
+  h.hook.exportCsv();
+  const csv=await h.downloads.at(-1).blob.text();
+  assert.match(csv,/Linie;/);assert.match(csv,/Kreis;/);assert.match(csv,/Ellipse;/);
+  assert.match(csv,/Quellversion SHA-256;a{64}/);
 });

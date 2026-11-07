@@ -14,6 +14,7 @@ const SUBSCRIPTIONS=[
 // Read-only DJI MQTT ingest plus the optional, ACL-restricted status_reply publisher.
 function createMqttIngest({broker,env,registry,io,redis,topologyStore,trackRecorder,
   trackRecordingEnabled,pool,mqttStats,mqttShapes,mqttModelShapes,onTopologyChanged=null,
+  onHmsSnapshot=null,onObserved=null,
   mqttConnect=mqtt.connect}){
   const ackEnabled=env.SKYHUB_TOPOLOGY_ACK_ENABLED==='true';
   const ackUser=env.SKYHUB_TOPOLOGY_ACK_MQTT_USER||'';
@@ -27,6 +28,14 @@ function createMqttIngest({broker,env,registry,io,redis,topologyStore,trackRecor
     // Last successful status_reply per gateway, so Pilot 2 can detect an unacknowledged session.
     acks:new Map(),client:null};
   const state={connected:false,subscribed:false};
+  // Device-cache writes are best effort; at most one log line per minute.
+  let cacheSkipped=0,lastRedisErrorLogAt=0;
+  function logRedisWriteError(err){
+    const now=Date.now();
+    if(now-lastRedisErrorLogAt<60000)return;
+    lastRedisErrorLogAt=now;
+    console.error('[redis write]',err.message);
+  }
 
   function publishAck(parsed,payload,observedAt){
     const reply=createStatusReply(parsed,payload,observedAt);
@@ -75,6 +84,16 @@ function createMqttIngest({broker,env,registry,io,redis,topologyStore,trackRecor
       const result=registry.ingest(parsed,observedAt);
       if(result.dropReason){mqttStats.rejected(result.dropReason);return;}
       mqttStats.accepted(parsed,result,observedAt);
+       // Only an accepted, normalized packet can reach the passive observer.
+       if(onObserved&&['osd','state'].includes(parsed.channel)){
+         try{onObserved(parsed,registry.get(parsed.sn,observedAt),observedAt);}
+         catch(_err){console.error('[fh observer] observation ignored');}
+       }
+      if(onHmsSnapshot&&Array.isArray(parsed.hms)){
+        Promise.resolve().then(()=>onHmsSnapshot(parsed.sn,parsed.hms,
+          parsed.timestamp===null?observedAt:parsed.timestamp,parsed.timestamp!==null))
+          .catch(()=>console.error('[hms history] store unavailable'));
+      }
       // Only count already validated packets and confirmed topology models.
       // Nothing from raw DJI identifiers or payload values enters this catalog.
       if(['osd','state'].includes(parsed.channel)){
@@ -88,10 +107,13 @@ function createMqttIngest({broker,env,registry,io,redis,topologyStore,trackRecor
       // Only send for a validated, accepted, non-retained update_topo message.
       if(ack.enabled && parsed.channel==='status' && parsed.topology)
         publishAck(parsed,payload,observedAt);
+      // While Redis is down, skip the best-effort cache instead of queueing and logging per packet.
+      const cacheReady=typeof redis.status!=='string'||redis.status==='ready';
       for(const item of result.updates){
         io.emit('device_update',item);
+        if(!cacheReady){cacheSkipped++;continue;}
         redis.set('skyhub:device:'+item.sn,JSON.stringify(deviceCachePayload(item)),'EX',3600)
-          .catch(err=>console.error('[redis write]',err.message));
+          .catch(err=>logRedisWriteError(err));
       }
       if(result.event)io.emit('device_event',result.event);
       if(result.topologyChanged){
@@ -156,6 +178,7 @@ function createMqttIngest({broker,env,registry,io,redis,topologyStore,trackRecor
 
   return {
     state,ack,
+    cacheStats:()=>({deviceCacheSkipped:cacheSkipped}),
     stop(){client.end(true);if(ack.client)ack.client.end(true);}
   };
 }

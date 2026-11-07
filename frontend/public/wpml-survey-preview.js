@@ -1,22 +1,25 @@
 'use strict';
 // Visualization only. Contains no DJI/WPML flight mission export or HTTP writes.
 (function(){
+  // Start view of all SkyHub maps: skyhub-map-home.js (76694 Forst); Germany if that file is missing.
+  const HOME=typeof window!=='undefined'&&window.SkyHubMapHome||{lat:51.1657,lon:10.4515,zoom:6};
   const engine=window.SkyHubSurveyPreview;
   const optics=window.SkyHubPhotoGeometry;
   const cameraReference=window.SkyHubCameraReference;
+  const dualOptics=window.SkyHubM3MDualOptics;
   const capture=window.SkyHubCapturePreview;
   const $=id=>document.getElementById(id);
   if(!engine){$('status').textContent='Offline-Geometriemodul fehlt.';return;}
-  const points=[];let importedGeometry=null,map=null,polygon=null,markers=[],lines=[],photoMarkers=[],report=null,photoReport=null,captureReport=null,firstFit=false;
+  const points=[];let importedGeometry=null,map=null,polygon=null,markers=[],lines=[],advancedLines=[],photoMarkers=[],report=null,photoReport=null,captureReport=null,dualReport=null,dualCount=null,firstFit=false;
   const feedback=(txt,error=false)=>{
     $('status').textContent=txt;
     $('status').style.color=error?'var(--sky-warning)':'var(--sky-ink)';
   };
   if(typeof window.L==='object'&&typeof window.L.map==='function'){
-    map=L.map('map').setView([50.5,10.4],6);
+    map=L.map('map').setView([HOME.lat,HOME.lon],HOME.zoom);
     // Keep document referrer private, but identify the page origin to OSM tiles.
     // OSMF explicitly requires an HTTP Referer; Leaflet 1.9.4 supports this option.
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    L.tileLayer('/tiles/osm/{z}/{x}/{y}.png',{
       maxZoom:19,attribution:'© OpenStreetMap contributors',
       referrerPolicy:'strict-origin-when-cross-origin'
     }).addTo(map);
@@ -34,8 +37,14 @@
     importedGeometry=null;
     points.push({lat:a,lon:b});invalidate();render();
   }
-  function invalidate(){report=null;photoReport=null;captureReport=null;$('geojson').disabled=true;
-    $('show-photo-centers').disabled=true;}
+  function invalidate(){
+    for(const layer of advancedLines)layer.remove();advancedLines=[];
+    report=null;photoReport=null;captureReport=null;dualReport=null;dualCount=null;
+    $('geojson').disabled=true;$('show-photo-centers').disabled=true;
+    // A real geometry edit, camera change or completed import invalidates
+    // the advanced P0/P1 result as well as the original survey result.
+    window.dispatchEvent(new Event('skyhub-survey-invalidated'));
+  }
   function fit(){
     if(!map)return;
     if(importedGeometry&&polygon){
@@ -139,6 +148,7 @@
   $('optics-enable').addEventListener('change',()=>{
     $('optics-fields').hidden=!$('optics-enable').checked;
     $('spacing').disabled=$('optics-enable').checked;
+    syncDualControls();
     invalidate();render();
     feedback($('optics-enable').checked?
       'Bitte reale Sensor-, Brennweiten-, Bildformat- und AGL-Werte eintragen.':
@@ -149,7 +159,26 @@
   for(const id of cameraIds)$(id).addEventListener('input',()=>{
     if(report){invalidate();render();feedback('Kameraparameter geändert. Neu berechnen.');}
   });
+  const dualIds=['dual-rgb-width','dual-rgb-height','dual-rgb-focal',
+    'dual-rgb-side','dual-rgb-front'];
+  function syncDualControls(){
+    const enabled=$('optics-enable').checked&&
+      $('camera-mode').value==='m3m-rgb-ms-tiff';
+    $('dual-optics-enable').disabled=!enabled;
+    if(!enabled)$('dual-optics-enable').checked=false;
+    $('dual-optics-fields').hidden=!enabled||!$('dual-optics-enable').checked;
+  }
+  $('dual-optics-enable').addEventListener('change',()=>{
+    syncDualControls();invalidate();render();
+    feedback($('dual-optics-enable').checked?
+      'Für den Doppeloptik-Vergleich beide physikalischen Kameramodelle vollständig eingeben.':
+      'Einzeloptik-Vorschau aktiviert.');
+  });
+  for(const id of dualIds)$(id).addEventListener('input',()=>{
+    if(report){invalidate();render();feedback('RGB-Zweitkamera geändert. Neu berechnen.');}
+  });
   $('camera-mode').addEventListener('change',()=>{
+    syncDualControls();
     invalidate();render();
     feedback($('camera-mode').value==='manual'?
       'Kameramodus: manuelle Eingabe ohne Modellreferenz.':
@@ -168,6 +197,19 @@
         {cameraMinIntervalSeconds:v('min-capture-interval')})
     };
   }
+  function dualCameraInputs(shared){
+    const get=id=>$(id).value.trim();
+    const value=id=>get(id)===''?undefined:get(id);
+    return {
+      sensorWidthMm:value('dual-rgb-width'),
+      sensorHeightMm:value('dual-rgb-height'),
+      focalLengthMm:value('dual-rgb-focal'),
+      imageWidthPx:5280,imageHeightPx:3956,
+      heightAGLM:shared.heightAGLM,speedMps:shared.speedMps,
+      sideOverlapPercent:value('dual-rgb-side'),
+      frontOverlapPercent:value('dual-rgb-front')
+    };
+  }
   for(const id of ['spacing','heading'])$(id).addEventListener('input',()=>{
     if(report){invalidate();render();feedback('Parameter geändert. Vorschau erneut berechnen.');}
   });
@@ -183,20 +225,48 @@
         cameraReference.bind(selectedMode,manuallyEntered):null;
       const camera=referenced?referenced.opticalInputs:manuallyEntered;
       const profile=photogrammetry?optics.optics(camera):null;
+      const dualMode=photogrammetry&&selectedMode==='m3m-rgb-ms-tiff'&&
+        $('dual-optics-enable').checked;
+      if(dualMode&&!dualOptics)throw new Error('Dualoptik-Vergleichsmodul nicht geladen.');
+      const dualInput=dualMode?{
+        rgb:dualCameraInputs(camera),multispectral:camera}:null;
+      const comparison=dualMode?dualOptics.compare(dualInput):null;
       report=engine.preview(importedGeometry||points,{
-        spacing:photogrammetry?profile.stripSpacingM:$('spacing').value,
+        spacing:dualMode?comparison.nominalStripSpacingM:
+          photogrammetry?profile.stripSpacingM:$('spacing').value,
         heading:$('heading').value
       });
-      photoReport=photogrammetry?optics.estimate(report,camera):null;
-      captureReport=photogrammetry?capture.plan(report,camera):null;
-      const modeEstimate=referenced?cameraReference.estimate(selectedMode,camera,report):null;
-      $('show-photo-centers').disabled=!photogrammetry;
+      photoReport=photogrammetry&&!dualMode?optics.estimate(report,camera):null;
+      captureReport=photogrammetry&&!dualMode?capture.plan(report,camera):null;
+      const modeEstimate=referenced&&!dualMode?
+        cameraReference.estimate(selectedMode,camera,report):null;
+      dualReport=comparison;
+      dualCount=dualMode?dualOptics.estimate(dualInput,report):null;
+      if(dualMode)$('show-photo-centers').checked=false;
+      $('show-photo-centers').disabled=!photogrammetry||dualMode;
       $('geojson').disabled=false;
       render();
       let message='2D-Geometrie: '+Math.round(report.areaSqMeters)+' m² Fläche, '+
         report.stripeCount+' Streifen, '+report.segmentCount+' Linienstücke, '+
         Math.round(report.previewSegmentLengthMeters)+' m Strecken innerhalb der Fläche. '+
         report.unplannedTransitions.length+' ungeplante Übergangslücken (rot gestrichelt; KEINE Flugroute).';
+      if(dualReport&&dualCount){
+        message+='\nDUALOPTIK – nur theoretischer Vergleich (keine Bildregistrierung): '+
+          'RGB GSD '+dualReport.rgb.gsdAcrossCmPerPx.toFixed(2)+
+          ' cm/Pixel, MS GSD '+dualReport.multispectral.gsdAcrossCmPerPx.toFixed(2)+
+          ' cm/Pixel; engerer Querabstand '+dualReport.nominalStripSpacingM.toFixed(2)+
+          ' m, engerer Fotoabstand '+dualReport.nominalPhotoSpacingM.toFixed(2)+
+          ' m. Gemeinsames Referenzintervall mindestens '+
+          dualReport.effectiveMinIntervalSeconds.toFixed(2)+' s; angenommene '+
+          dualReport.nominalIntervalSeconds.toFixed(2)+' s. '+
+          (dualReport.meetsNumericalCadence?'Numerische Kadenzbedingung erfüllt.':
+            'WARNUNG: Numerische Kadenzbedingung NICHT erfüllt.')+
+          '\nNur theoretisch: '+dualCount.nominalCaptureEvents+
+          ' gemeinsame Aufnahmeereignisse, '+dualCount.nominalRGBJpegFiles+
+          ' RGB-JPEG und '+dualCount.nominalMultispectralTiffFiles+
+          ' MS-TIFF. Fotomarker absichtlich deaktiviert. '+
+          'Keine Co-Registrierung, Sensorachsen- oder Geländeprüfung, keine Flugfreigabe.';
+      }
       if(photoReport){
         const p=photoReport,cam=p.optics;
         message+='\nOptik (nur theoretisch): GSD quer '+cam.gsdAcrossCmPerPx.toFixed(2)+
@@ -237,9 +307,37 @@
     const closed=[...report.polygon,report.polygon[0]];
     const data={type:'FeatureCollection',name:'SkyHub 2D preview – NOT DJI WPML',
       properties:{flightReady:false,exportableAsWaylines:false,scope:report.validationScope,
-        cameraReferenceMode:photoReport&&$('camera-mode').value!=='manual'?
+        cameraReferenceMode:(photoReport||dualReport)&&$('camera-mode').value!=='manual'?
           $('camera-mode').value:null,
         cameraReferenceHardwareVerified:false,
+        dualSensorComparison:dualReport&&dualCount?{
+          schema:'skyhub-wpml-dual-optics-inspection-v1',
+          kind:'unregistered-theoretical-optics-comparison',
+          referenceMode:dualReport.mode,
+          rgbGsdAcrossCmPerPx:dualReport.rgb.gsdAcrossCmPerPx,
+          rgbGsdAlongCmPerPx:dualReport.rgb.gsdAlongCmPerPx,
+          msGsdAcrossCmPerPx:dualReport.multispectral.gsdAcrossCmPerPx,
+          msGsdAlongCmPerPx:dualReport.multispectral.gsdAlongCmPerPx,
+          nominalStripSpacingM:dualReport.nominalStripSpacingM,
+          nominalPhotoSpacingM:dualReport.nominalPhotoSpacingM,
+          nominalIntervalSeconds:dualReport.nominalIntervalSeconds,
+          effectiveMinIntervalSeconds:dualReport.effectiveMinIntervalSeconds,
+          meetsNumericalCadence:dualReport.meetsNumericalCadence,
+          nominalCaptureEvents:dualCount.nominalCaptureEvents,
+          nominalRGBJpegFiles:dualCount.nominalRGBJpegFiles,
+          nominalMultispectralTiffFiles:dualCount.nominalMultispectralTiffFiles,
+          nominalTotalFiles:dualCount.nominalTotalFiles,
+          photoActionsGenerated:false,
+          coRegistrationVerified:false,
+          relativeBoresightVerified:false,
+          opticalCalibrationVerified:false,
+          terrainVerified:false,
+          cameraHardwareVerified:false,
+          pilot2HardwareVerified:false,
+          actualCaptureSupported:null,
+          flightReady:false,dispatchAllowed:false,
+          exportableAsWaylines:false
+        }:null,
         opticsEstimate:photoReport?{...photoReport}:null},
       features:[
         {type:'Feature',geometry:report.outlineGeometry||
@@ -272,5 +370,31 @@
     setTimeout(()=>URL.revokeObjectURL(url),30000);
     feedback('Unverbindliche GeoJSON-Vorschau lokal gespeichert. Kein DJI-Missionsformat.');
   });
+  window.SkyHubPlanarSelection=Object.freeze({
+    snapshot:()=>({geometry:importedGeometry||points.map(p=>({...p})),
+      spacing:$('optics-enable').checked?(report?report.lineSpacingMeters:null):Number($('spacing').value),
+      heading:Number($('heading').value)}),
+    clearAdvanced:()=>{for(const layer of advancedLines)layer.remove();advancedLines=[];},
+    drawAdvanced:(plans,{showCandidates=false}={})=>{
+      for(const layer of advancedLines)layer.remove();advancedLines=[];
+      if(!map)return;
+      for(const plan of plans){
+        for(const seg of plan.segments)
+          advancedLines.push(L.polyline([[seg.start.lat,seg.start.lon],
+            [seg.end.lat,seg.end.lon]],{color:'#2458d3',weight:3,opacity:.9}).addTo(map));
+        if(showCandidates&&Array.isArray(plan.transitionCandidates)){
+          for(const transition of plan.transitionCandidates){
+            if(transition.status!=='candidate'||!Array.isArray(transition.path)||
+               transition.path.length<2||transition.path.length>82)continue;
+            advancedLines.push(L.polyline(transition.path.map(p=>[p.lat,p.lon]),{
+              color:'#855510',weight:2,opacity:.85,dashArray:'4,7',
+              interactive:false
+            }).addTo(map));
+          }
+        }
+      }
+    }
+  });
+  syncDualControls();
   render();
 })();

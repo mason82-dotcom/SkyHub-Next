@@ -32,6 +32,9 @@
 | `SKYHUB_LAN_VIEW_CIDR` | Leer | Tokenfreier Zugriff nur für kleine zulässige private Netze und exakt definierte GET-/Socket-Routen; Proxy-Vertrauen und Header müssen separat gesichert werden |
 | `SKYHUB_TRACK_RECORDING_ENABLED` | `false` | Neue PostGIS-GPS-Spuren und Pruning aus; Live-Telemetrie und Abruf alter Spuren bleiben möglich |
 | `SKYHUB_TRACK_RETENTION_DAYS` | `30` | Aufbewahrung 1–3650 Tage; nur wirksam, wenn Aufnahme/Bereinigung aktiviert |
+| `SKYHUB_TILE_CACHE_ENABLED` | `false` | `true`: OSM-Kacheln werden beim Ansehen auf dem Pi gespeichert und sind offline verfügbar; `false`: Weiterleitung zu OSM ([Offline-Kartenkacheln](offline-map-tiles.md)) |
+| `SKYHUB_TILE_CACHE_MAX_MB` | `512` | Größenlimit des Kachel-Caches, 16–20480 MB; älteste ungenutzte Kacheln werden verdrängt |
+| `SKYHUB_TILE_CACHE_DIR` | `/app/tile-cache` | Absoluter Cache-Pfad; im Compose das Volume `tile_cache` |
 | `REDIS_URL` | Compose intern `redis://redis:6379` | Redis-Verbindungsziel des Next-Stacks |
 | `DATABASE_URL` | Compose intern PostgreSQL-URI aus `SKYHUB_DB_PASSWORD` | PostGIS-Verbindungsziel; enthält geheimes Passwort, daher niemals ausgeben |
 

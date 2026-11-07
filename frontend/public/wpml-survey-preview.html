@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="referrer" content="strict-origin-when-cross-origin"><meta name="robots" content="noindex,nofollow">
-<title>SkyHub Next · 2D-Vermessungsvorschau</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<title>Vermessungsvorschau · SkyHub (Labor)</title>
+<link rel="stylesheet" href="/vendor/leaflet/1.9.4/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=">
 <style>
-:root{color-scheme:light;--bg:#081321;--panel:#102338;--edge:#305069;--accent:#44c6e5}
-*{box-sizing:border-box}body{background:var(--bg);color:#f0f7ff;margin:0;font:14px system-ui,"Segoe UI",sans-serif}
-header{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:14px 18px;border-bottom:1px solid var(--edge)}
-h1{font-size:18px;margin:0}header span{color:var(--accent)}a{color:#9ceaff}
+
+*{box-sizing:border-box}body{margin:0}
+header.skyhub-pagehead{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:14px 18px;border-bottom:1px solid var(--edge)}
+h1{font-size:18px;margin:0}header.skyhub-pagehead span{color:var(--accent)}a{color:#9ceaff}
 main{display:grid;grid-template-columns:minmax(300px,1fr) 350px;height:calc(100vh - 64px)}
 .map-shell{position:relative}#map{height:100%;min-height:300px;background:#152f45}
 .instructions{position:absolute;z-index:500;top:12px;left:12px;right:12px;max-width:380px;background:#081321ed;border:1px solid var(--edge);padding:10px;border-radius:9px;pointer-events:none}
@@ -28,20 +28,50 @@ p{line-height:1.5}.muted{color:#a8bdd0;font-size:12px}
 @media(max-width:850px){main{grid-template-columns:1fr;height:auto}.map-shell{height:45vh;min-height:300px}aside{border:0;border-top:1px solid var(--edge)}}
 </style>
 <link rel="stylesheet" href="/skyhub-light.css">
+<script defer src="/skyhub-nav.js"></script>
 </head>
 <body data-skyhub-page="survey">
 <a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
-<header>
-<h1>SkyHub <span>2D-Vermessungsvorschau</span></h1>
-<nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
-  <a href="/">Übersicht</a>
-  <a href="/wpml-editor.html">Missionen</a>
-  <a href="/wpml-route-library.html">Routen</a>
-  <a href="/wpml-survey-preview.html" aria-current="page">Survey</a>
-  <a href="/smart-farming.html">Smart Farming</a>
-  <a href="/media-gallery.html">Medien</a>
-  <a href="/thermal.html">Thermal</a>
-</nav>
+<!-- skyhub-appbar -->
+<header class="skyhub-appbar">
+  <a class="skyhub-appbar-brand" href="/"><span class="brand-symbol" aria-hidden="true">✦</span>SkyHub <span>Next</span></a>
+  <nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
+    <a href="/">Lagebild</a>
+    <details class="skyhub-nav-group is-active"><summary>Planen</summary><div class="skyhub-nav-menu">
+      <p class="skyhub-nav-section">Mission</p>
+      <a href="/wpml-editor.html">Missionsentwurf<small>Wegpunkte setzen, KMZ importieren</small></a>
+      <a href="/wpml-route-library.html">Routenbibliothek<small>Gespeicherte Routen und Revisionen</small></a>
+      <a href="/missionsfreigabe.html">Missionsfreigabe<small>Revision für Pilot 2 freigeben</small></a>
+      <p class="skyhub-nav-section">Karte in Pilot 2</p>
+      <a href="/kartenelemente.html">Kartenelemente<small>Punkte, Linien und Flächen</small></a>
+      <p class="skyhub-nav-section is-lab">Labor <span>experimentell, nicht für den Einsatz freigegeben</span></p>
+      <a href="/wpml-survey-preview.html" class="is-lab" aria-current="page">Vermessungsvorschau<small>2D-Flächenvermessung, nur Vorschau</small></a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Fliegen</summary><div class="skyhub-nav-menu">
+      <a href="/drc.html">Live-Steuerung<small>Matrice 4 · RC Plus 2</small></a>
+      <a href="/drc.html?rc=pro">Kamera &amp; Gimbal<small>Mavic 3 · RC Pro</small></a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Auswerten</summary><div class="skyhub-nav-menu">
+      <p class="skyhub-nav-section">Medien &amp; Position</p>
+      <a href="/media-gallery.html">Medien<small>Fotos, Videos, TIFFs, Missionsdateien</small></a>
+      <a href="/ppk.html">PPK-Geotagging<small>Zentimetergenaue Kamerapositionen</small></a>
+      <a href="/abdeckung.html">Fotoabdeckung<small>Lücken und Überlappung eines Flugs</small></a>
+      <p class="skyhub-nav-section">Sensorik</p>
+      <a href="/thermal.html">Thermal<small>Temperaturen aus DJI R-JPEG</small></a>
+      <a href="/ndvi.html">Vegetationsindizes<small>NDVI, GNDVI, NDRE · Mavic 3M</small></a>
+      <p class="skyhub-nav-section is-lab">Labor <span>experimentell, nicht für den Einsatz freigegeben</span></p>
+      <a href="/smart-farming.html" class="is-lab">Smart Farming<small>M3M-Indexkandidaten, nur Lesen</small></a>
+      <a href="/smart-farming-map-lab.html" class="is-lab">Vegetationskarte<small>Georeferenzierte Vorschau</small></a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Diagnose</summary><div class="skyhub-nav-menu">
+      <a href="/fh-diagnostics.html">RTK &amp; Flugsitzungen<small>RTK-Status und Sitzungsverlauf</small></a>
+      <a href="/pilot-protokolle.html">Pilot-2-Protokolle<small>Von der Fernsteuerung gesendet</small></a>
+    </div></details>
+  </nav>
+</header>
+<!-- /skyhub-appbar -->
+<header class="skyhub-pagehead">
+<h1>Vermessungsvorschau <span class="muted">Labor · 2D-Flächenvermessung, nur Vorschau</span></h1>
 </header>
 <main id="skyhubMain" tabindex="-1">
 <section class="map-shell" aria-label="2D-Vermessungskarte">
@@ -65,11 +95,11 @@ p{line-height:1.5}.muted{color:#a8bdd0;font-size:12px}
 </div>
 <section aria-label="Optionale Kamerageometrie">
 <h2>Bildberechnung (optionaler Expertenmodus)</h2>
-<label style="display:flex;align-items:center;gap:8px"><input id="optics-enable" type="checkbox" style="width:auto"> Bildbasierte Streifenabstände, GSD und Fotoabstände schätzen</label>
+<label class="skyhub-check-row"><input id="optics-enable" type="checkbox"> Bildbasierte Streifenabstände, GSD und Fotoabstände schätzen</label>
 <p class="muted">Alle Werte müssen zur <strong>tatsächlich gewählten Kamera und Linse</strong> gehören. Keine voreingestellten Mavic-/Matrice-Kameradaten; gerade bei Mavic 3M dürfen RGB- und Multispektralkameras nicht verwechselt werden. Höhe ist tatsächliche AGL-Höhe, nicht Höhe über Startpunkt.</p>
-<fieldset id="optics-fields" hidden style="border:1px solid var(--edge);padding:12px;border-radius:9px">
+<fieldset id="optics-fields" hidden class="skyhub-subpanel">
 <label for="camera-mode">Aufnahmereferenz (optional, DJI Mavic 3M)</label>
-<select id="camera-mode" style="width:100%">
+<select id="camera-mode" class="skyhub-full">
 <option value="manual" selected>Manuell / unbekannte Kamera – keine DJI-Referenzannahme</option>
 <option value="m3m-rgb-jpeg">Mavic 3M – RGB JPEG (DJI Minimum 0,7 s)</option>
 <option value="m3m-rgb-jpeg-raw">Mavic 3M – RGB JPEG + DNG (DJI Minimum 3 s)</option>
@@ -77,6 +107,19 @@ p{line-height:1.5}.muted{color:#a8bdd0;font-size:12px}
 <option value="m3m-rgb-ms-tiff">Mavic 3M – RGB + Multispektral simultan (DJI Minimum 2 s)</option>
 </select>
 <p class="muted">Die Auswahl prüft Bildabmessungen und Foto-Mindestintervalle gegen DJI-Referenzangaben. Bei RGB+Multispektral ist für die geometrische Berechnung ausschließlich der Multispektralsensor maßgeblich. Physische Sensorgröße und Brennweite müssen weiterhin selbst bestätigt werden; die Auswahl erzeugt keine Kamerakalibrierung oder DJI-Freigabe.</p>
+<label class="skyhub-check-row"><input type="checkbox" id="dual-optics-enable" disabled> Unabhängige RGB- und Multispektral-Optik vergleichen (nur M3M RGB+MS; experimentell)</label>
+<fieldset id="dual-optics-fields" hidden class="skyhub-subpanel">
+<legend>RGB-Zweitkamera – eigene physische Parameter (nicht aus MS abgeleitet)</legend>
+<p class="muted">Die unten stehenden RGB-Optikwerte sind Pflicht. RGB hat bei der M3M 5280 × 3956 Pixel; die MS-Werte stehen im regulären Kamerafeld darunter. Gemeinsame AGL und Geschwindigkeit sind dieselbe theoretische Flugbahn. Sensorlage, Kalibrierung und Synchronisation sind ungeprüft. Es entstehen keine Fotopunkte oder Missionsaktionen.</p>
+<div class="row">
+<div><label for="dual-rgb-width">RGB Sensorbreite physisch (mm)</label><input id="dual-rgb-width" type="number" min="1" max="70" step="any" placeholder="Realwert bestätigen"></div>
+<div><label for="dual-rgb-height">RGB Sensorhöhe physisch (mm)</label><input id="dual-rgb-height" type="number" min="1" max="70" step="any" placeholder="Realwert bestätigen"></div>
+<div><label for="dual-rgb-focal">RGB Brennweite physisch (mm)</label><input id="dual-rgb-focal" type="number" min="1" max="250" step="any" placeholder="Kein KB-Äquivalent"></div>
+<div><label for="dual-rgb-side">RGB Querüberlappung (%)</label><input id="dual-rgb-side" type="number" min="0" max="95" step="any" placeholder="Explizit eingeben"></div>
+<div><label for="dual-rgb-front">RGB Längsüberlappung (%)</label><input id="dual-rgb-front" type="number" min="0" max="95" step="any" placeholder="Explizit eingeben"></div>
+</div>
+<p class="muted">Die Rechnung verwendet den kleineren nominalen Abstand beider Kameras. Bei aktivierter Doppeloptik entfällt die Darstellung einzelner Fotomittelpunkte. Die tatsächliche gemeinsame Bildabdeckung ist nicht bestätigt.</p>
+</fieldset>
 <div class="row">
 <div><label for="sensor-width">Sensorbreite (mm)</label><input type="number" id="sensor-width" min="1" max="70" step="any" placeholder="Kameraspezifikation"></div>
 <div><label for="sensor-height">Sensorhöhe (mm)</label><input type="number" id="sensor-height" min="1" max="70" step="any" placeholder="Kameraspezifikation"></div>
@@ -92,18 +135,48 @@ p{line-height:1.5}.muted{color:#a8bdd0;font-size:12px}
 <p class="muted">Modellannahme: senkrechte Nadir-Aufnahme, flaches Gelände, konstante Flughöhe/-geschwindigkeit und Sensorkante quer zur Flugrichtung. Kein Import von Kamera- oder Gerätezertifikaten.</p>
 </fieldset>
 </section>
-<label style="display:flex;align-items:center;gap:8px"><input id="show-photo-centers" type="checkbox" style="width:auto" disabled> Theoretische Fotopositionen auf der Karte anzeigen (nur mit Optikwerten)</label>
+<label class="skyhub-check-row"><input id="show-photo-centers" type="checkbox" disabled> Theoretische Fotopositionen auf der Karte anzeigen (nur mit Optikwerten)</label>
 <p class="muted">Maximal 2.000 Kartenmarkierungen. Bei größeren Schätzungen werden ausschließlich die Endpunkte jedes Streifensegments markiert, niemals versteckte Zwischenbilder als vollständig dargestellt.</p>
 <div class="actions"><button id="preview" type="button">2D-Vorschau berechnen</button><button id="fit" type="button">Fläche einpassen</button><button id="geojson" type="button" disabled>Vorschau als GeoJSON exportieren</button></div>
+<section class="skyhub-subpanel" aria-label="Planar Wayline Labor">
+<h2>Planar Wayline · Labor P0–P2</h2>
+<p class="muted">Nur Geometrievorschau. Keine DJI-Flugfreigabe, kein KMZ-Export.</p>
+<label class="skyhub-check-row"><input type="checkbox" id="planar-optimize-angle"> Streifenrichtung optimieren (P0)</label>
+<label class="skyhub-check-row"><input type="checkbox" id="planar-show-candidates"> Unverifizierte Übergangskandidaten gestrichelt anzeigen</label>
+<div class="actions"><button id="planar-sweep" type="button">P0 · Scanvorschau</button></div>
+<div class="row"><div><label for="planar-height">AGL-Höhe (m)</label><input id="planar-height" type="number" min="2" max="500" placeholder="Reale AGL eingeben"></div>
+<div><label for="planar-pitch">Kameraneigung (°)</label><input id="planar-pitch" type="number" min="-85" max="-40" value="-60"></div></div>
+<div class="actions"><button id="planar-five" type="button">P1 · Fünf Richtungen</button></div>
+<label for="planar-pass-select">Angezeigte Aufnahmegruppe</label><select id="planar-pass-select" class="skyhub-full" disabled>
+<option value="0">1 · Nadir</option><option value="1">2 · +0°</option>
+<option value="2">3 · +90°</option><option value="3">4 · +180°</option><option value="4">5 · +270°</option></select>
+<label for="planar-takeoff-height">Höhe über realem Startpunkt (m, nicht AGL)</label>
+<input id="planar-takeoff-height" type="number" min="2" max="500" step="any" placeholder="Explizite theoretische Flughöhe über Start">
+<div class="row">
+<div><label for="planar-takeoff-lat">Startposition WGS84 · Breite (°)</label>
+<input id="planar-takeoff-lat" type="number" min="-85" max="85" step="any" placeholder="Gemessene Startkoordinate"></div>
+<div><label for="planar-takeoff-lon">Startposition WGS84 · Länge (°)</label>
+<input id="planar-takeoff-lon" type="number" min="-180" max="180" step="any" placeholder="Gemessene Startkoordinate"></div>
+</div>
+<div class="actions"><button id="planar-terrain" type="button">P3 · DEM-Stichprobe (bis 8 Scansegmente)</button></div>
+<p class="muted">Die Startposition ist für die Vergleichbarkeit aller Segmente erforderlich. Jedes Segment wird ohne Verbindung über Aussparungen einzeln abgefragt. Bei mehr als acht Segmenten ist das Ergebnis ausdrücklich unvollständig. Abfragen erfolgen nur auf Knopfdruck.</p>
+<p id="planar-status" role="status" aria-live="polite">Noch keine Planarvorschau. P2: schreibgeschütztes KMZ-Audit über die CLI.</p>
+<p class="warning">Blaue Scanlinien und gestrichelte Übergangskandidaten sind keine freigegebenen Flugwege. Das DEM liefert Höhenstichproben, keine Hindernis-/Geozonen-/Hardwarefreigabe. Eine theoretische relative Flughöhe ist keine bestätigte DJI-Missionshöhe.</p>
+</section>
 <div id="status" role="status" aria-live="polite">Mindestens drei Polygonpunkte setzen.</div>
 <p class="warning"><strong>Keine Flugplanung:</strong> Die Approximation gilt nur für kleine, streng geprüfte Survey-Flächen (höchstens 2 km Ausdehnung); Polygonlöcher und getrennte Teilflächen werden nur geometrisch berücksichtigt. Optionale GSD-/Überlappungsschätzungen nur mit manuell bestätigten Kameradaten; nur geometrisch geschätzte Foto-Mittelpunkte, keine echte Bildauslösung, Geländegeometrie, Wendemanöver, Flugbeschränkungen oder DJI-Pilot-2-Prüfung. Kein KMZ-/WPML-Wayline-Export aus dieser Vorschau.</p>
 </aside>
 </main>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/vendor/leaflet/1.9.4/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="></script>
 <script src="/wpml-survey-preview-core.js"></script>
+<script src="/wpml-planar-advanced-core.js"></script>
+<script src="/wpml-terrain-client.js"></script>
 <script src="/wpml-photogrammetry-core.js"></script>
 <script src="/wpml-camera-reference-core.js"></script>
+<script src="/wpml-m3m-dual-optics-core.js"></script>
 <script src="/wpml-capture-preview-core.js"></script>
+<script src="/skyhub-map-home.js"></script>
 <script src="/wpml-survey-preview.js"></script>
+<script src="/wpml-planar-ui.js"></script>
 </body>
 </html>

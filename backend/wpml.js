@@ -198,6 +198,8 @@ function mission(document,file,errors){
   else fieldEnum(config,'executeRCLostAction',path,errors);
   fieldNumber(config,'takeOffSecurityHeight',1.2,1500,path,errors,true);
   fieldNumber(config,'globalTransitionalSpeed',0.000001,file==='waylines.wpml'?15:100,path,errors,true);
+  // DJI marks globalRTHHeight as required in waylines.wpml; its range is validated when present.
+  fieldNumber(config,'globalRTHHeight',2,1500,path,errors);
   const drone=one(config,'wpml:droneInfo');
   const payload=one(config,'wpml:payloadInfo');
   if(!drone)pathError(errors,path+'/droneInfo','required element missing');
@@ -365,16 +367,16 @@ function fieldInventoryCoverage(documents){
     undocumentedFields:elements.filter(name=>!KNOWN_FIELDS.has(name))
   };
 }
-function validateDocuments(templateXml,waylinesXml,expectedWpmlNamespace=WPML){
+function validateDocuments(templateXml,waylinesXml,expectedWpmlNamespace=WPML,options={}){
   profileExtras=expectedWpmlNamespace===WPML_REFERENCE_ONLY?MODES_106:null;
   try{
-    const result=validateProfile(templateXml,waylinesXml,expectedWpmlNamespace);
+    const result=validateProfile(templateXml,waylinesXml,expectedWpmlNamespace,options);
     if(expectedWpmlNamespace!==WPML_REFERENCE_ONLY)return {...result,wpmlVersion:'1.0.2'};
     return {...result,wpmlVersion:'1.0.6',readOnlyAnalysis:true,flightReady:false,
       warnings:['WPML 1.0.6: read-only analysis only; SkyHub edits and exports WPML 1.0.2',...result.warnings]};
   }finally{profileExtras=null;}
 }
-function validateProfile(templateXml,waylinesXml,expectedWpmlNamespace){
+function validateProfile(templateXml,waylinesXml,expectedWpmlNamespace,options={}){
   const errors=[],warnings=[],templates=[],waylines=[];
   let template,execution;
   try{template=parseXml(templateXml,expectedWpmlNamespace);}catch(e){pathError(errors,'template.kml',e.message);}
@@ -389,16 +391,21 @@ function validateProfile(templateXml,waylinesXml,expectedWpmlNamespace){
   if(!td||!wd)return {valid:false,flightReady:false,validationScope:'offline-partial',errors,warnings,templates,waylines};
   const meta=mission(td,'template.kml',errors);
   const execMeta=mission(wd,'waylines.wpml',errors);
+  // Warning, not error: earlier SkyHub exports lacked it and must stay listable/readable.
+  if(!value(one(wd,'wpml:missionConfig'),'globalRTHHeight'))
+    warnings.push('waylines.wpml: wpml:globalRTHHeight missing (required by DJI WPML for M3E/M3T/M3M)');
   if(meta){
-    const assessment=assessAircraft(meta.droneType,meta.droneSubtype,meta.payloadType,meta.payloadPosition);
+    const assessment=assessAircraft(meta.droneType,meta.droneSubtype,meta.payloadType,meta.payloadPosition,options);
     meta.model=assessment.model;
+    if(assessment.effectiveSubtype!==undefined){meta.declaredDroneSubtype=meta.droneSubtype;meta.droneSubtype=assessment.effectiveSubtype;}
     for(const msg of assessment.errors)pathError(errors,'template.kml/missionConfig',msg);
     warnings.push(...assessment.warnings);
   }
   if(execMeta){
     const assessment=assessAircraft(execMeta.droneType,execMeta.droneSubtype,execMeta.payloadType,
-      execMeta.payloadPosition);
+      execMeta.payloadPosition,options);
     execMeta.model=assessment.model;
+    if(assessment.effectiveSubtype!==undefined){execMeta.declaredDroneSubtype=execMeta.droneSubtype;execMeta.droneSubtype=assessment.effectiveSubtype;}
     for(const msg of assessment.errors)pathError(errors,'waylines.wpml/missionConfig',msg);
   }
   if(meta&&execMeta&&JSON.stringify(meta)!==JSON.stringify(execMeta))

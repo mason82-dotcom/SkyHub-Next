@@ -19,6 +19,10 @@ frontend/public/*.before-*
 
 **/.skyhub-env-backups/
 
+# Isolated HiveMind reference lab: no upstream AGPL checkout, build cache or credentials
+simulators/hivemind/.upstream/
+simulators/hivemind/.m2-cache/
+simulators/hivemind/lab.env
 # Local symlink to mounted NVMe MinIO data (never add bucket contents to Git)
 /storage/minio-data
 
@@ -60,3 +64,9 @@ Thumbs.db
 /ops/cloud-api-demo/.env
 /ops/cloud-api-demo/runtime/
 /third_party/
+
+# brix-node: Mosquitto-Zugangsdaten (nur lokal, 600)
+ops/brix/mosquitto/passwd
+ops/brix/mosquitto/acl
+ops/brix/mosquitto/*.bak-*
+*.bak-terrain

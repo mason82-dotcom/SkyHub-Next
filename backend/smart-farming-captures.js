@@ -15,7 +15,7 @@ const MIN_DAYLIGHT_IRRADIANCE=10; // sunlight sensor; night shots read ~1
 const PREVIEW_BUCKET='farming';
 const SOURCE_BUCKET='dji-cloud';
 const SCHEMA='skyhub-m3m-capture-manifest-v2';
-const ASSESSMENT_VERSION='skyhub-m3m-capture-assessment-v2';
+const ASSESSMENT_VERSION='skyhub-m3m-capture-assessment-v3';
 
 function xmpField(xmp,name){
   const m=new RegExp('[\\w-]+:'+name+'(?:="([^"]{0,200})"|>([^<]{0,200})<)').exec(xmp);
@@ -49,10 +49,40 @@ function parseBandHeader(buffer){
   };
 }
 
-function validGps(gps){
-  return Boolean(gps&&Number.isFinite(gps.lat)&&Number.isFinite(gps.lon)&&
-    Math.abs(gps.lat)<=90&&Math.abs(gps.lon)<=180&&
-    !(Math.abs(gps.lat)<1e-4&&Math.abs(gps.lon)<1e-4));
+function gpsState(gps){
+  if(!gps||!Number.isFinite(gps.lat)||!Number.isFinite(gps.lon))return 'missingOrNonNumeric';
+  if(Math.abs(gps.lat)>90||Math.abs(gps.lon)>180)return 'outOfRange';
+  if(Math.abs(gps.lat)<1e-4&&Math.abs(gps.lon)<1e-4)return 'zeroSentinel';
+  return 'valid';
+}
+const validGps=gps=>gpsState(gps)==='valid';
+
+// Approximate spherical distance between parsed positions, NOT GNSS accuracy.
+function distanceMetres(a,b){
+  const rad=n=>n*Math.PI/180;
+  const h=Math.sin(rad(b.lat-a.lat)/2)**2+
+    Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(rad(b.lon-a.lon)/2)**2;
+  return 6371000*2*Math.asin(Math.sqrt(Math.min(1,Math.max(0,h))));
+}
+function summarizeGps(positions,uniqueFourBands){
+  const counts={valid:0,missingOrNonNumeric:0,outOfRange:0,zeroSentinel:0};
+  for(const p of positions)counts[gpsState(p)]++;
+  const valid=positions.filter(validGps);
+  const distinct=new Set(valid.map(p=>JSON.stringify([p.lat,p.lon]))).size;
+  const allPositionsValid=positions.length>0&&counts.valid===positions.length;
+  const commonPositionAvailable=allPositionsValid&&distinct===1;
+  let maxSpreadMetres=null;
+  if(allPositionsValid&&uniqueFourBands){
+    maxSpreadMetres=0;
+    // Six distances only, for four unique valid bands. No duplicate selection.
+    for(let i=0;i<positions.length;i++)for(let j=i+1;j<positions.length;j++)
+      maxSpreadMetres=Math.max(maxSpreadMetres,distanceMetres(positions[i],positions[j]));
+  }
+  return {positionCount:positions.length,validPositionCount:counts.valid,
+    missingOrNonNumericCount:counts.missingOrNonNumeric,outOfRangeCount:counts.outOfRange,
+    zeroSentinelCount:counts.zeroSentinel,allPositionsValid,commonPositionAvailable,
+    consistency:distinct>1?'different':commonPositionAvailable?'exact':'unavailable',
+    maxSpreadMetres,distanceMethod:'spherical-haversine-not-gnss-accuracy',toleranceApplied:false};
 }
 
 // Metadata screening only. Neither a positive altitude nor irradiance proves a
@@ -72,7 +102,11 @@ function assess(capture){
   if(!irradianceComplete)add('missing-irradiance','Sonnensensorwerte fehlen für mindestens ein eindeutiges Band.');
   if(minIrr!==null&&minIrr<MIN_DAYLIGHT_IRRADIANCE)
     add('low-irradiance','Sonnensensor unter dem heuristischen Tageslicht-Schwellwert ('+minIrr+').');
-  if(!validGps(capture.gps))add('invalid-gps','Keine gültige gemeinsame GPS-Position.');
+  if(!validGps(capture.gps)){
+    if(capture.gpsAssessment?.allPositionsValid&&capture.gpsAssessment.consistency==='different')
+      add('gps-disagreement','Gültige Bandpositionen weichen ab; kein exakt gemeinsamer GPS-Wert. Keine Toleranz angewandt.');
+    else add('invalid-gps','GPS fehlt oder ist für mindestens ein Bandobjekt ungültig.');
+  }
   if(!Number.isFinite(capture.relativeAltitude))
     add('unknown-relative-altitude','Höhe über Start unbekannt.');
   else if(capture.relativeAltitude<1)
@@ -107,11 +141,11 @@ function assembleCapture(group){
   const model=agreed('model'),createdAt=agreed('createdAt');
   const relativeAltitude=agreed('relativeAltitude'),absoluteAltitude=agreed('absoluteAltitude');
   const positions=hints.map(h=>({lat:h.lat,lon:h.lon}));
-  const positionKeys=positions.filter(validGps).map(p=>JSON.stringify(p));
-  if(new Set(positionKeys).size>1)metadataConflicts.push('gps');
-  const gps=positionKeys.length===positions.length&&new Set(positionKeys).size===1?positions[0]:null;
+  const gpsAssessment=summarizeGps(positions,ORDER.every(b=>bandCounts[b]===1));
+  if(gpsAssessment.consistency==='different')metadataConflicts.push('gps');
+  const gps=gpsAssessment.commonPositionAvailable?positions[0]:null;
   return {captureUUID:group.captureUUID,bands,bandCounts,sources:[...group.sources].sort(),
-    model,createdAt,gps,relativeAltitude,absoluteAltitude,metadataConflicts};
+    model,createdAt,gps,gpsAssessment,relativeAltitude,absoluteAltitude,metadataConflicts};
 }
 
 function createSmartFarmingCaptures({storage,bucketIndex,clock=()=>Date.now()}={}){
@@ -212,7 +246,7 @@ function createSmartFarmingCaptures({storage,bucketIndex,clock=()=>Date.now()}={
           irradianceComplete:c.irradianceComplete,minIrradiance:c.minIrradiance,
           sourceAuthenticityVerified:c.sourceAuthenticityVerified,
           radiometryVerified:c.radiometryVerified,mappingReady:c.mappingReady,
-          gps:c.gps,relativeAltitude:c.relativeAltitude,
+          gps:c.gps,gpsAssessment:c.gpsAssessment,relativeAltitude:c.relativeAltitude,
           absoluteAltitude:c.absoluteAltitude,
           bands:Object.fromEntries(ORDER.filter(b=>c.bands[b]).map(b=>[b,{bucket:c.bands[b].bucket,
             key:c.bands[b].key,size:c.bands[b].size,etag:c.bands[b].etag,

@@ -125,3 +125,22 @@ test('inspectKmz detects 1.0.6 itself and names the aircraft a mismatched camera
     JSON.stringify(report.errors));
   assert.equal(inspectKmz(kmz(t,w)).wpmlVersion,'1.0.2');
 });
+
+test('camera decides within one aircraft family only for routes uploaded by DJI Pilot 2 itself',()=>{
+  const {inspectKmz}=require('../wpml-kmz');
+  const {checkMission}=require('../mission-envelope');
+  const {templateXml:t,waylinesXml:w}=documentPair();
+  const m4e=xml=>alternate(xml).replace(/<wpml:droneSubEnumValue>1<\/wpml:droneSubEnumValue>/g,'<wpml:droneSubEnumValue>0</wpml:droneSubEnumValue>');
+  const bytes=kmz(m4e(t),m4e(w));
+  assert.equal(inspectKmz(bytes).valid,false,'strict by default (converters, SkyHub files)');
+  const lenient=inspectKmz(bytes,{cameraDecides:true});
+  assert.equal(lenient.valid,true,JSON.stringify(lenient.errors));
+  assert.equal(lenient.aircraft.droneSubtype,1);assert.equal(lenient.aircraft.declaredDroneSubtype,0);
+  assert.ok(lenient.warnings.some(x=>/treated as Matrice 4T/.test(x)));
+  const c=checkMission(bytes,undefined,{cameraDecides:true});
+  assert.equal(c.envelope.droneModelKey,'0-99-1');
+  assert.ok(c.warnings.some(x=>/treated as Matrice 4T/.test(x)));
+  // a camera from a different aircraft type is never accepted
+  const {assessAircraft}=require('../wpml-product-support');
+  assert.equal(assessAircraft(99,0,66,0,{cameraDecides:true}).errors.length,1);
+});

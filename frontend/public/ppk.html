@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PPK-Geotagging · SkyHub</title>
+<style>
+.ppk-source{border:0;padding:0;margin:0 0 8px}.ppk-source legend{font-weight:600;margin-bottom:4px}
+.ppk-flights label{display:flex;flex-direction:row;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line,#d0d7de)}
+.ppk-flights input{flex:0 0 auto;width:20px;height:20px;margin-top:2px}
+.ppk-flights span{min-width:0;overflow-wrap:anywhere}
+.ppk-flights small{display:block;color:var(--muted,#57606a)}
+.ppk-flights .bad small{color:#b3261e}
+</style>
+<link rel="stylesheet" href="/skyhub-light.css">
+<link rel="stylesheet" href="/missionsfreigabe.css">
+<script defer src="/skyhub-nav.js"></script>
+<script defer src="/skyhub-disabled-reason.js"></script>
+</head>
+<body class="mrel" data-skyhub-page="ppk">
+<a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
+<!-- skyhub-appbar -->
+<header class="skyhub-appbar">
+  <a class="skyhub-appbar-brand" href="/"><span class="brand-symbol" aria-hidden="true">✦</span>SkyHub <span>Next</span></a>
+  <nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
+    <a href="/">Lagebild</a>
+    <details class="skyhub-nav-group"><summary>Planen</summary><div class="skyhub-nav-menu">
+      <p class="skyhub-nav-section">Mission</p>
+      <a href="/wpml-editor.html">Missionsentwurf<small>Wegpunkte setzen, KMZ importieren</small></a>
+      <a href="/wpml-route-library.html">Routenbibliothek<small>Gespeicherte Routen und Revisionen</small></a>
+      <a href="/missionsfreigabe.html">Missionsfreigabe<small>Revision für Pilot 2 freigeben</small></a>
+      <p class="skyhub-nav-section">Karte in Pilot 2</p>
+      <a href="/kartenelemente.html">Kartenelemente<small>Punkte, Linien und Flächen</small></a>
+      <p class="skyhub-nav-section is-lab">Labor <span>experimentell, nicht für den Einsatz freigegeben</span></p>
+      <a href="/wpml-survey-preview.html" class="is-lab">Vermessungsvorschau<small>2D-Flächenvermessung, nur Vorschau</small></a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Fliegen</summary><div class="skyhub-nav-menu">
+      <a href="/drc.html">Live-Steuerung<small>Matrice 4 · RC Plus 2</small></a>
+      <a href="/drc.html?rc=pro">Kamera &amp; Gimbal<small>Mavic 3 · RC Pro</small></a>
+    </div></details>
+    <details class="skyhub-nav-group is-active"><summary>Auswerten</summary><div class="skyhub-nav-menu">
+      <p class="skyhub-nav-section">Medien &amp; Position</p>
+      <a href="/media-gallery.html">Medien<small>Fotos, Videos, TIFFs, Missionsdateien</small></a>
+      <a href="/ppk.html" aria-current="page">PPK-Geotagging<small>Zentimetergenaue Kamerapositionen</small></a>
+      <a href="/abdeckung.html">Fotoabdeckung<small>Lücken und Überlappung eines Flugs</small></a>
+      <p class="skyhub-nav-section">Sensorik</p>
+      <a href="/thermal.html">Thermal<small>Temperaturen aus DJI R-JPEG</small></a>
+      <a href="/ndvi.html">Vegetationsindizes<small>NDVI, GNDVI, NDRE · Mavic 3M</small></a>
+      <p class="skyhub-nav-section is-lab">Labor <span>experimentell, nicht für den Einsatz freigegeben</span></p>
+      <a href="/smart-farming.html" class="is-lab">Smart Farming<small>M3M-Indexkandidaten, nur Lesen</small></a>
+      <a href="/smart-farming-map-lab.html" class="is-lab">Vegetationskarte<small>Georeferenzierte Vorschau</small></a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Diagnose</summary><div class="skyhub-nav-menu">
+      <a href="/fh-diagnostics.html">RTK &amp; Flugsitzungen<small>RTK-Status und Sitzungsverlauf</small></a>
+      <a href="/pilot-protokolle.html">Pilot-2-Protokolle<small>Von der Fernsteuerung gesendet</small></a>
+    </div></details>
+  </nav>
+</header>
+<!-- /skyhub-appbar -->
+<header class="skyhub-pagehead mrel-top">
+  <h1>PPK-Geotagging <span class="muted">zentimetergenaue Kamerapositionen für DJI-RTK-Flüge</span></h1>
+</header>
+<p class="mrel-note" role="note">
+  Rechnet aus den GNSS-Rohdaten der Drohne (<code>*_PPKRAW.bin</code>, <code>*.MRK</code>) und einer SAPOS-Referenzstation die
+  Kamerapositionen jedes Fotos mit Genauigkeitsangabe – als CSV für Metashape, Pix4D oder ODM. Läuft vollständig im Heimnetz
+  (dji-geotagger + RTKLIB, beide BSD-2). Von den Fotos wird nur der Bildkopf (EXIF/XMP) hochgeladen.
+</p>
+<main id="skyhubMain" tabindex="-1" class="mrel-grid">
+  <section class="card" aria-labelledby="h-flight">
+    <h2 id="h-flight">1 · Flug wählen</h2>
+    <fieldset class="ppk-source">
+      <legend>Quelle</legend>
+      <label class="check"><input type="radio" name="source" value="storage" checked> Aus dem Speicher (bereits importierte Flüge)</label>
+      <label class="check"><input type="radio" name="source" value="sd"> Ordner von der SD-Karte</label>
+    </fieldset>
+    <div id="srcStorage">
+      <p id="storageState" class="muted" role="status">Flüge werden geladen …</p>
+      <div id="storageFlights" class="ppk-flights"></div>
+    </div>
+    <div id="srcSd" hidden>
+      <label><span>Ordner wählen (z. B. <code>DCIM/DJI_202611041030_001_…</code>), mehrere nacheinander möglich</span>
+        <input id="flight" type="file" webkitdirectory multiple></label>
+      <ul id="flights" class="history"></ul>
+      <button id="flightsClear" type="button" class="secondary">Auswahl leeren</button>
+    </div>
+  </section>
+  <section class="card" aria-labelledby="h-base">
+    <h2 id="h-base">2 · SAPOS-Referenzstation</h2>
+    <label><span>RINEX-Dateien: Beobachtung (<code>…_MO.rnx</code> / <code>.26o</code>) und Navigation (<code>…_MN.rnx</code> / <code>.26n</code>), optional SP3/CLK</span>
+      <input id="base" type="file" multiple></label>
+    <ul id="baseList" class="history"></ul>
+    <p id="baseCheck" class="small" role="status" aria-live="polite" hidden></p>
+    <p class="small muted">Empfohlen: im SAPOS-GPPS-Shop eine <strong>virtuelle Referenzstation</strong> an der Flugstelle bestellen –
+      kurze Basislinie, Koordinaten im RINEX-Kopf und keine Antennenkorrektur der Basis nötig.</p>
+    <label class="check"><input type="radio" name="mode" value="header" checked> Koordinaten aus dem RINEX-Kopf (SAPOS / virtuelle Referenzstation)</label>
+    <label class="check"><input type="radio" name="mode" value="manual"> Koordinaten von Hand (ETRS89, ellipsoidische Höhe)</label>
+    <div id="manual" hidden>
+      <label>Breite (°) <input id="lat" type="number" step="any"></label>
+      <label>Länge (°) <input id="lon" type="number" step="any"></label>
+      <label>Ellipsoidische Höhe (m) <input id="height" type="number" step="any"></label>
+    </div>
+    <label>Genauigkeit der Basis σ Lage / Höhe (m)
+      <span class="skyhub-pair"><input id="sigH" type="number" step="0.001" value="0.01" min="0.001" max="1"><input id="sigU" type="number" step="0.001" value="0.02" min="0.001" max="1"></span></label>
+  </section>
+  <section class="card wide" aria-labelledby="h-run">
+    <h2 id="h-run">3 · Auswerten</h2>
+    <button id="run" type="button" disabled data-disabled-reason="Erst Flug und SAPOS-Dateien wählen." data-disabled-reason-after="cancel">Hochladen und auswerten</button>
+    <button id="cancel" type="button" class="secondary" disabled>Abbrechen</button>
+    <p id="status" class="muted" role="status" aria-live="polite"></p>
+    <progress id="progress" max="1" value="0" hidden class="skyhub-full"></progress>
+    <p><a id="download" href="#" hidden>Ergebnis (CSV) herunterladen</a></p>
+    <ul id="failed" class="history"></ul>
+    <p class="small muted">Ohne Internet: Bahndaten aus der SAPOS-Navigationsdatei (Broadcast). Für kurze Basislinien zur SAPOS-Station
+      reicht das; präzise IGS-Bahnen (SP3/CLK) können zusätzlich hochgeladen werden. SAPOS liefert 1-s-Daten nur bis 200 Tage nach dem Flug, danach 15 s;
+      die Basisdaten werden auf die Messzeitpunkte der Drohne interpoliert. Ergebnisse bleiben 24 h abrufbar.</p>
+  </section>
+</main>
+<script src="/rinex-head.js"></script>
+<script src="/ppk.js"></script>
+</body>
+</html>

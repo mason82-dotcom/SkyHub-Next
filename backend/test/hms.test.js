@@ -114,3 +114,9 @@ test('no shipped HMS text shows a raw placeholder after substitution',()=>{
     }
   }
 });
+
+test('HMS in-the-sky texts also apply to aerial RTK fixing (18) and POI (20), not to dock site evaluation (19)',()=>{
+  const {IN_THE_SKY}=require('../hms-catalog');
+  for(const mode of [18,20])assert.equal(IN_THE_SKY.has(mode),true,String(mode));
+  for(const mode of [0,1,2,13,14,19])assert.equal(IN_THE_SKY.has(mode),false,String(mode));
+});

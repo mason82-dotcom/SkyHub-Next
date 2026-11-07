@@ -11,7 +11,6 @@ import base64
 import contextlib
 import io
 import json
-import os
 from pathlib import Path
 import tempfile
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -22,7 +21,8 @@ from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
 WEBROOT = ROOT / "frontend" / "public"
-LEAFLET_DIST = Path(os.environ["SKYHUB_TEST_LEAFLET_DIST"]).resolve()
+# Self-hosted Leaflet, exactly the files the backend serves under /vendor/leaflet/1.9.4/.
+LEAFLET_DIST = WEBROOT / "vendor" / "leaflet" / "1.9.4"
 ARTIFACT_DIR = ROOT / "artifacts" / "wpml-browser"
 TILE = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j3t8AAAAASUVORK5CYII="
@@ -52,33 +52,25 @@ def guard(page, base: str, *, real_map: bool, unexpected: list[str]) -> None:
     def route_request(route):
         url = route.request.url
         if url.startswith(base + "/"):
+            # Pages checked without a map must still render when self-hosted Leaflet is missing.
+            if not real_map and url.startswith(base + "/vendor/leaflet/"):
+                route.abort()
+                return
+            # Same-origin backend tile route: synthetic tile instead of real geography.
+            if url.startswith(base + "/tiles/osm/"):
+                if real_map:
+                    route.fulfill(status=200, body=TILE, content_type="image/png")
+                else:
+                    route.abort()
+                return
             if route.request.method != "GET":
                 unexpected.append("unexpected non-GET request")
                 route.abort()
             else:
                 route.continue_()
             return
-        if real_map and url == "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js":
-            route.fulfill(path=str(LEAFLET_DIST / "leaflet.js"),
-                          content_type="application/javascript")
-            return
-        if real_map and url == "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css":
-            route.fulfill(path=str(LEAFLET_DIST / "leaflet.css"),
-                          content_type="text/css")
-            return
-        if real_map and url.endswith("marker-icon.png"):
-            route.fulfill(path=str(LEAFLET_DIST / "images" / "marker-icon.png"),
-                          content_type="image/png")
-            return
-        if real_map and url.endswith("marker-shadow.png"):
-            route.fulfill(path=str(LEAFLET_DIST / "images" / "marker-shadow.png"),
-                          content_type="image/png")
-            return
         if real_map and url.startswith("https://tile.openstreetmap.org/"):
             route.fulfill(status=200, body=TILE, content_type="image/png")
-            return
-        if not real_map and url.startswith("https://unpkg.com/leaflet@1.9.4/"):
-            route.abort()
             return
         unexpected.append("unexpected outbound request blocked")
         route.abort()
@@ -97,16 +89,19 @@ def assert_light_theme(page, active_href: str, name: str) -> None:
         background: getComputedStyle(document.body).backgroundColor,
         scrollWidth: document.documentElement.scrollWidth,
         viewportWidth: window.innerWidth,
+        // Shared frame (scripts/webui-shell.py): module links sit in group menus; the top level is
+        // "Lagebild" plus four workflow menus (Planen, Fliegen, Auswerten, Diagnose), fully visible on every viewport.
         navigation: [...document.querySelectorAll('.skyhub-global-nav a')].map(a => ({
             href: a.getAttribute('href'),
             current: a.getAttribute('aria-current'),
-            fullyVisible: (() => {
-                const nav = a.closest('.skyhub-global-nav').getBoundingClientRect();
-                const rect = a.getBoundingClientRect();
-                return rect.left >= nav.left - 1 && rect.right <= nav.right + 1 &&
-                       rect.top >= nav.top - 1 && rect.bottom <= nav.bottom + 1;
-            })()
+            groupActive: a.closest('details') ? a.closest('details').classList.contains('is-active') : null
         })),
+        topLevel: [...document.querySelectorAll('.skyhub-global-nav > a, .skyhub-global-nav > details > summary')].map(item => {
+            const nav = item.closest('.skyhub-global-nav').getBoundingClientRect();
+            const rect = item.getBoundingClientRect();
+            return rect.width > 0 && rect.left >= nav.left - 1 && rect.right <= nav.right + 1 &&
+                   rect.top >= nav.top - 1 && rect.bottom <= nav.bottom + 1;
+        }),
         // Layout only: never include route names, input values or GPS in CI diagnostics.
         overflowElements: document.documentElement.scrollWidth > window.innerWidth + 1
           ? [...document.body.querySelectorAll('*')]
@@ -130,12 +125,14 @@ def assert_light_theme(page, active_href: str, name: str) -> None:
           name + ": computed light palette mismatch: " + str(state))
     check(state["scrollWidth"] <= state["viewportWidth"] + 1,
           name + ": page overflows screen: " + str(state))
-    check(len(state["navigation"]) == 7,
-          name + ": expected seven operator module navigation links (incl. Thermal)")
-    check(all(a["fullyVisible"] for a in state["navigation"]),
-          name + ": operator navigation clips a module on this viewport")
-    check([a["href"] for a in state["navigation"] if a["current"] == "page"]
-          == [active_href], name + ": active module mismatch")
+    hrefs = [a["href"] for a in state["navigation"]]
+    check(len(hrefs) == 17 and "/thermal.html" in hrefs,
+          name + ": expected 17 operator module links in the shared navigation (incl. Thermal)")
+    check(len(state["topLevel"]) == 5 and all(state["topLevel"]),
+          name + ": top-level navigation (Lagebild + four menus) clipped on this viewport")
+    current = [a for a in state["navigation"] if a["current"] == "page"]
+    check([a["href"] for a in current] == [active_href], name + ": active module mismatch")
+    check(current[0]["groupActive"] in (None, True), name + ": group of the active module is not marked active")
 
 
 def assert_skip_link(page, name: str) -> None:
@@ -643,6 +640,105 @@ def main() -> None:
                           "Reference mode must not imply camera hardware verification")
                     check(metadata["properties"]["flightReady"] is False,
                           "Reference mode cannot grant flight readiness")
+                    # P1 opt-in dual optics: independent RGB physical inputs,
+                    # no photomarkers, no remote writes, and no flight rights.
+                    check(survey.locator("#dual-optics-enable").is_enabled(),
+                          "Combined M3M reference did not enable optional dual optics")
+                    survey.locator("#dual-optics-enable").check()
+                    check(survey.locator("#dual-optics-fields").is_visible(),
+                          "Independent RGB optics inputs should be visible")
+                    survey.locator("#preview").click()
+                    check("Photogrammetry estimate invalid" in
+                          survey.locator("#status").inner_text(),
+                          "Missing RGB physical optics must fail closed")
+                    check(survey.locator("#geojson").is_disabled(),
+                          "Missing RGB optics must block GeoJSON download")
+                    rgb_fields = {
+                        "dual-rgb-width": "10", "dual-rgb-height": "7.5",
+                        "dual-rgb-focal": "8", "dual-rgb-side": "70",
+                        "dual-rgb-front": "70"
+                    }
+                    for key, value in rgb_fields.items():
+                        survey.locator("#" + key).fill(value)
+                    survey.locator("#preview").click()
+                    dual_text = survey.locator("#status").inner_text()
+                    check("DUALOPTIK" in dual_text and "MS GSD" in dual_text and
+                          "RGB GSD" in dual_text,
+                          "Separate RGB/MS results missing from dual-mode survey")
+                    check("Keine Co-Registrierung" in dual_text,
+                          "Unregistered dual optics were represented as calibrated")
+                    check(survey.locator("#show-photo-centers").is_disabled(),
+                          "Dual optics must not enable nominal photo center markers")
+                    with survey.expect_download() as event:
+                        survey.locator("#geojson").click()
+                    dual_export = json.loads(Path(event.value.path()).read_text(encoding="utf-8"))
+                    comparison = dual_export["properties"]["dualSensorComparison"]
+                    check(comparison["kind"] == "unregistered-theoretical-optics-comparison",
+                          "Dual-mode GeoJSON lost unverified comparison marker")
+                    check(dual_export["properties"]["cameraReferenceMode"] ==
+                          "m3m-rgb-ms-tiff",
+                          "Dual-mode GeoJSON lost its original mixed acquisition mode")
+                    check(comparison["schema"] == "skyhub-wpml-dual-optics-inspection-v1"
+                          and comparison["referenceMode"] == "m3m-rgb-ms-tiff",
+                          "Export lacks explicit version and mixed mode evidence")
+                    check(comparison["nominalTotalFiles"] ==
+                          comparison["nominalRGBJpegFiles"] +
+                          comparison["nominalMultispectralTiffFiles"] ==
+                          5 * comparison["nominalCaptureEvents"],
+                          "Dual camera theoretical file counts inconsistent")
+                    check(comparison["photoActionsGenerated"] is False
+                          and comparison["dispatchAllowed"] is False
+                          and comparison["relativeBoresightVerified"] is False
+                          and comparison["opticalCalibrationVerified"] is False
+                          and comparison["terrainVerified"] is False
+                          and comparison["actualCaptureSupported"] is None,
+                          "Dual export promoted unverified optical data to flight evidence")
+                    check(not any(feature["properties"].get("kind") ==
+                          "nominal-photo-centers-NOT-DJI-actions"
+                          for feature in dual_export["features"]),
+                          "Combined mode must not export unverified photo centers")
+                    check(comparison["coRegistrationVerified"] is False and
+                          comparison["flightReady"] is False and
+                          comparison["pilot2HardwareVerified"] is False and
+                          comparison["exportableAsWaylines"] is False,
+                          "Dual comparison illegally received operational authorization")
+                    check(dual_export["properties"]["flightReady"] is False,
+                          "Dual export must remain not flight-ready")
+                    survey.locator("#photo-speed").fill("12")
+                    survey.locator("#preview").click()
+                    check("NICHT erfüllt" in survey.locator("#status").inner_text(),
+                          "Fast dual-camera cadence violation not reported")
+                    survey.locator("#photo-speed").fill("6")
+                    survey.locator("#dual-rgb-focal").fill("")
+                    survey.locator("#preview").click()
+                    check(survey.locator("#geojson").is_disabled(),
+                          "Cleared RGB focal length should invalidate dual export")
+                    # Returning to ordinary MS preview must drop ALL dual-mode
+                    # metadata without retaining a previous RGB calibration.
+                    survey.locator("#dual-optics-enable").uncheck()
+                    check(survey.locator("#dual-optics-fields").is_hidden(),
+                          "Disabled comparison still shows independent RGB inputs")
+                    survey.locator("#preview").click()
+                    check("DJI-M3M-Referenz m3m-rgb-ms-tiff" in
+                          survey.locator("#status").inner_text(),
+                          "Original single-sensor reference preview not restored")
+                    with survey.expect_download() as event:
+                        survey.locator("#geojson").click()
+                    single_export = json.loads(Path(event.value.path()).read_text(
+                        encoding="utf-8"))
+                    check(single_export["properties"]["cameraReferenceMode"] ==
+                          "m3m-rgb-ms-tiff"
+                          and single_export["properties"]["dualSensorComparison"] is None,
+                          "Old RGB dual optics leaked into single-sensor preview export")
+                    survey.locator("#camera-mode").select_option("manual")
+                    check(survey.locator("#dual-optics-enable").is_disabled(),
+                          "Manual reference mode must disable specialized dual optics")
+                    check(survey.locator("#geojson").is_disabled(),
+                          "Changing the camera reference must invalidate export")
+                    check(not survey_requests,
+                          "Dual optics triggered unexpected off-origin or write traffic")
+                    check(not survey_errors,
+                          "Dual optics browser errors: " + " | ".join(survey_errors[:2]))
                     survey.screenshot(path=str(ARTIFACT_DIR / "synthetic-survey-exclusion.png"),
                                       full_page=True)
                     for width_px in (390, 320):
@@ -686,6 +782,11 @@ def main() -> None:
                             ("/wpml-editor.html", "WPML editor")
                         ]
                         for target, title in journey:
+                            # Shared frame: module links sit in group menus; open the group like a user.
+                            group = nav_page.locator(
+                                '.skyhub-global-nav details:has(a[href="' + target + '"]) > summary')
+                            if group.count():
+                                group.click()
                             nav_page.locator(
                                 '.skyhub-global-nav a[href="' + target + '"]').click()
                             nav_page.wait_for_url(base + target, wait_until="load")

@@ -5,6 +5,10 @@
 const KELVIN=273.15;
 const ESTIMATE='Schätzung aus Rohdaten (raw/64-273,15), keine DJI-Kalibrierung';
 const CALCULATION='skyhub-thermal-estimate-v2';
+const SDK_LABEL='DJI Thermal SDK (dji_irp V1.7 über box64): Kalibrierung durch DJI mit den angegebenen Parametern';
+const SDK_CALCULATION='skyhub-thermal-dji-tsdk-v1';
+// dji_irp V1.7 --action measure ranges (same as backend/thermal-sdk.js and the SDK service).
+const SDK_RANGES=Object.freeze({emissivity:[0.1,1],distance:[1,25],humidity:[20,100],ambient:[-40,80],reflection:[-40,500]});
 
 function rawToCelsius(raw){return raw/64-KELVIN;}
 
@@ -47,6 +51,55 @@ function regionStats(temps,width,height,rect){
   return {x0,y0,x1,y1,pixels:values.length,min,max,mean:sum/values.length,median:q(0.5),
     p1:q(0.01),p99:q(0.99),hot,cold};
 }
+// ROI geometry inspired by the API surface of Jazous/SDKs-DjiImage; implemented independently.
+// Endpoints and raster samples refer to pixel centres; all bounds are inclusive.
+// Identical for SDK-measured and estimated temperature matrices.
+function shapeStats(temps,width,height,type,rect){
+  if(!['line','circle','ellipse'].includes(type))throw new RangeError('Unbekannte Messgeometrie');
+  if(!Number.isSafeInteger(width)||!Number.isSafeInteger(height)||width<1||height<1||
+     !temps||temps.length!==width*height||!rect||
+     ![rect.x0,rect.y0,rect.x1,rect.y1].every(Number.isFinite))
+    throw new RangeError('Ungültige Messgeometrie oder Temperaturmatrix');
+  const clamp=(v,limit)=>Math.max(0,Math.min(limit-1,Math.round(v)));
+  const x0=clamp(rect.x0,width),y0=clamp(rect.y0,height),
+        x1=clamp(rect.x1,width),y1=clamp(rect.y1,height);
+  const values=[];let sum=0,min=Infinity,max=-Infinity,hot=null,cold=null;
+  const sample=(x,y)=>{
+    const t=temps[y*width+x];
+    if(!Number.isFinite(t))return;
+    values.push(t);sum+=t;
+    if(t>max){max=t;hot={x,y};}
+    if(t<min){min=t;cold={x,y};}
+  };
+  if(type==='line'){
+    // Integer Bresenham: one sample per intersected centre, including both endpoints.
+    let x=x0,y=y0;
+    const dx=Math.abs(x1-x0),dy=Math.abs(y1-y0);
+    const sx=x0<x1?1:-1,sy=y0<y1?1:-1;
+    let err=dx-dy;
+    while(true){
+      sample(x,y);
+      if(x===x1&&y===y1)break;
+      const e2=err*2;
+      if(e2>-dy){err-=dy;x+=sx;}
+      if(e2<dx){err+=dx;y+=sy;}
+    }
+  }else{
+    const cx=(x0+x1)/2,cy=(y0+y1)/2;
+    let rx=Math.abs(x1-x0)/2,ry=Math.abs(y1-y0)/2;
+    if(type==='circle')rx=ry=Math.min(rx,ry);
+    if(!(rx>0&&ry>0))return null;
+    for(let y=Math.max(0,Math.ceil(cy-ry));y<=Math.min(height-1,Math.floor(cy+ry));y++)
+      for(let x=Math.max(0,Math.ceil(cx-rx));x<=Math.min(width-1,Math.floor(cx+rx));x++)
+        if(((x-cx)/rx)**2+((y-cy)/ry)**2<=1+1e-10)sample(x,y);
+  }
+  if(!values.length)return null;
+  values.sort((a,b)=>a-b);
+  const q=p=>values[Math.min(values.length-1,Math.floor(p*values.length))];
+  return {x0,y0,x1,y1,pixels:values.length,min,max,mean:sum/values.length,
+    median:q(0.5),p1:q(0.01),p99:q(0.99),hot,cold};
+}
+
 function histogram(temps,min,max,bins=48){
   const out=new Array(bins).fill(0),span=max-min||1;
   for(const t of temps){
@@ -117,7 +170,7 @@ function format(t,digits=1){
   return Number.isFinite(t)?t.toLocaleString('de-DE',{minimumFractionDigits:digits,maximumFractionDigits:digits})+' °C':'—';
 }
 
-const api=Object.freeze({KELVIN,ESTIMATE,CALCULATION,rawToCelsius,correct,temperatures,regionStats,histogram,lut,render,
+const api=Object.freeze({KELVIN,ESTIMATE,CALCULATION,SDK_LABEL,SDK_CALCULATION,SDK_RANGES,rawToCelsius,correct,temperatures,regionStats,shapeStats,histogram,lut,render,
   PALETTE_LABELS,PALETTES:Object.keys(STOPS),csv,matrixCsv,format});
 if(typeof module==='object'&&module.exports)module.exports=api;
 if(root)root.SkyhubThermal=api;

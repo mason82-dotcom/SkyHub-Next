@@ -128,15 +128,17 @@ function createS3Storage(env=process.env,client){
   }
 
   // Read-only object payload (optionally a byte range) for the LAN media viewer.
-  async function getObject(bucket,key,{range}={}){
+  // ifMatch: read only if the object still has this ETag (binds a read to an earlier HEAD; 412 otherwise).
+  async function getObject(bucket,key,{range,ifMatch}={}){
     if(!BUCKETS.includes(bucket))throw invalid('Invalid bucket');
     if(!validKey(key))throw invalid('Invalid key');
     if(range!==undefined&&(typeof range!=='string'||!/^bytes=\d{0,15}-\d{0,15}$/.test(range)||range==='bytes=-')){
       throw invalid('Invalid range');
     }
+    if(ifMatch!==undefined&&(typeof ifMatch!=='string'||!/^[\x21-\x7e]{1,256}$/.test(ifMatch)))throw invalid('Invalid ETag');
     try{
       const result=await s3.send(new GetObjectCommand({
-        Bucket:bucket,Key:key,...(range?{Range:range}:{})
+        Bucket:bucket,Key:key,...(range?{Range:range}:{}),...(ifMatch?{IfMatch:ifMatch}:{})
       }));
       return {
         body:result.Body,
@@ -151,6 +153,11 @@ function createS3Storage(env=process.env,client){
         const missing=new Error('Not found');
         missing.status=404;
         throw missing;
+      }
+      if(code===412||err.name==='PreconditionFailed'){
+        const changed=new Error('Object changed');
+        changed.status=412;
+        throw changed;
       }
       if(code===416||err.name==='InvalidRange'){
         const bad=new Error('Range not satisfiable');

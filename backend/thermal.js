@@ -2,11 +2,13 @@
 
 // Thermal module: radiometric DJI R-JPEGs (M4T, M30T, M3T, H20T ...).
 // The 16-bit raw frame sits in APP3 segments, measurement parameters in APP4 ("iirp"),
-// flight/gimbal data in the DJI XMP block. Temperatures are an ESTIMATE (raw/64 - 273.15),
-// not the DJI Thermal SDK calibration; every response says so.
+// flight/gimbal data in the DJI XMP block. /raw serves the ESTIMATE basis (raw/64 - 273.15).
+// Optional: /measure returns DJI Thermal SDK temperatures from the isolated thermal-sdk service.
 const express=require('express');
 const {createHash}=require('node:crypto');
 const {createLru}=require('./media-preview');
+const {sdkParameters}=require('./thermal-sdk');
+const {createThermalExport,MAX_ITEMS}=require('./thermal-export');
 
 const FRAMES=Object.freeze([[640,512],[320,256],[1280,1024]]);
 const MAX_OBJECT_BYTES=20*1024*1024;
@@ -85,7 +87,9 @@ function parseRJpeg(buffer){
       utcAtExposure:x.UTCAtExposure||null,
       lrfDistance:num(x.LRFTargetDistance),lrfStatus:x.LRFStatus||null,
       gimbalPitch:num(x.GimbalPitchDegree),gimbalYaw:num(x.GimbalYawDegree),
-      relativeAltitude:num(x.RelativeAltitude),absoluteAltitude:num(x.AbsoluteAltitude)
+      relativeAltitude:num(x.RelativeAltitude),absoluteAltitude:num(x.AbsoluteAltitude),
+      // DJI XMP position (older firmware writes "GpsLongtitude"); used for the GPS tags of the TIFF export.
+      latitude:num(x.GpsLatitude),longitude:num(x.GpsLongitude??x.GpsLongtitude)
     }
   };
 }
@@ -127,7 +131,7 @@ function groupFolder(key){
 }
 const seconds=t=>Number(t.slice(0,2))*3600+Number(t.slice(2,4))*60+Number(t.slice(4,6));
 
-function createThermalRouter({storage,bucketIndex,buckets}={}){
+function createThermalRouter({storage,bucketIndex,buckets,sdk=null}={}){
   if(!storage||typeof storage.getObject!=='function'||typeof bucketIndex!=='function'||
      typeof buckets!=='function')throw new TypeError('Thermal module needs the media storage');
   const router=express.Router();
@@ -137,24 +141,27 @@ function createThermalRouter({storage,bucketIndex,buckets}={}){
   const pending=new Map();
   const objectId=(bucket,key)=>JSON.stringify([bucket,key]);
   const snapshotId=(bucket,key,version)=>JSON.stringify([bucket,key,version]);
+  async function fetchSource(bucket,key){
+    const object=await storage.getObject(bucket,key);
+    if(Number.isSafeInteger(object.contentLength)&&object.contentLength>MAX_OBJECT_BYTES){
+      object.body?.destroy?.();
+      const err=new Error('Too large');err.status=413;throw err;
+    }
+    const chunks=[];let size=0;
+    for await(const chunk of object.body){
+      size+=chunk.length;
+      if(size>MAX_OBJECT_BYTES){object.body.destroy?.();const err=new Error('Too large');err.status=413;throw err;}
+      chunks.push(chunk);
+    }
+    const buffer=Buffer.concat(chunks);
+    return {buffer,size,version:createHash('sha256').update(buffer).digest('hex')};
+  }
   async function load(bucket,key){
     const id=objectId(bucket,key);
     if(pending.has(id))return pending.get(id);
     if(pending.size>=8){const err=new Error('Busy');err.status=503;throw err;}
     const promise=(async()=>{
-      const object=await storage.getObject(bucket,key);
-      if(Number.isSafeInteger(object.contentLength)&&object.contentLength>MAX_OBJECT_BYTES){
-        object.body?.destroy?.();
-        const err=new Error('Too large');err.status=413;throw err;
-      }
-      const chunks=[];let size=0;
-      for await(const chunk of object.body){
-        size+=chunk.length;
-        if(size>MAX_OBJECT_BYTES){object.body.destroy?.();const err=new Error('Too large');err.status=413;throw err;}
-        chunks.push(chunk);
-      }
-      const buffer=Buffer.concat(chunks);
-      const version=createHash('sha256').update(buffer).digest('hex');
+      const {buffer,size,version}=await fetchSource(bucket,key);
       const cacheKey=snapshotId(bucket,key,version);
       let frame=snapshots.get(cacheKey);
       if(frame)return frame;
@@ -170,9 +177,10 @@ function createThermalRouter({storage,bucketIndex,buckets}={}){
     try{return await promise;}finally{pending.delete(id);}
   }
   function fail(res,err){
-    const status=[400,404,409,413,422].includes(err.status)?err.status:503;
+    const status=[400,404,409,413,422,502,504].includes(err.status)?err.status:503;
     res.status(status).json({error:{400:'Invalid query',404:'Not found',409:'Thermal snapshot expired; reload metadata',413:'File too large',
-      422:'No radiometric thermal data in this file'}[status]||'Storage unavailable'});
+      422:'No radiometric thermal data in this file',502:'Invalid DJI Thermal SDK result',
+      504:'DJI Thermal SDK deadline exceeded'}[status]||'Storage unavailable'});
   }
   function query(req,res){
     const {bucket,key}=req.query;
@@ -233,7 +241,8 @@ function createThermalRouter({storage,bucketIndex,buckets}={}){
       const frame=await load(q.bucket,q.key);
       const result={width:frame.width,height:frame.height,emissivity:frame.emissivity,
         meta:frame.meta,stats:frame.stats,estimate:ESTIMATE,version:frame.version,
-        sourceBytes:frame.sourceBytes,formatVerified:false};
+        sourceBytes:frame.sourceBytes,formatVerified:false,
+        sdk:sdk?{available:await sdk.available(),calibration:'dji-tsdk',ranges:sdk.ranges}:{available:false}};
       res.set('Cache-Control','no-store');
       res.json(result);
     }catch(err){fail(res,err);}
@@ -259,6 +268,87 @@ function createThermalRouter({storage,bucketIndex,buckets}={}){
       res.end(body);
     }catch(err){fail(res,err);}
   });
+  // DJI Thermal SDK temperatures (float32 LE, °C) for exactly the displayed source version.
+  // The JPEG is re-read and its SHA-256 compared, so a changed object can never be measured
+  // under an old version. Results are cached per version and parameter set.
+  const measured=createLru(6);
+  const measuring=new Map();
+  router.get('/measure',async(req,res)=>{
+    const q=query(req,res);if(!q)return;
+    try{
+      if(!sdk){const err=new Error('SDK disabled');err.status=404;throw err;}
+      const {version}=req.query;
+      if(typeof version!=='string'||!/^[0-9a-f]{64}$/.test(version))return res.status(400).json({error:'Invalid version'});
+      const allowed=new Set(['bucket','key','version','emissivity','distance','humidity','ambient','reflection']);
+      if(Object.keys(req.query).some(k=>!allowed.has(k))||
+         Object.values(req.query).some(v=>typeof v!=='string'))return res.status(400).json({error:'Invalid query'});
+      let params;
+      try{params=sdkParameters(req.query);}catch(err){return res.status(400).json({error:err.message});}
+      const id=JSON.stringify([q.bucket,q.key,version,params]);
+      let result=measured.get(id);
+      if(!result){
+        if(!measuring.has(id)){
+          if(measuring.size>=2){const err=new Error('Busy');err.status=503;throw err;}
+          measuring.set(id,(async()=>{
+            const source=await fetchSource(q.bucket,q.key);
+            if(source.version!==version){const err=new Error('Changed');err.status=409;throw err;}
+            const out=await sdk.measure(source.buffer,params);
+            const snapshot=snapshots.get(snapshotId(q.bucket,q.key,version));
+            if(snapshot&&(snapshot.width!==out.width||snapshot.height!==out.height)){
+              const err=new Error('Size mismatch');err.status=502;throw err;
+            }
+            return out;
+          })().finally(()=>measuring.delete(id)));
+        }
+        result=await measuring.get(id);
+        measured.set(id,result);
+      }
+      const body=Buffer.from(result.temps.buffer,result.temps.byteOffset,result.temps.byteLength);
+      res.set({'Content-Type':'application/octet-stream','Cache-Control':'no-store',
+        'X-Thermal-Width':String(result.width),'X-Thermal-Height':String(result.height),
+        'X-Thermal-Version':version,'X-Thermal-Calibration':'dji-tsdk',
+        'X-Thermal-Parameters':JSON.stringify(result.parameters),'Content-Length':String(body.length)});
+      res.end(body);
+    }catch(err){fail(res,err);}
+  });
+  // Batch export as calibrated temperature TIFFs for photogrammetry (thermal-export.js). Needs the Thermal SDK.
+  const exporter=sdk?createThermalExport({fetchSource,parse:parseRJpeg,sdk,log:m=>console.log(m)}):null;
+  router.post('/export',express.json({limit:'256kb'}),async(req,res)=>{
+    try{
+      if(!exporter)return res.status(404).json({error:'DJI Thermal SDK nicht eingerichtet'});
+      const b=req.body&&typeof req.body==='object'?req.body:{};
+      if(!Array.isArray(b.items)||!b.items.length||b.items.length>MAX_ITEMS)return res.status(400).json({error:'1 bis '+MAX_ITEMS+' Bilder auswählen'});
+      // Only objects the thermal index lists as DJI thermal images (Pilot 2 stores them under technical names; the DJI
+      // file name comes from the index and names the TIFF).
+      const allowed=new Set(await buckets()),thermal=new Map();
+      for(const bucket of new Set(b.items.map(it=>it&&it.bucket)))
+        if(allowed.has(bucket))for(const o of (await bucketIndex(bucket)).objects){
+          const name=o.displayName||o.key.split('/').pop();
+          if(isThermalName(name))thermal.set(bucket+'\n'+o.key,name);
+        }
+      const items=[];
+      for(const it of b.items){
+        const name=it&&typeof it.bucket==='string'&&typeof it.key==='string'?thermal.get(it.bucket+'\n'+it.key):undefined;
+        if(!name)return res.status(400).json({error:'Ungültige Bildauswahl (kein Wärmebild im Index)'});
+        items.push({bucket:it.bucket,key:it.key,name});
+      }
+      let params;
+      try{params=sdkParameters(b.parameters||{});}catch(err){return res.status(400).json({error:err.message});}
+      res.status(202).json(exporter.start(items,params));
+    }catch(err){res.status(err.status&&err.status<500?err.status:503).json({error:err.status?err.message:'Export nicht möglich'});}
+  });
+  const jobId=id=>typeof id==='string'&&/^[0-9a-f]{24}$/.test(id);
+  router.get('/export/:id',(req,res)=>{
+    const s=exporter&&jobId(req.params.id)?exporter.status(req.params.id):null;
+    res.set('Cache-Control','no-store');
+    return s?res.json(s):res.status(404).json({error:'Export nicht gefunden'});
+  });
+  router.get('/export/:id/zip',(req,res)=>{
+    const file=exporter&&jobId(req.params.id)?exporter.file(req.params.id):null;
+    if(!file)return res.status(404).json({error:'Export nicht fertig oder abgelaufen'});
+    res.download(file,'skyhub-waermebilder-'+req.params.id.slice(0,8)+'.zip');
+  });
+  router.delete('/export/:id',(req,res)=>res.json({ok:Boolean(exporter&&jobId(req.params.id)&&exporter.cancel(req.params.id))}));
   return router;
 }
 

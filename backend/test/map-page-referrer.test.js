@@ -41,10 +41,13 @@ test('all non-map and sensitive routes retain no-referrer',()=>{
   }
 });
 
-test('Leaflet uses HTTPS official tiles, visible attribution and per-tile policy',()=>{
+test('Leaflet uses the same-origin tile route backed by official HTTPS tiles, attribution and per-tile policy',()=>{
+  // The backend route caches or redirects to exactly this official HTTPS host (tile-cache.js).
+  assert.match(fs.readFileSync(path.join(backendDir,'tile-cache.js'),'utf8'),
+    /const UPSTREAM='https:\/\/tile\.openstreetmap\.org';/);
   for(const page of pages){
     const js=fs.readFileSync(path.join(publicDir,page.replace('.html','.js').slice(1)),'utf8');
-    assert.match(js,/https:\/\/tile\.openstreetmap\.org\/\{z\}\/\{x\}\/\{y\}\.png/);
+    assert.match(js,/L\.tileLayer\('\/tiles\/osm\/\{z\}\/\{x\}\/\{y\}\.png'/);
     assert.match(js,/referrerPolicy:'strict-origin-when-cross-origin'/);
     assert.match(js,/attribution:'© OpenStreetMap contributors'/);
   }

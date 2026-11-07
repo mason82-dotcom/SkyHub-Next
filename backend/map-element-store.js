@@ -26,7 +26,7 @@ function optional(target,key,value){
   if(value!==null&&value!==undefined)target[key]=value;
 }
 
-function wireElement(element){
+function wireElement(element,userName){
   const properties={};
   optional(properties,'color',element.color);
   optional(properties,'clampToGround',element.clampToGround);
@@ -35,6 +35,7 @@ function wireElement(element){
   if(Object.keys(properties).length)content.properties=properties;
   const resource={content};
   optional(resource,'type',element.resourceType);
+  optional(resource,'user_name',userName);
   const result={id:element.id,name:element.name,resource};
   optional(result,'create_time',element.createTime);
   optional(result,'update_time',element.updateTime);
@@ -42,7 +43,8 @@ function wireElement(element){
 }
 
 function wireGroup(group){
-  const result={id:group.id,name:group.name,elements:group.elements.map(wireElement)};
+  // https/map-elements/obtain: resource.user_name (creator). Not stored per element: Pilot 2 for the Pilot share layer, else SkyHub.
+  const result={id:group.id,name:group.name,elements:group.elements.map(e=>wireElement(e,group.type===2?'Pilot 2':'SkyHub'))};
   optional(result,'type',group.type);
   optional(result,'is_lock',group.isLocked);
   optional(result,'create_time',group.createTime);

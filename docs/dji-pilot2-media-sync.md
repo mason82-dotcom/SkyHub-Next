@@ -28,8 +28,14 @@ In `.env` ergänzen:
 ```
 SKYHUB_PILOT_MEDIA_UPLOAD_ENABLED=true
 SKYHUB_PILOT_PUBLIC_URL=https://rpi5.fritz.box
-SKYHUB_PILOT_MEDIA_S3_PUBLIC_ENDPOINT=https://rpi5.fritz.box:9446
+SKYHUB_PILOT_MEDIA_S3_PUBLIC_ENDPOINT=https://192.168.178.63:9446
 ```
+
+**IPv4-Adresse statt `rpi5.fritz.box` (05.11.2026):** Der Name hat auch IPv6-Adressen, der RC (Android) nimmt IPv6, und Caddy lässt auf
+`:9446` nur `192.168.178.0/24` durch: Jeder Upload über IPv6 endete mit 403 `Forbidden` von Caddy. Mit der IP-Adresse verbindet sich der RC
+per IPv4; Caddy liefert dafür ein Zertifikat derselben lokalen CA, die STS-Antwort nennt genau diese Adresse, und die Signatur des RC deckt
+diesen Host. Geprüft auf brix-node: unsignierter `PUT` über IPv6 an den Namen → Caddy `Forbidden`, über die IP → MinIO `AccessDenied`
+(also bis zum Speicher durchgereicht). Gleiches Problem und gleiche Lösung beim Routen-Download, siehe `docs/wpml-mission-library.md`.
 
 Danach `bash scripts/pi-update-backend.sh --apply` (von sauberem `main`). Im Backend-Log erscheint `[pilot media] upload sync active`, `/api/health` enthält `pilotMediaUpload` (Anzahl Grants, Proxy-Zähler). Auf der RC die Pilot-Login-Seite neu öffnen; die Diagnose zeigt „Medien-Synchronisation: bereit, nur manueller Upload“.
 

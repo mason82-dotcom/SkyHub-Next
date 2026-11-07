@@ -65,6 +65,18 @@ class PiComposeWrapperTests(unittest.TestCase):
         self.assertTrue(config.endswith("config --quiet"))
         self.assertIn("-f docker-compose.override.yml", ps_override)
 
+    def test_live_overlay_only_with_explicit_enable_line(self):
+        (self.tmp / "docker-compose.live.yml").write_text("")
+        self.assertEqual(0, self.run_wrapper("ps").returncode)                      # not enabled
+        (self.tmp / ".env").write_text("SKYHUB_LIVE_ENABLED=false\n# SKYHUB_LIVE_ENABLED=true\n")
+        self.assertEqual(0, self.run_wrapper("ps").returncode)                      # comment does not count
+        (self.tmp / ".env").write_text("X=1\nSKYHUB_LIVE_ENABLED=true\n")
+        self.assertEqual(0, self.run_wrapper("ps").returncode)
+        off, commented, on = self.calls()
+        self.assertNotIn("docker-compose.live.yml", off)
+        self.assertNotIn("docker-compose.live.yml", commented)
+        self.assertIn("-f docker-compose.arm64.yml -f docker-compose.live.yml ps", on)
+
     def test_missing_overlay_or_env_is_an_error(self):
         (self.tmp / "docker-compose.arm64.yml").unlink()
         self.assertEqual(2, self.run_wrapper("ps").returncode)

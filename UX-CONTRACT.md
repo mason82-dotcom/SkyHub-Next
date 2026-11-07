@@ -58,9 +58,38 @@
 
 Weitere Standardkomponenten entstehen erst mit einem tatsächlichen zweiten Workflow. Neue Schreibaktionen benötigen vor der UI-Umsetzung einen expliziten Rollen-, Fehler- und Bestätigungsvertrag; die lesende Karte definiert dafür keine Freigabe.
 
+## WPML-Missionsbibliothek (erste Schreibaktion der Web-UI)
+
+Fachquelle: `backend/wpml-mission-store.js`, `backend/dji-wayline-http.js`,
+`frontend/public/wpml-mission-store-client.js` und [WPML-Missionsbibliothek](docs/wpml-mission-library.md).
+
+- **Rolle:** Inhaber des SkyHub-View-Tokens (`Authorization: Bearer`). Eine
+  **standardmäßig deaktivierte** Ausnahme erlaubt GET und den ausdrücklich
+  bestätigten KMZ-POST ausschließlich auf `/api/wpml/missions` für Clients aus
+  dem festgelegten Heimnetz über eine exakt konfigurierte HTTPS-Dashboard-Origin.
+  HTTPS, verifizierte Caddy-Client-IP, und bei POST `Origin`/Same-Origin-Fetch
+  sind Pflicht. Kein tokenfreier Zugang für fremde Netze, DJI-Flugaktionen,
+  andere Schreib-APIs oder Pilot 2. KMZ enthalten GPS-Routen; das LAN muss
+  daher als vertrauenswürdig gelten. DJI Pilot 2 authentifiziert sich weiterhin
+  getrennt mit `x-auth-token` (`wayline/api/v1`, nur Liste/Download).
+- **Kein Tokenfeld:** Im Heimnetz fragt keine Seite nach einem Token oder Passwort
+  (Entscheidung 04.11.2026, bekräftigt 05.11.2026). Die Missionsbibliothek arbeitet über
+  die Heimnetzfreigabe; außerhalb des Heimnetzes meldet sie 401 mit Hinweis auf den
+  Heimnetzzugang. Der lokale KMZ-Editor ist auch ohne Server vollständig nutzbar.
+- **Bestätigung:** Jeder Upload ist eine ausdrückliche Schaltflächenaktion mit
+  Bestätigungsdialog (Name, Ziel-Bucket, „kein Flugauftrag“). Es gibt keinen
+  automatischen oder impliziten Upload, kein Überschreiben (write-once) und kein
+  Löschen über SkyHub. Gleicher Inhalt = gleiche ID (idempotent).
+- **Fehler:** 400 ungültiger DJI-Name, 401 außerhalb des Heimnetzes, 404 Bibliothek nicht
+  aktiviert, 409 Name bereits vergeben (DJI verlangt eindeutige Namen), 413 > 12 MiB,
+  422 Server-Validierung mit höchstens drei Pfaden, 503 Speicher nicht erreichbar –
+  ohne Endpunkt-, Schlüssel- oder Stackdetails. Fehler ändern den lokalen Entwurf nie.
+- **Grenze:** Speichern ist keine Übertragung an DJI Pilot 2 und kein Flugauftrag;
+  `flightReady` bleibt `false`.
+
 ## M3M-Capture-Bewertung
 
-Fachquelle: [Capture-Vertrag v2](docs/smart-farming-m3m-capture-assessment.md) und
+Fachquelle: [Capture-Vertrag v3](docs/smart-farming-m3m-capture-assessment.md) und
 `backend/smart-farming-captures.js`. Die bestehende Smart-Farming-Kartenansicht
 und die gemeinsamen Light-Tokens bleiben erhalten.
 
@@ -76,6 +105,11 @@ und die gemeinsamen Light-Tokens bleiben erhalten.
 - Nachweise: Capture-Backendtests und
   `scripts/smart-farming-captures-browser-ci.js` (synthetisch, kein Pi-Nachweis).
 
+Die GPS-Anzeige trennt gültige Objektpositionen, exakten gemeinsamen Wert und
+maximale paarweise Distanz. Abweichende gültige Positionen heißen nicht „kein GPS“.
+Die Distanz ist keine GNSS-Genauigkeit und erzeugt keine automatische Toleranz
+oder Positionsmittelung; auch Zentimeterabweichungen bleiben blockiert.
+
 ## Thermal-Bildanalyse und Exportintegrität
 
 Fachquelle: [Thermalvertrag](docs/thermal.md), `backend/thermal.js` und `frontend/public/thermal-core.js`. Die native Eingabe- und Select-Bedienung der Medienansichten bleibt erhalten.
@@ -86,3 +120,15 @@ Fachquelle: [Thermalvertrag](docs/thermal.md), `backend/thermal.js` und `fronten
 - Jeder Export enthält Schätzhinweis und nachvollziehbare Quelle/Berechnungsgrundlage. Die Serie benennt die abweichende, unkorrigierte Berechnung ausdrücklich.
 - Fotokandidaten bleiben als Heuristik gekennzeichnet. Mehrdeutigkeit ist kein erfolgreicher Treffer. Keine dieser UI-Prüfungen erteilt eine Hardware- oder Messfreigabe.
 - Nachweise: `backend/test/thermal-ui-integrity.test.js`, `scripts/thermal-browser-ci.js` sowie die Backendtests.
+
+
+## Cloud API 2 – Missionsplanung als kanonischer WPML-Arbeitsbereich (P0)
+
+Der Reiter `/cloud-api2.html#planning` führt in drei **bestehende, kanonische** SkyHub-Seiten: `/wpml-editor.html`, `/wpml-survey-preview.html` und `/wpml-route-library.html`. Die Planungsansicht besitzt keine eigene Missions-/KMZ-Logik, keine eigene Geometrieberechnung und keinen eigenen Speicherpfad.
+
+- Vor einem ausdrücklichen Werkzeugklick bleibt die eingebettete Originalseite ungeladen. Werkzeugwechsel behalten bereits geöffnete Frames und ihre flüchtige Bearbeitung, garantieren aber keine Speicherung.
+- Der aktive Auswahlbutton erhält `aria-pressed=true`, alle anderen `false`. Laden, geladene Originalansicht und unbekannter/gesperrter Frame-Zustand werden als Text mit `role=status` angezeigt; Frame-`load` allein genügt nicht für PASS.
+- Jedes Werkzeug besitzt einen sichtbaren Direktlink auf seinen bekannten Same-Origin-Pfad als Alternative bei iframe- oder CSP-Sperren, Kartenfehlern oder zu engem Viewport.
+- Keine Funktion fügt Gerätekommandos, Mission-Dispatch, Auto-Sync oder eine Cloud-API-2-Runtime hinzu. Die bestehenden Editor-/Bibliotheksseiten können **nach eigenem Klick** lokale Entwürfe ändern oder die bereits autorisierte MinIO-Speicherfunktion auslösen; die Portal-Integration verspricht deshalb nicht globalen Read-only-Betrieb.
+- Flächenplanung ist nur theoretische 2D-/DEM-Vorschau und erzeugt keine unmittelbar fliegbare Wayline. `flightReady=false`, `terrainVerified=false` und `dispatchAllowed=false` bleiben maßgeblich.
+- Browserabnahme bei 320/390/834/1440px, Tastatur, Touch, Einbettungsblockade und wiederholten Wechseln erforderlich. Details: `docs/cloud-api2-mission-planning-workspace.md`.

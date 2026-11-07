@@ -54,6 +54,7 @@ function createRegistry(limit = 200) {
       topologyRestored: d.topologyRestored, aircraftConnected: d.aircraftConnected,
       children: [...d.children], channel: d.channel,
       modeCode: d.modeCode, firmwareVersion: d.firmwareVersion,
+      home: d.home ? {...d.home} : null,
       propertyProfile: deviceProfile(d.model),
       // Values are allowlisted and redacted; per-channel timestamp prevents
       // a state update from masquerading as a fresh OSD measurement.
@@ -109,7 +110,7 @@ function createRegistry(limit = 200) {
       topologyOnline: null, lastTopologyAt: null, topologyTimeVerified: null,
       topologyRestored: false, aircraftConnected: null,
       children: [], channel: null,
-      modeCode: null, firmwareVersion: null, lastSeenAt: null,
+      modeCode: null, firmwareVersion: null, lastSeenAt: null, home: null,
       lastTelemetryAt: null, lastPositionAt: null,
       telemetryTimeVerified: null, positionTimeVerified: null,
       positionUnavailable: false,
@@ -161,6 +162,8 @@ function createRegistry(limit = 200) {
       // aircraft has reconnected. Keep replay protection until a code arrives.
       d.aircraftConnected = message.state.modeCode !== AIRCRAFT_NOT_CONNECTED;
     }
+    // Home point (state, pushmode 1): kept for the DRC distance limit; not from a disconnected aircraft's replay.
+    if (message.home && aircraft && d.aircraftConnected !== false) d.home = {...message.home, at: observedAt};
     // Replayed last-known values of a disconnected aircraft are not telemetry.
     if (message.telemetry && d.aircraftConnected !== false) {
       // Only recognized, normalized numeric DJI measurements can influence freshness.
@@ -309,6 +312,8 @@ function createRegistry(limit = 200) {
       const changed = (Array.isArray(message.hms) && hmsChanged) || (message.airsense && airsenseChanged);
       if (!periodic || changed) {
         event = {sn:d.sn,channel:message.channel,method:message.method,at:now};
+        if (message.missionReport) event.missionReport = {...message.missionReport};
+        if (message.mediaReport) event.mediaReport = {...message.mediaReport};
         events.unshift(event);
         if (events.length > 100) events.pop();
       }

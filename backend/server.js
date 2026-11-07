@@ -9,6 +9,7 @@ const {serial}=require('./dji');
 const {fieldDefinitions}=require('./dji-properties');
 const {validateBrokerConfig}=require('./mqtt-config');
 const {createMqttMetrics}=require('./mqtt-metrics');
+const {renderHealthMetrics}=require('./health-metrics');
 const {createShapeCatalog,createModelShapeCatalog}=require('./mqtt-shape');
 const {createRegistry}=require('./registry');
 const {pilotConfiguration}=require('./pilot-config');
@@ -22,17 +23,45 @@ const {createTrackRecorder}=require('./track-recorder');
 const {createS3Storage}=require('./s3-storage');
 const {createMediaRouter}=require('./media-api');
 const {createThermalRouter}=require('./thermal');
+const {createThermalSdkClient}=require('./thermal-sdk');
 const {createSmartFarmingCaptures}=require('./smart-farming-captures');
 const {createPilotMediaLibraryRuntime}=require('./pilot-media-library-runtime');
 const {createPilotMediaUploadRuntime}=require('./pilot-media-upload-runtime');
 const {createMinioDrRouter}=require('./minio-dr-api');
+const {createWpmlMissionStore,createWpmlMissionRouter}=require('./wpml-mission-store');
+const {releaseConfig,createReleaseStore,pilotLibrary,createMissionReleaseRouter}=require('./mission-release');
+const {drcConfig,createDrcRuntime}=require('./drc-runtime');
+const {liveControlConfig,createLiveControl}=require('./live-control');
+const {createMapElementWriter,createMapElementRouter}=require('./map-element-write');
+const {createPilotLogStore,createPilotLogRouter}=require('./pilot-log');
+const {createNdviRouter}=require('./ndvi');
+const {takConfig,createTakOutput}=require('./tak');
+const {createDjiWaylineRouter,createRedisFavorites,UPLOAD_DISABLED_CODE}=require('./dji-wayline-http');
+let pilotWaylineImport=null;
+const {createPilotWaylineImport,ImportError}=require('./pilot-wayline-import');
+const {terrainConfig,createTerrainClient,createTerrainRouter}=require('./mission-terrain');
+const {geozoneConfig,createGeozoneClient}=require('./mission-geozones');
+const {ppkConfig,createPpkRouter}=require('./ppk');
+const {createPpkStorage}=require('./ppk-storage');
+const {createCoverageRouter}=require('./coverage');
 const {createSmartFarmingCatalogRouter}=require('./smart-farming-catalog');
 const {createHttpAuth}=require('./http-auth');
 const {mapPageReferrerPolicy}=require('./map-page-referrer');
 const {registerPilotRoutes,registerPilotAdminRoutes}=require('./pilot-routes');
 const {createMqttIngest}=require('./mqtt-ingest');
+const {createHmsHistory,createHmsHistoryHandler}=require('./hms-history');
 const {createPilotAuth}=require('./pilot-auth');
 const {createTsaHub,createTopologyListHandler}=require('./tsa-hub');
+const {createTileCache,createTileRedirect,tileCacheSettings}=require('./tile-cache');
+const {createFhObserver}=require('./fh-observer');
+const {createCloudApi2PortalRouter}=require('./cloud-api2-portal');
+const {createCloudApi2EvidenceRouter}=require('./cloud-api2-evidence');
+const {createCloudApi2LinkageRouter}=require('./cloud-api2-linkage');
+const {createCloudApi2HardwareRouter}=require('./cloud-api2-hardware');
+const {createFhMsdkObserve}=require('./fh-msdk-observe');
+const {createFhUgcsReader}=require('./fh-ugcs-reader');
+const {fhMetrics}=require('./fh-metrics');
+const {liveStreamSettings,pilotLiveConfig,createLiveStreamRouter}=require('./live-stream');
 
 const secret=process.env.SKYHUB_VIEW_TOKEN;
 if(!secret || secret.length<24 || secret.startsWith('REPLACE_')){
@@ -47,11 +76,26 @@ try {
   process.exit(1);
 }
 const pilot=pilotConfiguration(process.env);
-let lanAccess,trackRetentionDays,trustedProxyIps;
+// Pilot 2 livestream relay (opt-in): RTMP from the RC to MediaMTX, HLS to the dashboard.
+const liveSettings=liveStreamSettings(process.env);
+if(liveSettings.issue)console.error('[live] disabled:',liveSettings.issue);
+const liveStream=createLiveStreamRouter({settings:liveSettings});
+// Livestream on demand (live_start_push etc. over MQTT, DJI Cloud API 1.18); opt-in, needs the relay above.
+const liveControlSettings=liveControlConfig(process.env,liveSettings);
+if(liveControlSettings.issue)console.error('[live control] disabled:',liveControlSettings.issue);
+// The authenticated Pilot bootstrap additionally carries the RTMP target when the relay is enabled.
+const pilotWithLive=Object.assign(Object.create(null),pilot,{bootstrap(){
+  const live=pilotLiveConfig(liveSettings,{onDemand:liveControlSettings.enabled});
+  // Map module (jsbridge "map", needs api + ws): only when the map element endpoints are active.
+  const map=process.env.SKYHUB_DJI_MAP_ELEMENTS_ENABLED==='true'?{userName:'Pilot 2',elementPreName:'PILOT'}:null;
+  return {...pilot.bootstrap(),...(live?{live}:{}),...(map?{map}:{})};
+}});
+let lanAccess,trackRetentionDays,trustedProxyIps,tileSettings;
 try {
   trustedProxyIps=parseTrustedProxyIps(process.env.SKYHUB_TRUSTED_PROXY_IPS||'');
   lanAccess=createLanAccess(process.env.SKYHUB_LAN_VIEW_CIDR,trustedProxyIps);
   trackRetentionDays=retentionDays(process.env.SKYHUB_TRACK_RETENTION_DAYS);
+  tileSettings=tileCacheSettings(process.env);
 } catch(err) {
   console.error('[config]',err.message);
   process.exit(1);
@@ -71,6 +115,12 @@ if(tsaWanted&&!pilot.ready)console.error('[tsa] disabled: Pilot 2 configuration 
 const tsaActive=tsaWanted&&pilot.ready;
 const io=new Server(server,{maxHttpBufferSize:131072,...(tsaActive?{destroyUpgrade:false}:{})});
 const registry=createRegistry();
+const fhObserver=createFhObserver(); // Passive FC0 analysis of accepted DJI OSD/state.
+let fhUgcs;
+try{fhUgcs=createFhUgcsReader({baseUrl:process.env.SKYHUB_FH_UGCS_URL||''});}
+catch(_err){console.error('[fh ugcs] invalid configuration; disabled');fhUgcs=createFhUgcsReader();}
+const tiles=tileSettings.enabled?createTileCache(tileSettings):createTileRedirect();
+if(tileSettings.enabled)console.log('[tiles] offline OSM tile cache active, limit '+Math.round(tileSettings.maxBytes/1048576)+' MB');
 const mqttStats=createMqttMetrics();
 const mqttShapes=createShapeCatalog();
 const mqttModelShapes=createModelShapeCatalog();
@@ -85,7 +135,10 @@ app.use((req,res,next)=>{
 // Scope the OSM Referer exception to the two browser map documents only.
 // API, Pilot 2 and other routes retain the global no-referrer policy.
 app.use(mapPageReferrerPolicy);
-const {auth,socketAuth}=createHttpAuth({secret,lanAccess});
+const {auth,socketAuth,lanSocket}=createHttpAuth({secret,lanAccess,wpmlLanAuth:{
+  enabled:process.env.SKYHUB_WPML_LAN_NO_TOKEN_ENABLED==='true',
+  origins:process.env.SKYHUB_WPML_LAN_ORIGINS||''
+}});
 io.use(socketAuth);
 io.on('connection',socket=>socket.emit('snapshot',registry.snapshot()));
 
@@ -110,6 +163,7 @@ const pool=process.env.DATABASE_URL?
 if(pool)pool.on('error',err=>console.error('[postgres]',err.message));
 const trackPolicy=createTrackPolicy();
 const trackStore=createTrackStore(pool);
+const hmsHistory=(pool&&process.env.SKYHUB_HMS_HISTORY_ENABLED==='true')?createHmsHistory(pool):null;
 // Historical GPS recording is opt-in; live DJI telemetry remains available.
 const trackRecordingEnabled=process.env.SKYHUB_TRACK_RECORDING_ENABLED==='true';
 const trackRecorder=createTrackRecorder({store:trackStore,policy:trackPolicy,enabled:Boolean(pool),
@@ -139,13 +193,25 @@ let ingest;
 try{
   ingest=createMqttIngest({broker,env:process.env,registry,io,redis,topologyStore,trackRecorder,
     trackRecordingEnabled,pool,mqttStats,mqttShapes,mqttModelShapes,
-    onTopologyChanged:()=>tsaHub&&tsaHub.topologyChanged()});
+    onHmsSnapshot:hmsHistory?((sn,alerts,at,verified)=>hmsHistory.observe(sn,alerts,at,verified)):null,
+    onTopologyChanged:()=>tsaHub&&tsaHub.topologyChanged(),
+     onObserved:(parsed,device,at)=>fhObserver.observe(parsed,device,at)});
 }catch(err){
   console.error('[topology ack]',err.message);
   process.exit(1);
 }
 const {state:mqttState,ack}=ingest;
-registerPilotRoutes(app,{pilot,pairing,redis,registry,pool,ack,pilotAuth});
+// Map elements write path (DJI 1.18 map-elements): opt-in on top of SKYHUB_DJI_MAP_ELEMENTS_ENABLED; needs migrations 001+002.
+let mapWriter=null;
+if(process.env.SKYHUB_DJI_MAP_ELEMENTS_ENABLED==='true'&&process.env.SKYHUB_DJI_MAP_WRITES_ENABLED==='true'&&pool&&pilot.ready){
+  mapWriter=createMapElementWriter({pool,workspaceId:pilot.workspaceId,publish:msg=>{if(tsaHub)tsaHub.publish(msg);}});
+  mapWriter.ensureGroup().catch(err=>console.error('[map elements] shared group:',err.message));
+  console.log('[map elements] write path active (SkyHub page + Pilot 2)');
+}
+// Pilot 2 logs (pull-pilot-log): upload from the RC, viewer in the home LAN; PostgreSQL, 30 days.
+const pilotLogs=pool?createPilotLogStore(pool):null;
+registerPilotRoutes(app,{pilot:pilotWithLive,pairing,redis,registry,pool,ack,pilotAuth,mapWriter,pilotLogs,
+  waylineUploads:()=>pilotWaylineImport&&pilotWaylineImport.history?pilotWaylineImport.history():null});
 if(tsaHub){
   app.get('/manage/api/v1/workspaces/:workspaceId/devices/topologies',createTopologyListHandler({
     registry,workspaceId:pilot.workspaceId,authorize:pilotAuth.principal,
@@ -158,19 +224,39 @@ if(tsaHub){
   });
 }
 
-app.get('/api/health',(req,res)=>res.json({
+const healthSnapshot=()=>({
   status:mqttState.connected&&mqttState.subscribed?'online':'degraded',mqtt:mqttState.connected,
   subscribed:mqttState.subscribed,redis:redis.status==='ready',devices:registry.count(),readOnly:true,
   mqttBrokerPort:broker.port,topologyReplyEnabled:ack.enabled,
   topologyReplyConnected:ack.connected,topologyReplySent:ack.sent,
   topologyReplyErrors:ack.failed,topologyReplySkipped:ack.skipped,
   topologyReplyLastAt:ack.lastAt,topologyRestoredDevices:topologyRestored,
-  lanViewEnabled:lanAccess.enabled,...trackRecorder.snapshot(),
-  trackRetentionDays,...mqttStats.snapshot(),
+  lanViewEnabled:lanAccess.enabled,hmsHistoryEnabled:Boolean(hmsHistory),...trackRecorder.snapshot(),
+  trackRetentionDays,...mqttStats.snapshot(),...ingest.cacheStats(),
+  tileCache:tiles.stats(),liveStream:liveStream.stats(),
   ...(tsaHub?{tsa:tsaHub.stats()}:{}),
   ...(mediaUpload?{pilotMediaUpload:mediaUpload.stats()}:{})
+});
+app.get('/api/health',(req,res)=>res.json(healthSnapshot()));
+// Same data as /api/health in Prometheus text format (no serials, no tokens), for brix-node monitoring.
+app.get('/api/health/metrics',(req,res)=>res.type('text/plain; version=0.0.4').send(renderHealthMetrics(healthSnapshot())));
+// Separate opt-in MSDK observation credential, NEVER a control channel.
+// Registered before the view-token middleware; its own HTTPS/token guard is mandatory.
+app.post('/api/adapters/msdk/observe',createFhMsdkObserve({
+ observer:fhObserver,registry,
+ enabled:process.env.SKYHUB_FH_MSDK_OBSERVER_ENABLED==='true',
+ token:process.env.SKYHUB_FH_MSDK_OBSERVER_TOKEN||''
 }));
 app.use('/api',auth);
+// Keyless Cloud API 2 reference portal: existing auth and read-only registry only.
+app.use('/api/cloud-api2',createCloudApi2PortalRouter({express,registry,mqttState}));
+// Security-sensitive anonymized hardware smoke is view-token-only (no LAN exception).
+app.use('/api/cloud-api2',createCloudApi2HardwareRouter({
+  express,registry,healthSnapshot,mqttShapes,pairing
+}));
+// Mounted AFTER the SkyHub access check (home-LAN rules or token); only Pilot 2's own endpoints sit before it.
+if(mapWriter)app.use('/api/map-elements',createMapElementRouter({express,writer:mapWriter}));
+if(pilotLogs)app.use('/api/pilot-logs',createPilotLogRouter({express,store:pilotLogs}));
 
 // Disabled by default; authenticated bounded M3M candidate metadata only.
 // No public LAN exception, no pixel delivery, no GIS tiles and no DJI actions.
@@ -199,6 +285,7 @@ if(process.env.SKYHUB_MINIO_DR_ENABLED==='true'){
 }
 const mediaStorage=process.env.SKYHUB_MEDIA_ENABLED==='true'?
   createS3Storage(process.env):null;
+let mediaBucketIndex=null;
 // Pilot 2 uploads are stored as org_<fingerprint>_<ms>.jpg; show the DJI file name from PostgreSQL.
 async function pilotMediaLabels(){
   const {rows}=await pool.query('SELECT object_key,file_name,pilot_metadata->>\'created_time\' AS created '+
@@ -207,13 +294,139 @@ async function pilotMediaLabels(){
 }
 if(mediaStorage){
   const mediaRouter=createMediaRouter(mediaStorage,{labels:pool?pilotMediaLabels:null});
+  mediaBucketIndex=mediaRouter.bucketIndex;
   app.use('/api/media',mediaRouter);
   // Thermal module: radiometric R-JPEGs from the same storage, read-only.
+  // Optional DJI Thermal SDK: isolated thermal-sdk service (compose profile), internal network only.
+  let thermalSdk=null;
+  if(process.env.SKYHUB_THERMAL_SDK_URL){
+    try{
+      thermalSdk=createThermalSdkClient({url:process.env.SKYHUB_THERMAL_SDK_URL,
+        token:process.env.SKYHUB_THERMAL_SDK_TOKEN});
+      console.log('[thermal sdk] DJI Thermal SDK service configured');
+    }catch(err){console.error('[thermal sdk] disabled:',err.message);}
+  }
+  // NDVI of Mavic 3M captures (ndvi.js): read-only on the media storage.
+  app.use('/api/ndvi',createNdviRouter({express,storage:mediaStorage}));
   app.use('/api/thermal',createThermalRouter({storage:mediaStorage,
-    bucketIndex:mediaRouter.bucketIndex,buckets:()=>mediaStorage.buckets()}));
+    bucketIndex:mediaRouter.bucketIndex,buckets:()=>mediaStorage.buckets(),sdk:thermalSdk}));
   // Smart Farming: Mavic 3M multispectral captures grouped by CaptureUUID (read-only).
   app.use('/api/smart-farming/captures',createSmartFarmingCaptures({storage:mediaStorage,
     bucketIndex:mediaRouter.bucketIndex}).router);
+}
+// WPML mission library (opt-in; token or explicitly scoped HTTPS home-LAN access).
+// Validated file storage only: no DJI flight task, no Pilot 2 or MQTT dispatch.
+let wpmlStore=null;
+if(process.env.SKYHUB_WPML_STORE_ENABLED==='true'){
+  try{
+    wpmlStore=createWpmlMissionStore({env:process.env});
+    app.use('/api/wpml/missions',createWpmlMissionRouter({express,store:wpmlStore}));
+    console.log('[wpml store] active, bucket '+wpmlStore.bucket);
+  }catch(err){console.error('[wpml store] disabled:',err.message);}
+}
+// Mission release (docs/entwurf-missionsfreigabe-ndvi-tak-2026-11-04.md): checked, explicitly released revisions only.
+// DJI Cloud API 1.18: flight tasks (flighttask_*) are dock-only, routes reach the aircraft through the Pilot 2 library.
+// (Pilot live flight controls / DRC exist for RC Plus 2 + Matrice 4 and payload-only for M3E/M3T/M3M; not used by SkyHub.)
+const missionRelease=releaseConfig(process.env);
+let releaseStore=null;
+if(missionRelease.issue)console.error('[mission release] disabled:',missionRelease.issue);
+if(wpmlStore&&missionRelease.enabled){
+  if(!pool)console.error('[mission release] disabled: needs PostgreSQL (DATABASE_URL)');
+  else{
+    releaseStore=createReleaseStore(pool);
+    releaseStore.init().catch(err=>console.error('[mission release] schema:',err.message));
+    // Optional terrain check (SKYHUB_TERRAIN_URL, Open Topo Data); off by default.
+    const terrainSettings=terrainConfig(process.env);
+    if(terrainSettings.issue)console.error('[terrain] disabled:',terrainSettings.issue);
+    const terrain=terrainSettings.enabled?createTerrainClient(terrainSettings):null;
+    if(terrain)console.log('[terrain] height above ground check active ('+terrainSettings.dataset+(terrainSettings.public?', PUBLIC service: route coordinates leave the network':'')+')');
+    // Optional geozone check (SKYHUB_GEOZONES_ENABLED, dipul WFS): only the route's bounding box leaves the network.
+    const geozoneSettings=geozoneConfig(process.env);
+    if(geozoneSettings.issue)console.error('[geozones] disabled:',geozoneSettings.issue);
+    const geozones=geozoneSettings.enabled?createGeozoneClient(geozoneSettings):null;
+    if(geozones)console.log('[geozones] dipul geozone check active (bounding box of the route is sent to '+geozoneSettings.url+')');
+    app.use('/api/wpml/release',createMissionReleaseRouter({express,store:wpmlStore,releases:releaseStore,config:missionRelease,terrain,geozones}));
+    if(terrain)app.use('/api/terrain',createTerrainRouter({express,terrain}));
+    console.log('[mission release] active ('+missionRelease.hours+' h validity)');
+  }
+}
+// DJI Pilot 2 wayline library (DJI Cloud API wayline/api/v1): list + presigned download only.
+// Separate opt-in; never creates a flight task (no flighttask_prepare / MQTT services).
+// Fail-closed since 04.11.2026 (risk M1): Pilot 2 sees ONLY released revisions; without mission release it sees none.
+if(pilot.wayline.issue)console.error('[pilot wayline] disabled:',pilot.wayline.issue);
+if(pilot.wayline.enabled&&!wpmlStore)console.error('[pilot wayline] disabled: WPML store is not active');
+if(wpmlStore&&pilot.wayline.enabled){
+  if(!pilot.ready)console.error('[pilot wayline] disabled: Pilot 2 configuration is incomplete');
+  else{
+    const pilotRoutes=pilotLibrary(wpmlStore,releaseStore);
+    if(!releaseStore)console.error('[pilot wayline] mission release not active: the Pilot 2 library stays empty (set SKYHUB_MISSION_RELEASE_*)');
+    // Uploads from Pilot 2 (decision 04.11.2026): accepted into the WPML store when the media upload grants exist,
+    // never released automatically. The import uses the full store; Pilot 2 still sees released routes only.
+    // Same STS grants as the media upload (dji_pilot_media_grants): the importer is attached once the media upload
+    // runtime exists (below); until then, or without it, uploads are refused.
+    const importUpload=(principal,body)=>{
+      if(!pilotWaylineImport)throw new ImportError(UPLOAD_DISABLED_CODE,'Wayline upload from Pilot 2 needs the Pilot media upload');
+      return pilotWaylineImport(principal,body);
+    };
+    app.use(createDjiWaylineRouter({workspace:pilot.workspaceId,authorize:pilotAuth.principal,
+      store:pilotRoutes,favorites:createRedisFavorites(redis),importUpload}));
+    console.log('[pilot wayline] library active for Pilot 2 (released routes only)');
+  }
+}
+// PPK geotagging (dji-geotagger) through the internal ppk service; opt-in (SKYHUB_PPK_URL + SKYHUB_PPK_TOKEN).
+const ppk=ppkConfig(process.env);
+if(ppk.issue)console.error('[ppk] disabled:',ppk.issue);
+// Photo coverage QA is independent of mission-release availability: reads media/terrain only.
+// No terrain HTTP request occurs until an operator explicitly supplies a takeoff point.
+// Only the internal hostname used by our own Compose terrain service is accepted here.
+const coverageTerrainSettings=terrainConfig(process.env);
+const coverageTerrainHost=coverageTerrainSettings.enabled?new URL(coverageTerrainSettings.base).hostname:'';
+const coverageTerrainLocal=coverageTerrainHost==='opentopodata'||coverageTerrainHost==='localhost'||
+  coverageTerrainHost==='127.0.0.1'||coverageTerrainHost==='brix-node';
+const coverageTerrain=coverageTerrainSettings.enabled&&coverageTerrainLocal&&!coverageTerrainSettings.public
+  ?createTerrainClient(coverageTerrainSettings):null;
+if(coverageTerrainSettings.enabled&&!coverageTerrain)
+  console.warn('[coverage] terrain disabled: requires the explicitly configured internal terrain service');
+// Photo coverage of stored flights (coverage.js): footprints from XMP/EXIF, gaps inside the flown area. Read-only.
+const ppkFlights=mediaStorage?createPpkStorage({storage:mediaStorage}):null;
+if(ppkFlights)app.use('/api/coverage',createCoverageRouter({express,flights:ppkFlights,terrain:coverageTerrain}));
+// Privileged, operator-triggered GET summary only; not in the token-free home-LAN allowlist.
+// Aggregates anonymized inventory counts; never joins aircraft identities or issues commands.
+app.use('/api/cloud-api2',createCloudApi2EvidenceRouter({
+  express,wpmlStore,ppkFlights,mediaStorage,mediaIndex:mediaBucketIndex
+}));
+// Read-only candidate and provenance summary; trusted LAN GET/HEAD or view-token auth only.
+app.use('/api/cloud-api2',createCloudApi2LinkageRouter({
+  express,registry,wpmlStore,db:pool,workspace:pilot.workspaceId
+}));
+if(ppk.enabled){app.use('/api/ppk',createPpkRouter(ppk,{flights:ppkFlights}));console.log('[ppk] PPK geotagging service active');}
+// Live flight control (DRC) for one pinned DJI RC Plus 2 + Matrice 4E/4T (DJI Cloud API 1.18 pilot live flight controls).
+// Off by default; separate token; operator lease with fail-safe hand-back to the RC (drc-session.js).
+const drc=drcConfig(process.env);
+let drcRuntime=null;
+if(drc.issue)console.error('[drc] disabled:',drc.issue);
+// RC Pro + Mavic 3E/3T/3M: camera and gimbal only (mqtt/rc-pro/drc), same accounts, own gateway (SKYHUB_DRC_RCPRO_GATEWAY_SN).
+let drcRcPro=null;
+if(drc.enabled&&/^[A-Za-z0-9_-]{4,64}$/.test(process.env.SKYHUB_DRC_RCPRO_GATEWAY_SN||'')){
+  drcRcPro=createDrcRuntime({config:{...drc,gateway:process.env.SKYHUB_DRC_RCPRO_GATEWAY_SN,variant:'rc-pro',namespace:'/drc-rcpro'},
+    registry,pool,io,express,mqttConnect:require('mqtt').connect,socketAuth,
+    lanSocket:request=>lanSocket(request,ip=>app.get('trust proxy fn')(ip,0))});
+  app.use('/api/drc/rcpro',drcRcPro.router);           // before /api/drc
+  console.log('[drc] camera/gimbal control active for RC Pro '+process.env.SKYHUB_DRC_RCPRO_GATEWAY_SN);
+}
+if(drc.enabled){
+  drcRuntime=createDrcRuntime({config:drc,registry,pool,io,express,mqttConnect:require('mqtt').connect,socketAuth,
+    lanSocket:request=>lanSocket(request,ip=>app.get('trust proxy fn')(ip,0))});
+  app.use('/api/drc',drcRuntime.router);
+  console.log('[drc] live flight control active for RC '+drc.gateway);
+}
+let liveControl=null;
+if(liveControlSettings.enabled){
+  liveControl=createLiveControl({config:liveControlSettings,liveSettings,registry,mqttConnect:require('mqtt').connect,express,
+    audit:e=>{console.log('[live control] '+JSON.stringify(e));
+      if(pool)pool.query('INSERT INTO drc_audit(gateway,action,detail) VALUES ($1,$2,$3)',[e.gateway,'live',JSON.stringify(e)]).catch(()=>{});}});
+  app.use('/api/live/control',liveControl.router);
+  console.log('[live control] livestream on demand active');
 }
 const mediaLibraryRouter=createPilotMediaLibraryRuntime({
   env:process.env,db:pool,redis,authorize:pilotAuth.principal,
@@ -231,12 +444,41 @@ if(mediaUpload){
   app.use(mediaUpload.router);
   mediaUpload.start();
   console.log('[pilot media] upload sync active, S3 endpoint '+mediaUpload.endpoint);
+  if(wpmlStore&&pilot.wayline.enabled&&pilot.ready){
+    pilotWaylineImport=createPilotWaylineImport({workspace:pilot.workspaceId,media:mediaUpload.grants,
+      headObject:mediaStorage.headObject,getObject:mediaStorage.getObject,store:wpmlStore,
+      audit:e=>console.log('[pilot wayline] '+JSON.stringify(e))});
+    console.log('[pilot wayline] uploads from Pilot 2 accepted into the route store (visible in Pilot 2 only after release)');
+  }
 }
 
 app.get('/api/devices',(req,res)=>res.json(registry.snapshot()));
+// TAK / CloudTAK output (tak.js): outbound CoT, off by default (SKYHUB_TAK_ENABLED). Certificate paths never in the status.
+const takSettings=takConfig(process.env);
+if(takSettings.issue)console.error('[tak] disabled:',takSettings.issue);
+const takOutput=takSettings.enabled?createTakOutput({config:takSettings,registry}):null;
+if(takOutput)console.log('[tak] CoT output active'+(takSettings.server?' → '+takSettings.server.host+':'+takSettings.server.port:'')+(takSettings.multicast?' + multicast 239.2.3.1:6969':''));
+app.get('/api/tak/status',(req,res)=>res.set('Cache-Control','no-store').json(takOutput?{enabled:true,...takOutput.status()}:{enabled:false,issue:takSettings.issue||null}));
 app.get('/api/topology',(req,res)=>res.json(registry.snapshot().map(d=>({sn:d.sn,role:d.role,gatewaySn:d.gatewaySn,model:d.model,topologyOnline:d.topologyOnline,online:d.online,
   lastTopologyAt:d.lastTopologyAt,topologyTimeVerified:d.topologyTimeVerified,children:d.children}))));
 app.get('/api/events',(req,res)=>res.json(registry.events()));
+// FH2-derived diagnostics remain behind existing /api authorization (no LAN exception).
+app.get('/api/diagnostics/fh/rtk',(req,res)=>res.json({readOnly:true,devices:fhObserver.rtk()}));
+app.get('/api/diagnostics/fh/flights',(req,res)=>res.json({readOnly:true,active:fhObserver.flights()}));
+app.get('/api/diagnostics/fh/events',(req,res)=>res.json({readOnly:true,events:fhObserver.events()}));
+app.get('/api/diagnostics/fh/sources/:sn',(req,res)=>{
+ const sn=serial(req.params.sn);
+ if(!sn)return res.status(400).json({error:'Invalid serial'});
+ const result=fhObserver.sources(sn);
+ return result?res.json(result):res.status(404).json({error:'No accepted observations'});
+});
+app.get('/api/diagnostics/fh/metrics',(req,res)=>res.type('text/plain').send(fhMetrics(fhObserver)));
+app.get('/api/diagnostics/fh/ugcs/:section',async(req,res)=>{
+ const result=await fhUgcs.read(req.params.section);
+ res.status(result.status).json(result.data);
+});
+app.use(liveStream.router);
+app.get('/api/diagnostics/hms-history',createHmsHistoryHandler({history:hmsHistory,registry}));
 registerPilotAdminRoutes(app,{pairing});
 // Field names per channel/method as actually received; no values or serial numbers.
 app.get('/api/diagnostics/mqtt-shapes',(req,res)=>res.json(mqttShapes.snapshot()));
@@ -266,18 +508,44 @@ app.get('/api/drone/:sn/telemetry',(req,res)=>{
   if(!d)return res.status(404).json({error:'Device not observed'});
   res.json(d);
 });
+// Map tiles: on-demand offline cache (opt-in) or redirect to OpenStreetMap; no token, no API data.
+app.use(tiles.router);
+// Self-hosted third-party libraries (no CDN at runtime, works offline in the field).
+// Paths carry the exact version, so the files can be cached as immutable.
+app.use('/vendor',express.static(path.resolve(__dirname,'../frontend/public/vendor'),
+  {index:false,fallthrough:false,cacheControl:false,
+    setHeaders:res=>res.set('Cache-Control','public, max-age=31536000, immutable')}));
 app.use(express.static(path.resolve(__dirname,'../frontend/public'),{index:'index.html'}));
 app.use((req,res)=>res.status(404).json({error:'Not found'}));
+// Body-parser and router errors answer in JSON; never an HTML page, stack trace or parser detail.
+app.use((err,req,res,next)=>{
+  if(res.headersSent)return next(err);
+  const status=Number.isInteger(err?.status)&&err.status>=400&&err.status<500?err.status:500;
+  if(status===500)console.error('[http] unhandled route error');
+  res.status(status).json({error:{400:'Invalid request body',404:'Not found',413:'Request body too large',
+    415:'Unsupported content encoding'}[status]||(status===500?'Internal error':'Invalid request')});
+});
 const port=Number(process.env.PORT||4000);
 const listenAddress=process.env.NODE_ENV==='test'?'127.0.0.1':'0.0.0.0';
 server.listen(port,listenAddress,()=>console.log('[skyhub] Port '+server.address().port+' / read-only'));
 function stop(){
+  // Hand control back to the RC before anything else goes down (drc_mode_exit + cloud_control_release).
+  if(drcRuntime)drcRuntime.shutdown().catch(err=>console.error('[drc] shutdown:',err.message));
+  if(drcRcPro)drcRcPro.shutdown().catch(err=>console.error('[drc] rc pro shutdown:',err.message));
+  if(liveControl)liveControl.shutdown();
+  if(takOutput)takOutput.close();
   ingest.stop();
   if(tsaHub)tsaHub.close();
   if(mediaUpload)mediaUpload.stop();
   io.close();server.close();
   redis.disconnect();if(pool)pool.end().catch(()=>{});
 }
-process.once('SIGTERM',stop);
-process.once('SIGINT',stop);
+// Signals: close cleanly, but never outlive Docker's stop timeout because of idle keep-alive sockets.
+function shutdown(){
+  stop();
+  if(typeof server.closeIdleConnections==='function')server.closeIdleConnections();
+  setTimeout(()=>process.exit(0),5000).unref();
+}
+process.once('SIGTERM',shutdown);
+process.once('SIGINT',shutdown);
 module.exports={server,stop};

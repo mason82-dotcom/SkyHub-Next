@@ -114,10 +114,11 @@ function namespaceProfile(xml){
   try{parseXml(xml,WPML_REFERENCE_ONLY);return WPML_REFERENCE_ONLY;}catch(_err){}
   return WPML;
 }
-function inspectKmz(buffer){
+// options.cameraDecides: see wpml-product-support.js (only for routes uploaded by DJI Pilot 2 itself).
+function inspectKmz(buffer,options={}){
   const result=readKmz(buffer);
   const profile=namespaceProfile(result.template);
-  return {...validateDocuments(result.template,result.waylines,profile),resourceCount:result.resourceCount};
+  return {...validateDocuments(result.template,result.waylines,profile,options),resourceCount:result.resourceCount};
 }
 // Package caller-supplied XML without editing it. No route computation is implied.
 function packageKmz(template,waylines){

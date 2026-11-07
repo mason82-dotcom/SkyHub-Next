@@ -65,6 +65,14 @@
       "requires": [
         "pilot-media-http-004"
       ]
+    },
+    {
+      "id": "hms-transitions-006",
+      "family": "hms-history",
+      "order": 6,
+      "path": "backend/db/migrations/006_hms_transition_history.sql",
+      "status": "offline_only",
+      "requires": []
     }
   ]
 }

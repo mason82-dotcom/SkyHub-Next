@@ -40,6 +40,14 @@ function accounts(){
     ack:{username:env.SKYHUB_TOPOLOGY_ACK_MQTT_USER,password:env.SKYHUB_TOPOLOGY_ACK_MQTT_PASSWORD},
     pilot:{username:env.SKYHUB_PILOT_MQTT_USER,password:env.SKYHUB_PILOT_MQTT_PASSWORD}
   };
+  // Optional live flight control (docs/drc-matrice4.md): backend commander and the DRC link the RC gets via drc_mode_enter.
+  if(env.SKYHUB_DRC_MQTT_USERNAME||env.SKYHUB_DRC_BROKER_USERNAME){
+    const gatewaySn=env.SKYHUB_DRC_GATEWAY_SN;
+    if(!/^[A-Za-z0-9_-]{4,64}$/.test(gatewaySn||''))
+      throw new Error('SKYHUB_DRC_GATEWAY_SN: gültige feste RC-Seriennummer für die DRC-ACL erforderlich');
+    list.commander={username:env.SKYHUB_DRC_MQTT_USERNAME,password:env.SKYHUB_DRC_MQTT_PASSWORD,gatewaySn};
+    list.drcLink={username:env.SKYHUB_DRC_BROKER_USERNAME,password:env.SKYHUB_DRC_BROKER_PASSWORD,gatewaySn};
+  }
   for(const [role,a] of Object.entries(list)){
     if(!a.username || !/^[A-Za-z0-9_.-]{1,64}$/.test(a.username)){
       throw new Error(role+': ungültiger oder fehlender MQTT-Benutzername in .env'+
@@ -51,7 +59,7 @@ function accounts(){
     }
   }
   const names=new Set(Object.values(list).map(a=>a.username));
-  if(names.size!==3)throw new Error('Reader, Topologie-Publisher und Pilot brauchen verschiedene Benutzer');
+  if(names.size!==Object.keys(list).length)throw new Error('Alle MQTT-Rollen brauchen verschiedene Benutzer');
   return list;
 }
 
@@ -70,12 +78,32 @@ const PILOT_READ=['sys/product/+/status_reply','sys/product/+/network/probe','th
   'thing/product/+/property/set','thing/product/+/events_reply','thing/product/+/requests_reply',
   'thing/product/+/state_reply','thing/product/+/drc/down'];
 
+// Live flight control (DJI Cloud API 1.18, dji-rc-plus-2/drc + /properties): the backend commands the RC on services and
+// drc/down and reads replies, events, the RC OSD (drc_state, pushMode 0) and state; the RC writes drc/up on the DRC link.
+const COMMANDER_WRITE=['thing/product/+/services','thing/product/+/drc/down','thing/product/+/events_reply'];
+const COMMANDER_READ=['thing/product/+/services_reply','thing/product/+/events','thing/product/+/osd',
+  'thing/product/+/state','thing/product/+/drc/up'];
+const DRC_LINK_WRITE=['thing/product/+/drc/up'];
+const DRC_LINK_READ=['thing/product/+/drc/down'];
 // Topics the delivery test publishes (see aclCases for the rule they must follow).
 const DELIVERY_PUBLISH={
   ack:['sys/product/SKYHUBPROBE/status_reply'],
   pilot:['thing/product/SKYHUBPROBE/requests',PROBE_TOPIC+'/delivery']
 };
+// The DRC accounts must only be allowed on the explicitly selected RC serial.
+function drcScoped(patterns,account,role){
+  const sn=account?.gatewaySn;
+  if(!/^[A-Za-z0-9_-]{4,64}$/.test(sn||''))
+    throw new Error('DRC '+role+': gatewaySn fehlt oder ist ungültig; keine Wildcard-ACL erzeugen');
+  return patterns.map(topic=>topic.replace('thing/product/+/', 'thing/product/'+sn+'/'));
+}
 function aclText(a){
+  // Validate each identity before comparing them: missing/invalid serials
+  // fail explicitly, and can never be silently converted to wildcard ACLs.
+  if(a.commander)drcScoped(COMMANDER_WRITE,a.commander,'commander');
+  if(a.drcLink)drcScoped(DRC_LINK_WRITE,a.drcLink,'drcLink');
+  if(a.commander&&a.drcLink&&a.commander.gatewaySn!==a.drcLink.gatewaySn)
+    throw new Error('DRC commander und drcLink müssen dieselbe RC-Seriennummer verwenden');
   const block=(user,write,read)=>[
     'user '+user,
     ...write.map(t=>'topic write '+t),
@@ -86,7 +114,9 @@ function aclText(a){
     '',
     ...block(a.reader.username,[],READER_READ),
     ...block(a.ack.username,ACK_WRITE,[]),
-    ...block(a.pilot.username,PILOT_WRITE,PILOT_READ)
+    ...block(a.pilot.username,PILOT_WRITE,PILOT_READ),
+    ...(a.commander?block(a.commander.username,drcScoped(COMMANDER_WRITE,a.commander,'commander'),drcScoped(COMMANDER_READ,a.commander,'commander')):[]),
+    ...(a.drcLink?block(a.drcLink.username,drcScoped(DRC_LINK_WRITE,a.drcLink,'drcLink'),drcScoped(DRC_LINK_READ,a.drcLink,'drcLink')):[])
   ].join('\n');
 }
 // Options exist so tests can run the same config on a throwaway port and directory.
@@ -323,7 +353,7 @@ async function main(){
   const cmd=process.argv[2];
   if(cmd==='plan'){
     const a=accounts();
-    const names=Object.fromEntries(Object.keys(a).map(k=>[k,{username:'<'+k+'>'}]));
+    const names=Object.fromEntries(Object.entries(a).map(([k,v])=>[k,{username:'<'+k+'>',gatewaySn:v.gatewaySn}]));
     console.log('Benutzer: reader, topology-ack, pilot (Namen aus .env, Passwörter werden nicht angezeigt)');
     console.log('--- '+CONF_DIR+'/mosquitto.conf ---\n'+confText());
     console.log('--- '+CONF_DIR+'/acl ---\n'+aclText(names));
@@ -389,5 +419,5 @@ async function main(){
   console.log('  4. Auf der RC "MQTT erneut verbinden", danach: sudo node scripts/pi-mosquitto-dedicated.js status');
 }
 if(require.main===module)main().catch(err=>{console.error('Abbruch: '+err.message);process.exitCode=1;});
-module.exports={aclCases,aclText,confText,passwdLine,connectCases,deliveryChecks,probeProgram,
+module.exports={COMMANDER_WRITE,COMMANDER_READ,DRC_LINK_WRITE,DRC_LINK_READ,aclCases,aclText,confText,passwdLine,connectCases,deliveryChecks,probeProgram,
   DELIVERY_PUBLISH,PROBE_TOPIC};

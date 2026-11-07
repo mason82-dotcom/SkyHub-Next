@@ -1,0 +1,358 @@
+{
+  "schema": "skyhub.dji.cloudapi2.contract-catalog.v1",
+  "catalogVersion": "1.0.0",
+  "referenceDate": "2026-11-07",
+  "language": "de",
+  "source": {
+    "repository": "dji-sdk/Cloud-API-2",
+    "commit": "705c73f48a77bb5120b28d73436d73594d289359",
+    "platformVersion": "V1.1.0",
+    "platformReleased": "2026-11-05",
+    "sdkSourceVersion": "3.4.0",
+    "devkitPrebuiltJarVersion": "3.3.7",
+    "documents": {
+      "releaseNotes": {
+        "path": "docs/cn/00.release-notes.md",
+        "url": "https://github.com/dji-sdk/Cloud-API-2/blob/705c73f48a77bb5120b28d73436d73594d289359/docs/cn/00.release-notes.md"
+      },
+      "sdk": {
+        "path": "docs/cn/09.sdk/01.sdk-intro.md",
+        "url": "https://github.com/dji-sdk/Cloud-API-2/blob/705c73f48a77bb5120b28d73436d73594d289359/docs/cn/09.sdk/01.sdk-intro.md"
+      },
+      "demoDeploy": {
+        "path": "docs/cn/11.demo/00.index.md",
+        "url": "https://github.com/dji-sdk/Cloud-API-2/blob/705c73f48a77bb5120b28d73436d73594d289359/docs/cn/11.demo/00.index.md"
+      },
+      "demoUsage": {
+        "path": "docs/cn/11.demo/01.usage.md",
+        "url": "https://github.com/dji-sdk/Cloud-API-2/blob/705c73f48a77bb5120b28d73436d73594d289359/docs/cn/11.demo/01.usage.md"
+      },
+      "mqttBridge": {
+        "path": "docs/cn/03.deployment/04.mqtt-bridge.md",
+        "url": "https://github.com/dji-sdk/Cloud-API-2/blob/705c73f48a77bb5120b28d73436d73594d289359/docs/cn/03.deployment/04.mqtt-bridge.md"
+      },
+      "apiComparison": {
+        "path": "docs/cn/12.api1-api2-comparison.md",
+        "url": "https://github.com/dji-sdk/Cloud-API-2/blob/705c73f48a77bb5120b28d73436d73594d289359/docs/cn/12.api1-api2-comparison.md"
+      },
+      "devices": {
+        "path": "docs/cn/06.device-onboarding/00.index.md",
+        "url": "https://github.com/dji-sdk/Cloud-API-2/blob/705c73f48a77bb5120b28d73436d73594d289359/docs/cn/06.device-onboarding/00.index.md"
+      },
+      "frontend": {
+        "path": "docs/cn/08.frontend/00.index.md",
+        "url": "https://github.com/dji-sdk/Cloud-API-2/blob/705c73f48a77bb5120b28d73436d73594d289359/docs/cn/08.frontend/00.index.md"
+      }
+    }
+  },
+  "localBaseline": {
+    "repository": "mason82-dotcom/SkyHub-Next",
+    "mainCommit": "a17b8b487ef27906c75badf713bef67dbe741087",
+    "mode": "skyhub-cloud-api-1.x-backed-reference",
+    "vendorPaaSInstalled": false,
+    "vendorSdkInstalled": false,
+    "vendorMcpInstalled": false,
+    "liveControlPermitted": false
+  },
+  "adapterContract": {
+    "basePath": "/api/cloud-api2",
+    "sameOrigin": true,
+    "permittedMethods": [
+      "GET"
+    ],
+    "forbiddenMethods": [
+      "POST",
+      "PUT",
+      "PATCH",
+      "DELETE"
+    ],
+    "routes": [
+      {
+        "resource": "status",
+        "method": "GET",
+        "access": "trusted-lan-get",
+        "scope": "Cloud API 1.x MQTT connection flags",
+        "noWrite": true
+      },
+      {
+        "resource": "devices",
+        "method": "GET",
+        "access": "trusted-lan-get",
+        "scope": "Redacted Cloud API 1.x registry projection",
+        "noWrite": true
+      },
+      {
+        "resource": "capabilities",
+        "method": "GET",
+        "access": "trusted-lan-get",
+        "scope": "SkyHub-owned static capabilities",
+        "noWrite": true
+      },
+      {
+        "resource": "linkage",
+        "method": "GET",
+        "access": "trusted-lan-get",
+        "scope": "Candidate-only device/mission/media counts",
+        "noWrite": true
+      },
+      {
+        "resource": "evidence",
+        "method": "GET",
+        "access": "view-token-required",
+        "scope": "Explicit operator-triggered module counts",
+        "noWrite": true
+      },
+      {
+        "resource": "hardware/rc-plus2-m4t",
+        "method": "GET",
+        "access": "view-token-required",
+        "scope": "Explicit operator-triggered historical/live transport smoke",
+        "noWrite": true
+      }
+    ],
+    "evidenceIsOperatorTriggered": true,
+    "mutationsEnabled": false,
+    "automaticMqttPublish": false,
+    "bareLanAllowedResources": [
+      "status",
+      "devices",
+      "capabilities",
+      "linkage"
+    ]
+  },
+  "deviceMatrix": [
+    {
+      "id": "m3e",
+      "name": "DJI Mavic 3E",
+      "vendorSupport": "family-listed-not-specific-certified",
+      "evidenceLimit": "Enterprise family listed, individual firmware and controller pairing not verified",
+      "cloudApi2HardwareVerified": false,
+      "flightReady": false
+    },
+    {
+      "id": "m3t",
+      "name": "DJI Mavic 3T",
+      "vendorSupport": "family-listed-not-specific-certified",
+      "evidenceLimit": "Enterprise family listed; thermal availability is not radiometric calibration",
+      "cloudApi2HardwareVerified": false,
+      "flightReady": false
+    },
+    {
+      "id": "m3ta",
+      "name": "DJI Mavic 3T Advanced",
+      "vendorSupport": "not-explicitly-listed",
+      "evidenceLimit": "SkyHub model reference, separate vendor Cloud API 2 support unverified",
+      "cloudApi2HardwareVerified": false,
+      "flightReady": false
+    },
+    {
+      "id": "m3m",
+      "name": "DJI Mavic 3M",
+      "vendorSupport": "not-explicitly-listed",
+      "evidenceLimit": "Separate Multispectral family; Cloud API 1.x observations are not API 2 certification",
+      "cloudApi2HardwareVerified": false,
+      "flightReady": false
+    },
+    {
+      "id": "m4t",
+      "name": "DJI Matrice 4T",
+      "vendorSupport": "explicitly-listed-not-hardware-certified",
+      "evidenceLimit": "Listed in SDK introduction, hardware pairing, firmware and feature access unverified",
+      "cloudApi2HardwareVerified": false,
+      "flightReady": false
+    },
+    {
+      "id": "rc-pro-enterprise",
+      "name": "DJI RC Pro Enterprise",
+      "vendorSupport": "sdk-controller-class-only",
+      "evidenceLimit": "RemoteController abstraction documented, this controller/aircraft pair not certified",
+      "cloudApi2HardwareVerified": false,
+      "flightReady": false
+    },
+    {
+      "id": "rc-plus2-enterprise",
+      "name": "DJI RC Plus 2 Enterprise",
+      "vendorSupport": "sdk-controller-class-only",
+      "evidenceLimit": "RemoteController abstraction documented, this controller/aircraft pair not certified",
+      "cloudApi2HardwareVerified": false,
+      "flightReady": false
+    }
+  ],
+  "controllerAircraftMatrix": [
+    {
+      "controller": "rc-pro-enterprise",
+      "aircraft": "m3m",
+      "skyhubCloudApi1Transport": "previous-smoke-observation",
+      "cloudApi2PairingVerified": false,
+      "hardwareAcceptanceComplete": false
+    },
+    {
+      "controller": "rc-plus2-enterprise",
+      "aircraft": "m4t",
+      "skyhubCloudApi1Transport": "previous-smoke-observation",
+      "cloudApi2PairingVerified": false,
+      "hardwareAcceptanceComplete": false
+    }
+  ],
+  "capabilityMatrix": [
+    {
+      "id": "device-inventory",
+      "vendorModule": "DeviceManageModule",
+      "skyhubMode": "read-only-projection",
+      "skyhubOrigin": "existing-cloud-api-1.x-registry",
+      "vendorSurface": "read-only",
+      "vendorDocumented": true,
+      "api2RuntimeVerified": false,
+      "skyhubCommandEnabled": false,
+      "flightReady": false
+    },
+    {
+      "id": "drone-osd",
+      "vendorModule": "DroneOsdModule",
+      "skyhubMode": "read-only-projection",
+      "skyhubOrigin": "existing-cloud-api-1.x-telemetry",
+      "vendorSurface": "read-only",
+      "vendorDocumented": true,
+      "api2RuntimeVerified": false,
+      "skyhubCommandEnabled": false,
+      "flightReady": false
+    },
+    {
+      "id": "dock-osd",
+      "vendorModule": "DockOsdModule",
+      "skyhubMode": "reference-only",
+      "skyhubOrigin": "no-api2-sdk-runtime",
+      "vendorSurface": "read-only",
+      "vendorDocumented": true,
+      "api2RuntimeVerified": false,
+      "skyhubCommandEnabled": false,
+      "flightReady": false
+    },
+    {
+      "id": "hms-alerts",
+      "vendorModule": "HMSModule",
+      "skyhubMode": "read-only-projection",
+      "skyhubOrigin": "existing-cloud-api-1.x-hms",
+      "vendorSurface": "read-only",
+      "vendorDocumented": true,
+      "api2RuntimeVerified": false,
+      "skyhubCommandEnabled": false,
+      "flightReady": false
+    },
+    {
+      "id": "wayline-library",
+      "vendorModule": "WaylineManageModule",
+      "skyhubMode": "read-only-projection",
+      "skyhubOrigin": "local-wpml-metadata-no-execution",
+      "vendorSurface": "mixed",
+      "vendorDocumented": true,
+      "api2RuntimeVerified": false,
+      "skyhubCommandEnabled": false,
+      "flightReady": false
+    },
+    {
+      "id": "flight-task-query",
+      "vendorModule": "FlightTaskModule",
+      "skyhubMode": "reference-only",
+      "skyhubOrigin": "no-api2-sdk-runtime",
+      "vendorSurface": "mixed",
+      "vendorDocumented": true,
+      "api2RuntimeVerified": false,
+      "skyhubCommandEnabled": false,
+      "flightReady": false
+    },
+    {
+      "id": "flight-task-execute",
+      "vendorModule": "FlightTaskModule",
+      "skyhubMode": "disabled",
+      "skyhubOrigin": "no-mission-dispatch",
+      "vendorSurface": "control",
+      "vendorDocumented": true,
+      "api2RuntimeVerified": false,
+      "skyhubCommandEnabled": false,
+      "flightReady": false
+    },
+    {
+      "id": "media-catalog",
+      "vendorModule": "MediaServiceModule",
+      "skyhubMode": "read-only-projection",
+      "skyhubOrigin": "skyhub-s3-inventory-no-origin-certification",
+      "vendorSurface": "mixed",
+      "vendorDocumented": true,
+      "api2RuntimeVerified": false,
+      "skyhubCommandEnabled": false,
+      "flightReady": false
+    },
+    {
+      "id": "terra-build",
+      "vendorModule": "TerraBuildModule",
+      "skyhubMode": "reference-only",
+      "skyhubOrigin": "no-dji-terra-runtime",
+      "vendorSurface": "mixed",
+      "vendorDocumented": true,
+      "api2RuntimeVerified": false,
+      "skyhubCommandEnabled": false,
+      "flightReady": false
+    },
+    {
+      "id": "map-view",
+      "vendorModule": "MapView",
+      "skyhubMode": "reference-only",
+      "skyhubOrigin": "skyhub-owned-map-not-dji-component",
+      "vendorSurface": "mixed",
+      "vendorDocumented": true,
+      "api2RuntimeVerified": false,
+      "skyhubCommandEnabled": false,
+      "flightReady": false
+    },
+    {
+      "id": "live-and-sei",
+      "vendorModule": "LiveModule",
+      "skyhubMode": "reference-only",
+      "skyhubOrigin": "no-api2-sdk-runtime",
+      "vendorSurface": "mixed",
+      "vendorDocumented": true,
+      "api2RuntimeVerified": false,
+      "skyhubCommandEnabled": false,
+      "flightReady": false
+    },
+    {
+      "id": "mcp-agent",
+      "vendorModule": "devkit/mcp",
+      "skyhubMode": "disabled",
+      "skyhubOrigin": "no-dji-mcp-server-connected",
+      "vendorSurface": "control",
+      "vendorDocumented": true,
+      "api2RuntimeVerified": false,
+      "skyhubCommandEnabled": false,
+      "flightReady": false
+    },
+    {
+      "id": "remote-flight-control",
+      "vendorModule": "FlightControlModule",
+      "skyhubMode": "disabled",
+      "skyhubOrigin": "no-drc-or-flight-authority",
+      "vendorSurface": "control",
+      "vendorDocumented": true,
+      "api2RuntimeVerified": false,
+      "skyhubCommandEnabled": false,
+      "flightReady": false
+    }
+  ],
+  "immutableGates": {
+    "hardwareVerified": false,
+    "flightReady": false,
+    "dispatchAllowed": false,
+    "accuracyVerified": false,
+    "validatedMissionExecution": false,
+    "deviceMission": "not-established",
+    "missionMedia": "not-established",
+    "deviceMedia": "not-established"
+  },
+  "notes": [
+    "Vendor module availability is not proof of SkyHub integration or per-device compatibility.",
+    "Cloud API 1.x observations and local mock data are not DJI Cloud API 2 SDK runtime evidence.",
+    "Model equality, timestamps, filenames, XMP and STS receipts alone cannot prove a flown mission or authenticated media provenance.",
+    "Vendor SDK source version 3.4.0 must not be silently substituted for DevKit prebuilt Java JAR 3.3.7."
+  ]
+}

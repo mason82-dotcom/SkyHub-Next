@@ -35,7 +35,7 @@ class SharedMinioStorageTest(unittest.TestCase):
 
     def test_s3_policies_are_bucket_scoped_with_no_public_all_access(self):
         files = sorted((ROOT / "storage/policies").glob("*.json"))
-        self.assertEqual(len(files), 5)
+        self.assertEqual(len(files), 6)
         # The backend reads exactly these buckets (backend/s3-storage.js); templates for the planned
         # skyhub-* layout and the backend reader are the only allowed resource families.
         legacy = {"basemaps", "dji-cloud", "farming", "mapping-results", "pv-inspections"}
@@ -63,6 +63,16 @@ class SharedMinioStorageTest(unittest.TestCase):
         actions = [a for s in wpml["Statement"] for a in s["Action"]]
         self.assertNotIn("s3:PutObject", actions)
         self.assertNotIn("s3:DeleteObject", actions)
+        writer = json.loads((ROOT / "storage/policies/skyhub-wpml-writer.json").read_text())
+        writer_grants = {(a, r) for st in writer["Statement"] for a in st["Action"] for r in st["Resource"]}
+        self.assertEqual(writer_grants, {
+            ("s3:ListBucket", "arn:aws:s3:::skyhub-wpml"),
+            ("s3:GetObject", "arn:aws:s3:::skyhub-wpml/missions/*"),
+            ("s3:PutObject", "arn:aws:s3:::skyhub-wpml/missions/*"),
+        })
+        provision = (ROOT / "scripts/pi-minio-wpml-store.sh").read_text(encoding="utf-8")
+        self.assertIn("storage/policies/skyhub-wpml-writer.json", provision)
+        self.assertNotIn("\"s3:DeleteObject\"", provision)
 
     def test_audit_identifies_multiple_stopped_minio_with_distinct_mounts(self):
         import importlib.util

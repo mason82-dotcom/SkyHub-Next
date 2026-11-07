@@ -27,12 +27,18 @@ STUBS = {
         'echo "$*" >> "$STUB_LOG"\n'
         'case "$1" in\n'
         ' info) exit 0;;\n'
-        ' image) exit 0;;\n'
+        ' image) case "$*" in\n'
+        '   "image inspect sha256:oldimage") [ -z "$STUB_IMAGE_GONE" ];;\n'
+        '   *"{{.Created}} skyhub-next-backend") echo "${STUB_IMAGE_CREATED:-2026-11-02T15:29:27.6+01:00}";;\n'
+        '   *) exit 0;;\n'
+        '  esac;;\n'
         ' ps) exit 0;;\n'
         ' inspect) case "$*" in\n'
         '   *State.Running*) echo true;;\n'
         '   *.Name*) echo /skyhub-next-backend-1;;\n'
+        '   *Config.Image*) echo skyhub-next-backend;;\n'
         '   *.Image*) echo sha256:oldimage;;\n'
+        '   *.Created*) echo 2026-11-02T14:29:31.317378421Z;;\n'
         '  esac;;\n'
         ' network) echo "${STUB_GATEWAY:-172.25.0.1}";;\n'
         ' port) case "$2" in\n'
@@ -126,6 +132,18 @@ class PiUpdateBackendTests(unittest.TestCase):
         path = Path(directory.name) / "Caddyfile"
         path.write_text(text, encoding="utf-8")
         return str(path)
+
+    def test_unresolvable_containerd_digest_falls_back_to_the_named_image_built_before_start(self):
+        # 02.11.2026: containerd image store; the container's manifest-index digest no longer resolved.
+        ok = self.run_update(STUB_IMAGE_GONE="1")
+        self.assertEqual(ok.returncode, 0, ok.stdout + ok.stderr)
+        self.assertIn("NOTE: running image digest not resolvable", ok.stdout)
+        self.assertIn("image tag skyhub-next-backend skyhub-next-backend-preupdate:", ok.docker_log)
+        # Rebuilt after the container started: the name no longer identifies the running build.
+        self.assert_refused(self.run_update(STUB_IMAGE_GONE="1", STUB_IMAGE_CREATED="2026-11-02T15:29:35+01:00"),
+                            "cannot be identified for rollback")
+        self.assert_refused(self.run_update(STUB_IMAGE_GONE="1", STUB_IMAGE_CREATED="unknown"),
+                            "cannot be identified for rollback")
 
     def test_proxy_peer_must_name_the_real_caddy_gateway_when_caddy_serves_the_backend(self):
         caddyfile = self.caddy_file()

@@ -18,12 +18,14 @@ function plan(){
       {lat:49.13,lon:8.62,height:50,photo:false},
       {lat:49.14,lon:8.63,height:50,photo:false}]};
 }
-function harness(input=plan()){
+function harness(input=plan(),opts={}){
   const saved=library.save(library.blank(),{name:input.name,plan:input,
     savedAt:1792573200000});
   const store=new Map([[STORAGE,library.serialize(saved.library)]]);
   const nodes=new Map();
   let writes=0,confirms=0,allow=true;
+  let syncEnabled=Boolean(opts.syncInitiallyEnabled);
+  const syncCalls=[];
   function make(tag='div'){
     return {tag,textContent:'',value:'',style:{},children:[],listeners:{},
       appendChild(c){this.children.push(c);return c;},
@@ -50,6 +52,15 @@ function harness(input=plan()){
   const window={
     SkyHubWpmlPlanner:planner,SkyHubWpmlRouteLibrary:library,
     SkyHubWpmlActionDraft:actions,SkyHubWpmlRouteBackup:backup,
+    ...(opts.syncInitiallyEnabled!==undefined?{
+      SkyHubWpmlRouteSync:{create(){return {
+        enabled:()=>syncEnabled,
+        setEnabled(value){syncEnabled=Boolean(value);},
+        sync(snapshot){syncCalls.push(library.check(snapshot));return Promise.resolve({uploaded:0});}
+      };}},
+      SkyHubWpmlMissionStore:{},
+      crypto:{subtle:{}}
+    }:{}),
     localStorage:{
       getItem:key=>store.get(key)??null,
       setItem(key,value){writes++;store.set(key,value);},
@@ -60,6 +71,7 @@ function harness(input=plan()){
   const document={getElementById:get,createElement:make,body:make('body')};
   vm.runInNewContext(script,{window,document,console,Blob,URL,setTimeout},{timeout:2500});
   return {get,store,seed:saved,writes:()=>writes,confirms:()=>confirms,
+    syncCalls:()=>syncCalls.length,
     setConfirm(value){allow=value;},
     selectedRoute(){get('routes').children[0].children[0].click();},
     current(){return library.load(store.get(STORAGE));}
@@ -202,4 +214,34 @@ test('discarding a slow or corrupt backup never overwrites the current library',
   assert.equal(app.get('backup-apply').disabled,true);
   assert.match(app.get('backup-preview').textContent,/abgelehnt/);
   assert.equal(app.current().routes[0].revisions.length,1);
+});
+
+test('LAN route sync never publishes on page load, edit, clone or restore',()=>{
+  const app=harness(plan(),{syncInitiallyEnabled:true});
+  assert.equal(app.syncCalls(),0,'page load must not publish');
+  app.selectedRoute();app.get('load').click();
+  app.get('route-name').value='Modified draft';
+  app.get('route-name').listeners.input();
+  assert.equal(app.syncCalls(),0,'editing must not publish');
+  app.get('clone').click();
+  assert.equal(app.syncCalls(),0,'clone must not publish');
+  app.get('restore-revision').click();
+  assert.equal(app.syncCalls(),0,'restore must not publish');
+  app.get('route-sync-now').click();
+  assert.equal(app.syncCalls(),1,'manual synchronization explicitly publishes');
+});
+test('LAN route sync publishes after explicit revision save and one-time opt-in',()=>{
+  const app=harness(plan(),{syncInitiallyEnabled:true});
+  app.selectedRoute();app.get('load').click();
+  app.get('save').click();
+  assert.equal(app.syncCalls(),1,'explicit save publishes once');
+  assert.equal(app.current().routes[0].revisions.length,2);
+  const pending=harness(plan(),{syncInitiallyEnabled:false});
+  assert.equal(pending.syncCalls(),0);
+  pending.setConfirm(false);
+  pending.get('route-sync-enable').click();
+  assert.equal(pending.syncCalls(),0,'rejected opt-in must not publish');
+  pending.setConfirm(true);
+  pending.get('route-sync-enable').click();
+  assert.equal(pending.syncCalls(),1,'confirmed initial migration may publish');
 });

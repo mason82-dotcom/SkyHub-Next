@@ -3,7 +3,7 @@
 'use strict';
 const el=id=>document.getElementById(id);
 const BAND_LABELS={G:'Grün',R:'Rot',RE:'RedEdge',NIR:'NIR'};
-const ASSESSMENT_VERSION='skyhub-m3m-capture-assessment-v2';
+const ASSESSMENT_VERSION='skyhub-m3m-capture-assessment-v3';
 const currentAssessment=c=>c.assessmentVersion===ASSESSMENT_VERSION;
 const metadataCandidate=c=>currentAssessment(c)&&c.usability==='metadata-candidate'&&c.usable===true;
 function node(tag,className,text){
@@ -18,6 +18,17 @@ function when(value){
   return Number.isFinite(t)?new Date(t).toLocaleString('de-DE',{dateStyle:'medium',timeStyle:'medium'}):'Zeit unbekannt';
 }
 const fileUrl=(bucket,key)=>'/api/media/file?'+new URLSearchParams({bucket,key}).toString();
+function gpsText(c){
+  if(!currentAssessment(c)||!c.gpsAssessment)return 'GPS-Bewertung nicht aktuell';
+  const g=c.gpsAssessment;
+  const validity='GPS: '+g.validPositionCount+'/'+g.positionCount+' Objektpositionen gültig';
+  if(g.commonPositionAvailable&&c.gps)
+    return validity+'; gemeinsamer Wert '+num(c.gps.lat,5)+', '+num(c.gps.lon,5);
+  const spread=Number.isFinite(g.maxSpreadMetres)?
+    '; maximale Distanz ca. '+num(g.maxSpreadMetres,3)+' m (keine GNSS-Genauigkeit)':'';
+  return validity+(g.consistency==='different'?'; Bandpositionen abweichend':'')+
+    spread+'; kein gemeinsamer Positionswert';
+}
 function card(c){
   const article=node('article','capture-card');
   const head=node('div','capture-head');
@@ -53,7 +64,7 @@ function card(c){
   article.append(bands);
   const facts=node('p','fine',[
     c.model||'Kamera ?',
-    c.gps?'GPS '+num(c.gps.lat,5)+', '+num(c.gps.lon,5):'kein GPS',
+    gpsText(c),
     'Sonnensensor min. '+num(c.minIrradiance,1),
     c.relativeAltitude!==null?num(c.relativeAltitude,1)+' m über Start':''
   ].filter(Boolean).join(' · '));

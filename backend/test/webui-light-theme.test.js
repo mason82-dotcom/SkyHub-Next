@@ -3,12 +3,24 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+// Every page of the WebUI (frame written by scripts/webui-shell.py); pilot-login is the compact Pilot 2 WebView without nav.
 const pages = [
   ['index.html', 'dashboard'],
-  ['smart-farming.html', 'smart-farming'],
+  ['drc.html', 'drc'],
+  ['missionsfreigabe.html', 'mission-release'],
+  ['kartenelemente.html', 'map-elements'],
   ['wpml-editor.html', 'wpml-editor'],
   ['wpml-route-library.html', 'routes'],
+  ['media-gallery.html', 'media-gallery'],
+  ['thermal.html', 'thermal'],
+  ['ppk.html', 'ppk'],
+  ['abdeckung.html', 'coverage'],
+  ['ndvi.html', 'ndvi'],
+  ['pilot-protokolle.html', 'pilot-logs'],
+  ['fh-diagnostics.html', 'fh-diagnostics'],
   ['wpml-survey-preview.html', 'survey'],
+  ['smart-farming.html', 'smart-farming'],
+  ['smart-farming-map-lab.html', 'map-lab'],
   ['pilot-login.html', 'pilot']
 ];
 const root = path.resolve(__dirname, '../../frontend/public');
@@ -28,17 +40,24 @@ test('shared light stylesheet defines accessible UI tokens and is syntactically 
 for (const [filename, page] of pages) {
   test(`${filename} loads the shared light theme last and retains its safety contract`, () => {
     const source = html(filename);
-    assert.match(source, new RegExp(`<body data-skyhub-page="${page}"`));
+    assert.match(source, new RegExp(`<body\\b[^>]*\\bdata-skyhub-page="${page}"`));
     assert.equal((source.match(/href="\/skyhub-light\.css"/g) || []).length, 1);
     assert.ok(source.indexOf('href="/skyhub-light.css"') > source.indexOf('</style>'));
     assert.doesNotMatch(source, /color-scheme:\s*dark/);
     assert.match(source, /<script\b/);
   });
 }
-const globalLinks = ['/', '/wpml-editor.html', '/wpml-route-library.html',
-  '/wpml-survey-preview.html', '/smart-farming.html', '/media-gallery.html', '/thermal.html'];
+// Navigation order of the app bar follows the workflow: Lagebild, Planen, Fliegen, Auswerten, Diagnose.
+const globalLinks = ['/',
+  '/wpml-editor.html', '/wpml-route-library.html', '/missionsfreigabe.html', '/kartenelemente.html', '/wpml-survey-preview.html',
+  '/drc.html', '/drc.html?rc=pro',
+  '/media-gallery.html', '/ppk.html', '/abdeckung.html', '/thermal.html', '/ndvi.html',
+  '/smart-farming.html', '/smart-farming-map-lab.html',
+  '/fh-diagnostics.html', '/pilot-protokolle.html'];
+const currentOf = new Map([['index.html','/']].concat(pages.filter(([n])=>n!=='index.html'&&n!=='pilot-login.html')
+  .map(([n])=>[n,'/'+n])));
 for (const [filename] of pages.filter(([, page]) => page !== 'pilot')) {
-  test(`${filename} has shared navigation to the six operator modules`, () => {
+  test(`${filename} has the shared workflow navigation`, () => {
     const source = html(filename);
     assert.match(source, /<nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">/);
     for (const href of globalLinks)
@@ -87,13 +106,7 @@ test('light-theme semantic text colors meet WCAG AA contrast on white', () => {
 });
 
 test('each operator page marks only its own module as active', () => {
-  const expected = new Map([
-    ['index.html','/'], ['smart-farming.html','/smart-farming.html'],
-    ['wpml-editor.html','/wpml-editor.html'],
-    ['wpml-route-library.html','/wpml-route-library.html'],
-    ['wpml-survey-preview.html','/wpml-survey-preview.html']
-  ]);
-  for (const [name,active] of expected) {
+  for (const [name,active] of currentOf) {
     const nav = html(name).match(/<nav class="skyhub-global-nav"[^>]*>(.*?)<\/nav>/s);
     assert.ok(nav, name);
     const links = [...nav[1].matchAll(/<a href="([^"]+)"([^>]*)>/g)];
@@ -154,7 +167,7 @@ test('blurred keyboard bypass is clipped but remains in keyboard order', () => {
   assert.match(css, /\.skyhub-skip-link:focus[^}]*clip-path:\s*none/);
 });
 
-test('six delivered views support keyboard bypass to a single focusable main landmark', () => {
+test('every view supports keyboard bypass to a single focusable main landmark', () => {
   const css = fs.readFileSync(path.join(root, 'skyhub-light.css'), 'utf8');
   assert.match(css, /\.skyhub-skip-link:focus[^\{]*\{\s*transform: translateY\(0\)/);
   for (const [name] of pages) {
@@ -162,7 +175,7 @@ test('six delivered views support keyboard bypass to a single focusable main lan
     assert.equal((source.match(/class="skyhub-skip-link"/g) || []).length, 1, name);
     assert.equal((source.match(/href="#skyhubMain"/g) || []).length, 1, name);
     assert.equal((source.match(/<main\b/g) || []).length, 1, name);
-    assert.match(source, /<main id="skyhubMain" tabindex="-1">/, name);
+    assert.match(source, /<main id="skyhubMain" tabindex="-1"[\s>]/, name);
     const skipAt = source.indexOf('class="skyhub-skip-link"');
     const mainAt = source.indexOf('<main id="skyhubMain"');
     assert.ok(skipAt >= 0 && mainAt > skipAt, name + ' skip target must follow link');
@@ -222,8 +235,7 @@ test('native form errors use interaction-aware styling without initial required-
 });
 
 test('all operator modules expose the same navigation destinations for real click smoke', () => {
-  const paths = ['/', '/wpml-editor.html', '/wpml-route-library.html',
-    '/wpml-survey-preview.html', '/smart-farming.html', '/media-gallery.html', '/thermal.html'];
+  const paths = globalLinks;
   for (const [fileName, page] of pages) {
     if (page === 'pilot') continue;
     const source = html(fileName);
@@ -259,6 +271,32 @@ test('mobile map instructions move below WPML and Survey maps, retaining full sa
   assert.match(mobile, /pointer-events:\s*auto;/);
   const editor=html('wpml-editor.html');
   const survey=html('wpml-survey-preview.html');
-  assert.match(editor, /Keine Hindernis-, Geländehöhen- oder Flugfreigabeprüfung/);
+  assert.match(editor, /keine automatische Hinderniserkennung und keine Flugfreigabe/);
   assert.match(survey, /Keine DJI-Waylines/);
+});
+
+test('app bar is identical on every page except the current marker, and every target exists', () => {
+  const frames = pages.filter(([, page]) => page !== 'pilot').map(([name]) => {
+    const m = html(name).match(/<!-- skyhub-appbar -->([\s\S]*?)<!-- \/skyhub-appbar -->/);
+    assert.ok(m, name + ': app bar markers missing (python3 scripts/webui-shell.py)');
+    return m[1].replace(/ aria-current="page"/g, '').replace(/ is-active/g, '');
+  });
+  for (const f of frames) assert.equal(f, frames[0]);
+  for (const href of globalLinks) assert.ok(fs.existsSync(path.join(root, href === '/' ? 'index.html' : href.split('?')[0])), href);
+  // Top level in workflow order; links in menu order exactly as listed in globalLinks.
+  assert.deepEqual([...frames[0].matchAll(/<summary>([^<]+)<\/summary>/g)].map(m => m[1]), ['Planen', 'Fliegen', 'Auswerten', 'Diagnose']);
+  assert.match(frames[0], /<nav class="skyhub-global-nav"[^>]*>\s*<a href="\/">Lagebild<\/a>/);
+  assert.deepEqual([...frames[0].matchAll(/<a href="([^"]+)"/g)].map(m => m[1]), globalLinks);
+  // Experimental pages: each one carries the text marker and sits after a "Labor" heading in its menu.
+  for (const href of ['/wpml-survey-preview.html', '/smart-farming.html', '/smart-farming-map-lab.html'])
+    assert.match(frames[0], new RegExp('<a href="' + href.replace(/[.?]/g, '\\$&') + '" class="is-lab"'), href);
+  assert.equal((frames[0].match(/class="skyhub-nav-section is-lab">Labor <span>experimentell/g) || []).length, 2);
+  assert.equal((frames[0].match(/class="is-lab"/g) || []).length, 3, 'only the three lab pages are marked experimental');
+});
+test('page-local styles never restyle the shared app bar (bare header/nav selectors)', () => {
+  for (const [name, page] of pages) {
+    if (page === 'pilot') continue;
+    for (const block of html(name).match(/<style[^>]*>[\s\S]*?<\/style>/g) || [])
+      assert.doesNotMatch(block, /(^|[}\s,])(header|nav)\s*\{/, name);
+  }
 });

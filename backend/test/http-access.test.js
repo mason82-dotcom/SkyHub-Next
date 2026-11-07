@@ -82,6 +82,12 @@ test('LAN view is read-only; pairing administration still needs the view token',
   assert.equal((await request('/api/devices',{lan:'192.168.178.70'})).status,200);
   assert.equal((await request('/api/devices',{lan:'203.0.113.9'})).status,401);
   assert.equal((await request('/api/diagnostics/mqtt-shapes',{lan:'192.168.178.70'})).status,200);
+  // HMS history is a dashboard read: LAN-visible, here disabled -> explicit 503, outside the LAN 401.
+  const hms=await request('/api/diagnostics/hms-history',{lan:'192.168.178.70'});
+  assert.equal(hms.status,503);
+  assert.deepEqual(await hms.json(),{error:'HMS history disabled',enabled:false});
+  assert.equal((await request('/api/diagnostics/hms-history',{lan:'203.0.113.9'})).status,401);
+  assert.equal((await request('/api/diagnostics/hms-history',{method:'POST',lan:'192.168.178.70'})).status,401);
   assert.equal((await request('/api/drone/AIR01/track',{lan:'192.168.178.70'})).status,200);
   assert.equal((await request('/api/drone/AIR01/telemetry',{lan:'192.168.178.70'})).status,404);
   assert.equal((await request('/api/drone/AIR01/secrets',{lan:'192.168.178.70'})).status,401);
@@ -98,6 +104,16 @@ test('LAN view is read-only; pairing administration still needs the view token',
   // The Smart Farming UI requests the catalog with a trailing slash.
   assert.equal((await request('/api/smart-farming/candidates/',{lan:'192.168.178.70'})).status,404);
   assert.equal((await request('/api/smart-farming/candidates/',{lan:'203.0.113.9'})).status,401);
+  // RTK & flight-session diagnosis page: its three read-only lists open from the home LAN without a token;
+  // per-device sources, UgCS sections and metric dumps stay behind the view token, as does every other network.
+  for(const p of ['rtk','flights','events']){
+    assert.equal((await request('/api/diagnostics/fh/'+p,{lan:'192.168.178.70'})).status,200,p);
+    assert.equal((await request('/api/diagnostics/fh/'+p,{lan:'203.0.113.9'})).status,401,p);
+    assert.equal((await request('/api/diagnostics/fh/'+p,{method:'POST',lan:'192.168.178.70'})).status,401,p);
+  }
+  assert.equal((await request('/api/diagnostics/fh/metrics',{lan:'192.168.178.70'})).status,401);
+  assert.equal((await request('/api/diagnostics/fh/sources/AIR01',{lan:'192.168.178.70'})).status,401);
+  assert.equal((await request('/api/diagnostics/fh/ugcs/flights',{lan:'192.168.178.70'})).status,401);
   assert.equal((await request('/api/pilot-admin/pairings',{lan:'192.168.178.70'})).status,401);
   assert.equal((await request('/api/unknown-future-route',{lan:'192.168.178.70'})).status,401);
   assert.equal((await request('/api/mission/create',{method:'POST',lan:'192.168.178.70'})).status,401);
@@ -109,7 +125,10 @@ test('Pilot bootstrap requires HTTPS and the Pilot token',async()=>{
   assert.equal((await request('/api/pilot/bootstrap',{method:'POST',https:true})).status,401);
   const response=await request('/api/pilot/bootstrap',{method:'POST',token:PILOT_TOKEN,https:true});
   assert.equal(response.status,200);
-  assert.equal((await response.json()).license,LICENSE);
+  const config=await response.json();
+  assert.equal(config.license,LICENSE);
+  // Livestream relay is off here: no RTMP target is handed to the RC.
+  assert.equal(Object.hasOwn(config,'live'),false);
   const status=await request('/api/pilot/status');
   const statusText=await status.text();
   assert.equal(statusText.includes(LICENSE),false);
@@ -210,4 +229,50 @@ test('DJI field definitions are served for catalogued models and reject everythi
   for(const bad of ['','abc','0:77','4:1:0','0:1000:0','0:77:2;x','0:77:2\\d'])
     assert.equal((await get(bad)).status,400,bad);
   assert.equal((await request('/api/diagnostics/dji-fields?model=0:77:2')).status,401);
+});
+
+test('malformed or oversized JSON bodies answer in JSON without parser details',async()=>{
+  const post=(body,headers={})=>fetch(base+'/api/pilot-admin/approve',{method:'POST',
+    headers:{authorization:'Bearer '+VIEW_TOKEN,'content-type':'application/json',...headers},body});
+  const malformed=await post('{"code":');
+  assert.equal(malformed.status,400);
+  assert.match(malformed.headers.get('content-type'),/application\/json/);
+  const text=await malformed.text();
+  assert.deepEqual(JSON.parse(text),{error:'Invalid request body'});
+  assert.doesNotMatch(text,/SyntaxError|at |node_modules/);
+  const large=await post(JSON.stringify({code:'x'.repeat(140*1024)}));
+  assert.equal(large.status,413);
+  assert.deepEqual(await large.json(),{error:'Request body too large'});
+});
+
+test('public health reports skipped device-cache writes while Redis is unavailable',async()=>{
+  const body=await (await request('/api/health')).json();
+  assert.equal(Number.isInteger(body.deviceCacheSkipped),true);
+});
+
+test('self-hosted Leaflet is served publicly with an immutable cache policy',async()=>{
+  const js=await request('/vendor/leaflet/1.9.4/leaflet.js');
+  assert.equal(js.status,200);
+  assert.match(js.headers.get('content-type'),/javascript/);
+  assert.match(js.headers.get('cache-control'),/immutable/);
+  assert.match(await js.text(),/window\.L=/);
+  const icon=await request('/vendor/leaflet/1.9.4/images/marker-icon.png');
+  assert.equal(icon.status,200);
+  const missing=await request('/vendor/leaflet/1.9.4/missing.js');
+  assert.equal(missing.status,404);
+  assert.deepEqual(await missing.json(),{error:'Not found'});
+  assert.equal((await request('/vendor/')).status,404);
+});
+
+test('livestream routes: LAN-readable, disabled by default, never writable',async()=>{
+  const lan=await request('/api/live/status',{lan:'192.168.178.70'});
+  assert.equal(lan.status,503);
+  assert.deepEqual(await lan.json(),{enabled:false});
+  assert.equal((await request('/api/live/hls/pilot/index.m3u8',{lan:'192.168.178.70'})).status,503);
+  assert.equal((await request('/api/live/status',{lan:'203.0.113.9'})).status,401);
+  assert.equal((await request('/api/live/hls/pilot/index.m3u8',{lan:'203.0.113.9'})).status,401);
+  assert.equal((await request('/api/live/hls/other/index.m3u8',{lan:'192.168.178.70'})).status,401);
+  assert.equal((await request('/api/live/status',{method:'POST',lan:'192.168.178.70'})).status,401);
+  const health=await (await request('/api/health')).json();
+  assert.deepEqual(health.liveStream,{enabled:false,playlists:0,segments:0,upstreamErrors:0});
 });

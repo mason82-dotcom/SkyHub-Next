@@ -103,7 +103,7 @@
        !Array.isArray(plan.waypoints)||plan.waypoints.length<2||
        plan.waypoints.length>500)bad();
     const count=plan.waypoints.length;
-    keys(plan,['name','model','speed','transitionSpeed','takeoffHeight',
+    keys(plan,['name','model','speed','transitionSpeed','takeoffHeight','rthHeight',
       'finishAction','timestamp','waypoints','actionGroups']);
     if(plan.intervalPhotos||plan.waypoints.some(p=>p.photo===true))bad();
     for(const p of plan.waypoints){

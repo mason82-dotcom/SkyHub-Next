@@ -16,6 +16,8 @@ COPY frontend/public /app/frontend/public
 # read bits; the non-root node runtime must be able to read source and assets.
 # Restore only read/traverse rights (never write), after all source COPY steps.
 RUN chmod -R a+rX /app/backend /app/frontend/public
+# Writable only for the offline map tile cache; a named volume inherits this ownership.
+RUN mkdir -p /app/tile-cache && chown node:node /app/tile-cache
 EXPOSE 4000
 USER node
 CMD ["node", "server.js"]

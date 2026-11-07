@@ -1,0 +1,56 @@
+# SkyHub Next livestream relay (opt-in, Compose profile "live").
+# DJI Pilot 2 publishes RTMP to path "pilot" (liveshare module, manual start on the RC).
+# The SkyHub backend reads HLS and the status API over the internal Docker network only.
+# Passwords are NOT stored here: they come from MTX_AUTHINTERNALUSERS_<n>_PASS (see docker-compose.yml).
+logLevel: warn
+logDestinations: [stdout]
+
+authMethod: internal
+authInternalUsers:
+  # 0: DJI Pilot 2 may only publish the single path "pilot".
+  - user: skyhub-pilot
+    pass: REPLACED_BY_ENV
+    ips: []
+    permissions:
+      - action: publish
+        path: pilot
+  # 1: SkyHub backend reads HLS and the status API.
+  - user: skyhub-backend
+    pass: REPLACED_BY_ENV
+    ips: []
+    permissions:
+      - action: read
+        path: pilot
+      - action: api
+
+# Only RTMP in (from the RC) and HLS + API out (to the backend, internal network).
+api: true
+apiAddress: :9997
+metrics: false
+pprof: false
+playback: false
+rtsp: false
+rtmp: true
+rtmpAddress: :1935
+rtmpEncryption: "no"
+hls: true
+hlsAddress: :8888
+hlsAllowOrigins: []
+# fMP4 segments without low-latency parts: works through the plain backend proxy and with hls.js.
+hlsVariant: fmp4
+hlsSegmentCount: 7
+hlsSegmentDuration: 1s
+hlsMuxerCloseAfter: 60s
+webrtc: false
+srt: false
+moq: false
+
+pathDefaults:
+  source: publisher
+  overridePublisher: true
+  maxReaders: 10
+  record: false
+
+paths:
+  # The only accepted stream. No all_others: every other path name is refused.
+  pilot:

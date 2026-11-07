@@ -1,12 +1,14 @@
 'use strict';
-// All route-library operations are local and explicitly initiated by a user.
-// No DJI service calls, flight dispatch, or implicit cloud persistence.
+// Only explicit Save, first opt-in, or "Jetzt synchronisieren" may publish to MinIO.
+ // No DJI service calls, flight dispatch, or passive-on-load cloud persistence.
 (function(){
   const core=window.SkyHubWpmlPlanner,lib=window.SkyHubWpmlRouteLibrary;
   const actionDraft=window.SkyHubWpmlActionDraft;
   const backup=window.SkyHubWpmlRouteBackup;
   const $=id=>document.getElementById(id);
   const STORAGE='skyhub.wpml.local-route-library.v1';
+  const syncModule=window.SkyHubWpmlRouteSync;
+  const missionStore=window.SkyHubWpmlMissionStore;
   if(!core||!lib||!actionDraft||!backup){
     $('status').textContent='Routenbibliothek konnte nicht geladen werden.';return;
   }
@@ -26,10 +28,11 @@
     b.addEventListener('click',click);return b;
   };
   function persist(next){
-    // Explicit saves only; no passive tracking or background writes.
+    // Never replace local data with the remote copy. Write locally before opt-in sync.
     const raw=lib.serialize(next);
     window.localStorage.setItem(STORAGE,raw);
     library=next;
+    // Persist locally only. Remote publication requires an explicit save or sync click.
   }
   try{
     const raw=window.localStorage.getItem(STORAGE);
@@ -37,6 +40,54 @@
   }catch{
     libraryMessage('Lokaler Speicher unlesbar oder gesperrt. Daten nicht überschrieben.');
   }
+  // Per-browser opt-in: existing revisions are migrated only after user confirmation.
+  // All requests use the SAME HTTPS origin as the route editor; no DJI control API.
+  const syncStatus=$('route-sync-status');
+  function syncMessage(status){
+    if(!syncStatus)return;
+    const phase=status.phase;
+    if(phase==='enabled')syncStatus.textContent='Synchronisierung aktiviert; lokale Originale bleiben erhalten.';
+    else if(phase==='disabled')syncStatus.textContent='Synchronisierung aus. Bereits gespeicherte MinIO-Dateien bleiben erhalten.';
+    else if(phase==='blocked')syncStatus.textContent='Übertragung gesperrt: '+status.error;
+    else if(phase==='running'||phase==='complete'){
+      syncStatus.textContent='MinIO: '+status.processed+'/'+status.total+
+        ' Revisionen geprüft, '+status.uploaded+' übertragen, '+
+        status.skipped+' bereits bestätigt, '+status.failed+' fehlgeschlagen. '+
+        (phase==='complete'?'Keine DJI-Flugfreigabe.':'Übertragung läuft …');
+    }else syncStatus.textContent='Keine Synchronisierung aktiv.';
+  }
+  let sync=null;
+  try{
+    if(syncModule&&missionStore&&window.crypto?.subtle)
+      sync=syncModule.create({storage:window.localStorage,library:lib,planner:core,
+        store:missionStore,cryptoApi:window.crypto,onStatus:syncMessage});
+  }catch{syncMessage({phase:'unavailable'});}
+  function syncControls(){
+    $('route-sync-now').disabled=!sync||!sync.enabled();
+    $('route-sync-enable').disabled=!sync||sync.enabled();
+    $('route-sync-disable').disabled=!sync||!sync.enabled();
+  }
+  function triggerSync(){
+    if(!sync||!sync.enabled())return;
+    void sync.sync(library).catch(()=>{
+      syncStatus.textContent='MinIO-Synchronisierung fehlgeschlagen; lokale Revisionen bleiben erhalten.';
+    });
+  }
+  $('route-sync-enable').addEventListener('click',()=>{
+    if(!sync)return;
+    if(!window.confirm('Alle vorhandenen lokal gespeicherten Routenrevisionen als KMZ in die zentrale MinIO-Bibliothek übertragen? GPS-Koordinaten werden auf dem Heimserver gespeichert. Künftige lokale Revisionen werden danach automatisch übertragen. Kein Flugauftrag.'))return;
+    try{sync.setEnabled(true);syncControls();triggerSync();}
+    catch{syncStatus.textContent='Aktivierung fehlgeschlagen; Browserspeicher prüfen.';}
+  });
+  $('route-sync-now').addEventListener('click',triggerSync);
+  $('route-sync-disable').addEventListener('click',()=>{
+    if(!sync)return;
+    try{sync.setEnabled(false);syncControls();}
+    catch{syncStatus.textContent='Deaktivierung fehlgeschlagen; Browserspeicher prüfen.';}
+  });
+  syncControls();
+  if(sync?.enabled())syncMessage({phase:'enabled'});
+  else syncMessage({phase:sync?'disabled':'unavailable'});
   function input(label,value,fn,{type='text',min,max,step}={}){
     const wrap=make('label',label),control=make('input');
     control.type=type;control.value=value==null?'':String(value);
@@ -177,6 +228,7 @@
     const plan={
       name:$('route-name').value,model:$('model').value,
       speed:Number($('speed').value),takeoffHeight:Number($('takeoff').value),
+      ...($('rth')&&String($('rth').value).trim()!==''?{rthHeight:Number($('rth').value)}:{}),
       finishAction:$('finish').value,
       waypoints:points.map(p=>({lat:p.lat,lon:p.lon,height,photo:false})),
       ...(groups.length?{actionGroups:groups.map(g=>({
@@ -191,7 +243,7 @@
     message('Nur Offline-Prüfung: '+output.summary.waypointCount+' Wegpunkte, '+
       output.summary.actionGroupCount+' Action Groups, '+
       output.summary.orderedActionCount+' geordnete Aktionen. '+
-      'flightReady=false; DJI Pilot 2 und Kameraaktionen NICHT hardwaregeprüft.');
+      'Nicht flugbereit: DJI Pilot 2 und Kameraaktionen NICHT hardwaregeprüft.');
     return output;
   }
   function applyRevision(version){
@@ -211,6 +263,7 @@
     $('speed').value=String(p.speed);
     $('height').value=String(p.waypoints[0].height);
     $('takeoff').value=String(p.takeoffHeight);
+    $('rth').value=String(p.rthHeight??100);
     $('finish').value=p.finishAction;
     points=p.waypoints.map(x=>({lat:x.lat,lon:x.lon}));
     groups=(p.actionGroups||[]).map(g=>({
@@ -263,7 +316,7 @@
       groups=next.groups;
       dirty=true;renderGroups();
       message('Aktionsvorlage auf '+indices.length+
-        ' Wegpunkte angewendet. Flugroute und Kameraaktionen erneut prüfen; flightReady=false.');
+        ' Wegpunkte angewendet. Flugroute und Kameraaktionen erneut prüfen; nicht flugbereit.');
     }catch{message('Batch-Aktion abgelehnt: Auswahl, Grenze oder Aufnahmesequenz ungültig.',true);}
   });
   $('reverse').addEventListener('click',()=>{
@@ -277,7 +330,7 @@
         index:g.index,actions:g.actions.map(a=>({...a}))
       }));
       dirty=true;renderEditor();
-      message('Flugroute umgekehrt. NEUE Sicht-, Heading-, Gelände- und RTH-Prüfung zwingend; flightReady=false.');
+      message('Flugroute umgekehrt. NEUE Sicht-, Kurs-, Gelände- und RTH-Prüfung zwingend; nicht flugbereit.');
     }catch{message('Routenumkehr blockiert. Video-/Intervallaktionen oder Wegpunkte nicht sicher umkehrbar.',true);}
   });
   $('review').addEventListener('click',()=>{try{review();}catch{
@@ -292,7 +345,10 @@
         name:$('route-name').value,folder:$('route-folder').value,plan:makePlan()});
       persist(next.library);
       selected=next.routeId;activeRouteId=next.routeId;dirty=false;renderRoutes();
-      libraryMessage('Revision '+next.revision+' ausschließlich in diesem Browser gespeichert.');
+      // User explicitly clicked Save. Once opted in, publish stored revisions.
+      triggerSync();
+      libraryMessage('Revision '+next.revision+' lokal gespeichert.'+
+        (sync?.enabled()?' MinIO-Abgleich gestartet.':' MinIO-Abgleich ist deaktiviert.'));
     }catch{libraryMessage('Speichern abgelehnt. Ausgewählte Route zuerst ausdrücklich laden oder neuen Entwurf anlegen; Speicherplatz und Eingaben prüfen.');}
   });
   $('new').addEventListener('click',()=>{
@@ -453,10 +509,12 @@
       link.download='skyhub-offline-route-'+Date.now()+'.kmz';
       document.body.appendChild(link);link.click();link.remove();
       setTimeout(()=>URL.revokeObjectURL(url),30000);
-      message('Offline-KMZ erzeugt. Kein Upload, kein DJI-Pilot-2-Test, flightReady=false.');
+      message('Offline-KMZ erzeugt. Kein Hochladen, kein DJI-Pilot-2-Test, nicht flugbereit.');
     }catch{message('KMZ-Export blockiert: ungültiger oder nicht unterstützter Entwurf.',true);}
   });
   for(const id of ['route-name','route-folder','model','speed','height','takeoff','finish'])
     $(id).addEventListener('input',()=>{dirty=true;});
   renderEditor();renderRoutes();
+  // Never start a network upload just because a user opened the page.
+  // Failed/pending uploads retry after the next explicit Save or "Jetzt synchronisieren".
 })();

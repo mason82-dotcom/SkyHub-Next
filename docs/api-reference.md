@@ -9,6 +9,7 @@
 - **Pilot:** Separate HTTPS-Pilot-Konfiguration plus Pilot-Zugriffstoken oder über Redis verifizierter Pairing-Token, je nach Route. Pairing-Start und -Poll verlangen HTTPS, haben jedoch bewusst **kein vorab ausgegebenes Operator-Token**; eine Freigabe erfolgt später über die geschützte Administration.
 - **DJI-Kartengruppen:** Separater `x-auth-token` (kein View-Token), exakte Workspace-UUID und Pilot-RBAC, TLS/HTTPS zwingend. Bei Pilot-Identitäten ausschließlich verteilte Gruppen.
 - **Health:** `/api/health` ist ohne Token erreichbar, darf aber nicht als Gesamtbereitschaft interpretiert werden.
+- **Fehlerantworten:** Ungültiges JSON (`400`), zu große Bodies über 128 kB (`413`) und unerwartete Routenfehler (`500`) antworten einheitlich als JSON `{"error":"…"}` ohne Parser-Details oder Stacktrace.
 
 Die Trennung ist im Code implementiert; produktive Proxy-/ACL- und Gerätefreigaben sind **separate Betriebsprüfungen**.
 
@@ -17,8 +18,12 @@ Die Trennung ist im Code implementiert; produktive Proxy-/ACL- und Gerätefreiga
 | Methode | Route | Zugriff / Codeverhalten |
 | --- | --- | --- |
 | GET | `/` | Statisches Hauptdashboard; Port standardmäßig nur Host-Loopback |
+| GET | `/tiles/osm/{z}/{x}/{y}.png` | Ohne Token; Kachel-Cache (`SKYHUB_TILE_CACHE_ENABLED=true`) oder `302` zu OSM. z 0–19, sonst `404`; offline ohne gespeicherte Kachel `504` ([Offline-Kartenkacheln](offline-map-tiles.md)) |
+| GET | `/vendor/leaflet/1.9.4/*` | Ohne Token; selbst ausgeliefertes Leaflet, `immutable` gecacht |
 | GET | `/pilot-login` | Statische Pilot-2-Webview, mit CSP |
-| GET | `/api/health` | Ohne Token; aggregierte Status-/MQTT-/Topologie-/Track-Zähler, `online`/`degraded` beschreibt zunächst Broker+Subscription, keine Flugsicherheit |
+| GET | `/api/health` | Ohne Token; aggregierte Status-/MQTT-/Topologie-/Track-Zähler, `online`/`degraded` beschreibt zunächst Broker+Subscription, keine Flugsicherheit; `deviceCacheSkipped` zählt bei nicht bereitem Redis ausgelassene Geräte-Cache-Schreibvorgänge. Dient zugleich als Docker-Liveness-Check |
+| GET | `/api/health/metrics` | Ohne Token; dieselben Werte wie `/api/health` im Prometheus-Textformat (`skyhub_*`, Booleans als 0/1, `…At`-Felder als `…_timestamp_seconds`). Keine Seriennummern oder Freitexte, Labels nur für Kanal- und Verwurfsgrund-Zähler. Für das Monitoring auf brix-node (Prometheus-Job `skyhub-backend`) |
+| GET | `/api/diagnostics/fh/rtk`, `/flights`, `/events` | View-Token **oder** Heimnetz (`SKYHUB_LAN_VIEW_CIDR`), nur GET; RTK-Status, aktive Flugsitzungen und letzte Übergänge für die Seite „RTK & Flugsitzungen“. `/api/diagnostics/fh/sources/:sn`, `/ugcs/:section` und `/metrics` bleiben View-Token-pflichtig |
 | GET | `/api/pilot/status` | Ohne Token; begrenzte Pilot-Konfigurationsbereitschaft, fehlende **Schlüsselnamen**, keine Secret-Werte |
 | GET | `/api/devices` | View oder freigegebene LAN-GET-Ausnahme; Live-Registry-Snapshot |
 | GET | `/api/topology` | View oder LAN-GET-Ausnahme; begrenzte Rollen-/Gateway-Topologie |
@@ -28,7 +33,7 @@ Die Trennung ist im Code implementiert; produktive Proxy-/ACL- und Gerätefreiga
 | GET | `/api/diagnostics/dji-fields?model=…` | **View-Token erforderlich**, keine LAN-Ausnahme; bekannte 1.18-Schemafelder; **Regex-Fehler mit [PR #61](https://github.com/mason82-dotcom/SkyHub-Next/pull/61) behoben und HTTP-getestet**; sechs bekannte Modelle, unbekannte Schlüssel 404, ungültige Syntax 400 |
 | GET | `/api/drone/:sn/telemetry` | View oder LAN-GET-Ausnahme; konkreter zuletzt bekannter Geräte-Snapshot |
 | GET | `/api/drone/:sn/track?minutes=60` | View oder LAN-GET-Ausnahme; historische PostGIS-Punkte, `minutes` 1–1440, Default 60 |
-| POST | `/api/pilot/bootstrap` | Pilot-Konfiguration + HTTPS + Pilot-/Pairing-Bearer-Token, sonst 503/403/401 |
+| POST | `/api/pilot/bootstrap` | Pilot-Konfiguration + HTTPS + Pilot-/Pairing-Bearer-Token, sonst 503/403/401; **409 `repair_required`** für eine Kopplung ohne Arbeitsbereich-Bindung (vor dieser Bindung gekoppelt): die Seite verwirft das Token und startet eine Neukopplung |
 | POST | `/api/pilot/pair` | Pilot-Konfiguration + HTTPS + Redis; begrenztes Pairing starten, mögliches 429 |
 | GET | `/api/pilot/pair/:id` | Pilot-Konfiguration + HTTPS + Redis; Pairing-Abfrage ohne Administrator-Freigabe |
 | GET | `/api/pilot/session` | Pilot-Konfiguration + HTTPS + Pilot-/Pairing-Bearer-Token; begrenzte Topologie-Ack-/Telemetriezeiten |

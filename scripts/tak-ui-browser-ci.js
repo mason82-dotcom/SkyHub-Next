@@ -30,6 +30,13 @@ const marker=()=>({
   hms:[]
 });
 let authorized=true;
+// Synthetic HMS history: 25 transitions (two pages of 20) or an explicitly disabled store.
+let hmsHistoryEnabled=true;
+const hmsQueries=[];
+const hmsRow=i=>({id:100-i,deviceSn:i%2?'SYNTHETIC-RC-01':'SYNTHETIC-DEVICE-01',code:'0x1100000'+(i%10),
+  level:i%3,componentIndex:0,sensorIndex:0,action:['appeared','updated','resolved'][i%3],
+  sourceAt:new Date(Date.now()-i*60000).toISOString(),timeVerified:i!==1,
+  modelName:'Testfluggerät',text:i===0?{de:'<img src=x onerror=alert(1)> Synthetischer Hinweis',en:'x'}:{de:'Synthetische Meldung '+i,en:'x'}});
 const errors=[];
 const requests=[];
 const json=(response,data,code=200)=>{
@@ -40,8 +47,19 @@ const server=http.createServer((request,response)=>{
   const url=new URL(request.url,'http://127.0.0.1');
   requests.push({method:request.method,path:url.pathname});
   if(url.pathname==='/'){response.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});response.end(get('index.html'));return;}
-  if(['/workspace-tabs.js','/telemetry-freshness.js'].includes(url.pathname)){
+  if(['/workspace-tabs.js','/telemetry-freshness.js','/hms-history-panel.js','/live-panel.js'].includes(url.pathname)){
     response.writeHead(200,{'Content-Type':'application/javascript'});response.end(get(url.pathname.slice(1)));return;
+  }
+  // Same-origin tile route of the backend; a neutral synthetic tile, never real geography.
+  if(/^\/tiles\/osm\/\d+\/\d+\/\d+\.png$/.test(url.pathname)){
+    response.writeHead(200,{'Content-Type':'image/png'});response.end(image);return;
+  }
+  // Self-hosted Leaflet exactly as the backend serves it (no CDN mock needed).
+  const vendor=/^\/vendor\/leaflet\/1\.9\.4\/((?:images\/)?[a-z0-9.-]+\.(?:js|css|png))$/.exec(url.pathname);
+  if(vendor){
+    const type=vendor[1].endsWith('.css')?'text/css':vendor[1].endsWith('.png')?'image/png':'application/javascript';
+    response.writeHead(200,{'Content-Type':type});
+    response.end(get('vendor/leaflet/1.9.4/'+vendor[1]));return;
   }
   if(url.pathname==='/skyhub-light.css'){
     response.writeHead(200,{'Content-Type':'text/css; charset=utf-8'});response.end(get('skyhub-light.css'));return;
@@ -64,6 +82,16 @@ const server=http.createServer((request,response)=>{
     return;
   }
   if(url.pathname==='/api/devices'){json(response,authorized?[marker()]:{error:'unauthorized'},authorized?200:401);return;}
+  if(url.pathname==='/api/diagnostics/hms-history'){
+    hmsQueries.push(Object.fromEntries(url.searchParams));
+    if(!authorized){json(response,{error:'unauthorized'},401);return;}
+    if(!hmsHistoryEnabled){json(response,{error:'HMS history disabled',enabled:false},503);return;}
+    const limit=Number(url.searchParams.get('limit')),offset=Number(url.searchParams.get('offset'));
+    const device=url.searchParams.get('device');
+    const all=Array.from({length:25},(_,i)=>hmsRow(i)).filter(r=>!device||r.deviceSn===device);
+    const items=all.slice(offset,offset+limit);
+    json(response,{enabled:true,items,limit,offset,hasMore:offset+items.length<all.length});return;
+  }
   if(url.pathname==='/api/events'){json(response,authorized?[]:{error:'unauthorized'},authorized?200:401);return;}
   if(url.pathname.startsWith('/api/drone/')&&url.pathname.endsWith('/track')){
     json(response,authorized?[]:{error:'unauthorized'},authorized?200:401);return;
@@ -82,16 +110,27 @@ const assertNoOverflow=async page=>{
    opsHidden:document.getElementById('operationsPanel').hidden,
    takHidden:document.getElementById('takPanel').hidden,
    tabs:document.querySelectorAll('[role=tab]').length,
+   // Shared frame (scripts/webui-shell.py, DESIGN.md "Layout und Navigation", reorganised in #284): top level along the
+   // operator workflow = "Lagebild" as a direct link to / plus the groups Planen, Fliegen, Auswerten, Diagnose, all fully
+   // visible; the 17 module links live in the group menus (hidden while closed), Thermal included.
    allNavLinksVisible:(()=>{
      const nav=document.querySelector('.skyhub-global-nav');
      if(!nav)return false;
      const bound=nav.getBoundingClientRect();
-     const links=[...nav.querySelectorAll('a')];
-     return links.length===7 && links.every(link=>{
-       const rect=link.getBoundingClientRect();
-       return rect.left>=bound.left-1 && rect.right<=bound.right+1 &&
-         rect.top>=bound.top-1 && rect.bottom<=bound.bottom+1;
-     });
+     const top=[...nav.querySelectorAll(':scope > a, :scope > details > summary')];
+     const direct=[...nav.querySelectorAll(':scope > a')].map(a=>a.getAttribute('href'));
+     const groups=[...nav.querySelectorAll(':scope > details > summary')].map(g=>g.textContent.replace(/\s+/g,' ').trim());
+     const links=[...nav.querySelectorAll('a')].map(a=>a.getAttribute('href'));
+     const current=[...nav.querySelectorAll('a[aria-current="page"]')];
+     return top.length===5 && direct.length===1 && direct[0]==='/' &&
+       ['Planen','Fliegen','Auswerten','Diagnose'].every((name,i)=>(groups[i]||'').startsWith(name)) &&
+       links.length===17 && links.includes('/thermal.html') &&
+       current.length===1 && current[0].getAttribute('href')==='/' &&
+       top.every(item=>{
+         const rect=item.getBoundingClientRect();
+         return rect.width>0 && rect.left>=bound.left-1 && rect.right<=bound.right+1 &&
+           rect.top>=bound.top-1 && rect.bottom<=bound.bottom+1;
+       });
    })(),
    lightStylesheet: [...document.styleSheets].some(sheet=>sheet.href?.endsWith('/skyhub-light.css')),
    colorScheme: getComputedStyle(document.documentElement).colorScheme,
@@ -102,7 +141,7 @@ const assertNoOverflow=async page=>{
  assert.equal(dimensions.mainCount,1,'one semantic main landmark');
  assert.equal(dimensions.tabs,2,'two accessible tabs');
  assert.equal(dimensions.allNavLinksVisible,true,
-   'seven module links including the current module must all remain visible');
+   'top-level navigation (Lagebild link + Planen, Fliegen, Auswerten, Diagnose) must stay visible; 17 module links, current page marked once');
  assert.equal(dimensions.lightStylesheet,true,'light stylesheet must be loaded successfully');
  assert.equal(dimensions.colorScheme,'light','root color-scheme must remain light');
  assert.equal(dimensions.bodyBackground,'rgb(243, 246, 251)','light canvas must be rendered');
@@ -121,18 +160,11 @@ async function run(){
  try{
   const context=await browser.newContext();
   // Prevent network access to DJI, Pi, external tile servers and CDNs.
-  await context.route('https://unpkg.com/leaflet@1.9.4/dist/*',route=>{
-    const file=route.request().url().endsWith('.css')?'leaflet.css':'leaflet.js';
-    return route.fulfill({
-      path:path.join(deps,'leaflet','dist',file),
-      contentType:file.endsWith('.css')?'text/css':'application/javascript'
-    });
-  });
   await context.route('https://tile.openstreetmap.org/**',route=>
     route.fulfill({status:200,body:image,contentType:'image/png'}));
   await context.route('**/*',route=>{
     const url=new URL(route.request().url());
-    if(url.hostname==='127.0.0.1'||url.hostname==='unpkg.com'||url.hostname==='tile.openstreetmap.org')
+    if(url.hostname==='127.0.0.1'||url.hostname==='tile.openstreetmap.org')
       return route.fallback();
     return route.abort('blockedbyclient');
   });
@@ -190,7 +222,7 @@ async function run(){
     if(width===320||width===1440)
       await page.screenshot({path:path.join(output,'tak-'+width+'.png'),fullPage:true});
     const beforeInvalidate=await page.evaluate(()=>window.__invalidationCount);
-    await page.getByRole('tab',{name:/Operations/}).click();
+    await page.getByRole('tab',{name:/^Lagebild$/}).click();
     assert.equal(await page.locator('#operationsPanel').isVisible(),true);
     await page.waitForFunction(previous=>window.__invalidationCount>previous,beforeInvalidate);
     assert.equal(await page.locator('.device').count(),1,'device list survives tab switches');
@@ -228,7 +260,7 @@ async function run(){
       assert.deepEqual(small,[],'tap targets must be at least 24 px high: '+JSON.stringify(small));
     }
   }
-  await page.getByRole('tab',{name:/Operations/}).focus();
+  await page.getByRole('tab',{name:/^Lagebild$/}).focus();
   await page.keyboard.press('ArrowRight');
   assert.equal(await page.locator('#tabTak').getAttribute('aria-selected'),'true');
   assert.equal(await page.evaluate(()=>document.activeElement.id),'tabTak');
@@ -262,10 +294,14 @@ async function run(){
     await crossNav.goto(url,{waitUntil:'load'});
     assert.equal(await crossNav.locator('.skyhub-global-nav a[aria-current="page"]').getAttribute('href'),
       '/','Operations must be the only selected module before navigating');
+    // Smart Farming sits in the "Labor" group menu of the shared frame: open the group like a user, then follow the link.
+    await crossNav.locator('.skyhub-global-nav details:has(a[href="/smart-farming.html"]) > summary').click();
     await crossNav.locator('.skyhub-global-nav a[href="/smart-farming.html"]').click();
     await crossNav.waitForURL(url+'smart-farming.html',{waitUntil:'load'});
     assert.equal(await crossNav.locator('.skyhub-global-nav a[aria-current="page"]').getAttribute('href'),
       '/smart-farming.html','Smart Farming must be the selected module');
+    assert.equal(await crossNav.locator('.skyhub-global-nav details.is-active a[aria-current="page"]').count(),1,
+      'the group of the selected module is marked active');
     assert.equal(await crossNav.evaluate(()=>getComputedStyle(document.body).backgroundColor),
       'rgb(243, 246, 251)','Light canvas remains after module navigation');
     assert.ok(await crossNav.locator('main#skyhubMain').count()===1);
@@ -308,11 +344,12 @@ async function run(){
           scrollWidth:document.documentElement.scrollWidth,
           width:window.innerWidth,
           menuLinks:document.querySelectorAll('.skyhub-global-nav a').length,
+          // top level of the shared frame (Lagebild link + group buttons); module links sit in the closed group menus
           navLinksVisible:(()=>{
             const nav=document.querySelector('.skyhub-global-nav');
             if(!nav)return true;
             const parent=nav.getBoundingClientRect();
-            return [...nav.querySelectorAll('a')].every(link=>{
+            return [...nav.querySelectorAll(':scope > a, :scope > details > summary')].every(link=>{
               const rect=link.getBoundingClientRect();
               return rect.left>=parent.left-1 && rect.right<=parent.right+1 &&
                 rect.top>=parent.top-1 && rect.bottom<=parent.bottom+1;
@@ -326,8 +363,8 @@ async function run(){
       assert.equal(visual.panelBg,'rgb(255, 255, 255)',filename+' white panel');
       assert.equal(visual.scheme,'light',filename+' color scheme');
       assert.ok(visual.scrollWidth<=visual.width+1,filename+' overflow: '+JSON.stringify(visual));
-      assert.equal(visual.menuLinks,pageType==='pilot'?0:7,filename+' operator navigation');
-      assert.equal(visual.navLinksVisible,true,filename+' all nav links must remain visible');
+      assert.equal(visual.menuLinks,pageType==='pilot'?0:17,filename+' operator navigation');
+      assert.equal(visual.navLinksVisible,true,filename+' top-level navigation must remain visible');
       if(pageType==='pilot'){
         assert.equal(visual.pilotBridge,false,'synthetic Pilot 2 has no device bridge');
         assert.match(await screen.locator('#result').innerText(),/JSBridge nicht verfügbar/);
@@ -364,6 +401,42 @@ async function run(){
   if(errors.length)throw new Error('browser exceptions: '+errors.join('; '));
   const unexpectedWrites=requests.filter(x=>x.method!=='GET');
   assert.equal(unexpectedWrites.length,0,'no API mutations (Socket.IO may use WS)');
+  // HMS history in a fresh dashboard page: lazy load, paging, device filter, literal text, disabled store.
+  authorized=true;hmsHistoryEnabled=true;
+  const hmsPage=await context.newPage();
+  hmsPage.on('pageerror',error=>errors.push(error.message));
+  const hmsBefore=hmsQueries.length;
+  await hmsPage.goto(url,{waitUntil:'domcontentloaded'});
+  await hmsPage.waitForFunction(()=>document.querySelector('#count')?.textContent==='1',{timeout:15000});
+  assert.equal(hmsQueries.length,hmsBefore,'HMS history loads lazily, only when opened');
+  // HMS history: nothing is fetched until the operator opens the panel.
+  // Offline hint moved from a .notice box into the sidebar legend with #284 (calmer status area).
+  assert.match(await hmsPage.locator('.sidebar-legend').first().textContent(),/ohne Internet verfügbar/);
+  await hmsPage.locator('#hmsHistoryPanel summary').click();
+  await hmsPage.waitForFunction(()=>document.querySelectorAll('#hmsHistoryList li').length===20,{timeout:10000});
+  assert.match(await hmsPage.locator('#hmsHistorySummary').textContent(),/^20\+ Einträge$/);
+  const firstHms=hmsPage.locator('#hmsHistoryList li').first();
+  assert.equal(await firstHms.getAttribute('data-action'),'appeared');
+  assert.match(await firstHms.textContent(),/<img src=x onerror=alert\(1\)> Synthetischer Hinweis/,'HMS text stays literal');
+  assert.equal(await hmsPage.locator('#hmsHistoryList img').count(),0,'no markup injected from HMS text');
+  assert.match(await hmsPage.locator('#hmsHistoryList li').nth(1).textContent(),/Zeit ungeprüft/);
+  await hmsPage.locator('#hmsHistoryMore').click();
+  await hmsPage.waitForFunction(()=>document.querySelectorAll('#hmsHistoryList li').length===25,{timeout:10000});
+  assert.equal(await hmsPage.locator('#hmsHistoryMore').isHidden(),true,'no further page after the last entry');
+  assert.equal(hmsQueries.at(-1).offset,'20');
+  await hmsPage.locator('#hmsHistoryDevice').selectOption('SYNTHETIC-DEVICE-01');
+  await hmsPage.waitForFunction(()=>document.querySelectorAll('#hmsHistoryList li').length===13,{timeout:10000});
+  assert.equal(hmsQueries.at(-1).device,'SYNTHETIC-DEVICE-01');
+  await hmsPage.locator('#hmsHistoryPanel').scrollIntoViewIfNeeded();
+  await hmsPage.screenshot({path:path.join(output,'dashboard-hms-history.png')});
+  hmsHistoryEnabled=false;
+  await hmsPage.locator('#hmsHistoryRefresh').click();
+  await hmsPage.waitForFunction(()=>document.querySelector('#hmsHistorySummary').textContent==='nicht aktiviert',{timeout:10000});
+  assert.match(await hmsPage.locator('#hmsHistoryNote').textContent(),/SKYHUB_HMS_HISTORY_ENABLED/);
+  assert.equal(await hmsPage.locator('#hmsHistoryList li').count(),0);
+  hmsHistoryEnabled=true;
+  await hmsPage.locator('#hmsHistoryPanel summary').click();
+  await hmsPage.close();
   const results={schema:'skyhub-tak-browser-v1',frontend:'actual frontend/public/index.html',
     clientLibraries:'real Leaflet 1.9.4 / Socket.IO 4.8.1',
     backend:'SYNTHETIC LOOPBACK ONLY; no full SkyHub server, no Pi, no DJI',
@@ -374,7 +447,8 @@ async function run(){
     dashboardSmartFarmingNavigationChecked:true,
     forcedColorsAndReducedMotionChecked:true,
     mobileFleetShortcutFocusChecked:true,
-    singleSocketSessionDuringTabNavigation:true,leafletRecalculatedOnEveryReturn:true};
+    singleSocketSessionDuringTabNavigation:true,leafletRecalculatedOnEveryReturn:true,
+    hmsHistoryPanelChecked:true};
   fs.writeFileSync(path.join(output,'report.json'),JSON.stringify(results,null,2)+'\n');
   process.stdout.write(JSON.stringify(results,null,2)+'\n');
   await context.close();

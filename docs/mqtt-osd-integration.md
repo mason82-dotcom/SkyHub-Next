@@ -38,6 +38,7 @@ The page now pairs each RC once:
 2. On the Pi: `node scripts/pi-pilot-pair.js 123456` (or list with no argument). Approval goes to `/api/pilot-admin/*`, which requires the view token and is **not** routed by Caddy (loopback/SSH tunnel only).
 3. The RC polls `GET /api/pilot/pair/{id}` and receives its own 256-bit device token **once**. It is kept in the Pilot WebView `localStorage` (as in DJI's demo auto-login); the server stores only its SHA-256 hash in Redis (`skyhub:pilot:devices`).
 4. Every later open runs the handshake automatically with the device token. Revoke with `node scripts/pi-pilot-pair.js --revoke <id>`; the page then discards the token and shows a new code.
+5. **Pairings from before the workspace binding** (no `workspaceId` stored, listed by the script as `OHNE ARBEITSBEREICH`) get **409 `repair_required`** from the bootstrap. The page discards the token, explains why and shows a new code; approve it, then revoke the old entry. Before this check such an RC bootstrapped fine, every DJI API call then got 401, and Pilot 2 closed the page and reported "Fehler beim Anmelden" (RC Pro Enterprise, 05.11.2026).
 
 Pairing codes expire after 5 minutes, at most 5 are pending, start/poll require HTTPS. The shared `SKYHUB_PILOT_ACCESS_TOKEN` remains as a manual fallback under "Manuell mit Zugangstoken verbinden" and is never stored.
 

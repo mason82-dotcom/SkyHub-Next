@@ -1,7 +1,7 @@
 'use strict';
 
-// Workspace-anchored, evidence-based Pilot 2 media catalogue.
-// Not imported by server.js; no HTTP route or migration at startup.
+// Workspace-anchored, evidence-based Pilot 2 media catalogue (used by pilot-media-upload-runtime.js).
+// grantedObject() is also used by the Pilot 2 wayline import (pilot-wayline-import.js): same STS scope, same evidence.
 const {parseUploadCallback,parseTinyFingerprintRequest,parseFastUploadRequest,
   objectKeyUnderPrefix,workspaceId}=require('./media-upload-contract');
 
@@ -54,7 +54,35 @@ function createPilotMediaStore(db,{clock=()=>Date.now()}={}){
     if(!Number.isSafeInteger(at)||at<1e12)throw new TypeError('Invalid media clock');
     return at;
   }
+  // An object is trusted only if its key lies below a database-registered, time-valid STS prefix of this workspace
+  // and a server-side HEAD shows it was written inside that window. Callback metadata is never trusted.
+  async function grantedObject(workspace,key,headObject){
+    if(typeof headObject!=='function')throw new TypeError('Object verifier required');
+    const prefix=prefixForKey(workspace,key);
+    if(!prefix)return {status:'unregistered'};
+    const {rows}=await db.query(
+      'SELECT issued_at,expires_at FROM dji_pilot_media_grants '+
+      'WHERE workspace_id=$1 AND object_key_prefix=$2 AND bucket=$3',
+      [workspace,prefix,BUCKET]);
+    if(rows.length!==1)return {status:'unregistered'};
+    const issuedAt=stamp(rows[0].issued_at);
+    const expiresAt=stamp(rows[0].expires_at);
+    const current=now();
+    if(issuedAt===null||expiresAt===null||expiresAt<=issuedAt||
+      current<issuedAt-SKEW_MS||current>expiresAt+GRACE_MS)
+      return {status:'expired'};
+    // HEAD under trusted bucket and the issued key. 404 is not object evidence.
+    const evidence=headEvidence(await headObject({bucket:BUCKET,key}));
+    if(!evidence||evidence.lastModified<issuedAt-SKEW_MS||
+      evidence.lastModified>expiresAt+SKEW_MS)
+      return {status:'unverified'};
+    return {status:'verified',prefix,evidence,bucket:BUCKET};
+  }
   return {
+    async verifyGrantedObject({workspace,key,headObject}={}){
+      requireWorkspace(workspace);
+      return grantedObject(workspace,key,headObject);
+    },
     async registerGrant({workspace,grant}={}){
       requireWorkspace(workspace);
       if(!object(grant)||grant.provider!=='minio'||grant.bucket!==BUCKET||
@@ -81,27 +109,10 @@ function createPilotMediaStore(db,{clock=()=>Date.now()}={}){
       const item=parseUploadCallback(callback);
       if(!item)throw new TypeError('Invalid Pilot media callback');
       if(!item.uploaded)return {status:'failed-upload'};
-      if(typeof headObject!=='function')throw new TypeError('Object verifier required');
-      const prefix=prefixForKey(workspace,item.objectKey);
-      if(!prefix)return {status:'unregistered'};
-      const {rows}=await db.query(
-        'SELECT issued_at,expires_at FROM dji_pilot_media_grants '+
-        'WHERE workspace_id=$1 AND object_key_prefix=$2 AND bucket=$3',
-        [workspace,prefix,BUCKET]);
-      if(rows.length!==1)return {status:'unregistered'};
-      const issuedAt=stamp(rows[0].issued_at);
-      const expiresAt=stamp(rows[0].expires_at);
-      const current=now();
-      if(issuedAt===null||expiresAt===null||expiresAt<=issuedAt||
-        current<issuedAt-SKEW_MS||current>expiresAt+GRACE_MS)
-        return {status:'expired'};
-
-      // HEAD under trusted bucket and the issued key. 404 is not object evidence.
       // Callback metadata, supplied size and supplied checksum are NOT trusted.
-      const evidence=headEvidence(await headObject({bucket:BUCKET,key:item.objectKey}));
-      if(!evidence||evidence.lastModified<issuedAt-SKEW_MS||
-        evidence.lastModified>expiresAt+SKEW_MS)
-        return {status:'unverified'};
+      const granted=await grantedObject(workspace,item.objectKey,headObject);
+      if(granted.status!=='verified')return {status:granted.status};
+      const {prefix,evidence}=granted;
       const tiny=item.ext.tinny_fingerprint??null;
       const group=item.ext.file_group_id??null;
       const metadata=JSON.stringify(item.metadata??{});

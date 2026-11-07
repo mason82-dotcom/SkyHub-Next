@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Missionsfreigabe · SkyHub</title>
+<link rel="stylesheet" href="/vendor/leaflet/1.9.4/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=">
+<link rel="stylesheet" href="/skyhub-light.css">
+<link rel="stylesheet" href="/missionsfreigabe.css">
+<link rel="stylesheet" href="/elevation-profile.css">
+<script defer src="/skyhub-nav.js"></script>
+</head>
+<body class="mrel" data-skyhub-page="mission-release">
+<a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
+<!-- skyhub-appbar -->
+<header class="skyhub-appbar">
+  <a class="skyhub-appbar-brand" href="/"><span class="brand-symbol" aria-hidden="true">✦</span>SkyHub <span>Next</span></a>
+  <nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
+    <a href="/">Lagebild</a>
+    <details class="skyhub-nav-group is-active"><summary>Planen</summary><div class="skyhub-nav-menu">
+      <p class="skyhub-nav-section">Mission</p>
+      <a href="/wpml-editor.html">Missionsentwurf<small>Wegpunkte setzen, KMZ importieren</small></a>
+      <a href="/wpml-route-library.html">Routenbibliothek<small>Gespeicherte Routen und Revisionen</small></a>
+      <a href="/missionsfreigabe.html" aria-current="page">Missionsfreigabe<small>Revision für Pilot 2 freigeben</small></a>
+      <p class="skyhub-nav-section">Karte in Pilot 2</p>
+      <a href="/kartenelemente.html">Kartenelemente<small>Punkte, Linien und Flächen</small></a>
+      <p class="skyhub-nav-section is-lab">Labor <span>experimentell, nicht für den Einsatz freigegeben</span></p>
+      <a href="/wpml-survey-preview.html" class="is-lab">Vermessungsvorschau<small>2D-Flächenvermessung, nur Vorschau</small></a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Fliegen</summary><div class="skyhub-nav-menu">
+      <a href="/drc.html">Live-Steuerung<small>Matrice 4 · RC Plus 2</small></a>
+      <a href="/drc.html?rc=pro">Kamera &amp; Gimbal<small>Mavic 3 · RC Pro</small></a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Auswerten</summary><div class="skyhub-nav-menu">
+      <p class="skyhub-nav-section">Medien &amp; Position</p>
+      <a href="/media-gallery.html">Medien<small>Fotos, Videos, TIFFs, Missionsdateien</small></a>
+      <a href="/ppk.html">PPK-Geotagging<small>Zentimetergenaue Kamerapositionen</small></a>
+      <a href="/abdeckung.html">Fotoabdeckung<small>Lücken und Überlappung eines Flugs</small></a>
+      <p class="skyhub-nav-section">Sensorik</p>
+      <a href="/thermal.html">Thermal<small>Temperaturen aus DJI R-JPEG</small></a>
+      <a href="/ndvi.html">Vegetationsindizes<small>NDVI, GNDVI, NDRE · Mavic 3M</small></a>
+      <p class="skyhub-nav-section is-lab">Labor <span>experimentell, nicht für den Einsatz freigegeben</span></p>
+      <a href="/smart-farming.html" class="is-lab">Smart Farming<small>M3M-Indexkandidaten, nur Lesen</small></a>
+      <a href="/smart-farming-map-lab.html" class="is-lab">Vegetationskarte<small>Georeferenzierte Vorschau</small></a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Diagnose</summary><div class="skyhub-nav-menu">
+      <a href="/fh-diagnostics.html">RTK &amp; Flugsitzungen<small>RTK-Status und Sitzungsverlauf</small></a>
+      <a href="/pilot-protokolle.html">Pilot-2-Protokolle<small>Von der Fernsteuerung gesendet</small></a>
+    </div></details>
+  </nav>
+</header>
+<!-- /skyhub-appbar -->
+<header class="skyhub-pagehead mrel-top">
+  <h1>Missionsfreigabe <span class="muted">für die Routenbibliothek in DJI Pilot 2</span></h1>
+</header>
+
+<p class="mrel-note" role="note">
+  Pilot 2 zeigt nur freigegebene Routen. Eine Freigabe gilt für genau diese Revision und läuft nach der gewählten Zeit ab.
+  Gestartet wird die Route immer vom Piloten an der Fernsteuerung. Freigeben geht nur im Heimnetz über diese Seite.
+</p>
+
+<main id="skyhubMain" tabindex="-1" class="mrel-grid">
+  <section class="card wide" aria-labelledby="h-list">
+    <h2 id="h-list">Routen auf dem Server</h2>
+    <div class="row-inline"><button id="reload" type="button" class="secondary">Neu laden</button>
+      <p id="accessStatus" class="muted" role="status" aria-live="polite">Lade …</p></div>
+    <div class="tablewrap">
+      <table>
+        <caption class="sr-only">Gespeicherte Routen mit Freigabestatus</caption>
+        <thead><tr><th scope="col">Route</th><th scope="col">Fluggerät</th><th scope="col">Wegpunkte</th>
+          <th scope="col">Revision</th><th scope="col">In Pilot 2</th><th scope="col"><span class="sr-only">Aktion</span></th></tr></thead>
+        <tbody id="routes"><tr><td colspan="6" class="muted">Noch nicht geladen.</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card wide" id="detail" aria-labelledby="h-detail" hidden>
+    <h2 id="h-detail" tabindex="-1">Prüfung: <span id="dName"></span></h2>
+    <p id="dState" role="status"></p>
+    <div id="rmap" class="rmap" role="img" aria-label="Karte der Fluglinie"></div>
+    <p class="small muted" id="rmapNote">Blau: Fluglinie aus waylines.wpml · grün: erster Wegpunkt · rot: letzter Wegpunkt.</p>
+    <div class="cols">
+      <div>
+        <h3>Flughülle</h3>
+        <dl class="kv" id="envelope"></dl>
+        <div id="profileBox" hidden><h3>Höhenprofil</h3><div id="profile"></div></div>
+      </div>
+      <div>
+        <div id="errorsBox" hidden>
+          <h3 class="bad">Fehler – Freigabe nicht möglich</h3>
+          <ul id="errors" class="msgs"></ul>
+          <p class="small">Route in der Routenverwaltung korrigieren, als neue Revision speichern und erneut prüfen.</p>
+        </div>
+        <fieldset id="warningsBox" hidden>
+          <legend>Warnungen – jede einzeln bestätigen</legend>
+          <div id="warnings"></div>
+        </fieldset>
+        <fieldset id="checklistBox">
+          <legend>Vor der Freigabe bestätigen</legend>
+          <div id="checklist"></div>
+        </fieldset>
+        <label class="inline">Gültig für <input id="hours" type="number" min="1" step="1" value="72"> Stunden
+          <span class="muted" id="hoursMax"></span></label>
+        <button id="release" type="button" disabled>Route für Pilot 2 freigeben</button>
+        <p id="releaseHint" class="small muted" role="status" aria-live="polite"></p>
+      </div>
+    </div>
+    <div id="activeBox" hidden>
+      <h3>Aktive Freigabe</h3>
+      <p id="activeText"></p>
+      <label>Grund für das Zurückziehen <input id="revokeReason" maxlength="200" placeholder="z. B. Wetter, Luftraum geändert"></label>
+      <button id="revoke" type="button" class="danger">Freigabe zurückziehen</button>
+    </div>
+    <h3>Verlauf</h3>
+    <ol id="history" class="history"></ol>
+  </section>
+</main>
+
+<script src="/vendor/leaflet/1.9.4/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="></script>
+<script src="/geozones-layer.js"></script>
+<script src="/wpml-mission-store-client.js"></script>
+<script src="/elevation-profile.js"></script>
+<script src="/skyhub-map-home.js"></script>
+<script src="/missionsfreigabe.js"></script>
+</body>
+</html>

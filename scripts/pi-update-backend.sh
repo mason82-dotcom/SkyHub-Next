@@ -93,6 +93,31 @@ if [[ "$backend_name" != /skyhub-next-backend-1 ]];then
   echo "REFUSED: unexpected backend container owner." >&2;exit 2
 fi
 
+# Identify the running image for rollback BEFORE any backup is written.
+old_image="$(docker inspect -f '{{.Image}}' "$backend_id")"
+# containerd image store: the container may reference a build's manifest-index digest that no longer
+# resolves although the same build is still tagged. Fall back to the container's image name, but only
+# if that image was built before the container was created (i.e. it was not rebuilt since).
+if ! docker image inspect "$old_image" >/dev/null 2>&1;then
+  named="$(docker inspect -f '{{.Config.Image}}' "$backend_id")"
+  if ! python3 - "$(docker image inspect -f '{{.Created}}' "$named" 2>/dev/null)" \
+      "$(docker inspect -f '{{.Created}}' "$backend_id")" <<'PY'
+import re,sys
+from datetime import datetime
+def t(v):
+    # Docker prints RFC3339 with nanoseconds and either Z or a +hh:mm offset; compare timezone-aware.
+    m=re.fullmatch(r'(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)(?:\.(\d+))?(Z|[+-]\d\d:\d\d)',v.strip())
+    if not m:raise SystemExit(1)
+    tz='+00:00' if m[3]=='Z' else m[3]
+    return datetime.fromisoformat(m[1]+'.'+((m[2] or '')+'000000')[:6]+tz)
+sys.exit(0 if t(sys.argv[1])<=t(sys.argv[2]) else 1)
+PY
+  then
+    echo "REFUSED: running backend image cannot be identified for rollback; nothing changed." >&2;exit 2
+  fi
+  echo "NOTE: running image digest not resolvable (containerd store); backing up '$named' built before the container start."
+  old_image="$named"
+fi
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 backup_dir="$HOME/Projekte/_backups/skyhub-next/$stamp"
 mkdir -p "$backup_dir"
@@ -102,7 +127,6 @@ if [[ -f docker-compose.override.yml ]];then
   cp -p docker-compose.override.yml "$backup_dir/docker-compose.override.yml"
 fi
 printf '%s\n' "$(git rev-parse HEAD)" > "$backup_dir/source-commit.txt"
-old_image="$(docker inspect -f '{{.Image}}' "$backend_id")"
 backup_tag="skyhub-next-backend-preupdate:$stamp"
 docker image tag "$old_image" "$backup_tag"
 printf '%s\n' "$backup_tag" > "$backup_dir/previous-image-tag.txt"
