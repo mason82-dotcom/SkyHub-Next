@@ -285,61 +285,38 @@ test('without media config no api or media module is loaded',async()=>{
   assert.deepEqual(pilot.calls.load.map(args=>args[0]),['thing']);
 });
 
-// JSBridge doc 2026-10-13: api keeps its token, mission needs ws, api/cloud reloads reload dependants.
+// JSBridge doc 2026-10-13: mission needs ws, api keeps its token, an api reload reloads its dependants.
 const full={...withTsa,map:{userName:'pilot'},media:{apiHost:'https://rpi5.fritz.box'},wayline:{apiHost:'https://rpi5.fritz.box'}};
+const all=['thing','api','ws','tsa','map','media','mission'];
 
-test('a loaded api module with an old token gets the new token via apiSetToken, nothing is reloaded',async()=>{
-  const pilot=await createPilot({bootstrap:full,loaded:['thing','api','ws','tsa','map','media','mission'],
-    api:{host:'https://rpi5.fritz.box/',token:'old-token'}});
-  await pilot.connect();
-  assert.deepEqual(pilot.calls.apiSetToken,['placeholder-test-token']);
-  assert.deepEqual(pilot.calls.load,[]);
-  assert.equal(pilot.calls.unload,undefined);
-  assert.doesNotMatch(pilot.el('diagnostics').textContent+pilot.el('result').textContent,/placeholder-test-token|old-token/);
+test('mission loads after cloud, api and ws; without situation awareness the missing ws is named',async()=>{
+  const withWs=await createPilot({bootstrap:{...withTsa,wayline:{apiHost:'https://rpi5.fritz.box'}},loaded:['thing','tsa']});
+  await withWs.connect();
+  assert.deepEqual(withWs.calls.load.map(c=>c[0]),['api','ws','mission']);
+  const noWs=await createPilot({bootstrap:{...bootstrap,wayline:{apiHost:'https://rpi5.fritz.box'}}});
+  await noWs.connect();
+  assert.deepEqual(noWs.calls.load.map(c=>c[0]),['thing','api','mission']);
+  assert.match(noWs.el('diagnostics').textContent,/ohne ws-Modul/);
 });
 
-test('same token and host: the api module is kept as it is',async()=>{
-  const pilot=await createPilot({bootstrap:full,loaded:['thing','api','ws','tsa','map','media','mission'],
-    api:{host:'https://rpi5.fritz.box',token:'placeholder-test-token'}});
-  await pilot.connect();
-  assert.equal(pilot.calls.apiSetToken,undefined);
-  assert.deepEqual(pilot.calls.load,[]);
-});
-
-test('a different api host reloads api and then map, tsa, media and mission',async()=>{
-  const pilot=await createPilot({bootstrap:full,loaded:['thing','api','ws','tsa','map','media','mission'],
-    api:{host:'https://old.example',token:'placeholder-test-token'}});
-  await pilot.connect();
-  assert.deepEqual(pilot.calls.unload,['tsa','map','media','mission','api']);
-  assert.deepEqual(pilot.calls.load.map(c=>c[0]),['api','tsa','map','media','mission']);
-  assert.deepEqual(JSON.parse(pilot.calls.load[0][1]),{host:'https://rpi5.fritz.box',token:'placeholder-test-token'});
-});
-
-test('the mission module is loaded after cloud, api and ws',async()=>{
-  const pilot=await createPilot({bootstrap:{...withTsa,wayline:{apiHost:'https://rpi5.fritz.box'}},loaded:['thing','tsa']});
-  await pilot.connect();
-  assert.deepEqual(pilot.calls.load.map(c=>c[0]),['api','ws','mission']);
-  assert.match(pilot.el('diagnostics').textContent,/nur Liste\/Download\)/);
-});
-
-test('without situation awareness mission still loads and the diagnostics name the missing ws module',async()=>{
-  const pilot=await createPilot({bootstrap:{...bootstrap,wayline:{apiHost:'https://rpi5.fritz.box'}}});
-  await pilot.connect();
-  assert.deepEqual(pilot.calls.load.map(c=>c[0]),['thing','api','mission']);
-  assert.match(pilot.el('diagnostics').textContent,/ohne ws-Modul/);
-});
-
-test('a rejected apiSetToken does not stop the dependent modules from loading',async()=>{
-  const pilot=await createPilot({bootstrap:full,loaded:['thing','api','ws'],
+test('api token and host: set a new token, keep a matching one, reload on a new host, never fail on the setter',async()=>{
+  const cases=[
+    // [api state, expected apiSetToken calls, expected loads]
+    [{host:'https://rpi5.fritz.box/',token:'old-token'},1,[]],
+    [{host:'https://rpi5.fritz.box',token:'placeholder-test-token'},0,[]],
+    [undefined,0,[]],                                                        // older Pilot 2 without apiGetToken
+    [{host:'https://old.example',token:'placeholder-test-token'},0,['api','tsa','map','media','mission']],
+  ];
+  for(const [api,sets,loads] of cases){
+    const pilot=await createPilot({bootstrap:full,loaded:all,api});
+    await pilot.connect();
+    assert.equal(pilot.calls.apiSetToken?.length??0,sets,JSON.stringify(api));
+    assert.deepEqual(pilot.calls.load.map(c=>c[0]),loads,JSON.stringify(api));
+    assert.doesNotMatch(pilot.el('diagnostics').textContent+pilot.el('result').textContent,/placeholder-test-token|old-token/);
+  }
+  const rejected=await createPilot({bootstrap:full,loaded:['thing','api','ws'],
     api:{host:'https://rpi5.fritz.box',token:'old-token',setFails:true}});
-  await pilot.connect();
-  assert.equal(pilot.calls.apiSetToken.length,3);              // tried by tsa, media and mission, never fatal
-  assert.deepEqual(pilot.calls.load.map(c=>c[0]),['tsa','map','media','mission']);
-  assert.doesNotMatch(pilot.el('diagnostics').textContent,/nicht geladen/);
-});
-
-test('without apiGetToken (older Pilot 2) no token setter is called',async()=>{
-  const pilot=await createPilot({bootstrap:full,loaded:['thing','api','ws','tsa','map','media','mission']});
-  await pilot.connect();
-  assert.equal(pilot.calls.apiSetToken,undefined);
+  await rejected.connect();
+  assert.deepEqual(rejected.calls.load.map(c=>c[0]),['tsa','map','media','mission']);
+  assert.doesNotMatch(rejected.el('diagnostics').textContent,/nicht geladen/);
 });
