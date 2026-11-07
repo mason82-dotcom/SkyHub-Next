@@ -51,6 +51,110 @@ kommt auf `drc/up` und wird über `seq` **und** Methode zugeordnet (5 s Zeitlimi
 - **`drc_state`** kommt laut *dji-rc-plus-2/properties* (pushMode 0) in der **OSD der RC** (0,5 Hz), nicht in `state`. SkyHub liest beide;
   dafür braucht `skyhub_commander` Leserecht auf `thing/product/+/osd` (siehe unten).
 
+## P0: nachgewiesene DRC-Kanalbereitschaft (07.11.2026)
+
+**Entwicklungsbranch, kein Produktions-Rollout.** Die vorhandene DRC-Implementierung ist opt-in
+(`SKYHUB_DRC_ENABLED=false` bis zur bewussten Freigabe). Neue Sicherheitsbedingung:
+
+1. Die Bestätigung für `drc_mode_enter` über `services_reply` ist **noch keine** Freigabe für Bewegung oder Matrice-4-Nutzlastbefehle.
+2. Erst wenn die RC Plus 2 `drc_state=2` frisch auf ihrem eigenen `osd`/`state`-Topic meldet (maximal 7 Sekunden alt)
+   **und** ein frischer `heart_beat` über `drc/up` vorliegt (maximal 5 Sekunden alt), wird `controlLink.ready=true`.
+   Die beiden Belege müssen aus der **neuen** DRC-Verbindung stammen, nicht aus einer vorherigen Sitzung.
+3. Ohne beide Nachweise blockiert der Server Stick, Zielanflug, Abheben, Landen, Matrice-4-Kamera/Gimbal
+   und Rückkehrabbruch mit HTTP 423 beziehungsweise Socket-Fehler. Die Oberfläche deaktiviert Bewegungsaktionen
+   und nennt den fehlenden Nachweis; eine reine `services_reply`-Bestätigung ist kein Hardware-PASS.
+4. Ein ausbleibender Nachweis oder späterer Verlust bei weiterhin aktivem Bediener-Lease löst den vorhandenen Fail-safe aus;
+   ein Broker-Disconnect entwertet sofort den bisher bestätigten Link. Retained MQTT-Nachrichten werden nicht als
+   frischer Nachweis gewertet. Stick/Gimbal-Pakete erneuern niemals selbst das Bediener-Lease.
+   Wenn die Rückgabe an die RC bei Transportverlust **nicht bestätigt** werden kann, bleibt
+   `recoveryRequired=true` gesetzt; erneute Autorisierung wird bis zur manuellen Pilot-2-Prüfung und kontrolliertem Neustart verweigert.
+5. Not-Stopp, Abbruch, Rückgabe und Rückkehr als Sicherheitsaktionen bleiben unabhängig vom Bewegungsfreigabe-Gate
+   erreichbar, sofern der Transport diese noch übermitteln kann. **Bei Netzwerk-/Brokerverlust kann keine Software
+   garantieren, dass die Fernsteuerung die Kontrolle zurückerhalten hat.** Pilot 2 muss den Rückgabezustand unabhängig bestätigen.
+
+**Abnahmefolge vor Realbetrieb:** Offline-/Simulator-CI, isolierter MQTT-Kanaltest,
+manueller RC-Plus-2-/M4T-Bodentest mit Propellern ab, Netzunterbrechung/RC-Rückgabe, dokumentierter Pilot-2-Zustand,
+dann gesonderte Operatorfreigabe. Nicht mit dem Cloud-API-2-PaaS-Portal verwechseln:
+Diese DRC-Laufzeit nutzt die vorhandene DJI Cloud API 1.x. Das Cloud-API-2-Keyless-Portal bleibt lesend.
+
+**Nur nach dieser Freigabe** dürfen Betreiber im eigenen Stack die vorhandene Konfiguration
+`SKYHUB_DRC_ENABLED=true` und getrennte Broker-ACL/Steuerzugänge setzen. Das im Repo vorhandene
+`scripts/brix-drc-setup.sh` führt tatsächliche Broker-/Backendänderungen durch und wird **nicht**
+durch einen Merge oder die CI ausgeführt. Der PR selbst ändert keine .env, keinen Pi/BRIX und keine DJI-Geräte.
+
+Tests:
+```sh
+node --test backend/test/drc-session.test.js backend/test/drc-runtime.test.js backend/test/drc-payload.test.js
+node --check frontend/public/drc.js
+```
+
+## P0.1: isolierte Ende-zu-Ende-Prüfung (07.11.2026)
+
+Die Datei `backend/test/drc-rc-simulator-e2e.test.js` verbindet die **echten**
+SkyHub-HTTP-Routen und den DRC-Session-/Runtime-Code über einen **rein im
+Prozess simulierten MQTT-Transport** mit `backend/drc-rc-simulator.js`.
+Ein HTTP-Server bindet ausschließlich an `127.0.0.1` auf einem freien Port;
+es werden keine externen Broker, Geräte, Zugangsdaten oder Flugmissionen berührt.
+
+Drei getrennte Szenarien bilden den Freigabeweg ab:
+
+1. Synthetischer Pilot bestätigt die DRC-Autorisierung; `drc_mode_enter`
+   allein erlaubt **keine** Bewegung. Erst RC-OSD + DRC-Rückkanal-Herzschlag
+   erlauben simulierte Nutzlastbefehle. Veraltete retained Nachrichten zählen nicht.
+   Die kontrollierte Rückgabe wird vom Simulator bestätigt.
+2. Nach Verbindungsabbruch bleibt der Fail-safe trotz erneutem Bediener-Lease aktiv.
+   Ist der Broker vor dem Rückgabeversuch wieder verbunden und bestätigen beide
+   Dienste den Vorgang, darf eine neue Pilotenfreigabe angefordert werden.
+3. Bleibt der Broker unerreichbar, ist `recoveryRequired=true` unveränderlich
+   gesetzt. Eine spätere MQTT-Verbindung oder ein verspätetes OSD-Paket darf
+   die Sperre nicht übergehen. Eine erneute Freigabe scheitert mit HTTP 423.
+
+Separater Regressionstest: Bereits sendende Knüppel-/Gimbal-Schleifen stoppen
+bei Ablauf der Link-Frische und senden, soweit noch möglich, neutral/0.
+
+```sh
+node --test backend/test/drc-rc-simulator-e2e.test.js
+node --test backend/test/drc-session.test.js backend/test/drc-runtime.test.js backend/test/drc-payload.test.js
+```
+
+Die neue Testdatei trägt `.test.js` und läuft damit im bestehenden
+`node --test backend/test/*.test.js`-CI-Gate. Der simulierte MQTT-Transport
+ist **kein TCP-/Mosquitto-/WLAN-/RC-Hardwaretest**. Ein isolierter Test mit
+echtem, wegwerfbarem Mosquitto-Broker und anschließende propellerlose
+Hardwareabnahme bleiben erforderlich. Das bestehende DRC-Setup und die
+produktive .env bleiben unangetastet.
+
+## P0.2: echter Broker und gerätegebundene Rechte (07.11.2026)
+
+Die Integrationstests in `backend/test/mosquitto-dedicated.integration.test.js`
+starten einen **echten, kurzlebigen Mosquitto** auf `127.0.0.1` und einem
+zufälligen Testport. `commander` und `drcLink` werden als künstliche Konten
+mit getrennten Passwörtern angemeldet. Die Prüfung kontrolliert MQTT-v5-
+PUBACK-Ablehnungen (nicht nur ein erfolgreiches Subscribe auf `#`) und
+die tatsächlich empfangenen Nachrichten. Ohne den richtigen Schreibzugang
+sind `services`, `drc/down` und `drc/up` nicht erreichbar.
+
+**Least Privilege:** Sowohl `scripts/pi-mosquitto-dedicated.js` als auch
+`scripts/brix-drc-setup.sh` vergeben die DRC-ACL ausschließlich für die
+konfigurierte, überprüfte `SKYHUB_DRC_GATEWAY_SN`. Ein Konto für die RC
+`SIMRCP2` darf beispielsweise **nicht** in die Topics einer anderen RC
+`DIFFERENT_RC` schreiben. Fehlt die Seriennummer oder weichen die Konten
+voneinander ab, bricht die ACL-Generierung ab. Allgemeine Pilot-2- und
+Leserechte sind hiervon nicht betroffen.
+
+**Wichtig bei Altinstallationen:** `scripts/brix-drc-setup.sh` beendet sich
+absichtlich ohne Änderung, wenn der Benutzer `skyhub_commander` bereits in
+der ACL steht. Vor einer späteren Aktivierung muss daher eine vorhandene
+DRC-ACL manuell auf `thing/product/<RC-SN>/...` überprüft und gegebenenfalls
+mit Sicherung und gesonderter Betreiberfreigabe migriert werden. Ein bloßes
+Update dieses Scripts ändert eine bestehende Broker-ACL **nicht**.
+
+**Grenze:** Dieser Test beweist MQTT-Zugriffsrechte und Transportverhalten
+des lokalen Labor-Brokers. Er beweist keine sichere Rückgabe einer echten
+Flugsteuerung bei WLAN-/WAN-Ausfall. Auch nach erfolgreicher CI gilt
+`PRODUCTION_ENABLED=false`, `HARDWARE_VERIFIED=false`. Keine produktiven
+Mosquitto-Konfigurationen, Zugangsdaten oder RCs wurden verändert.
+
 ## Einrichten
 **brix-node (Stand 04.11.2026):** Schritt 1–3 erledigt ein Aufruf als mason im Stack-Ordner (Sicherungen, keine Anzeige von
 Geheimnissen, Token danach in `~/.config/skyhub/drc-token`):
@@ -62,18 +166,18 @@ ssh -t brix-node 'cd /srv/stacks/skyhub-next && bash scripts/brix-drc-setup.sh 9
 1. **Broker-Benutzer** (Mosquitto auf brix-node, `ops/brix/mosquitto/acl` und `passwd`; Passwörter mit `mosquitto_passwd`):
    ```
    user skyhub_commander            # Backend (SKYHUB_DRC_MQTT_*)
-   topic write thing/product/+/services
-   topic write thing/product/+/drc/down
-   topic write thing/product/+/events_reply
-   topic read thing/product/+/services_reply
-   topic read thing/product/+/events
-   topic read thing/product/+/osd     # drc_state der RC (pushMode 0, dji-rc-plus-2/properties)
-   topic read thing/product/+/state
-   topic read thing/product/+/drc/up
+   topic write thing/product/<RC-SN>/services
+   topic write thing/product/<RC-SN>/drc/down
+   topic write thing/product/<RC-SN>/events_reply
+   topic read thing/product/<RC-SN>/services_reply
+   topic read thing/product/<RC-SN>/events
+   topic read thing/product/<RC-SN>/osd     # drc_state der RC (pushMode 0, dji-rc-plus-2/properties)
+   topic read thing/product/<RC-SN>/state
+   topic read thing/product/<RC-SN>/drc/up
 
    user skyhub_drc_link             # bekommt die RC per drc_mode_enter (SKYHUB_DRC_BROKER_*)
-   topic write thing/product/+/drc/up
-   topic read thing/product/+/drc/down
+   topic write thing/product/<RC-SN>/drc/up
+   topic read thing/product/<RC-SN>/drc/down
 
    user mqttx_debug                 # nur Mitlesen mit MQTTX; bewusst OHNE …/services: drc_mode_enter enthält das DRC-Passwort
    topic read thing/product/+/services_reply

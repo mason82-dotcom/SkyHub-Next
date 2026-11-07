@@ -107,6 +107,8 @@ async function live(x){
   await x.session.requestAuthorization('op1');
   x.session.onUp({gateway:'RCP2SN',channel:'events',method:'cloud_control_auth_notify',status:'ok'});
   await x.session.enterLiveControl('op1');
+  x.session.onUp({gateway:'RCP2SN',channel:'osd',drcState:2});
+  x.session.onUp({gateway:'RCP2SN',channel:'drc/up',method:'heart_beat',timestamp:x.clock.now()});
 }
 
 test('payload commands need live control and the lease; reply is matched by seq and method',async()=>{
@@ -190,6 +192,10 @@ test('simulator: drc_state via RC OSD, camera state pushes and gimbal movement r
   await session.requestAuthorization('op1');
   await clock.advance(400);session.acquire('op1');
   await session.enterLiveControl('op1');
+  // Simulator emits RC drc_state=2 on mode entry and replies to the first
+  // 1 Hz DRC heartbeat; the services acknowledgement alone is insufficient.
+  await clock.advance(1100);session.acquire('op1');
+  assert.equal(session.snapshot().controlLink.ready,true);
   await session.payload('op1','camera_mode',{mode:1});
   await session.payload('op1','recording_start',{});
   await session.payload('op1','zoom',{cameraType:'zoom',factor:10});

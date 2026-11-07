@@ -193,3 +193,36 @@ test('S3 proxy passes presigned wayline downloads only when enabled, Host unchan
     assert.equal(received.length,2);
   }finally{off.close();on.close();minio.close();}
 });
+
+test('S3 proxy diagnostics: request kind and S3 error code only', () => {
+  const {requestKind}=require('../s3-upload-proxy');
+  assert.equal(requestKind('POST','/dji-cloud/ws/media/x/a.MP4?uploads'),'CreateMultipartUpload');
+  assert.equal(requestKind('POST','/dji-cloud/ws/media/x/a.MP4?uploadId=abc'),'CompleteMultipartUpload');
+  assert.equal(requestKind('PUT','/dji-cloud/ws/media/x/a.MP4?partNumber=1&uploadId=abc'),'UploadPart');
+  assert.equal(requestKind('PUT','/dji-cloud/ws/media/x/a.JPG'),'PutObject');
+  assert.equal(requestKind('POST','/dji-cloud/ws/media/x/a.JPG'),'PostObject');
+});
+
+test('S3 proxy restores an empty Content-Type that Pilot 2 signed but omitted (DNG)', async () => {
+  const {restoreEmptySignedHeaders}=require('../s3-upload-proxy');
+  const auth='AWS4-HMAC-SHA256 Credential=X/20261107/us-east-1/s3/aws4_request, SignedHeaders=content-length;content-type;host;x-amz-content-sha256;x-amz-date, Signature=00';
+  assert.equal(restoreEmptySignedHeaders({authorization:auth})['content-type'],'');
+  assert.equal(restoreEmptySignedHeaders({authorization:auth,'content-type':'image/jpg'})['content-type'],'image/jpg');
+  const unsigned=auth.replace('content-type;','');
+  assert.equal('content-type' in restoreEmptySignedHeaders({authorization:unsigned}),false);
+  assert.equal('content-type' in restoreEmptySignedHeaders({}),false);
+  // end to end through the proxy: the upstream receives an empty Content-Type header
+  let seen;
+  const upstream=http.createServer((req,res)=>{seen=req.headers;res.end('ok');}).listen(0,'127.0.0.1');
+  await once(upstream,'listening');
+  const proxy=createS3UploadProxy({target:'http://127.0.0.1:'+upstream.address().port,workspace:'09016a46-e315-441d-bf4a-2c67e0903e11',trustedProxyIps:new Set(['127.0.0.1'])});
+  const server=proxy.listen(0,'127.0.0.1'); await once(server,'listening');
+  await new Promise((resolve,reject)=>{
+    const r=http.request({host:'127.0.0.1',port:server.address().port,method:'POST',
+      path:'/dji-cloud/09016a46-e315-441d-bf4a-2c67e0903e11/media/'+'a'.repeat(32)+'/DJI_0001.DNG?uploads',
+      agent:false,headers:{authorization:auth,'content-length':'0'}},res=>{res.resume();res.on('end',resolve);});
+    r.on('error',reject);r.end();
+  });
+  server.closeAllConnections();server.close();upstream.closeAllConnections();upstream.close();
+  assert.equal(seen['content-type'],'');
+});

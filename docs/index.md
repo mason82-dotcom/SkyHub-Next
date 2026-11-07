@@ -1,5 +1,13 @@
 # SkyHub Next – Dokumentationswegweiser
 
+## Cloud API 2 P2: Mobile UI, lokale Sprachausgabe und Mock-Abgrenzung (07.11.2026)
+
+[DE/EN-Teilübersetzung, responsive Ansicht und Trennung der BRIX-DevKit-Demo](cloud-api2-p2-ui-provenance.md) – Quellenvergleich ohne BRIX-Datenabruf, keine vollständige Portalübersetzung und keine Hardwarefreigabe.
+
+## Cloud API 2 V1.1.0: P1-Read-only-Vertragsadapter (07.11.2026)
+
+[GET-only-SDK-Fassade, Versionen, Capability-Matrix und Portalprüfung](cloud-api2-v1.1.0-p1-adapter.md) – keine DJI-API-2-Runtime, keine Flug- oder Hardwarefreigabe.
+
 ## Cloud API 2 V1.1.0: P0-Vertragskatalog und Offline-Regression (07.11.2026)
 
 [Versionierter DJI-SDK-/Geräte-Capability-Vertrag, Read-only-Adapterprüfung und CI-Abnahme](cloud-api2-v1.1.0-p0-contracts.md) – Herstellerstand revisionsgebunden, keine SDK- oder Hardwarefreigabe.
@@ -139,6 +147,8 @@ Diese Dokumente waren bisher nur über Suche oder PR-Beschreibungen erreichbar. 
 - [SkyHub Next – Mediengalerie (31.10.2026)](media-gallery.md)
 
 **WPML, Waylines und Missionsplanung**
+
+- [Cloud API 2: integrierter Missionseditor, Flächen-Routenplaner und Routenbibliothek (P0, UI-Entwurf)](cloud-api2-mission-planning-workspace.md) – vorhandene SkyHub-WPML-Werkzeuge, kein zusätzlicher DJI-Missionsversand, Browserabnahme ausstehend.
 
 - [Motecshine DJI Waylines SDK als SkyHub-Next-Referenz](dji-waylines-sdk-reference.md)
 - [FlightHub-inspirierte Missionsprüfung – reiner Offline-Entwurf](dji-wpml-draft-review.md)

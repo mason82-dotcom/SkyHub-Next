@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/cloudapi2-v110-contract-p0-20261107
+      - feature/cloudapi2-v110-readonly-adapter-p1-20261107
     paths:
       - 'backend/cloud-api2-*.js'
       - 'backend/data/dji-cloud-api2-v1.1.0-p0.json'
@@ -47,4 +48,5 @@ jobs:
             backend/test/cloud-api2-module-catalog.test.js \
             backend/test/cloud-api2-evidence.test.js \
             backend/test/cloud-api2-linkage.test.js \
-            backend/test/cloud-api2-hardware.test.js
+            backend/test/cloud-api2-hardware.test.js \
+            backend/test/cloud-api2-p1-readonly.test.js
