@@ -113,27 +113,7 @@ Geprüft werden beide XML-Dokumente innerhalb einer durch SkyHub größen- und C
 
 Tests: `node --test backend/test/wpml-reference-audit.test.js`.
 
-## Reproduzierbare synthetische WPML-Kompatibilitätsmatrix (Phase 5)
-
-**Ziel:** bekannte Quellcode-Abweichungen über alle fünf SkyHub-Profile reproduzierbar sichtbar machen, ohne Go-Binärdateien, private Missionen, Pilot 2 oder Hardware zu benötigen.
-
-```bash
-node scripts/wpml-reference-matrix.js
-node --test backend/test/wpml-reference-matrix.test.js
-```
-
-Der Generator `backend/wpml-reference-matrix.js` erzeugt **30 lokale synthetische In-Memory-KMZ-Prüffälle**: fünf Modelle (Mavic 3E, Mavic 3T, Mavic 3M, Matrice 4E, Matrice 4T) mal sechs Szenarien. Die Fälle modellieren SkyHub-Basisexport, Go-artige RC-Loss-Einstellungen, die Upstream-Subtyp-Nullsetzung, gleiche relative/Ellipsoidhöhe, die grobe Grad-zu-Meter-Distanzschätzung und den Upstream-Namespace `1.0.6`.
-
-Die Statuscodes sind:
-- `no-listed-divergence-observed`: keine der **explizit** kodierten Auffälligkeiten in diesem künstlichen Datensatz;
-- `review-required`: mindestens ein bekannter fachlicher Reviewpunkt, keine automatische Korrektur;
-- `blocked`: Profil-/Schema-/Versionskonflikt oder andere blockierende Validierung.
-
-**Evidenzgrenze:** Das CLI erzeugt ausschließlich synthetische SkyHub-KMZ mit gezielten XML-Mutationen. Weder Go-SDK-Code noch DJI Pilot 2 werden in diesem Test ausgeführt. Die beiden booleschen Felder `actualGoSdkExecutableRun:false` und `actualPilot2ImportTest:false` verhindern eine Verwechslung mit echten Fremdhersteller- oder Hardwaretests. Besonders die Mavic 3M ist kein freigegebenes Go-JSON-Importprofil, selbst wenn SkyHub einen eigenen Offline-WPML-Generator besitzt.
-
-Der zusätzlich lesende Prüfer kann nun auch `1.0.6`-KMZ nach den **inhaltlichen** Go-SDK-typischen Risikomustern untersuchen. Das erfolgt mit expliziter Namespace-Auswahl im Read-only-Parser, ohne die XML-Dokumente umzuschreiben. Die archivierte Version bleibt unverändert und ihr Abnahmestatus bleibt blockiert. Ein grober Haversine-Vergleich markiert starke Abweichungen zwischen der im XML notierten `distance` und der horizontalen Segmentstrecke als `WAYLINE_DISTANCE_DIFFERS_FROM_SPHERICAL_APPROXIMATION`. Es werden keine Strecken-, Koordinaten- oder sonstigen Rohwerte ausgegeben. Diese Distanzprüfung ist **keine** Flugzeit-, Gelände- oder Energieberechnung.
-
-### Echte Referenzen einbringen – ausschließlich offline
+## Echte Referenzen einbringen – ausschließlich offline
 
 Die realen Vergleichsdateien werden **nicht erfunden** und nicht in Git eingecheckt. Nach rechtmäßiger Bereitstellung durch den Operator können ein tatsächlicher Go-SDK-Export und ein DJI-Pilot-2-Export lokal analysiert werden:
 
@@ -144,38 +124,6 @@ node scripts/wpml-compare.js /lokaler/pfad/skyhub.kmz /lokaler/pfad/pilot2.kmz
 ```
 
 Der Vergleich verwendet bestehende Privacy-Redaction und ist nur für vom aktuellen Parser akzeptierte Namespace-Versionen aussagekräftig; für `1.0.6` zunächst den separaten Risikoprüfer verwenden. Ein echter Pilot-2-Import, einschließlich Firmware- und Gerätekennung, bedarf einer **separaten, dokumentierten Hardwareabnahme**. Selbst dabei darf `flightReady:false` nicht implizit aufgehoben werden.
-
-## Lokaler Evidenzvergleich für tatsächlich bereitgestellte Referenz-KMZ (Phase 6)
-
-`backend/wpml-reference-evidence.js` und `scripts/wpml-reference-evidence.js` verbinden die bisherigen einzelnen Offline-Audits und den strukturellen KMZ-Vergleich in einem reproduzierbaren Ablauf. **Weder Dateien noch Manifeste werden an einen Server übertragen.** Es wird keine echte Referenzdatei automatisch heruntergeladen, kein Go-SDK ausgeführt und kein DJI-Pilot-2-Import behauptet.
-
-### Beispiel für ein lokales Manifest
-
-Erstelle im Repositoryverzeichnis einen vom Git ignorierten Ordner `.local-wpml-evidence/` und lege **nur lokal** folgende Datei `references.json` an:
-
-```json
-{
-  "schema": "skyhub-wpml-reference-fixtures-v1",
-  "files": {
-    "skyhub": "skyhub.kmz",
-    "goSdk": "go-sdk.kmz",
-    "pilot2": "pilot2.kmz"
-  }
-}
-```
-
-Die KMZ-Dateien müssen im selben Verzeichnis oder in dessen Unterordnern liegen. Mindestens **zwei** der drei kontrollierten Rollen sind nötig, die dritte ist optional. Nur lokale, reguläre Dateien sind zulässig; Symlinks, absolute Pfade, `..`-Pfadbestandteile, zusätzliche Manifestfelder und Dateien außerhalb des Manifestverzeichnisses werden abgewiesen. Ein fehlender oder beschädigter Import erzeugt **keine** Rohdaten- oder Pfadfehlerausgabe.
-
-```bash
-node scripts/wpml-reference-evidence.js .local-wpml-evidence/references.json
-node --test backend/test/wpml-reference-evidence.test.js
-```
-
-**Rückgabewerte:** `0` = keine der expliziten Befunde und kein struktureller Unterschied gefunden; `1` = fachlicher Review notwendig, einschließlich abweichender KMZ oder byteidentischer angeblich unterschiedlicher Quellen; `2` = blockierter/ungültiger/untereinander nicht vergleichbarer Eingang. Auch `0` bestätigt **weder Dateiauthentizität noch DJI-Importfähigkeit**.
-
-Das Werkzeug prüft die einzelnen Dateien mit `auditReferenceKmz()` und vergleicht alle vorhandenen Rollen paarweise mit `compareKmz()`, jedoch **nur wenn beide KMZ innerhalb des nativ unterstützten SkyHub-Namespaces `1.0.2` offline-valide sind**. Dateien mit `1.0.6` werden zwar innerhalb des separaten lesenden Audits untersucht, der semantisch nicht verlässliche Cross-Namespace-Vergleich bleibt jedoch als `skipped-noncomparable-or-blocked` gekennzeichnet. Es gibt **keine** automatische Namespace-Konvertierung als Flugmission.
-
-Der strukturierte JSON-Bericht enthält nur vordefinierte Rollen, Kategorien, Befunde, boolesche Prüffelder und Aggregatzahlen. **Keine** GPS-Koordinaten, Missionsnamen, Dateinamen, Pfade, Roh-XML, KMZ-Bytes oder SHA-Fingerprints werden ausgegeben. Die Rollen `goSdk` und `pilot2` sind **unbestätigte Bedienerangaben**. Insbesondere müssen `actualGoSdkExecutableRun:false`, `actualPilot2ImportTest:false`, `pilot2HardwareVerified:false` und `flightReady:false` bleiben.
 
 Für eine spätere echte DJI-Hardwareabnahme ist eine getrennte, nachvollziehbar dokumentierte Prüfung von Fluggerät, Firmware, DJI Pilot 2, Kameraaktionen und Höhenbezügen erforderlich. Ein paarweiser XML-Vergleich – selbst bei Gleichheit – ist kein Nachweis für Hardwarekompatibilität oder sicheren Flug.
 

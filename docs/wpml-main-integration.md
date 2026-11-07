@@ -37,7 +37,6 @@ Die Offline-Validatoren vergeben keine Hardware-/Flugfreigabe. `flightReady:fals
 
 ```bash
 node --test backend/test/wpml*.test.js
-node scripts/wpml-reference-matrix.js
 node scripts/wpml-plan.js docs/examples/wpml-waypoint-plan.json /tmp/wpml-offline-review.kmz
 node scripts/wpml-inspect.js /tmp/wpml-offline-review.kmz
 ```
