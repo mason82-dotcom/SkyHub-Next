@@ -68,7 +68,7 @@ docker inspect skyhub-next-backend-1 \
 docker exec skyhub-next-mosquitto-1 mosquitto -h 2>&1 | head -n 1
 ```
 
-Keine privaten `.env`-Werte, MQTT-Zugangsdaten, Gerätese-riennummern, GPS-Koordinaten
+Keine privaten `.env`-Werte, MQTT-Zugangsdaten, Geräteseriennummern, GPS-Koordinaten
 oder ungefilterten Logs in den PR kopieren. Ein vollständiger DRC-Kontentest
 erfordert eine gesonderte, kontrollierte Abnahme; ein UI-Status allein genügt nicht.
 
