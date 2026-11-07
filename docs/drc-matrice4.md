@@ -124,6 +124,30 @@ echtem, wegwerfbarem Mosquitto-Broker und anschließende propellerlose
 Hardwareabnahme bleiben erforderlich. Das bestehende DRC-Setup und die
 produktive .env bleiben unangetastet.
 
+## P0.2: echter Broker und gerätegebundene Rechte (07.11.2026)
+
+Die Integrationstests in `backend/test/mosquitto-dedicated.integration.test.js`
+starten einen **echten, kurzlebigen Mosquitto** auf `127.0.0.1` und einem
+zufälligen Testport. `commander` und `drcLink` werden als künstliche Konten
+mit getrennten Passwörtern angemeldet. Die Prüfung kontrolliert MQTT-v5-
+PUBACK-Ablehnungen (nicht nur ein erfolgreiches Subscribe auf `#`) und
+die tatsächlich empfangenen Nachrichten. Ohne den richtigen Schreibzugang
+sind `services`, `drc/down` und `drc/up` nicht erreichbar.
+
+**Least Privilege:** Sowohl `scripts/pi-mosquitto-dedicated.js` als auch
+`scripts/brix-drc-setup.sh` vergeben die DRC-ACL ausschließlich für die
+konfigurierte, überprüfte `SKYHUB_DRC_GATEWAY_SN`. Ein Konto für die RC
+`SIMRCP2` darf beispielsweise **nicht** in die Topics einer anderen RC
+`DIFFERENT_RC` schreiben. Fehlt die Seriennummer oder weichen die Konten
+voneinander ab, bricht die ACL-Generierung ab. Allgemeine Pilot-2- und
+Leserechte sind hiervon nicht betroffen.
+
+**Grenze:** Dieser Test beweist MQTT-Zugriffsrechte und Transportverhalten
+des lokalen Labor-Brokers. Er beweist keine sichere Rückgabe einer echten
+Flugsteuerung bei WLAN-/WAN-Ausfall. Auch nach erfolgreicher CI gilt
+`PRODUCTION_ENABLED=false`, `HARDWARE_VERIFIED=false`. Keine produktiven
+Mosquitto-Konfigurationen, Zugangsdaten oder RCs wurden verändert.
+
 ## Einrichten
 **brix-node (Stand 04.11.2026):** Schritt 1–3 erledigt ein Aufruf als mason im Stack-Ordner (Sicherungen, keine Anzeige von
 Geheimnissen, Token danach in `~/.config/skyhub/drc-token`):
@@ -135,18 +159,18 @@ ssh -t brix-node 'cd /srv/stacks/skyhub-next && bash scripts/brix-drc-setup.sh 9
 1. **Broker-Benutzer** (Mosquitto auf brix-node, `ops/brix/mosquitto/acl` und `passwd`; Passwörter mit `mosquitto_passwd`):
    ```
    user skyhub_commander            # Backend (SKYHUB_DRC_MQTT_*)
-   topic write thing/product/+/services
-   topic write thing/product/+/drc/down
-   topic write thing/product/+/events_reply
-   topic read thing/product/+/services_reply
-   topic read thing/product/+/events
-   topic read thing/product/+/osd     # drc_state der RC (pushMode 0, dji-rc-plus-2/properties)
-   topic read thing/product/+/state
-   topic read thing/product/+/drc/up
+   topic write thing/product/<RC-SN>/services
+   topic write thing/product/<RC-SN>/drc/down
+   topic write thing/product/<RC-SN>/events_reply
+   topic read thing/product/<RC-SN>/services_reply
+   topic read thing/product/<RC-SN>/events
+   topic read thing/product/<RC-SN>/osd     # drc_state der RC (pushMode 0, dji-rc-plus-2/properties)
+   topic read thing/product/<RC-SN>/state
+   topic read thing/product/<RC-SN>/drc/up
 
    user skyhub_drc_link             # bekommt die RC per drc_mode_enter (SKYHUB_DRC_BROKER_*)
-   topic write thing/product/+/drc/up
-   topic read thing/product/+/drc/down
+   topic write thing/product/<RC-SN>/drc/up
+   topic read thing/product/<RC-SN>/drc/down
 
    user mqttx_debug                 # nur Mitlesen mit MQTTX; bewusst OHNE …/services: drc_mode_enter enthält das DRC-Passwort
    topic read thing/product/+/services_reply
