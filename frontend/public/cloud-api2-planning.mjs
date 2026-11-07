@@ -37,8 +37,9 @@ export function initPlanningWorkspace(doc = globalThis.document) {
   if (!doc?.getElementById) return null;
   const status = doc.getElementById('planningStatus');
   const fallback = doc.getElementById('planningOpenFull');
+  const empty = doc.getElementById('planningEmpty');
   const buttons = [...doc.querySelectorAll('[data-planning-tool]')];
-  if (!status || !fallback || buttons.length !== PLANNING_TOOLS.length) return null;
+  if (!status || !fallback || !empty || buttons.length !== PLANNING_TOOLS.length) return null;
   const byId = new Map(PLANNING_TOOLS.map(x => [x.id,x]));
   const frames = new Map();
   for (const tool of PLANNING_TOOLS) {
@@ -46,6 +47,7 @@ export function initPlanningWorkspace(doc = globalThis.document) {
     if (!frame || frame.getAttribute('src')) return null;
     frames.set(tool.id,frame);
   }
+  const states=new Map(PLANNING_TOOLS.map(x=>[x.id,'unloaded']));
   let active = null;
   const updateStatus = message => { status.textContent = message; };
 
@@ -53,6 +55,7 @@ export function initPlanningWorkspace(doc = globalThis.document) {
     const tool = byId.get(id);
     if (!tool) return false;
     active = id;
+    empty.hidden = true;
     for (const [key,frame] of frames) {
       frame.hidden = key !== id;
     }
@@ -65,10 +68,15 @@ export function initPlanningWorkspace(doc = globalThis.document) {
     fallback.textContent=tool.name + ' separat öffnen';
     const frame=frames.get(id);
     if (!frame.getAttribute('src')) {
+      states.set(id,'loading');
       updateStatus(tool.name + ' wird geladen. Noch kein Ergebnis bestätigt.');
       frame.setAttribute('src',tool.path);
     } else {
-      updateStatus(tool.name + ' ausgewählt. Vorhandener Entwurf bleibt in der eingebetteten Ansicht erhalten.');
+      const state=states.get(id);
+      updateStatus(state==='ready'
+        ? tool.name + ' erneut geöffnet. Die eingebettete Ansicht bleibt erhalten.'
+        : state==='loading' ? tool.name + ' lädt noch.'
+        : 'UNBEKANNT: Einbettung konnte nicht bestätigt werden. Über „separat öffnen“ die Originalseite aufrufen.');
       // Mapping canvases may be sized while hidden. Notify the existing owner on reveal.
       try { frame.contentWindow?.dispatchEvent(new Event('resize')); } catch (_) {}
     }
@@ -86,12 +94,15 @@ export function initPlanningWorkspace(doc = globalThis.document) {
           throw new Error('unexpected-frame-url');
         const title=frame.contentDocument?.title || '';
         if (!title.startsWith(tool.pageTitle)) throw new Error('unexpected-frame-document');
+        states.set(tool.id,'ready');
         updateStatus(tool.name + ' geladen. Entwurfs- und Prüfaktionen erfolgen ausschließlich im Originalmodul.');
       } catch (_) {
+        states.set(tool.id,'unknown');
         updateStatus('UNBEKANNT: Einbettung konnte nicht bestätigt werden. Über „separat öffnen“ die Originalseite aufrufen.');
       }
     });
     frame.addEventListener('error',()=>{
+      states.set(tool.id,'unknown');
       if(active===tool.id) updateStatus('UNBEKANNT: Originalmodul nicht erreichbar. Bitte separat öffnen.');
     });
   }
