@@ -68,6 +68,11 @@ jobs:
         run: |
           python3 -m py_compile scripts/audit_sql_migrations.py
           python3 scripts/audit_sql_migrations.py
+          # Pull requests: migrations already applied at the base branch must stay byte-identical.
+          if [ -n "${{ github.base_ref }}" ]; then
+            git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+            python3 scripts/audit_sql_migrations.py --base "origin/${{ github.base_ref }}"
+          fi
 
       - name: Validate staging helper and Python tests
         run: |
