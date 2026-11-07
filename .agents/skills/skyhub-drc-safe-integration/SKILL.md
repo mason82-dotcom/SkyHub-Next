@@ -25,6 +25,7 @@ Apply for `backend/drc-*.js`, `frontend/public/drc.*`, the RC simulator, or the 
 ```sh
 node --test backend/test/drc-rc-simulator-e2e.test.js backend/test/drc-session.test.js backend/test/drc-runtime.test.js backend/test/drc-payload.test.js backend/test/drc-protocol.test.js
 SKYHUB_REQUIRE_MOSQUITTO=1 node --test backend/test/mosquitto-dedicated.integration.test.js backend/test/mosquitto-dedicated-probe.test.js
+node --test backend/test/drc-brix-acl-contract.test.js
 node --check frontend/public/drc.js
 ```
 For integration changes, test synthetic HTTP -> MQTT -> RC path, broker drop before/after handback, stale retained packets and moving actuator-stream cutoff. Synthetic MQTT still does not prove real Mosquitto/WLAN operation.
