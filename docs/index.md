@@ -148,6 +148,8 @@ Diese Dokumente waren bisher nur über Suche oder PR-Beschreibungen erreichbar. 
 
 **WPML, Waylines und Missionsplanung**
 
+- [Cloud API 2: integrierter Missionseditor, Flächen-Routenplaner und Routenbibliothek (P0, UI-Entwurf)](cloud-api2-mission-planning-workspace.md) – vorhandene SkyHub-WPML-Werkzeuge, kein zusätzlicher DJI-Missionsversand, Browserabnahme ausstehend.
+
 - [Motecshine DJI Waylines SDK als SkyHub-Next-Referenz](dji-waylines-sdk-reference.md)
 - [FlightHub-inspirierte Missionsprüfung – reiner Offline-Entwurf](dji-wpml-draft-review.md)
 - [WPML-Missionsbibliothek auf MinIO S3 und DJI-Pilot-2-Waylinebibliothek (02.11.2026, opt-in)](wpml-mission-library.md)
