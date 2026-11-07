@@ -28,3 +28,10 @@
 
 /* Never label the embedded writable WPML tools as globally read-only. */
 #portalModeBadge.planning-mode{color:#f1c98b}
+
+/* The longer manual-write status must wrap instead of widening 320px screens. */
+@media(max-width:580px){
+  .topbar{flex-wrap:wrap;justify-content:flex-start;padding-block:10px}
+  .topbar>div{min-width:0;max-width:100%;flex-wrap:wrap}
+  #portalModeBadge.planning-mode{white-space:normal;max-width:100%;overflow-wrap:anywhere}
+}
