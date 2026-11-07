@@ -44,7 +44,9 @@ function cell(tag,value) {
 export function renderP2(locale) {
   const language=Object.hasOwn(dictionary,locale)?locale:"de";
   const t=dictionary[language];
-  document.documentElement.lang=language;
+  // Only this P2 region is localized: other portal views remain German.
+  // Never mislabel the document language for assistive technology.
+  for (const node of [root,alert,title,intro,status]) node.lang=language;
   chooser.value=language;
   chooser.setAttribute("aria-label",t.locale);
   alert.textContent=t.mock;
