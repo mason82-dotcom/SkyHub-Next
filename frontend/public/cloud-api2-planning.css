@@ -35,3 +35,38 @@
   .topbar>div{min-width:0;max-width:100%;flex-wrap:wrap}
   #portalModeBadge.planning-mode{white-space:normal;max-width:100%;overflow-wrap:anywhere}
 }
+
+/* Central route library (ADR-001): List / Index inside the planning tab. */
+.central-library h2{margin:0 0 6px}
+.central-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.central-desc{max-width:720px;margin:0}
+.central-session{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.central-session a.primary{display:inline-block}
+.central-create{margin-top:16px}
+.central-create-row,.central-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.central-create-row select{flex:1 1 280px;width:auto;min-width:0;max-width:100%;font-size:14px;padding:10px 12px}
+.central-toolbar{margin:16px 0 10px}
+.central-toolbar label{margin:0!important}
+.central-toolbar input{flex:1 1 220px;min-width:0;background:#0c2130;color:#e5f0f6;border:1px solid #36596b;border-radius:7px;padding:11px 12px;font:inherit}
+.central-toolbar input:focus-visible{outline:2px solid #8df9de;outline-offset:2px}
+.central-toolbar kbd{font:11px ui-monospace,monospace;color:#b5ced8;border:1px solid #36596b;border-radius:4px;padding:2px 6px}
+.central-frame{border:1px solid #34566c;border-radius:10px;background:#0f2433;overflow-x:auto}
+.central-table{width:100%;border-collapse:collapse;font-size:13px}
+.central-table th,.central-table td{padding:11px 14px;border-bottom:1px solid #284a5e;text-align:left;vertical-align:middle}
+.central-table thead th{position:sticky;top:0;background:#132d3f;font-size:11px;letter-spacing:.04em;color:#b5ced8;font-weight:650}
+.central-table tbody tr:last-child>*{border-bottom:0}
+.central-table tbody th{font-weight:650;color:#e8f3f8;overflow-wrap:anywhere}
+.central-rev{font-variant-numeric:tabular-nums;color:#b5ced8}
+.central-actions{display:flex;gap:8px;flex-wrap:wrap}
+.central-actions button{padding:8px 12px}
+.central-library button:disabled{opacity:.5;cursor:not-allowed}
+.central-empty-row td{padding:26px 16px;text-align:center;color:#b7cdd9}
+.central-empty-row p{margin:0 0 12px!important;font-size:13px!important;color:#b7cdd9!important}
+.central-empty-row a.primary{display:inline-block}
+.central-pagination{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:10px;font-size:12px;color:#a2bac8}
+.central-pagination span{margin-right:auto}
+.central-status{min-height:1.6em;margin:12px 0 0!important}
+.central-status[data-tone=error]{color:#ffc38a!important}
+.central-status[data-tone=ok]{color:#8eecd1!important}
+.visually-hidden{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media(max-width:580px){.central-table{font-size:12px}.central-table th,.central-table td{padding:10px}.central-actions button{width:100%}.central-create-row button{width:100%}}

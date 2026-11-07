@@ -10,6 +10,11 @@
 <script defer type="module" src="/cloud-api2.js"></script>
 <script defer type="module" src="/cloud-api2-p2-ui.mjs"></script>
 <script defer type="module" src="/cloud-api2-planning.mjs"></script>
+<script defer src="/wpml-interval-actions.js"></script>
+<script defer src="/wpml-action-draft.js"></script>
+<script defer src="/wpml-editor-core.js"></script>
+<script defer src="/wpml-route-library-core.js"></script>
+<script defer type="module" src="/wpml-central-library.mjs"></script>
 </head>
 <body>
 <a class="skip" href="#main">Zum Inhalt springen</a>
@@ -171,6 +176,45 @@
           <iframe id="planningFrame-library" class="planning-frame" title="SkyHub Routenbibliothek" referrerpolicy="strict-origin-when-cross-origin" hidden></iframe>
         </div>
         <p class="hint">Bei fehlender Einbettungsfreigabe oder engem Smartphone-Viewport das Originalmodul über „separat öffnen“ verwenden. Zwischen den Ansichten bleiben bereits geladene Frames bestehen; dies ist keine dauerhafte Speicherung offener Eingaben.</p>
+      </article>
+      <article id="centralLibrary" class="card below central-library" aria-labelledby="centralTitle" aria-busy="false">
+        <header class="central-head">
+          <div>
+            <h2 id="centralTitle">Zentrale Routenbibliothek</h2>
+            <p class="central-desc">Routen des Workspaces auf dem SkyHub-Server, gemeinsam für alle angemeldeten Operatoren. Jede Änderung ist eine neue Revision; frühere Revisionen bleiben unverändert. Keine Flugfreigabe, kein Missionsversand.</p>
+          </div>
+          <div class="central-session">
+            <span id="centralSession" class="pill">Nicht angemeldet</span>
+            <a id="centralLogin" class="primary" href="/wpml/oidc/login?workspace=pilot">Mit Forgejo anmelden</a>
+            <button id="centralLogout" class="secondary" type="button" hidden>Abmelden</button>
+          </div>
+        </header>
+        <div class="central-create">
+          <label for="centralSource">Lokale Route (Quelle für Übernahme und neue Revisionen)</label>
+          <div class="central-create-row">
+            <select id="centralSource"></select>
+            <button id="centralUpload" class="primary" type="button">Als neue zentrale Route übernehmen</button>
+          </div>
+        </div>
+        <div class="central-toolbar">
+          <label for="centralSearch">Suche</label>
+          <input id="centralSearch" type="search" placeholder="Routenname" autocomplete="off" aria-describedby="centralSearchHint">
+          <kbd id="centralSearchHint" title="Taste / fokussiert die Suche">/</kbd>
+          <button id="centralReload" class="secondary" type="button">Aktualisieren</button>
+        </div>
+        <div class="central-frame">
+          <table class="central-table">
+            <caption class="visually-hidden">Zentrale Routen, alphabetisch nach Name</caption>
+            <thead><tr><th scope="col" aria-sort="ascending">Name ↑</th><th scope="col">Neueste Revision</th><th scope="col">Aktionen</th></tr></thead>
+            <tbody id="centralRows"></tbody>
+          </table>
+        </div>
+        <nav class="central-pagination" aria-label="Seiten der zentralen Bibliothek">
+          <span id="centralCount">Seite 1 von 1</span>
+          <button id="centralPrev" class="secondary" type="button" data-static disabled>Zurück</button>
+          <button id="centralNext" class="secondary" type="button" data-static disabled>Weiter</button>
+        </nav>
+        <p id="centralStatus" class="central-status" role="status" aria-live="polite">Zentrale Bibliothek wird geladen …</p>
       </article>
     </section>
     <section id="view-simulator" class="view" hidden>
