@@ -66,6 +66,8 @@ kommt auf `drc/up` und wird über `seq` **und** Methode zugeordnet (5 s Zeitlimi
 4. Ein ausbleibender Nachweis oder späterer Verlust bei weiterhin aktivem Bediener-Lease löst den vorhandenen Fail-safe aus;
    ein Broker-Disconnect entwertet sofort den bisher bestätigten Link. Retained MQTT-Nachrichten werden nicht als
    frischer Nachweis gewertet. Stick/Gimbal-Pakete erneuern niemals selbst das Bediener-Lease.
+   Wenn die Rückgabe an die RC bei Transportverlust **nicht bestätigt** werden kann, bleibt
+   `recoveryRequired=true` gesetzt; erneute Autorisierung wird bis zur manuellen Pilot-2-Prüfung und kontrolliertem Neustart verweigert.
 5. Not-Stopp, Abbruch, Rückgabe und Rückkehr als Sicherheitsaktionen bleiben unabhängig vom Bewegungsfreigabe-Gate
    erreichbar, sofern der Transport diese noch übermitteln kann. **Bei Netzwerk-/Brokerverlust kann keine Software
    garantieren, dass die Fernsteuerung die Kontrolle zurückerhalten hat.** Pilot 2 muss den Rückgabezustand unabhängig bestätigen.
