@@ -88,6 +88,42 @@ node --test backend/test/drc-session.test.js backend/test/drc-runtime.test.js ba
 node --check frontend/public/drc.js
 ```
 
+## P0.1: isolierte Ende-zu-Ende-Prüfung (07.11.2026)
+
+Die Datei `backend/test/drc-rc-simulator-e2e.test.js` verbindet die **echten**
+SkyHub-HTTP-Routen und den DRC-Session-/Runtime-Code über einen **rein im
+Prozess simulierten MQTT-Transport** mit `backend/drc-rc-simulator.js`.
+Ein HTTP-Server bindet ausschließlich an `127.0.0.1` auf einem freien Port;
+es werden keine externen Broker, Geräte, Zugangsdaten oder Flugmissionen berührt.
+
+Drei getrennte Szenarien bilden den Freigabeweg ab:
+
+1. Synthetischer Pilot bestätigt die DRC-Autorisierung; `drc_mode_enter`
+   allein erlaubt **keine** Bewegung. Erst RC-OSD + DRC-Rückkanal-Herzschlag
+   erlauben simulierte Nutzlastbefehle. Veraltete retained Nachrichten zählen nicht.
+   Die kontrollierte Rückgabe wird vom Simulator bestätigt.
+2. Nach Verbindungsabbruch bleibt der Fail-safe trotz erneutem Bediener-Lease aktiv.
+   Ist der Broker vor dem Rückgabeversuch wieder verbunden und bestätigen beide
+   Dienste den Vorgang, darf eine neue Pilotenfreigabe angefordert werden.
+3. Bleibt der Broker unerreichbar, ist `recoveryRequired=true` unveränderlich
+   gesetzt. Eine spätere MQTT-Verbindung oder ein verspätetes OSD-Paket darf
+   die Sperre nicht übergehen. Eine erneute Freigabe scheitert mit HTTP 423.
+
+Separater Regressionstest: Bereits sendende Knüppel-/Gimbal-Schleifen stoppen
+bei Ablauf der Link-Frische und senden, soweit noch möglich, neutral/0.
+
+```sh
+node --test backend/test/drc-rc-simulator-e2e.test.js
+node --test backend/test/drc-session.test.js backend/test/drc-runtime.test.js backend/test/drc-payload.test.js
+```
+
+Die neue Testdatei trägt `.test.js` und läuft damit im bestehenden
+`node --test backend/test/*.test.js`-CI-Gate. Der simulierte MQTT-Transport
+ist **kein TCP-/Mosquitto-/WLAN-/RC-Hardwaretest**. Ein isolierter Test mit
+echtem, wegwerfbarem Mosquitto-Broker und anschließende propellerlose
+Hardwareabnahme bleiben erforderlich. Das bestehende DRC-Setup und die
+produktive .env bleiben unangetastet.
+
 ## Einrichten
 **brix-node (Stand 04.11.2026):** Schritt 1–3 erledigt ein Aufruf als mason im Stack-Ordner (Sicherungen, keine Anzeige von
 Geheimnissen, Token danach in `~/.config/skyhub/drc-token`):
