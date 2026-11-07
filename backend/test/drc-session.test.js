@@ -30,16 +30,16 @@ const M4T={modelKey:'0-99-1',modelName:'Matrice 4T',heightEllipsoid:180,heightAb
 
 function setup({aircraft=M4T,autoReply=true,result=0}={}){
   const clock=fakeClock(),sent=[],drc=[],log=[];
-  let session;
+  let session,respond=autoReply;
   const publishService=(gw,msg)=>{
     sent.push(msg);
-    if(autoReply)queueMicrotask(()=>session.onUp({gateway:gw,channel:'services_reply',method:msg.method,tid:msg.tid,result}));
+    if(respond)queueMicrotask(()=>session.onUp({gateway:gw,channel:'services_reply',method:msg.method,tid:msg.tid,result}));
   };
   const replies=[];
   session=createDrcSession({gateway:'RCP2SN',publishService,publishDrc:(gw,m)=>drc.push(m),publishEventsReply:(gw,m)=>replies.push(m),aircraft:()=>aircraft,clock,
     broker:()=>({address:'192.168.178.63:1884',clientId:'drc-RCP2SN',username:'drc',password:'pw',expireTime:1793900000,enableTls:false}),
     audit:e=>log.push(e)});
-  return {session,clock,sent,drc,log,replies};
+  return {session,clock,sent,drc,log,replies,setReplies(v){respond=Boolean(v);}};
 }
 async function liveControl(x){
   await x.session.requestAuthorization('op1');
@@ -94,6 +94,34 @@ test('DRC: services reply alone, wrong RC state and stale uplink all block fligh
   assert.equal(x.session.snapshot().controlLink.ready,true);
   await x.clock.advance(2001);
   assert.equal(x.session.snapshot().controlLink.ready,false,'RC state needs freshness as well');
+});
+
+test('MQTT transport loss invalidates proofs immediately; motion cannot cancel the fail-safe',async()=>{
+  const x=setup();await liveControl(x);
+  assert.equal(x.session.snapshot().controlLink.ready,true);
+  x.session.invalidateLink('Broker-Verbindung unterbrochen');
+  assert.equal(x.session.snapshot().controlLink.ready,false);
+  assert.equal(x.session.snapshot().recoveryRequired,true);
+  assert.equal(x.session.snapshot().failsafe.pending,true);
+  x.session.acquire('op1');
+  assert.equal(x.session.snapshot().failsafe.pending,true,'new lease cannot override a broken link');
+  assert.throws(()=>x.session.stickInput('op1',{pitch:1}),/Steuerung gesperrt/);
+  await x.clock.advance(3200);
+  assert.equal(x.session.snapshot().phase,'idle');
+  assert.equal(x.session.snapshot().recoveryRequired,false,'successful reply confirms handback');
+  assert.ok(x.sent.some(m=>m.method==='cloud_control_release'));
+});
+
+test('unconfirmed handback remains latched; reauthorization blocked until manual RC recovery',async()=>{
+  const x=setup();await liveControl(x);
+  x.setReplies(false);
+  x.session.invalidateLink('MQTT down');
+  await x.clock.advance(15000);
+  const state=x.session.snapshot();
+  assert.equal(state.phase,'idle');
+  assert.equal(state.recoveryRequired,true);
+  assert.match(state.lastError,/nicht bestätigt/);
+  await assert.rejects(x.session.requestAuthorization('op1'),/nicht bestätigt/);
 });
 
 test('pilot denies: back to idle, nothing else happens',async()=>{
