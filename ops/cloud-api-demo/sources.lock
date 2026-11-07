@@ -1,0 +1,4 @@
+# Gepinnte Upstream-Quellen der eingestellten DJI-Cloud-API-Demo (MIT, DJI-SDK). Format: Verzeichnis URL Commit
+# `bash pi-cloud-api-demo.sh fetch-sources` klont sie bei Bedarf und prueft den Commit; preflight bricht bei Abweichung ab.
+DJI-Cloud-API-Demo https://github.com/dji-sdk/DJI-Cloud-API-Demo.git bef525cb92772b06786c1e033719a6fa1b94bcc5
+Cloud-API-Demo-Web https://github.com/dji-sdk/Cloud-API-Demo-Web.git bfcf3ee998b876dc5d372e5dbac913a19ccdac9f

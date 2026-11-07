@@ -4,9 +4,8 @@ Stand: 23.10.2026 · **Offline-only, keine Hardwareabnahme, kein Deployment.**
 
 ## Ausgangspunkt
 
-SkyHub hat einen separaten, rein lesenden `services_reply`-Contract auf
-`feature/dji-demo-rpc-contract-20261022` und den synthetischen Protokoll-Audit
-in [PR #47](https://github.com/mason82-dotcom/SkyHub/pull/47).
+SkyHub enthält den isoliert entwickelten, rein lesenden `services_reply`-Contract seit [PR #78](https://github.com/mason82-dotcom/SkyHub-Next/pull/78) auf `main`. Der ursprüngliche Quellbranch war `feature/dji-demo-rpc-contract-20261022`. Der synthetische Protokoll-Audit
+in [PR #47](https://github.com/mason82-dotcom/SkyHub-Next/pull/47).
 Diese Entwicklung **portiert keinen RPC-Publisher** und ändert weder den
 aktiven Backend-Server noch den vorhandenen Parser. Stattdessen prüft sie
 eine reine, methodenspezifische Zustandsprojektion für

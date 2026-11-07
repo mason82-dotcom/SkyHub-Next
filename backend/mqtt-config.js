@@ -1,8 +1,8 @@
 'use strict';
 
 // Validates the broker endpoint before opening an MQTT connection.
-// The Pi Compose deployment pins SKYHUB_MQTT_REQUIRED_PORT=1884.
-function validateBrokerConfig(rawUrl, requiredPortRaw = '') {
+// Pi Compose supports only explicitly paired EMQX/1884 or Mosquitto/1883 profiles.
+function validateBrokerConfig(rawUrl, requiredPortRaw = '', brokerKindRaw = '') {
   if (typeof rawUrl !== 'string' || !rawUrl.trim()) {
     throw new Error('MQTT_BROKER_URL is required');
   }
@@ -30,6 +30,16 @@ function validateBrokerConfig(rawUrl, requiredPortRaw = '') {
     }
     if (port !== Number(required)) {
       throw new Error('MQTT broker port ' + port + ' rejected: Raspberry Pi requires port ' + required);
+    }
+  }
+  const kind = String(brokerKindRaw ?? '').trim();
+  if (kind) {
+    const expectedPorts = Object.freeze({emqx:1884, mosquitto:1883, 'mosquitto-dedicated':1884});
+    if (!Object.hasOwn(expectedPorts, kind)) {
+      throw new Error('SKYHUB_MQTT_BROKER_KIND must be emqx, mosquitto or mosquitto-dedicated');
+    }
+    if (!required || Number(required) !== expectedPorts[kind]) {
+      throw new Error('MQTT broker kind ' + kind + ' requires SKYHUB_MQTT_REQUIRED_PORT=' + expectedPorts[kind]);
     }
   }
   return Object.freeze({url: rawUrl, host: url.hostname, port, secure: url.protocol === 'mqtts:'});

@@ -57,8 +57,8 @@ test('privacy-safe telemetry audit help does not contact Docker',()=>{
 test('all six DJI device families expose value-free documented field coverage',()=>{
   const ids=[
     ['Mavic 3E','0',77,0,144],['Mavic 3T','0',77,1,144],
-    ['Mavic 3M','0',77,2,150],['Matrice 4T','0',99,1,199],
-    ['DJI RC Pro Enterprise','2',144,0,48],
+    ['Mavic 3M','0',77,2,150],['Matrice 4T','0',99,1,202],
+    ['DJI RC Pro Enterprise','2',144,0,55],
     ['DJI RC Plus 2 Enterprise','2',174,0,54]
   ];
   for(const [name,domain,type,subType,total] of ids){
@@ -128,7 +128,7 @@ test('audit records sources and marks generic Matrice 4T property extensions unv
     deviceCategory:'aircraft',
     deviceProperties:{osd:{},state:{}}
   }]);
-  assert.equal(d.documentedTotal,199);
+  assert.equal(d.documentedTotal,202);
   assert.match(d.documentedSource,/Cloud-API-Doc/);
   assert.match(d.documentedExtensionSource,/aircraft\/properties\.html/);
   assert.equal(d.documentedExtensionEdition,'2024-06-28');
@@ -138,5 +138,5 @@ test('audit records sources and marks generic Matrice 4T property extensions unv
   assert.ok(d.redactedDocumented.includes('state:psdk_ui_resource.object_key'));
   assert.ok(d.notObservedDocumented.includes('state:psdk_widget_values.speaker.play_volume'));
   assert.equal(d.observedDocumented.length+d.notObservedDocumented.length+
-    d.redactedDocumented.length+d.unsupportedDocumented.length,199);
+    d.redactedDocumented.length+d.unsupportedDocumented.length,202);
 });

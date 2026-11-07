@@ -1,0 +1,26 @@
+name: MinIO acceptance preparation checks
+on:
+  pull_request:
+    paths:
+      - 'pi-minio-acceptance/**'
+      - '.github/workflows/minio-acceptance-checks.yml'
+  push:
+    branches:
+      - 'ops/minio-backup-restore-runbook-20261022'
+    paths:
+      - 'pi-minio-acceptance/**'
+      - '.github/workflows/minio-acceptance-checks.yml'
+permissions:
+  contents: read
+jobs:
+  preparation-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Python and shell syntax; fixture tests; execution guards
+        run: |
+          python3 -m compileall -q pi-minio-acceptance
+          python3 pi-minio-acceptance/test_local.py -v

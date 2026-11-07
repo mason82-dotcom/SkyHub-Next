@@ -1,0 +1,33 @@
+name: BRIX planning rollout preflight (offline)
+on:
+  pull_request:
+    paths:
+      - 'scripts/brix-planning-rollout-check.py'
+      - 'tests/test_brix_planning_rollout_check.py'
+      - 'ops/brix/planning-rollout.md'
+      - '.github/workflows/brix-planning-rollout.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/brix-planning-rollout-check.py'
+      - 'tests/test_brix_planning_rollout_check.py'
+      - 'ops/brix/planning-rollout.md'
+      - '.github/workflows/brix-planning-rollout.yml'
+permissions:
+  contents: read
+jobs:
+  hermetic-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Python syntax (no host needed)
+        run: |
+          python -m py_compile scripts/brix-planning-rollout-check.py tests/test_brix_planning_rollout_check.py
+      - name: Validate canonical bundled planning assets
+        run: python scripts/brix-planning-rollout-check.py --mode source
+      - name: Hermetic safety/regression tests
+        run: python -m unittest discover -s tests -p 'test_brix_planning_rollout_check.py' -v

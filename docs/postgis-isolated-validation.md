@@ -21,13 +21,13 @@ Der Opt-in-Test unter backend/test/postgis.integration.test.js führt tatsächli
 5. Reale Track-Inserts/Reads mit PostGIS-Geometrie erhalten Quellzeitstempel, filtern historische (0, 0)-Punkte und löschen bei Retention nur veraltete Testpunkte.
 6. Nach der Prüfung erfolgt ein Transaktions-Rollback – auch nach Assertionsfehlern.
 
-CI: .github/workflows/skyhub-next-tests.yml, separater Job isolated-postgis-integration mit postgis/postgis:15-3.5 und einer nur im CI-Runner gültigen Test-Credential. Dieser Job benötigt keine SkyHub-Live-Secrets.
+**CI-Stand 24.10.2026:** Der aktive Workflow ist `.github/workflows/ci.yml` mit `isolated-postgis-integration` und `postgis/postgis:15-3.5`. Der PostgreSQL-Service nutzt **einen dynamisch zugeteilten Hostport** (`5432/tcp`, Referenz `${{ job.services.postgis.ports[5432] }}`) statt fest `55432`, um Kollisionen bei parallelen GitHub-Läufen zu vermeiden. `SKYHUB_TEST_DATABASE_URL` zeigt ausschließlich auf `127.0.0.1` und `skyhub_test`. Keine Pi-Verbindung und keine Live-Credentials.
 
 ## Einschränkungen / verbleibende Abnahme
 
 Der Transaktions-Rollback-Test beweist das isolierte DDL-Verhalten. Der separate pg_dump/pg_restore-Test (unten) ergänzt einen tatsächlichen Archiv-Restore mit **synthetischen** Daten. Beide ersetzen weder die Wiederherstellungsprobe eines realitätsnahen, anonymisierten Bestands noch die Prüfung von RPO/RTO, Version-Upgrades oder ein unterbrechungsfreies Live-Upgrade. Vor Aktivierung fehlen weiterhin ein Berechtigungsmodell für Pilot-/Workspace-Rollen, die Hardwarevalidierung der Pilot-2-Kartenelementanzeige und die Entscheidung über Backup/Schema-Migrationsbetrieb. Kein automatisches Anwenden von 001_dji_map_elements.sql beim Serverstart.
 
-Der parallel offene Cleanup-PR #4 betrifft main und ist separat zu integrieren. Die CI-Dateien beider Linien werden beim Zusammenführen fachlich konsolidiert, nicht unbesehen überschrieben.
+Historische parallele PRs müssen vor einem Merge anhand ihrer tatsächlichen GitHub-Stände erneut geprüft werden. Der produktive Broker oder ein Raspberry-Pi-Backend wird von diesem Test nicht aktualisiert.
 
 ## Getrennter Backup-/Restore-Test mit echtem Archiv (P1)
 

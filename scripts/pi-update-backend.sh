@@ -29,11 +29,55 @@ for cmd in docker curl git python3;do
   command -v "$cmd" >/dev/null || { echo "Missing prerequisite: $cmd" >&2;exit 2; }
 done
 docker info >/dev/null
-if ! bash scripts/pi-preflight.sh;then
+# Resolve the EFFECTIVE, interpolated Compose profile without sourcing arbitrary .env
+# shell code or printing JSON containing credentials. This detects stale/mismatched
+# broker kind, required port, backend endpoint and enabled Pilot-2 endpoint.
+compose=(docker compose -p skyhub-next --env-file .env)
+# Pi: dieselben Overlays wie scripts/pi-compose.sh. Ohne docker-compose.arm64.yml legte jedes Update das leere x86-Volume
+# skyhub-next_pgdata an (28.10.2026; Postgres blieb dank --no-deps unberuehrt, vgl. Ausfall 26.10.), und ohne explizites
+# Override fehlte beim Neuanlegen das Speichernetz nur deshalb nicht, weil compose es ohne -f automatisch laedt.
+if [[ -f docker-compose.arm64.yml ]]; then
+  compose+=(-f docker-compose.yml -f docker-compose.arm64.yml)
+  [[ -f docker-compose.override.yml ]] && compose+=(-f docker-compose.override.yml)
+fi
+"${compose[@]}" config --quiet
+if ! broker_choice="$("${compose[@]}" config --format json | python3 -c '
+import json,sys
+from urllib.parse import urlsplit
+try:
+    e=json.load(sys.stdin)["services"]["backend"]["environment"]
+    kind=e.get("SKYHUB_MQTT_BROKER_KIND","")
+    pin=str(e.get("SKYHUB_MQTT_REQUIRED_PORT",""))
+    expected={"emqx":"1884","mosquitto":"1883","mosquitto-dedicated":"1884"}
+    if kind not in expected or pin!=expected[kind]:
+        raise ValueError("invalid broker kind / required-port pairing")
+    url=urlsplit(e.get("MQTT_BROKER_URL",""))
+    if url.scheme not in ("mqtt","mqtts") or not url.hostname or url.username or url.password or url.port!=int(pin):
+        raise ValueError("broker URL and selected port mismatch")
+    if e.get("SKYHUB_PILOT_ENABLED")=="true":
+        pilot=urlsplit(e.get("SKYHUB_PILOT_MQTT_URL",""))
+        if pilot.scheme!="mqtt" or not pilot.hostname or pilot.port!=int(pin):
+            raise ValueError("enabled Pilot 2 MQTT endpoint must use the selected port")
+    print(kind,pin)
+except (ValueError,KeyError,TypeError,AttributeError):
+    print("REFUSED: effective Compose MQTT/Pilot profile is inconsistent.",file=sys.stderr)
+    sys.exit(2)
+')"; then
+  exit 2
+fi
+read -r broker_kind broker_port <<< "$broker_choice"
+if ! bash scripts/pi-preflight.sh --broker-kind "$broker_kind" --broker-port "$broker_port";then
   echo "REFUSED: Pi preflight failed; existing services were not changed." >&2;exit 2
 fi
-compose=(docker compose -p skyhub-next --env-file .env)
-"${compose[@]}" config --quiet
+# Exact reverse-proxy peer: refuse an update that would silently disable Caddy's forwarded headers (LAN dashboard,
+# Pilot 2 HTTPS check). The Docker gateway is assigned by Docker and can change when the network is recreated.
+trusted_proxy_ips="$("${compose[@]}" config --format json | python3 -c '
+import json,sys
+print(json.load(sys.stdin)["services"]["backend"]["environment"].get("SKYHUB_TRUSTED_PROXY_IPS") or "")
+')"
+if ! SKYHUB_TRUSTED_PROXY_IPS="$trusted_proxy_ips" bash scripts/pi-proxy-peer-check.sh --enforce;then
+  echo "REFUSED: SKYHUB_TRUSTED_PROXY_IPS does not match the real Caddy peer; existing services were not changed." >&2;exit 2
+fi
 backend_id="$("${compose[@]}" ps -q backend)"
 postgres_id="$("${compose[@]}" ps -q postgres)"
 redis_id="$("${compose[@]}" ps -q redis)"
@@ -49,6 +93,31 @@ if [[ "$backend_name" != /skyhub-next-backend-1 ]];then
   echo "REFUSED: unexpected backend container owner." >&2;exit 2
 fi
 
+# Identify the running image for rollback BEFORE any backup is written.
+old_image="$(docker inspect -f '{{.Image}}' "$backend_id")"
+# containerd image store: the container may reference a build's manifest-index digest that no longer
+# resolves although the same build is still tagged. Fall back to the container's image name, but only
+# if that image was built before the container was created (i.e. it was not rebuilt since).
+if ! docker image inspect "$old_image" >/dev/null 2>&1;then
+  named="$(docker inspect -f '{{.Config.Image}}' "$backend_id")"
+  if ! python3 - "$(docker image inspect -f '{{.Created}}' "$named" 2>/dev/null)" \
+      "$(docker inspect -f '{{.Created}}' "$backend_id")" <<'PY'
+import re,sys
+from datetime import datetime
+def t(v):
+    # Docker prints RFC3339 with nanoseconds and either Z or a +hh:mm offset; compare timezone-aware.
+    m=re.fullmatch(r'(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)(?:\.(\d+))?(Z|[+-]\d\d:\d\d)',v.strip())
+    if not m:raise SystemExit(1)
+    tz='+00:00' if m[3]=='Z' else m[3]
+    return datetime.fromisoformat(m[1]+'.'+((m[2] or '')+'000000')[:6]+tz)
+sys.exit(0 if t(sys.argv[1])<=t(sys.argv[2]) else 1)
+PY
+  then
+    echo "REFUSED: running backend image cannot be identified for rollback; nothing changed." >&2;exit 2
+  fi
+  echo "NOTE: running image digest not resolvable (containerd store); backing up '$named' built before the container start."
+  old_image="$named"
+fi
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 backup_dir="$HOME/Projekte/_backups/skyhub-next/$stamp"
 mkdir -p "$backup_dir"
@@ -58,7 +127,6 @@ if [[ -f docker-compose.override.yml ]];then
   cp -p docker-compose.override.yml "$backup_dir/docker-compose.override.yml"
 fi
 printf '%s\n' "$(git rev-parse HEAD)" > "$backup_dir/source-commit.txt"
-old_image="$(docker inspect -f '{{.Image}}' "$backend_id")"
 backup_tag="skyhub-next-backend-preupdate:$stamp"
 docker image tag "$old_image" "$backup_tag"
 printf '%s\n' "$backup_tag" > "$backup_dir/previous-image-tag.txt"
@@ -69,10 +137,11 @@ if ! "${compose[@]}" exec -T postgres pg_dump -U skyhub_next -d skyhub_next -Fc 
   echo "REFUSED: Postgres backup failed. Existing containers unchanged." >&2;exit 1
 fi
 if [[ ! -s "$backup_dir/postgis.dump" ]];then
+  rm -f "$backup_dir/postgis.dump"
   echo "REFUSED: backup appears empty. Existing containers unchanged." >&2;exit 1
 fi
 
-echo "Building backend from the locked dependencies; Postgres, Redis and EMQX untouched."
+echo "Building backend from locked dependencies; Postgres, Redis and the selected external broker untouched."
 "${compose[@]}" build backend
 echo "Recreating the SkyHub Next backend only."
 "${compose[@]}" up -d --no-deps --no-build backend
@@ -93,6 +162,6 @@ if [[ "$ok" != 1 ]];then
   exit 1
 fi
 echo "SUCCESS: new SkyHub Next backend answers the read-only health endpoint."
-echo "Postgres, Redis, EMQX and Caddy were not recreated by this script."
+echo "Postgres, Redis, the external MQTT broker and Caddy were not recreated by this script."
 echo "Backup directory (PRIVATE): $backup_dir"
 echo "Previous backend image: $backup_tag"

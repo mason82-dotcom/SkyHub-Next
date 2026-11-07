@@ -10,7 +10,9 @@ set -euo pipefail
 CADDYFILE=/opt/caddy/Caddyfile
 CONTAINER=caddy
 MARKER='# SKYHUB-NEXT DASHBOARD (LAN only)'
-LAN_CIDR=192.168.178.0/24
+# LAN incl. the home network IPv6 prefixes (06.11.2026): ULA fd1a:baaf:283e::/64 (stable) and provider prefix 2a02:8071:3184:88c0::/64.
+# Without IPv6, clients resolving rpi5.fritz.box to IPv6 got 403. Override: SKYHUB_LAN_CIDR="..." sudo -E bash $0 apply
+LAN_CIDR="${SKYHUB_LAN_CIDR:-192.168.178.0/24 fd1a:baaf:283e::/64 2a02:8071:3184:88c0::/64}"
 PI_IP=192.168.178.63
 PORT=4443
 

@@ -1,0 +1,7 @@
+# Append to scrape_configs in /srv/stacks/monitoring/prometheus.yml (Prometheus runs with network_mode: host
+# on brix-node; the backend publishes only on SKYHUB_BRIX_BIND=192.168.178.50, local traffic is not filtered).
+  - job_name: "skyhub-backend"
+    metrics_path: /api/health/metrics
+    scrape_interval: 30s
+    static_configs:
+      - targets: ["192.168.178.50:4001"]

@@ -1,0 +1,152 @@
+# Grafana 13.x file provisioning (brix-node). Copy to /srv/stacks/monitoring/grafana/alerting/ and restart Grafana.
+apiVersion: 1
+groups:
+- orgId: 1
+  name: brix-backup
+  folder: Homelab Alerts
+  interval: 1m
+  rules:
+  - uid: homelab_brix_backup_stale
+    title: brix-node-Backup älter als 26 Stunden
+    condition: C
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: prometheus
+      model:
+        datasource:
+          type: prometheus
+          uid: prometheus
+        editorMode: code
+        expr: '(time() - max(brix_backup_last_run_timestamp_seconds{job="brix-node"})) / 3600'
+        instant: true
+        range: false
+        intervalMs: 1000
+        maxDataPoints: 43200
+        refId: A
+    - refId: B
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: __expr__
+      model:
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: A
+        intervalMs: 1000
+        maxDataPoints: 43200
+        reducer: last
+        refId: B
+        type: reduce
+    - refId: C
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: __expr__
+      model:
+        conditions:
+        - evaluator:
+            params:
+            - 26
+            type: gt
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            params: []
+            type: last
+          type: query
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: B
+        intervalMs: 1000
+        maxDataPoints: 43200
+        refId: C
+        type: threshold
+    noDataState: Alerting
+    execErrState: Error
+    for: 15m
+    annotations:
+      summary: 'Der letzte restic-Lauf auf brix-node ist über 26 Stunden her (Timer brix-backup.timer, journalctl --user -u brix-backup).'
+    labels:
+      severity: critical
+      scope: homelab
+    isPaused: false
+  - uid: homelab_brix_backup_failed
+    title: brix-node-Backup fehlgeschlagen
+    condition: C
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: prometheus
+      model:
+        datasource:
+          type: prometheus
+          uid: prometheus
+        editorMode: code
+        expr: 'max(brix_backup_last_success{job="brix-node"})'
+        instant: true
+        range: false
+        intervalMs: 1000
+        maxDataPoints: 43200
+        refId: A
+    - refId: B
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: __expr__
+      model:
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: A
+        intervalMs: 1000
+        maxDataPoints: 43200
+        reducer: last
+        refId: B
+        type: reduce
+    - refId: C
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: __expr__
+      model:
+        conditions:
+        - evaluator:
+            params:
+            - 0.5
+            type: lt
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            params: []
+            type: last
+          type: query
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: B
+        intervalMs: 1000
+        maxDataPoints: 43200
+        refId: C
+        type: threshold
+    noDataState: Alerting
+    execErrState: Error
+    for: 5m
+    annotations:
+      summary: 'Der letzte restic-Lauf auf brix-node ist fehlgeschlagen (journalctl --user -u brix-backup).'
+    labels:
+      severity: critical
+      scope: homelab
+    isPaused: false

@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex,nofollow">
+<title>Thermal · SkyHub</title>
+<link rel="stylesheet" href="/skyhub-light.css">
+<link rel="stylesheet" href="/media-gallery.css">
+<link rel="stylesheet" href="/thermal.css">
+<script defer src="/thermal-core.js"></script>
+<script defer src="/thermal-app.js"></script>
+<script defer src="/skyhub-nav.js"></script>
+</head>
+<body data-skyhub-page="thermal">
+<a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
+<!-- skyhub-appbar -->
+<header class="skyhub-appbar">
+  <a class="skyhub-appbar-brand" href="/"><span class="brand-symbol" aria-hidden="true">✦</span>SkyHub <span>Next</span></a>
+  <nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
+    <a href="/">Lagebild</a>
+    <details class="skyhub-nav-group"><summary>Planen</summary><div class="skyhub-nav-menu">
+      <p class="skyhub-nav-section">Mission</p>
+      <a href="/wpml-editor.html">Missionsentwurf<small>Wegpunkte setzen, KMZ importieren</small></a>
+      <a href="/wpml-route-library.html">Routenbibliothek<small>Gespeicherte Routen und Revisionen</small></a>
+      <a href="/missionsfreigabe.html">Missionsfreigabe<small>Revision für Pilot 2 freigeben</small></a>
+      <p class="skyhub-nav-section">Karte in Pilot 2</p>
+      <a href="/kartenelemente.html">Kartenelemente<small>Punkte, Linien und Flächen</small></a>
+      <p class="skyhub-nav-section is-lab">Labor <span>experimentell, nicht für den Einsatz freigegeben</span></p>
+      <a href="/wpml-survey-preview.html" class="is-lab">Vermessungsvorschau<small>2D-Flächenvermessung, nur Vorschau</small></a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Fliegen</summary><div class="skyhub-nav-menu">
+      <a href="/drc.html">Live-Steuerung<small>Matrice 4 · RC Plus 2</small></a>
+      <a href="/drc.html?rc=pro">Kamera &amp; Gimbal<small>Mavic 3 · RC Pro</small></a>
+    </div></details>
+    <details class="skyhub-nav-group is-active"><summary>Auswerten</summary><div class="skyhub-nav-menu">
+      <p class="skyhub-nav-section">Medien &amp; Position</p>
+      <a href="/media-gallery.html">Medien<small>Fotos, Videos, TIFFs, Missionsdateien</small></a>
+      <a href="/ppk.html">PPK-Geotagging<small>Zentimetergenaue Kamerapositionen</small></a>
+      <a href="/abdeckung.html">Fotoabdeckung<small>Lücken und Überlappung eines Flugs</small></a>
+      <p class="skyhub-nav-section">Sensorik</p>
+      <a href="/thermal.html" aria-current="page">Thermal<small>Temperaturen aus DJI R-JPEG</small></a>
+      <a href="/ndvi.html">Vegetationsindizes<small>NDVI, GNDVI, NDRE · Mavic 3M</small></a>
+      <p class="skyhub-nav-section is-lab">Labor <span>experimentell, nicht für den Einsatz freigegeben</span></p>
+      <a href="/smart-farming.html" class="is-lab">Smart Farming<small>M3M-Indexkandidaten, nur Lesen</small></a>
+      <a href="/smart-farming-map-lab.html" class="is-lab">Vegetationskarte<small>Georeferenzierte Vorschau</small></a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Diagnose</summary><div class="skyhub-nav-menu">
+      <a href="/fh-diagnostics.html">RTK &amp; Flugsitzungen<small>RTK-Status und Sitzungsverlauf</small></a>
+      <a href="/pilot-protokolle.html">Pilot-2-Protokolle<small>Von der Fernsteuerung gesendet</small></a>
+    </div></details>
+  </nav>
+</header>
+<!-- /skyhub-appbar -->
+<main id="skyhubMain" tabindex="-1">
+  <div class="hero">
+    <div>
+      <p class="eyebrow">RADIOMETRISCHE WÄRMEBILDER</p>
+      <h1>Thermal <span class="muted">Wärmebilder aus DJI R-JPEG</span></h1>
+      <p>Alle Wärmebilder (DJI R-JPEG) aus dem SkyHub-Speicher: Darstellung mit Paletten, Temperatur an jeder Stelle, Messpunkte, Linien, Kreise und Messbereiche, Isothermen, Emissionsgrad-Korrektur, Serienauswertung und Export.</p>
+    </div>
+    <p class="estimate" id="estimate">Temperaturen sind Schätzwerte aus den Rohdaten (ohne DJI Thermal SDK), keine kalibrierte Messung. Kamerakompatibilität und Genauigkeit sind nicht verifiziert.</p>
+  </div>
+  <p id="message" class="message" role="status" aria-live="polite">Wärmebilder werden gesucht …</p>
+
+  <div class="tabs" role="tablist" aria-label="Thermal-Ansichten">
+    <button type="button" role="tab" id="tab-image" aria-selected="true" aria-controls="panel-image">Bildanalyse</button>
+    <button type="button" role="tab" id="tab-series" aria-selected="false" aria-controls="panel-series">Serienauswertung</button>
+    <button type="button" role="tab" id="tab-export" aria-selected="false" aria-controls="panel-export">Photogrammetrie-Export</button>
+  </div>
+
+  <section id="panel-image" role="tabpanel" aria-labelledby="tab-image" class="thermal-layout">
+    <aside class="thermal-list" aria-label="Wärmebilder">
+      <label class="search"><span class="sr-only">Wärmebilder suchen</span>
+        <input id="list-search" type="search" placeholder="Suchen (Name, Datum 20261022 …)" autocomplete="off"></label>
+      <p id="list-count" class="fine"></p>
+      <div id="list"></div>
+    </aside>
+
+    <div class="thermal-main">
+      <div class="thermal-toolbar">
+        <label>Palette <select id="palette"></select></label>
+        <label class="check"><input type="checkbox" id="auto-range" checked> Bereich automatisch</label>
+        <label>Min <input type="number" id="range-min" step="0.1" inputmode="decimal"></label>
+        <label>Max <input type="number" id="range-max" step="0.1" inputmode="decimal"></label>
+        <label>Emissionsgrad <input type="number" id="eps" aria-describedby="correction-help" min="0.1" max="1" step="0.01" inputmode="decimal"></label>
+        <label>Reflektierte Temp. °C <input type="number" id="reflected" aria-describedby="correction-help" min="-273.15" step="0.5" value="20" inputmode="decimal"></label>
+        <label>Isotherme <select id="iso-mode">
+          <option value="">aus</option><option value="above">über</option><option value="below">unter</option><option value="between">zwischen</option>
+        </select></label>
+        <label>T1 <input type="number" id="iso-t1" step="0.1" inputmode="decimal"></label>
+        <label>T2 <input type="number" id="iso-t2" step="0.1" inputmode="decimal"></label>
+      </div>
+      <div class="thermal-toolbar" id="sdk-controls" hidden>
+        <label>Berechnung <select id="calibration" aria-describedby="sdk-help">
+          <option value="sdk">DJI Thermal SDK (kalibriert)</option>
+          <option value="estimate">Schätzung (raw/64)</option>
+        </select></label>
+        <label>Abstand m <input type="number" id="sdk-distance" aria-describedby="sdk-help" min="1" max="25" step="0.1" value="5" inputmode="decimal"></label>
+        <label>Luftfeuchte % <input type="number" id="sdk-humidity" aria-describedby="sdk-help" min="20" max="100" step="1" value="70" inputmode="decimal"></label>
+        <label>Umgebung °C <input type="number" id="sdk-ambient" aria-describedby="sdk-help" min="-40" max="80" step="0.5" value="25" inputmode="decimal"></label>
+      </div>
+      <p id="sdk-help" class="fine" hidden>DJI Thermal SDK: Temperaturen berechnet DJIs dji_irp aus dem Originalbild mit Emissionsgrad, reflektierter Temperatur, Abstand (1–25 m, Vorschlag aus dem Laserentfernungsmesser), Luftfeuchte und Umgebungstemperatur. Grenzen laut SDK; Werte außerhalb werden abgelehnt, nicht angepasst.</p>
+      <p id="correction-help" class="fine">Schätzung: Reflektierte Temperatur wirkt nur bei geändertem Emissionsgrad. Fehlende Dateiemissivität wird ausdrücklich mit dem angenommenen Ausgangswert 0,95 ausgewiesen. Ungültige Eingaben sperren den Export.</p>
+      <div class="thermal-toolbar">
+        <div class="segmented" role="group" aria-label="Werkzeug">
+          <button type="button" data-tool="view" aria-pressed="true">Ansehen</button>
+          <button type="button" data-tool="spot" aria-pressed="false">Messpunkt</button>
+          <button type="button" data-tool="box" aria-pressed="false">Messbereich</button>
+          <button type="button" data-tool="line" aria-pressed="false">Linie</button>
+          <button type="button" data-tool="circle" aria-pressed="false">Kreis</button>
+          <button type="button" data-tool="ellipse" aria-pressed="false">Ellipse</button>
+        </div>
+        <label class="check"><input type="checkbox" id="show-spots" checked> Hot-/Cold-Spot</label>
+        <label class="check"><input type="checkbox" id="show-visual" checked> Foto daneben</label>
+        <button type="button" class="secondary" id="clear-measurements">Messungen löschen</button>
+        <button type="button" class="secondary" id="export-png" disabled>PNG</button>
+        <button type="button" class="secondary" id="export-csv" disabled>CSV Messungen</button>
+        <button type="button" class="secondary" id="export-matrix" disabled>CSV Temperaturmatrix</button>
+      </div>
+
+      <div class="thermal-stage" id="stage">
+        <figure class="thermal-figure">
+          <canvas id="thermal" width="640" height="512" aria-label="Wärmebild"></canvas>
+          <figcaption id="readout" class="readout" aria-live="off">Zeiger auf das Bild bewegen</figcaption>
+        </figure>
+        <figure class="thermal-figure" id="visual-figure">
+          <img id="visual" alt="Fotokandidat mit ungeprüfter Zuordnung">
+          <figcaption id="visual-caption" class="readout"></figcaption>
+        </figure>
+      </div>
+
+      <div class="thermal-panels">
+        <section class="panel-box" aria-labelledby="stats-title">
+          <h2 id="stats-title">Bildwerte</h2>
+          <dl id="stats" class="facts"></dl>
+          <canvas id="histogram" width="480" height="110" aria-label="Histogramm"></canvas>
+          <div id="legend" class="legend"></div>
+        </section>
+        <section class="panel-box" aria-labelledby="meta-title">
+          <h2 id="meta-title">Aufnahme</h2>
+          <dl id="meta" class="facts"></dl>
+        </section>
+        <section class="panel-box wide" aria-labelledby="meas-title">
+          <h2 id="meas-title">Messungen</h2>
+          <table class="table"><thead><tr><th>#</th><th>Art</th><th>Position</th><th>Min</th><th>Mittel</th><th>Max</th><th></th></tr></thead>
+            <tbody id="measurements"></tbody></table>
+          <p class="fine">Messpunkt: klicken. Rechteck, Linie, Kreis und Ellipse: mit gedrückter Taste oder Berührung aufziehen. Kreis und Ellipse liegen im aufgezogenen Begrenzungsrechteck. Die Werte verwenden die aktuell ausgewählte Berechnungsart (SDK oder Schätzung); eine unabhängige Genauigkeitsprüfung ist damit nicht erbracht.</p>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <section id="panel-series" role="tabpanel" aria-labelledby="tab-series" hidden>
+    <div class="thermal-toolbar">
+      <label>Serie <select id="series-select"></select></label>
+      <button type="button" id="series-run">Auswerten</button>
+      <button type="button" class="secondary" id="series-csv" disabled>CSV</button>
+      <span id="series-status" class="fine" aria-live="polite"></span>
+    </div>
+    <p class="fine">Serienwerte sind unkorrigierte Schätzwerte aus der Datei. Emissionsgrad und reflektierte Temperatur der Einzelbildanalyse werden hier nicht angewendet.</p>
+    <svg id="series-chart" class="series-chart" viewBox="0 0 900 260" role="img" aria-label="Temperaturverlauf der Serie"></svg>
+    <table class="table"><thead><tr><th>Zeit</th><th>Datei</th><th>Min</th><th>Median</th><th>Mittel</th><th>Max</th><th>Hotspot</th><th>Distanz</th><th>Neigung</th></tr></thead>
+      <tbody id="series-table"></tbody></table>
+  </section>
+
+  <section id="panel-export" role="tabpanel" aria-labelledby="tab-export" hidden>
+    <p class="fine">Wandelt eine Serie von Wärmebildern mit dem DJI Thermal SDK in <b>kalibrierte Temperatur-TIFFs</b> (Float32, °C, mit
+      GPS-Tags) für Agisoft Metashape, Pix4D oder OpenDroneMap um, plus <code>positions.csv</code>. Die Parameter gelten für alle Bilder.
+      Idee: DanGeospatial/dji_m3t_rpeg_to_tif (eigene Umsetzung).</p>
+    <div class="thermal-toolbar">
+      <label>Serie <select id="export-series"></select></label>
+      <label>Emissionsgrad <input type="number" id="export-eps" min="0.1" max="1" step="0.01" value="0.95" inputmode="decimal"></label>
+      <label>Abstand m <input type="number" id="export-distance" min="1" max="25" step="0.5" value="5" inputmode="decimal"></label>
+      <label>Luftfeuchte % <input type="number" id="export-humidity" min="20" max="100" step="1" value="70" inputmode="decimal"></label>
+      <label>Umgebung °C <input type="number" id="export-ambient" min="-40" max="80" step="0.5" value="25" inputmode="decimal"></label>
+      <label>Reflektiert °C <input type="number" id="export-reflection" min="-40" max="500" step="0.5" value="23" inputmode="decimal"></label>
+      <button type="button" id="export-run">Export starten</button>
+      <button type="button" class="secondary" id="export-cancel" disabled>Abbrechen</button>
+    </div>
+    <p id="export-status" class="fine" role="status" aria-live="polite"></p>
+    <p><a id="export-download" href="#" hidden download>ZIP herunterladen</a></p>
+    <ul id="export-errors" class="fine"></ul>
+    <p class="fine">Hinweis: Viele Bildbetrachter zeigen Float-TIFFs weiß – in Metashape, ODM oder QGIS öffnen. Der DJI-SDK-Abstand gilt
+      nur von 1–25 m; bei größerer Flughöhe 25 m wählen. Die Ergebnisse bleiben eine Stunde abrufbar.</p>
+  </section>
+</main>
+</body>
+</html>

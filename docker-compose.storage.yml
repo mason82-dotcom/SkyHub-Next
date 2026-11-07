@@ -1,0 +1,26 @@
+# Opt-in shared object storage; NEVER use this file alone.
+# docker compose -f docker-compose.yml -f docker-compose.storage.yml --profile media ...
+# The external bridge must be provisioned first: scripts/pi-minio-network.sh apply
+services:
+  minio:
+    networks:
+      default: {}
+      shared_storage:
+        aliases:
+          - skyhub-minio
+
+  # The running backend is connected without recreation by the Pi helper.
+  # Keeping this declaration makes the attachment survive later Compose
+  # recreations ONLY when both Compose files are used.
+  backend:
+    networks:
+      - default
+      - shared_storage
+    environment:
+      SKYHUB_S3_ENDPOINT: http://skyhub-minio:9000
+      SKYHUB_S3_REGION: us-east-1
+
+networks:
+  shared_storage:
+    name: skyhub-storage-net
+    external: true

@@ -1,0 +1,245 @@
+'use strict';
+
+// DJI Pilot 2 media-upload contract (pilot-to-cloud, media management, DJI Cloud API 1.18, checked 04.11.2026:
+// fast-upload, files/tiny-fingerprints, storage …/sts, upload-callback, group-upload-callback).
+// Pure request validators and response builders, no I/O. The HTTP routes are in pilot-media-http.js and
+// pilot-media-upload-runtime.js (workspace principal, audited store, MinIO STS); see docs/dji-media-upload-contract.md.
+// 1.18 lists upload-callback `result` as required; Pilot 2 omits it and calls back only after success, so absent = 0.
+const {serial}=require('./dji');
+
+const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const FINGERPRINT=/^[A-Za-z0-9_.-]{1,128}$/;
+const FILE_GROUP=/^[A-Za-z0-9_.:-]{1,128}$/;
+const MODEL_KEY=/^[A-Za-z0-9_.:-]{1,64}$/;
+const MAX_TINY_FINGERPRINTS=500;
+const MAX_NAME=255;
+const MAX_PATH=1024;
+const MAX_KEY=1024;
+const MAX_STS_SECONDS=3600;
+const STS_PROVIDERS=Object.freeze(['ali','aws','minio']);
+
+function isObject(value){
+  return value!==null&&typeof value==='object'&&!Array.isArray(value);
+}
+function text(value,max,{required=false}={}){
+  if(value===undefined||value===null)return required?undefined:null;
+  // Pilot 2 sends empty strings for absent optional fields (e.g. path, file_group_id).
+  if(value===''&&!required)return null;
+  if(typeof value!=='string'||!value.length||value.length>max||
+    /[\u0000-\u001f\u007f]/.test(value))return undefined;
+  return value;
+}
+// Object keys and business paths: relative, no traversal, no empty segments.
+function relativePath(value,max,options){
+  const result=text(value,max,options);
+  if(!result)return result;
+  if(result.startsWith('/')||result.includes('\\')||
+    result.split('/').some(part=>part===''||part==='.'||part==='..'))return undefined;
+  return result;
+}
+function fingerprint(value,{required=false}={}){
+  if(value===undefined||value===null)return required?undefined:null;
+  return typeof value==='string'&&FINGERPRINT.test(value)?value:undefined;
+}
+function bool(value){
+  if(value===undefined||value===null)return null;
+  return typeof value==='boolean'?value:undefined;
+}
+const NO_FIX_DEGREES=0.0001;
+function noPosition(lat,lng){
+  return Math.abs(lat)<NO_FIX_DEGREES&&Math.abs(lng)<NO_FIX_DEGREES;
+}
+function coordinate(value,limit){
+  return Number.isFinite(value)&&Math.abs(value)<=limit?value:undefined;
+}
+
+function fileExtension(input){
+  if(input===undefined||input===null)return {};
+  if(!isObject(input))return undefined;
+  const out={};
+  const fields=[
+    ['file_group_id',text(input.file_group_id,128),FILE_GROUP],
+    ['drone_model_key',text(input.drone_model_key,64),MODEL_KEY],
+    ['payload_model_key',text(input.payload_model_key,64),MODEL_KEY]
+  ];
+  for(const [name,value,pattern] of fields){
+    // Informational only: an unexpected model key or group id is dropped, not fatal.
+    if(value!==undefined&&value!==null&&pattern.test(value))out[name]=value;
+  }
+  const tiny=fingerprint(input.tinny_fingerprint);
+  const original=bool(input.is_original);
+  if(tiny===undefined||original===undefined)return undefined;
+  if(tiny!==null)out.tinny_fingerprint=tiny;
+  if(original!==null)out.is_original=original;
+  if(input.sn!==undefined&&input.sn!==null&&input.sn!==''){
+    const sn=serial(input.sn);
+    if(sn)out.sn=sn;
+  }
+  return out;
+}
+
+function workspaceId(value){
+  return typeof value==='string'&&UUID.test(value)?value:null;
+}
+
+// POST .../files/tiny-fingerprints
+function parseTinyFingerprintRequest(body){
+  if(!isObject(body)||!Array.isArray(body.tiny_fingerprints)||
+    body.tiny_fingerprints.length>MAX_TINY_FINGERPRINTS)return null;
+  const seen=new Set();
+  for(const item of body.tiny_fingerprints){
+    if(fingerprint(item,{required:true})===undefined)return null;
+    seen.add(item);
+  }
+  return {tinyFingerprints:[...seen]};
+}
+
+// POST .../fast-upload
+function parseFastUploadRequest(body){
+  if(!isObject(body))return null;
+  const print=fingerprint(body.fingerprint,{required:true});
+  const name=text(body.name,MAX_NAME);
+  const path=relativePath(body.path,MAX_PATH);
+  const ext=fileExtension(body.ext);
+  if(print===undefined||name===undefined||path===undefined||ext===undefined)return null;
+  return {fingerprint:print,name,path,ext};
+}
+
+// POST .../upload-callback
+function parseUploadCallback(body){
+  // DJI Pilot 2 (MediaUploadCallbackRequest) sends no "result"; it only calls back after a
+  // successful upload. The Dock variant sends result (0 = success).
+  if(!isObject(body))return null;
+  const result=body.result===undefined||body.result===null?0:body.result;
+  if(!Number.isSafeInteger(result)||result<0)return null;
+  const name=text(body.name,MAX_NAME,{required:true});
+  const objectKey=relativePath(body.object_key,MAX_KEY,{required:true});
+  const print=fingerprint(body.fingerprint);
+  const path=relativePath(body.path,MAX_PATH);
+  const ext=fileExtension(body.ext);
+  if(name===undefined||objectKey===undefined||print===undefined||
+    path===undefined||ext===undefined)return null;
+  let subFileType=null;
+  if(body.sub_file_type!==undefined){
+    if([0,1].includes(body.sub_file_type))subFileType=body.sub_file_type;
+  }
+  let metadata=null;
+  if(body.metadata!==undefined&&body.metadata!==null){
+    // Pilot metadata is informational: unreadable fields are dropped, never fatal.
+    const m=isObject(body.metadata)?body.metadata:{};
+    metadata={};
+    for(const [key,value] of [
+      ['absolute_altitude',m.absolute_altitude],
+      ['relative_altitude',m.relative_altitude],
+      ['gimbal_yaw_degree',m.gimbal_yaw_degree]
+    ]){
+      if(Number.isFinite(value)&&Math.abs(value)<=100000)metadata[key]=value;
+    }
+    const created=text(m.created_time,64);
+    // Java "yyyy-MM-dd'T'HH:mm:ssVV" may carry a zone id; keep it when the date part parses.
+    if(created&&Number.isFinite(Date.parse(created.replace(/[A-Za-z]+\/[A-Za-z_]+$/,''))))
+      metadata.created_time=created;
+    if(isObject(m.shoot_position)){
+      const p=m.shoot_position;
+      const lat=coordinate(p.lat,90),lng=coordinate(p.lng,180);
+      // DJI documents 0/0 as "no position". Without a GPS fix the RC reports values like
+      // 1.9e-7/4.4e-7 instead of exact zeros, so anything within ~10 m of 0/0 is no position.
+      if(lat!==undefined&&lng!==undefined&&!noPosition(lat,lng))metadata.shoot_position={lat,lng};
+    }
+  }
+  return {
+    uploaded:result===0,result,name,objectKey,
+    fingerprint:print,path,ext,subFileType,metadata
+  };
+}
+
+// POST .../group-upload-callback
+function parseGroupUploadCallback(body){
+  if(!isObject(body))return null;
+  const group=body.file_group_id;
+  if(group!==undefined&&group!==null&&
+    (typeof group!=='string'||!FILE_GROUP.test(group)))return null;
+  const {file_count:count,file_uploaded_count:uploaded}=body;
+  if(!Number.isSafeInteger(count)||count<0||
+    !Number.isSafeInteger(uploaded)||uploaded<0||uploaded>count)return null;
+  return {fileGroupId:group??null,fileCount:count,fileUploadedCount:uploaded};
+}
+
+// An uploaded object must live under the prefix the server issued for this workspace.
+function objectKeyUnderPrefix(objectKey,prefix){
+  const key=relativePath(objectKey,MAX_KEY,{required:true});
+  const base=relativePath(prefix,MAX_KEY,{required:true});
+  return Boolean(key&&base&&key.startsWith(base+'/')&&key.length>base.length+1);
+}
+
+function okEnvelope(data={}){return {code:0,message:'success',data};}
+function errorEnvelope(code,message){
+  if(!Number.isSafeInteger(code)||code===0)throw new TypeError('Error code required');
+  return {code,message:String(message).slice(0,200),data:{}};
+}
+function tinyFingerprintResponse(existing){
+  if(!Array.isArray(existing)||existing.length>MAX_TINY_FINGERPRINTS||
+    existing.some(item=>fingerprint(item,{required:true})===undefined)){
+    throw new TypeError('Invalid tiny fingerprint list');
+  }
+  return okEnvelope({tiny_fingerprints:[...new Set(existing)]});
+}
+function uploadCallbackResponse(objectKey){
+  const key=relativePath(objectKey,MAX_KEY,{required:true});
+  if(!key)throw new TypeError('Invalid object key');
+  return okEnvelope({object_key:key});
+}
+
+// Future STS provider output. Static, long-lived or over-broad credentials are
+// refused here so that a provider bug cannot hand them to a remote controller.
+function stsResponse(grant,{workspace}={}){
+  if(!workspaceId(workspace)||!isObject(grant)||!isObject(grant.credentials))
+    throw new TypeError('Invalid STS grant');
+  const c=grant.credentials;
+  const prefix=relativePath(grant.objectKeyPrefix,MAX_KEY,{required:true});
+  const bucket=text(grant.bucket,63,{required:true});
+  const region=text(grant.region,64,{required:true});
+  let endpoint;
+  try{endpoint=new URL(grant.endpoint);}catch(_err){throw new TypeError('Invalid STS endpoint');}
+  if(!prefix||!bucket||!region||endpoint.protocol!=='https:'||endpoint.username||endpoint.password||
+    !STS_PROVIDERS.includes(grant.provider)||
+    !prefix.split('/').includes(workspace)||
+    typeof c.accessKeyId!=='string'||!c.accessKeyId||
+    typeof c.accessKeySecret!=='string'||!c.accessKeySecret||
+    typeof c.securityToken!=='string'||!c.securityToken||
+    !Number.isSafeInteger(c.expire)||c.expire<=0||c.expire>MAX_STS_SECONDS){
+    throw new TypeError('Invalid STS grant');
+  }
+  return okEnvelope({
+    bucket,
+    credentials:{
+      access_key_id:c.accessKeyId,
+      access_key_secret:c.accessKeySecret,
+      expire:c.expire,
+      security_token:c.securityToken
+    },
+    endpoint:endpoint.origin,
+    object_key_prefix:prefix,
+    provider:grant.provider,
+    region
+  });
+}
+
+// Redacted structure of a request body for diagnostics: field names and value types only.
+function bodyShape(body,depth=0){
+  if(Array.isArray(body))return 'array('+body.length+')';
+  if(body===null)return 'null';
+  if(typeof body==='string')return body===''?'empty-string':'string';
+  if(typeof body!=='object')return typeof body;
+  if(depth>1)return 'object';
+  const out={};
+  for(const key of Object.keys(body).slice(0,30))out[key.slice(0,40)]=bodyShape(body[key],depth+1);
+  return out;
+}
+
+module.exports={bodyShape,noPosition,
+  parseTinyFingerprintRequest,parseFastUploadRequest,parseUploadCallback,
+  parseGroupUploadCallback,objectKeyUnderPrefix,okEnvelope,errorEnvelope,
+  tinyFingerprintResponse,uploadCallbackResponse,stsResponse,workspaceId,
+  MAX_TINY_FINGERPRINTS,STS_PROVIDERS
+};

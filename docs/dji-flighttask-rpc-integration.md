@@ -4,8 +4,8 @@ Stand: 23.10.2026. **Read-only, kein Brokerzugriff, kein Deployment, keine Flugf
 
 ## Branch-Abhängigkeiten
 
-- Protokoll-Audit: [PR #47](https://github.com/mason82-dotcom/SkyHub/pull/47) (inzwischen in `main` übernommen).
-- Flighttask-Beobachtung: [PR #74](https://github.com/mason82-dotcom/SkyHub/pull/74), Draft.
+- Protokoll-Audit: [PR #47](https://github.com/mason82-dotcom/SkyHub-Next/pull/47) (inzwischen in `main` übernommen).
+- Flighttask-Beobachtung: [PR #74](https://github.com/mason82-dotcom/SkyHub-Next/pull/74), am 23.10.2026 nach `main` gemergt.
 - Isolierter RPC-Prototyp: `feature/dji-demo-rpc-contract-20261022`. Nur die
   beiden Dateien `backend/dji-service-reply-contract.js` und
   `backend/test/dji-service-reply-contract.test.js` wurden **inhaltlich**
@@ -13,9 +13,7 @@ Stand: 23.10.2026. **Read-only, kein Brokerzugriff, kein Deployment, keine Flugf
 - Dieser Branch ergänzt die **strenge methodenspezifische Integration** mit
   `backend/dji-flighttask-reply-adapter.js` und Regressionstests.
 
-Die Implementierung ist gestapelt auf dem Branch von PR #74.
-Der neue PR ist zunächst gegen diesen Branch zu reviewen, nicht direkt
-gegen `main` zu mergen.
+**Integrationsnachtrag 23.10.2026:** PR #74 und [PR #78](https://github.com/mason82-dotcom/SkyHub-Next/pull/78) wurden in dieser Reihenfolge nach `main` gemergt. Die ursprüngliche gestapelte Review-Basis ist historisch. Der Adapter bleibt **nicht an `backend/server.js` angeschlossen**.
 
 ## Bestätigte Protokollunterscheidung
 
@@ -86,8 +84,7 @@ Nachrichten versendet.
 
 ## Nicht Bestandteil / noch offen
 
-- Noch keine **persistente**, idempotente Reconnect-/Restart-Verwaltung
-  von Missionskorrelationen.
+- **Update 24.10.2026:** Der isolierte, nicht in den Server eingebundene CAS-/Reconnect-Prototyp ist mit [PR #83](https://github.com/mason82-dotcom/SkyHub-Next/pull/83) in `main`. Er hat noch **keine produktive Migration oder Live-Integration**. Die inzwischen ergänzte [isolierte Workspace-Hülle](dji-flighttask-journal-access.md) und das [experimentelle Multi-Missions-Routing](dji-flighttask-multimission-router.md) sind **keine produktiv angebundene API und kein geprüfter Identity Provider**.
 - Keine geklärte produktive Autorisierungs-, Berechtigungs-, ACL- oder
   Gerätebindung für aktive DJI-Kommandos.
 - Für `need_reply=1`-Events fehlt eine getrennte, sichere

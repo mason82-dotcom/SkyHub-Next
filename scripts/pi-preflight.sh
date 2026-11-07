@@ -1,95 +1,131 @@
 #!/usr/bin/env bash
-# Read-only preflight for the Raspberry Pi deployment.
-# Checks listener topology only. Does not contact DJI hardware, disclose secrets,
-# start/stop Docker services, or publish MQTT messages.
+# Read-only Raspberry Pi topology preflight. No .env sourcing, MQTT publish,
+# broker reconfiguration, DJI contact, container changes or secret output.
 set -u
 
-if ! command -v ss >/dev/null 2>&1; then
-  printf 'ERROR: ss (iproute2) is required for the Pi preflight.\n' >&2
+broker_kind=emqx
+broker_port=1884
+if [[ "$#" -eq 4 && "${1:-}" == "--broker-kind" && "${3:-}" == "--broker-port" ]]; then
+  broker_kind="$2"
+  broker_port="$4"
+elif [[ "$#" -ne 0 ]]; then
+  echo 'Usage: pi-preflight.sh [--broker-kind emqx --broker-port 1884 | --broker-kind mosquitto --broker-port 1883 | --broker-kind mosquitto-dedicated --broker-port 1884]' >&2
   exit 2
 fi
+case "$broker_kind/$broker_port" in
+  emqx/1884|mosquitto/1883|mosquitto-dedicated/1884) ;;
+  *) echo 'REFUSED: broker kind and port must be emqx/1884, mosquitto/1883 or mosquitto-dedicated/1884.' >&2; exit 2 ;;
+esac
+for executable in ss docker; do
+  if ! command -v "$executable" >/dev/null 2>&1; then
+    printf 'ERROR: required preflight command not found: %s\n' "$executable" >&2
+    exit 2
+  fi
+done
 
 listening() {
   local port="$1"
   ss -ltnH | awk -v suffix=":$port" '$4 ~ suffix "$" { found=1 } END { exit !found }'
 }
+# A loopback-only host listener is not reachable via host.docker.internal from
+# a bridge-mode backend container. A non-loopback listener is only a prerequisite:
+# it is NOT evidence of valid MQTT credentials, ACLs, firewall or connectivity.
+listening_non_loopback() {
+  local port="$1"
+  ss -ltnH | awk -v suffix=":$port" '
+    $4 ~ suffix "$" {
+      addr=$4
+      sub(suffix "$", "", addr)
+      gsub(/^\[/, "", addr); gsub(/\]$/, "", addr)
+      if (addr!="127.0.0.1" && addr!="::1" && addr!="localhost") found=1
+    }
+    END { exit !found }'
+}
 
 result=0
 next_port_ok=0
-printf '%s\n' '=== SkyHub Raspberry Pi preflight (read-only) ==='
-# Source timestamps require a correct host clock; checking NTP is read-only.
+printf '%s\n' '=== SkyHub Next Raspberry Pi preflight (read-only) ==='
+printf 'Configured broker profile: %s / TCP %s\n' "$broker_kind" "$broker_port"
+
 if command -v timedatectl >/dev/null 2>&1; then
   synced="$(timedatectl show -p NTPSynchronized --value 2>/dev/null || true)"
-  if [ "$synced" = yes ]; then
-    printf '%s\n' 'OK: Raspberry Pi clock reports NTP synchronized.'
-  elif [ "$synced" = no ]; then
-    printf '%s\n' 'ERROR: Raspberry Pi clock is not NTP synchronized; MQTT timestamp windows would be unreliable.' >&2
+  if [[ "$synced" == yes ]]; then
+    echo 'OK: Raspberry Pi clock reports NTP synchronized.'
+  elif [[ "$synced" == no ]]; then
+    echo 'ERROR: NTP is not synchronized; DJI timestamp validation may fail.' >&2
     result=1
   else
-    printf '%s\n' 'WARNING: Unable to determine NTP synchronization; verify host time before deployment.'
+    echo 'WARNING: NTP synchronization could not be determined.'
   fi
 else
-  printf '%s\n' 'WARNING: timedatectl unavailable; verify host time before deployment.'
-fi
-printf '%s\n' 'Required DJI MQTT broker: EMQX on host TCP 1884'
-if listening 1884; then
-  printf '%s\n' 'OK: TCP 1884 is listening.'
-else
-  printf '%s\n' 'ERROR: TCP 1884 is not listening. Do not deploy SkyHub Next.' >&2
-  result=1
-fi
-if listening 1883; then
-  printf '%s\n' 'INFO: TCP 1883 also listens. This may be the independent Mosquitto broker; it is NOT the SkyHub MQTT target.'
+  echo 'WARNING: timedatectl unavailable; verify host clock.'
 fi
 
-if command -v docker >/dev/null 2>&1; then
-  if docker info >/dev/null 2>&1; then
-    mapping="$(docker port skyhub_emqx 1883/tcp 2>/dev/null || true)"
-    if printf '%s\n' "$mapping" | grep -Eq ':1884$'; then
-      printf '%s\n' 'OK: skyhub_emqx publishes container TCP 1883 as host TCP 1884.'
-    else
-      printf '%s\n' 'WARNING: skyhub_emqx:1883 -> host:1884 mapping could not be confirmed.'
-      result=1
-    fi
-    if docker ps --filter 'name=^/skyhub_backend$' --format '{{.Names}}' | grep -qx skyhub_backend; then
-      printf '%s\n' 'INFO: Existing skyhub_backend is running; do not replace its HTTP port.'
-    fi
-    next_mapping="$(docker port skyhub-next-backend-1 4000/tcp 2>/dev/null || true)"
-    if printf '%s\n' "$next_mapping" | grep -qx '127.0.0.1:4001'; then
-      next_port_ok=1
-      printf '%s\n' 'INFO: skyhub-next-backend-1 publishes container TCP 4000 on loopback TCP 4001.'
-    fi
+if listening "$broker_port"; then
+  printf 'OK: Broker TCP %s is listening.\n' "$broker_port"
+else
+  printf 'ERROR: Configured broker TCP %s is not listening.\n' "$broker_port" >&2
+  result=1
+fi
+if [[ "$broker_kind" == mosquitto || "$broker_kind" == mosquitto-dedicated ]]; then
+  mosquitto_unit=mosquitto
+  [[ "$broker_kind" == mosquitto-dedicated ]] && mosquitto_unit=skyhub-mosquitto
+  if ! command -v systemctl >/dev/null 2>&1 || ! systemctl is-active --quiet "$mosquitto_unit"; then
+    printf 'ERROR: Host Mosquitto service %s is not confirmed active.\n' "$mosquitto_unit" >&2
+    result=1
   else
-    printf '%s\n' 'WARNING: Docker daemon is not accessible to this user; container mapping not verified.'
+    printf 'OK: systemd Mosquitto service %s is active.\n' "$mosquitto_unit"
+  fi
+  if listening_non_loopback "$broker_port"; then
+    echo 'OK: MQTT has a non-loopback listener (Docker access still unverified).'
+  else
+    echo 'ERROR: MQTT has no non-loopback listener for Docker host-gateway access.' >&2
     result=1
   fi
+fi
+
+if docker info >/dev/null 2>&1; then
+  if [[ "$broker_kind" == emqx ]]; then
+    mapping="$(docker port skyhub_emqx 1883/tcp 2>/dev/null || true)"
+    if printf '%s\n' "$mapping" | grep -Eq ':1884$'; then
+      echo 'OK: legacy skyhub_emqx maps container 1883 to host 1884.'
+    else
+      echo 'ERROR: expected skyhub_emqx container mapping is absent.' >&2
+      result=1
+    fi
+  fi
+  if docker ps --filter 'name=^/skyhub_backend$' --format '{{.Names}}' | grep -qx skyhub_backend; then
+    echo 'INFO: legacy skyhub_backend is running; do not replace its HTTP port.'
+  fi
+  next_mapping="$(docker port skyhub-next-backend-1 4000/tcp 2>/dev/null || true)"
+  if printf '%s\n' "$next_mapping" | grep -qx '127.0.0.1:4001'; then
+    next_port_ok=1
+    echo 'INFO: skyhub-next-backend-1 publishes container 4000 on 127.0.0.1:4001.'
+  fi
 else
-  printf '%s\n' 'WARNING: docker command is unavailable; container mapping not verified.'
+  echo 'ERROR: Docker daemon unavailable for container/port verification.' >&2
   result=1
 fi
 
 if listening 4000; then
-  printf '%s\n' 'INFO: TCP 4000 has a listener; identify its owner before any port change.'
+  echo 'INFO: TCP 4000 has a listener; do not assume it belongs to SkyHub Next.'
 fi
 if listening 4001; then
-  if [ "$next_port_ok" -eq 1 ]; then
-    printf '%s\n' 'OK: TCP 4001 is occupied by the existing loopback-bound SkyHub Next backend.'
+  if [[ "$next_port_ok" == 1 ]]; then
+    echo 'OK: TCP 4001 is the expected existing SkyHub Next loopback mapping.'
   else
-    printf '%s\n' 'ERROR: TCP 4001 is occupied but not confirmed as the SkyHub Next loopback mapping.' >&2
+    echo 'ERROR: TCP 4001 belongs to an unexpected or unverified listener.' >&2
     result=1
   fi
+elif [[ "$next_port_ok" == 1 ]]; then
+  echo 'ERROR: Docker reports SkyHub Next port 4001 but no listener exists.' >&2
+  result=1
 else
-  if [ "$next_port_ok" -eq 1 ]; then
-    printf '%s\n' 'ERROR: Docker reports a SkyHub Next mapping, but no TCP 4001 listener was found.' >&2
-    result=1
-  else
-    printf '%s\n' 'OK: TCP 4001 has no listener currently (does not reserve the port).'
-  fi
+  echo 'OK: TCP 4001 is currently free.'
 fi
-
-if [ "$result" -eq 0 ]; then
-  printf '%s\n' 'Preflight checks passed. MQTT authentication, topic traffic and device telemetry remain unverified.'
+if [[ "$result" == 0 ]]; then
+  echo 'Preflight passed. This does NOT establish MQTT auth, ACL, DJI Pilot 2 or OSD availability.'
 else
-  printf '%s\n' 'Preflight detected issues. Existing services were not changed.'
+  echo 'Preflight failed; no live services were modified.'
 fi
 exit "$result"

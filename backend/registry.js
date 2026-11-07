@@ -29,6 +29,16 @@ function propertyPaths(obj,prefix='',out=new Set()) {
   return out;
 }
 
+// Periodic repeats of the complete HMS list and of AirSense warnings are state, not events.
+// An event is recorded only when the set of alerts or the AirSense danger level changes.
+function hmsSignature(list) {
+  return list.map(a=>[a.code,a.level,a.componentIndex,a.sensorIndex].join(':')).sort().join(',');
+}
+function airsenseLevel(summary) {
+  return summary && summary.count > 0 && summary.maxWarningLevel !== null ? summary.maxWarningLevel : -1;
+}
+const PERIODIC_EVENT_METHODS = new Set(['hms','airsense_warning']);
+
 function createRegistry(limit = 200) {
   const devices = new Map();
   const events = [];
@@ -37,10 +47,14 @@ function createRegistry(limit = 200) {
       sn: d.sn, role: d.role, gatewaySn: d.gatewaySn,
       model: d.model, modelName: resolveDeviceModel(d.model),
       deviceCategory: category(d.model.domain), topologyOnline: d.topologyOnline,
+      // topologyOnline is the last reported topology fact and stays true until a later
+      // topology message revokes it. `online` additionally requires fresh OSD telemetry.
+      online: d.topologyOnline === true && fresh(d.lastTelemetryAt, now),
       lastTopologyAt: d.lastTopologyAt, topologyTimeVerified: d.topologyTimeVerified,
       topologyRestored: d.topologyRestored, aircraftConnected: d.aircraftConnected,
       children: [...d.children], channel: d.channel,
       modeCode: d.modeCode, firmwareVersion: d.firmwareVersion,
+      home: d.home ? {...d.home} : null,
       propertyProfile: deviceProfile(d.model),
       // Values are allowlisted and redacted; per-channel timestamp prevents
       // a state update from masquerading as a fresh OSD measurement.
@@ -66,26 +80,43 @@ function createRegistry(limit = 200) {
       telemetryFieldTimeVerified: {...d.telemetryFieldTimeVerified},
       hms: d.hms.map(alert => ({...alert,
         text: describeHms(alert, {domain: d.model.domain, modeCode: d.modeCode})})),
+      // Aggregate of nearby manned aircraft (AirSense/ADS-B); no ICAO, position or heading.
+      airsense: d.airsense ? {...d.airsense, fresh: fresh(d.airsense.observedAt, now)} : null,
       lastHmsAt: d.lastHmsAt, hmsTimeVerified: d.hmsTimeVerified,
       hmsFresh: Number.isFinite(d.lastHmsAt) && d.lastHmsAt <= now && now - d.lastHmsAt < HMS_FRESH_MS
     };
   }
+  // At the limit, make room by evicting the LEAST RECENTLY SEEN device that no gateway has vouched
+  // for (no update_topo seen or restored). Topology-confirmed devices (the RC and its aircraft) go
+  // only when nothing else is left, so a flood of invented serials cannot push them out. A `gateway`
+  // field in an OSD message is NOT a vouch: any publisher can set it.
+  function evictOne() {
+    let victim = null;
+    for (const [sn, d] of devices) {
+      const confirmed = Number.isFinite(d.lastTopologyAt) ? 1 : 0;
+      const seen = Number.isFinite(d.lastSeenAt) ? d.lastSeenAt : -Infinity;
+      if (!victim || confirmed < victim.confirmed || (confirmed === victim.confirmed && seen < victim.seen)) {
+        victim = { sn, confirmed, seen };
+      }
+    }
+    if (victim) devices.delete(victim.sn);
+  }
   function ensure(sn) {
     if (devices.has(sn)) return devices.get(sn);
-    if (devices.size >= limit) devices.delete(devices.keys().next().value);
+    if (devices.size >= limit) evictOne();
     const d = {
       sn, role: 'unknown', gatewaySn: null,
       model: {domain:null,type:null,subType:null,thingVersion:null},
       topologyOnline: null, lastTopologyAt: null, topologyTimeVerified: null,
       topologyRestored: false, aircraftConnected: null,
       children: [], channel: null,
-      modeCode: null, firmwareVersion: null, lastSeenAt: null,
+      modeCode: null, firmwareVersion: null, lastSeenAt: null, home: null,
       lastTelemetryAt: null, lastPositionAt: null,
       telemetryTimeVerified: null, positionTimeVerified: null,
       positionUnavailable: false,
       telemetryFieldAt: Object.create(null),
       telemetryFieldTimeVerified: Object.create(null),
-      hms: [], lastHmsAt: null, hmsTimeVerified: null,
+      hms: [], hmsSignature: '', airsense: null, lastHmsAt: null, hmsTimeVerified: null,
       deviceProperties: {osd: Object.create(null),state: Object.create(null)},
       propertyObservedAt: {osd:null,state:null},
       propertyFieldObservedAt: {osd:Object.create(null),state:Object.create(null)},
@@ -131,6 +162,8 @@ function createRegistry(limit = 200) {
       // aircraft has reconnected. Keep replay protection until a code arrives.
       d.aircraftConnected = message.state.modeCode !== AIRCRAFT_NOT_CONNECTED;
     }
+    // Home point (state, pushmode 1): kept for the DRC distance limit; not from a disconnected aircraft's replay.
+    if (message.home && aircraft && d.aircraftConnected !== false) d.home = {...message.home, at: observedAt};
     // Replayed last-known values of a disconnected aircraft are not telemetry.
     if (message.telemetry && d.aircraftConnected !== false) {
       // Only recognized, normalized numeric DJI measurements can influence freshness.
@@ -208,10 +241,18 @@ function createRegistry(limit = 200) {
       }
     }
     // Each HMS message carries the complete list of currently active alerts.
+    let hmsChanged = false, airsenseChanged = false;
     if (Array.isArray(message.hms)) {
+      const signature = hmsSignature(message.hms);
+      hmsChanged = signature !== d.hmsSignature;
+      d.hmsSignature = signature;
       d.hms = message.hms.map(alert => ({...alert}));
       d.lastHmsAt = observedAt;
       d.hmsTimeVerified = message.timestamp !== null;
+    }
+    if (message.airsense) {
+      airsenseChanged = airsenseLevel(d.airsense) !== airsenseLevel(message.airsense);
+      d.airsense = {...message.airsense, observedAt, timeVerified: message.timestamp !== null};
     }
     if (message.state) {
       if (message.state.modeCode !== null) d.modeCode = message.state.modeCode;
@@ -267,9 +308,15 @@ function createRegistry(limit = 200) {
     updates.set(d.sn, d);
     let event = null;
     if (['events','status','services_reply'].includes(message.channel)) {
-      event = {sn:d.sn,channel:message.channel,method:message.method,at:now};
-      events.unshift(event);
-      if (events.length > 100) events.pop();
+      const periodic = message.channel === 'events' && PERIODIC_EVENT_METHODS.has(message.method);
+      const changed = (Array.isArray(message.hms) && hmsChanged) || (message.airsense && airsenseChanged);
+      if (!periodic || changed) {
+        event = {sn:d.sn,channel:message.channel,method:message.method,at:now};
+        if (message.missionReport) event.missionReport = {...message.missionReport};
+        if (message.mediaReport) event.mediaReport = {...message.mediaReport};
+        events.unshift(event);
+        if (events.length > 100) events.pop();
+      }
     }
     return {updates:[...updates.values()].map(device => safeDevice(device,now)),event,point,
       topologyChanged:Boolean(message.topology)};

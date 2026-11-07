@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pilot-2-Protokolle · SkyHub</title>
+<style>
+.log-grid{display:grid;grid-template-columns:minmax(240px,1fr) minmax(0,3fr);gap:16px}
+@media(max-width:880px){.log-grid{grid-template-columns:1fr}}
+.log-list{list-style:none;padding:0;margin:0}
+.log-list li{border-top:1px solid var(--sky-border,#d0d7de);padding:6px 0}
+.log-list button{width:100%;text-align:left}
+.log-list button[aria-current="true"]{outline:3px solid var(--sky-primary,#1f6feb)}
+#logText{font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;overflow-wrap:anywhere;max-height:70vh;overflow:auto;
+  background:var(--sky-muted-bg,#f6f8fa);border:1px solid var(--sky-border,#d0d7de);border-radius:6px;padding:8px;margin:8px 0}
+#logText .n{color:var(--sky-muted,#57606a);user-select:none;display:inline-block;min-width:5ch;text-align:right;margin-right:1ch}
+#logText .e{color:#b3261e}#logText .w{color:#9a6700}
+.log-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:end}
+</style>
+<link rel="stylesheet" href="/skyhub-light.css">
+<link rel="stylesheet" href="/missionsfreigabe.css">
+<script defer src="/skyhub-nav.js"></script>
+</head>
+<body class="mrel" data-skyhub-page="pilot-logs">
+<a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
+<!-- skyhub-appbar -->
+<header class="skyhub-appbar">
+  <a class="skyhub-appbar-brand" href="/"><span class="brand-symbol" aria-hidden="true">✦</span>SkyHub <span>Next</span></a>
+  <nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
+    <a href="/">Lagebild</a>
+    <details class="skyhub-nav-group"><summary>Planen</summary><div class="skyhub-nav-menu">
+      <p class="skyhub-nav-section">Mission</p>
+      <a href="/wpml-editor.html">Missionsentwurf<small>Wegpunkte setzen, KMZ importieren</small></a>
+      <a href="/wpml-route-library.html">Routenbibliothek<small>Gespeicherte Routen und Revisionen</small></a>
+      <a href="/missionsfreigabe.html">Missionsfreigabe<small>Revision für Pilot 2 freigeben</small></a>
+      <p class="skyhub-nav-section">Karte in Pilot 2</p>
+      <a href="/kartenelemente.html">Kartenelemente<small>Punkte, Linien und Flächen</small></a>
+      <p class="skyhub-nav-section is-lab">Labor <span>experimentell, nicht für den Einsatz freigegeben</span></p>
+      <a href="/wpml-survey-preview.html" class="is-lab">Vermessungsvorschau<small>2D-Flächenvermessung, nur Vorschau</small></a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Fliegen</summary><div class="skyhub-nav-menu">
+      <a href="/drc.html">Live-Steuerung<small>Matrice 4 · RC Plus 2</small></a>
+      <a href="/drc.html?rc=pro">Kamera &amp; Gimbal<small>Mavic 3 · RC Pro</small></a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Auswerten</summary><div class="skyhub-nav-menu">
+      <p class="skyhub-nav-section">Medien &amp; Position</p>
+      <a href="/media-gallery.html">Medien<small>Fotos, Videos, TIFFs, Missionsdateien</small></a>
+      <a href="/ppk.html">PPK-Geotagging<small>Zentimetergenaue Kamerapositionen</small></a>
+      <a href="/abdeckung.html">Fotoabdeckung<small>Lücken und Überlappung eines Flugs</small></a>
+      <p class="skyhub-nav-section">Sensorik</p>
+      <a href="/thermal.html">Thermal<small>Temperaturen aus DJI R-JPEG</small></a>
+      <a href="/ndvi.html">Vegetationsindizes<small>NDVI, GNDVI, NDRE · Mavic 3M</small></a>
+      <p class="skyhub-nav-section is-lab">Labor <span>experimentell, nicht für den Einsatz freigegeben</span></p>
+      <a href="/smart-farming.html" class="is-lab">Smart Farming<small>M3M-Indexkandidaten, nur Lesen</small></a>
+      <a href="/smart-farming-map-lab.html" class="is-lab">Vegetationskarte<small>Georeferenzierte Vorschau</small></a>
+    </div></details>
+    <details class="skyhub-nav-group is-active"><summary>Diagnose</summary><div class="skyhub-nav-menu">
+      <a href="/fh-diagnostics.html">RTK &amp; Flugsitzungen<small>RTK-Status und Sitzungsverlauf</small></a>
+      <a href="/pilot-protokolle.html" aria-current="page">Pilot-2-Protokolle<small>Von der Fernsteuerung gesendet</small></a>
+    </div></details>
+  </nav>
+</header>
+<!-- /skyhub-appbar -->
+<header class="skyhub-pagehead mrel-top">
+  <h1>Pilot-2-Protokolle <span class="muted">von der Fernsteuerung gesendet, in SkyHub entschlüsselt</span></h1>
+</header>
+<p class="mrel-note" role="note">Senden: in Pilot 2 auf der SkyHub-Seite „Pilot-2-Protokoll an SkyHub senden“. Entschlüsselung nach DJIs Verfahren
+  (PlogDecoder). Protokolle bleiben 30 Tage gespeichert.</p>
+<main id="skyhubMain" tabindex="-1" class="log-grid">
+  <section class="card" aria-labelledby="h-list"><h2 id="h-list">Eingegangen</h2><ul id="list" class="log-list"><li class="muted">Wird geladen …</li></ul></section>
+  <section class="card" aria-labelledby="h-view">
+    <h2 id="h-view">Inhalt</h2>
+    <div class="log-tools">
+      <label>Suchen <input id="q" type="search" placeholder="z. B. error, 310013, mqtt"></label>
+      <button id="prev" type="button" class="secondary" disabled>Zurück</button>
+      <button id="next" type="button" class="secondary" disabled>Weiter</button>
+      <a id="download" href="#" hidden>Als Text herunterladen</a>
+      <button id="del" type="button" class="secondary" disabled>Löschen</button>
+    </div>
+    <p id="state" class="muted" role="status" aria-live="polite">Protokoll links wählen.</p>
+    <div id="logText" tabindex="0" aria-label="Protokollinhalt"></div>
+  </section>
+</main>
+<script src="/pilot-protokolle.js"></script>
+</body>
+</html>

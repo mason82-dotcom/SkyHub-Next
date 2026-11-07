@@ -27,15 +27,33 @@ async function createPilot(options={}){
     return elements.get(id);
   }
   let response=options.mqttState??JSON.stringify({code:0,data:false});
+  const auto={photo:options.autoPhoto??false,video:options.autoVideo??false};
   const bridge={
     platformVerifyLicense:()=>JSON.stringify({code:0}),
     platformSetWorkspaceId:()=>JSON.stringify({code:0}),
     platformSetInformation:()=>JSON.stringify({code:0}),
-    platformLoadComponent(...args){calls.load.push(args);return JSON.stringify({code:0});},
+    platformLoadComponent(...args){calls.load.push(args);
+      return JSON.stringify({code:options.loadFails?.includes(args[0])?17:0});},
+    ...(options.loaded?{platformIsComponentLoaded:name=>JSON.stringify({code:0,data:options.loaded.includes(name)})}:{}),
+    wsGetConnectState:()=>JSON.stringify({code:0,data:true}),
     thingGetConnectState(){return response;},
-    thingConnect(...args){calls.retry.push(args);return JSON.stringify({code:0});}
+    thingConnect(...args){calls.retry.push(args);return JSON.stringify({code:0});},
+    // Like Pilot 2: a setter that changes nothing is rejected with code 615012.
+    mediaGetAutoUploadPhoto:()=>JSON.stringify({code:0,data:auto.photo}),
+    mediaGetAutoUploadVideo:()=>JSON.stringify({code:0,data:auto.video}),
+    mediaSetAutoUploadPhoto(value){(calls.media??=[]).push(['photo',value]);
+      if(auto.photo===value)return JSON.stringify({code:615012});auto.photo=value;return JSON.stringify({code:0});},
+    mediaSetAutoUploadVideo(value){(calls.media??=[]).push(['video',value]);
+      if(auto.video===value)return JSON.stringify({code:615012});auto.video=value;return JSON.stringify({code:0});}
   };
-  const win={djiBridge:bridge};
+  // A paired RC: the device token from the pairing flow is already in the WebView storage,
+  // so the page connects on load (the manual token form no longer exists).
+  const stored=new Map(options.paired===false?[]:[['skyhub.pilot.deviceToken','placeholder-test-token']]);
+  const win={djiBridge:bridge,localStorage:{
+    getItem:key=>stored.has(key)?stored.get(key):null,
+    setItem:(key,value)=>stored.set(key,String(value)),
+    removeItem:key=>stored.delete(key)
+  }};
   const env={
     window:win,
     document:{getElementById:el},
@@ -43,7 +61,7 @@ async function createPilot(options={}){
     setTimeout(callback,ms){timers.push({callback,ms});return timers.length;},
     fetch:async function(url){
       if(url==='/api/pilot/status')return {ok:true,json:async()=>({configured:true,missing:[]})};
-      if(url==='/api/pilot/bootstrap')return {ok:true,json:async()=>bootstrap};
+      if(url==='/api/pilot/bootstrap')return {ok:true,json:async()=>options.bootstrap||bootstrap};
       throw new Error('unexpected fetch');
     }
   };
@@ -53,8 +71,7 @@ async function createPilot(options={}){
     el,win,bridge,calls,timers,
     setMqttState(value){response=value;},
     async connect(){
-      el('access').value='placeholder-test-token';
-      await el('start').listeners.click();
+      for(let i=0;i<8;i++)await Promise.resolve();
     },
     fireTimer(){assert.equal(timers.length,1);timers[0].callback();}
   };
@@ -65,7 +82,6 @@ test('loading DJI component does not call thingConnect automatically',async()=>{
   await pilot.connect();
   assert.equal(pilot.calls.load.length,1);
   assert.equal(pilot.calls.retry.length,0);
-  assert.equal(pilot.el('access').value,'');
   assert.equal(pilot.el('retry').hidden,true);
   pilot.fireTimer();
   assert.equal(pilot.el('retry').hidden,false);
@@ -179,4 +195,80 @@ test('diagnostics redacts vendor errors and never reads thingGetConfigs credenti
 test('HTTPS advisory hidden on secure Pilot 2 page',async()=>{
   const pilot=await createPilot();
   assert.equal(pilot.el('security').hidden,true);
+});
+
+const withTsa={...bootstrap,tsa:{apiHost:'https://rpi5.fritz.box',wsHost:'wss://rpi5.fritz.box/ws/tsa'}};
+
+test('without a TSA configuration only the cloud module is loaded',async()=>{
+  const pilot=await createPilot();
+  await pilot.connect();
+  assert.deepEqual(pilot.calls.load.map(call=>call[0]),['thing']);
+  assert.doesNotMatch(pilot.el('diagnostics').textContent,/Lagebild/);
+});
+
+test('situation awareness loads api and ws before tsa, after the cloud module, with the session token',async()=>{
+  const pilot=await createPilot({bootstrap:withTsa});
+  await pilot.connect();
+  assert.deepEqual(pilot.calls.load.map(call=>call[0]),['thing','api','ws','tsa']);
+  assert.deepEqual(JSON.parse(pilot.calls.load[1][1]),{host:'https://rpi5.fritz.box',token:'placeholder-test-token'});
+  assert.deepEqual(JSON.parse(pilot.calls.load[2][1]),
+    {host:'wss://rpi5.fritz.box/ws/tsa',token:'placeholder-test-token',connectCallback:'skyhubPilotWsState'});
+  assert.equal(pilot.calls.load[3][1],'{}');
+  assert.equal(typeof pilot.win.skyhubPilotWsState,'function');
+  assert.match(pilot.el('diagnostics').textContent,/Lagebild \(TSA\): Module geladen/);
+  // The token goes to the bridge only, never into the visible page.
+  assert.doesNotMatch(pilot.el('diagnostics').textContent+pilot.el('result').textContent,/placeholder-test-token/);
+});
+
+test('modules Pilot 2 already holds are not loaded twice',async()=>{
+  const pilot=await createPilot({bootstrap:withTsa,loaded:['api','ws','tsa']});
+  await pilot.connect();
+  assert.deepEqual(pilot.calls.load.map(call=>call[0]),['thing']);
+});
+
+test('a failing TSA module never breaks the MQTT onboarding',async()=>{
+  const pilot=await createPilot({bootstrap:withTsa,loadFails:['ws']});
+  await pilot.connect();
+  assert.deepEqual(pilot.calls.load.map(call=>call[0]),['thing','api','ws']);
+  assert.match(pilot.el('diagnostics').textContent,/Lagebild \(TSA\): nicht geladen \(platformLoadComponent: DJI Bridge-Code 17\)/);
+  // The MQTT status check is still scheduled and works as before.
+  pilot.setMqttState(JSON.stringify({code:0,data:true}));
+  pilot.fireTimer();
+  assert.match(pilot.el('result').textContent,/VERBUNDEN/);
+});
+
+test('the ws state callback ignores its payload',async()=>{
+  const pilot=await createPilot({bootstrap:withTsa});
+  await pilot.connect();
+  pilot.win.skyhubPilotWsState({token:'SHOULD_NOT_DISPLAY'});
+  assert.doesNotMatch(pilot.el('diagnostics').textContent+pilot.el('result').textContent,/SHOULD_NOT_DISPLAY/);
+});
+
+test('media sync loads api and media modules and switches an active automatic upload off',async()=>{
+  const pilot=await createPilot({autoPhoto:true,autoVideo:true,
+    bootstrap:{...bootstrap,media:{apiHost:'https://rpi5.fritz.box'}}});
+  await pilot.connect();
+  const loaded=pilot.calls.load.map(args=>args[0]);
+  assert.ok(loaded.includes('api'));
+  assert.ok(loaded.includes('media'));
+  const api=pilot.calls.load.find(args=>args[0]==='api');
+  assert.deepEqual(JSON.parse(api[1]),{host:'https://rpi5.fritz.box',token:'placeholder-test-token'});
+  const media=pilot.calls.load.find(args=>args[0]==='media');
+  assert.deepEqual(JSON.parse(media[1]),{autoUploadPhoto:false,autoUploadPhotoType:0,autoUploadVideo:false});
+  assert.deepEqual(pilot.calls.media,[['photo',false],['video',false]]);
+  assert.match(pilot.el('diagnostics').textContent,/nur manueller Upload/);
+});
+
+test('automatic upload already off: no setter is called, so Pilot 2 code 615012 cannot occur',async()=>{
+  const pilot=await createPilot({bootstrap:{...bootstrap,media:{apiHost:'https://rpi5.fritz.box'}}});
+  await pilot.connect();
+  assert.equal(pilot.calls.media,undefined);
+  assert.match(pilot.el('diagnostics').textContent,/bereit, nur manueller Upload/);
+  assert.doesNotMatch(pilot.el('diagnostics').textContent,/nicht geladen/);
+});
+
+test('without media config no api or media module is loaded',async()=>{
+  const pilot=await createPilot();
+  await pilot.connect();
+  assert.deepEqual(pilot.calls.load.map(args=>args[0]),['thing']);
 });

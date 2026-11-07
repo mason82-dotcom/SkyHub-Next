@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex,nofollow">
+<title>Medien · SkyHub</title>
+<link rel="stylesheet" href="/skyhub-light.css">
+<link rel="stylesheet" href="/media-gallery.css">
+<script defer src="/media-library-model.js"></script>
+<script defer src="/media-gallery-app.js"></script>
+<script defer src="/skyhub-nav.js"></script>
+</head>
+<body data-skyhub-page="media-gallery">
+<a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
+<!-- skyhub-appbar -->
+<header class="skyhub-appbar">
+  <a class="skyhub-appbar-brand" href="/"><span class="brand-symbol" aria-hidden="true">✦</span>SkyHub <span>Next</span></a>
+  <nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
+    <a href="/">Lagebild</a>
+    <details class="skyhub-nav-group"><summary>Planen</summary><div class="skyhub-nav-menu">
+      <p class="skyhub-nav-section">Mission</p>
+      <a href="/wpml-editor.html">Missionsentwurf<small>Wegpunkte setzen, KMZ importieren</small></a>
+      <a href="/wpml-route-library.html">Routenbibliothek<small>Gespeicherte Routen und Revisionen</small></a>
+      <a href="/missionsfreigabe.html">Missionsfreigabe<small>Revision für Pilot 2 freigeben</small></a>
+      <p class="skyhub-nav-section">Karte in Pilot 2</p>
+      <a href="/kartenelemente.html">Kartenelemente<small>Punkte, Linien und Flächen</small></a>
+      <p class="skyhub-nav-section is-lab">Labor <span>experimentell, nicht für den Einsatz freigegeben</span></p>
+      <a href="/wpml-survey-preview.html" class="is-lab">Vermessungsvorschau<small>2D-Flächenvermessung, nur Vorschau</small></a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Fliegen</summary><div class="skyhub-nav-menu">
+      <a href="/drc.html">Live-Steuerung<small>Matrice 4 · RC Plus 2</small></a>
+      <a href="/drc.html?rc=pro">Kamera &amp; Gimbal<small>Mavic 3 · RC Pro</small></a>
+    </div></details>
+    <details class="skyhub-nav-group is-active"><summary>Auswerten</summary><div class="skyhub-nav-menu">
+      <p class="skyhub-nav-section">Medien &amp; Position</p>
+      <a href="/media-gallery.html" aria-current="page">Medien<small>Fotos, Videos, TIFFs, Missionsdateien</small></a>
+      <a href="/ppk.html">PPK-Geotagging<small>Zentimetergenaue Kamerapositionen</small></a>
+      <a href="/abdeckung.html">Fotoabdeckung<small>Lücken und Überlappung eines Flugs</small></a>
+      <p class="skyhub-nav-section">Sensorik</p>
+      <a href="/thermal.html">Thermal<small>Temperaturen aus DJI R-JPEG</small></a>
+      <a href="/ndvi.html">Vegetationsindizes<small>NDVI, GNDVI, NDRE · Mavic 3M</small></a>
+      <p class="skyhub-nav-section is-lab">Labor <span>experimentell, nicht für den Einsatz freigegeben</span></p>
+      <a href="/smart-farming.html" class="is-lab">Smart Farming<small>M3M-Indexkandidaten, nur Lesen</small></a>
+      <a href="/smart-farming-map-lab.html" class="is-lab">Vegetationskarte<small>Georeferenzierte Vorschau</small></a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Diagnose</summary><div class="skyhub-nav-menu">
+      <a href="/fh-diagnostics.html">RTK &amp; Flugsitzungen<small>RTK-Status und Sitzungsverlauf</small></a>
+      <a href="/pilot-protokolle.html">Pilot-2-Protokolle<small>Von der Fernsteuerung gesendet</small></a>
+    </div></details>
+  </nav>
+</header>
+<!-- /skyhub-appbar -->
+<main id="skyhubMain" tabindex="-1">
+  <div class="hero">
+    <div>
+      <p class="eyebrow">MINIO-MEDIENSPEICHER</p>
+      <h1>Medien <span class="muted">Fotos, Videos, TIFFs und Missionsdateien</span></h1>
+      <p>Alle Fotos, Videos, Multispektral-TIFFs und Missionsdateien aus dem SkyHub-Speicher – mit Vorschau, Ordnern, Suche und Download.</p>
+    </div>
+    <button type="button" class="secondary" id="refresh" title="Bestand neu einlesen">↻ Aktualisieren</button>
+  </div>
+
+  <ul id="stats" class="stats" aria-label="Gesamtbestand"></ul>
+  <p id="message" class="message" role="status" aria-live="polite">Medienbestand wird geladen …</p>
+
+  <nav id="buckets" class="buckets" aria-label="Speicherbereiche"></nav>
+
+  <section class="browser" aria-label="Medien durchsuchen">
+    <div class="toolbar">
+      <label class="search">
+        <span class="sr-only">Suchen</span>
+        <input id="search" type="search" maxlength="200" autocomplete="off" spellcheck="false" placeholder="Suchen: Dateiname, Ordner, Datum (z. B. 20261002) …">
+      </label>
+      <div id="types" class="chips" role="group" aria-label="Dateityp"></div>
+      <label class="select">Sortierung
+        <select id="sort">
+          <option value="newest">Neueste zuerst</option>
+          <option value="oldest">Älteste zuerst</option>
+          <option value="name">Name A–Z</option>
+          <option value="size-desc">Größte zuerst</option>
+          <option value="size-asc">Kleinste zuerst</option>
+        </select>
+      </label>
+      <div class="segmented" role="group" aria-label="Ansicht">
+        <button type="button" id="view-folders" aria-pressed="true">Ordner</button>
+        <button type="button" id="view-all" aria-pressed="false">Alle Dateien</button>
+      </div>
+    </div>
+    <nav id="crumbs" class="crumbs" aria-label="Ordnerpfad"></nav>
+    <p id="summary" class="summary" aria-live="polite"></p>
+    <ul id="folders" class="folder-grid" aria-label="Ordner"></ul>
+    <ul id="files" class="file-grid" aria-label="Dateien"></ul>
+    <div id="sentinel" class="sentinel"><button type="button" class="secondary" id="more" hidden>Weitere anzeigen</button></div>
+  </section>
+</main>
+
+<dialog id="viewer" class="viewer" aria-labelledby="viewer-title">
+  <div class="viewer-bar">
+    <div class="viewer-heading">
+      <strong id="viewer-title"></strong>
+      <span id="viewer-position"></span>
+    </div>
+    <div class="viewer-actions">
+      <a id="viewer-open" class="button secondary" target="_blank" rel="noopener">Original öffnen</a>
+      <a id="viewer-download" class="button">Herunterladen</a>
+      <button type="button" class="secondary" id="viewer-close" aria-label="Schließen">✕</button>
+    </div>
+  </div>
+  <div class="viewer-body">
+    <button type="button" class="nav prev" id="viewer-prev" aria-label="Vorherige Datei">‹</button>
+    <div id="viewer-stage" class="viewer-stage"></div>
+    <button type="button" class="nav next" id="viewer-next" aria-label="Nächste Datei">›</button>
+  </div>
+  <dl id="viewer-meta" class="viewer-meta"></dl>
+</dialog>
+</body>
+</html>

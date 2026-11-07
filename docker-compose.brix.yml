@@ -1,0 +1,76 @@
+# brix-node (x86-64) overlay. Use INSTEAD of docker-compose.arm64.yml:
+#   docker compose -p skyhub-next --env-file .env -f docker-compose.yml -f docker-compose.brix.yml \
+#     -f docker-compose.override.yml --profile thermal-sdk <cmd>
+# (wrapper: scripts/brix-compose.sh)
+#
+# Front door stays on the Pi (rpi5.fritz.box): Caddy :443/:4443/:9446 and a TCP forwarder for MQTT :1884
+# point at brix-node over the LAN (SKYHUB_BRIX_BIND=192.168.178.50 in .env; the backend accepts only private proxy IPs,
+# so not Tailscale 100.x). Backend and Mosquitto publish only on that address,
+# never on 0.0.0.0. SKYHUB_TRUSTED_PROXY_IPS=192.168.178.63 (Pi).
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+x-labels: &no-watchtower
+  com.centurylinklabs.watchtower.enable: "false"
+
+services:
+  postgres:
+    # Same build as the Pi (postgres:15-bookworm + pgdg postgresql-15-postgis-3), native amd64, so a
+    # pg_dump from the Pi restores with the same PostGIS 3.x.
+    image: skyhub-next-postgis:pg15-amd64
+    build:
+      context: .
+      dockerfile: docker/postgis/Dockerfile.arm64
+    volumes: !override
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgis/00-postgis.sql:/docker-entrypoint-initdb.d/00-postgis.sql:ro
+
+  backend:
+    image: skyhub-next-backend:amd64
+    ports: !override
+      - "${SKYHUB_BRIX_BIND:-100.70.140.77}:${SKYHUB_HTTP_PORT:-4001}:4000"
+      - "${SKYHUB_BRIX_BIND:-100.70.140.77}:${SKYHUB_S3_UPLOAD_PROXY_HOST_PORT:-4002}:4002"
+    environment:
+      # Mosquitto runs in this stack on brix-node (was skyhub-mosquitto.service on the Pi).
+      MQTT_BROKER_URL: mqtt://mosquitto:1884
+    depends_on:
+      mosquitto:
+        condition: service_started
+
+  thermal-sdk:
+    # dji_irp is x86-64: runs natively here, no box64.
+    build: !override
+      context: docker/dji-tsdk-amd64
+    image: skyhub-dji-tsdk:amd64
+    environment:
+      SKYHUB_TSDK_COMMAND: /sdk/bin/dji_irp
+    healthcheck:
+      # /health needs no token and returns no image data (sdk_server.py)
+      test: ["CMD", "python3", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8790/health', timeout=4)"]
+      interval: 60s
+      timeout: 6s
+      retries: 3
+      start_period: 20s
+
+  mosquitto:
+    # Same config as /etc/skyhub-mosquitto on the Pi (auth, ACL, port 1884); files in ops/brix/mosquitto (600, uid 1000).
+    image: eclipse-mosquitto:2.0.22
+    restart: unless-stopped
+    logging: *default-logging
+    labels: *no-watchtower
+    user: "1000:1000"
+    command: ["mosquitto", "-c", "/mosquitto/config/mosquitto.conf"]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    volumes:
+      - type: bind
+        source: ./ops/brix/mosquitto
+        target: /mosquitto/config
+        read_only: true
+    ports:
+      - "${SKYHUB_BRIX_BIND:-100.70.140.77}:1884:1884"
+    networks:
+      - default

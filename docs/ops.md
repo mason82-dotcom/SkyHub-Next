@@ -2,21 +2,41 @@
 
 **Wichtig:** Die folgenden Pi-Zustände und Portbelegungen wurden am 20.10.2026 dokumentiert; sie ersetzen keine erneute Prüfung am Zielsystem. Dieser Text unterscheidet zwischen lesenden Diagnosebefehlen und Befehlen, die Container/Dateien verändern. Ein Git-Checkout oder ein Merge nimmt **keinen** automatischen Cutover vor.
 
-**Betriebsgrenzen:** Das Root-Compose ist `skyhub-next` mit Backend-Hostport `127.0.0.1:4001`; der vorhandene Broker ist auf Hostport `1884`. Der bisherige produktive Backend-Hostport `4000` darf nicht ungeprüft übernommen werden. Das Compose im Legacy-Snapshot darf nicht gestartet werden.
+**Historischer Repository-Stichtag:** [Projektstand 23.10.2026](projektstand-2026-10-23.md), Main-Commit `496a1f84f22b15f85ad5442965b2cd218a93969a`. Die bis dahin hinzugekommenen Feature-PRs und in den Integrationsbranch übernommenen UI-PRs sind **kein** automatisches Upgrade dieser Root-Compose-Installation. Die folgenden historischen Hardwareangaben behalten ihr jeweiliges Datum.
+
+**Betriebsgrenzen – Opt-in-Brokerprofil:** [Anleitung EMQX/1884 oder Mosquitto/1883](pi-mosquitto-migration.md). Im Code existiert nun ein explizites Mosquitto-Profil mit Port-/Pilot-Konsistenzprüfung. Historische EMQX-Beobachtungen in diesem Dokument bleiben historische Nachweise, keine aktuelle Pi-Bestätigung. Für manuelle Mosquitto-Prüfung `bash scripts/pi-preflight.sh --broker-kind mosquitto --broker-port 1883` verwenden. Das Backend-Updateskript bestimmt das Profil aus dem gerenderten Compose und startet keinen Broker.
+
+**Aktualisierungswarnung 23.10.2026:** Nach dem zuletzt vom Betreiber gemeldeten Stand wurde EMQX auf dem Raspberry Pi entfernt; Mosquitto lauscht auf Port 1883. Das vorliegende `main` verlangt dagegen weiterhin EMQX auf 1884: `scripts/pi-preflight.sh` prüft zusätzlich den Containernamen `skyhub_emqx`, und `scripts/pi-update-backend.sh --apply` ruft diesen Preflight auf. Dieser Konflikt ist durch die GitHub-Merges #89/#65 **nicht** behoben. Vor einem Live-Backend-Rebuild Broker-/Topic-/ACL-Vertrag und tatsächliche Pi-Listener erneut prüfen; bei Fehlschlag nur Git und nichtschreibende Tests aktualisieren. Nicht durch Starten des archivierten EMQX oder ungetestetes Umschalten der Ports umgehen.
+
+ Das Root-Compose ist `skyhub-next` mit Backend-Hostport `127.0.0.1:4001`; der vorhandene Broker ist auf Hostport `1884`. Der bisherige produktive Backend-Hostport `4000` darf nicht ungeprüft übernommen werden. Das Compose im Legacy-Snapshot darf nicht gestartet werden.
 
 **Wirkung von Pi-Skripten und Freigaben:** [Betriebswerkzeuge](scripts.md). `apply`-, `rollback`- und Kopplungsaufrufe nicht mit lesenden Diagnosen verwechseln.
 
-**Querverweise:** [Sicherheit](security.md), [Architektur](architecture.md), [MQTT/OSD](mqtt-osd-integration.md), [kontrollierte Migration](legacy-migration.md).
+**Querverweise:** [Sicherheit](security.md), [Architektur](architecture.md), [Konfiguration](config-reference.md), [API-Referenz](api-reference.md), [MQTT/OSD](mqtt-osd-integration.md), [kontrollierte Migration](legacy-migration.md).
+
+## Neuere Code-Klarstellung (25.10.2026)
+
+Der Quellcodeabgleich bei [`main` @ `662cb94d`](stand-2026-10-25-main-audit.md) ergänzt die älteren Betriebsmessungen: `backend/mqtt-config.js` akzeptiert **`emqx/1884`**, **`mosquitto/1883`** und **`mosquitto-dedicated/1884`**. Die unten stehenden EMQX-Aussagen beziehen sich nur auf ihren genannten Pi-Stichtag. Das tatsächliche aktuelle Brokerprofil kann **nicht** aus GitHub abgeleitet werden. Vor einem Update zuerst Prozess, Listener, tatsächliche Compose-Dateien, `.env` und DJI-ACL **lesend** prüfen. Das Root-Compose installiert keinen Broker.
+
+Für MinIO müssen Root-`media`-Profil, private Shared-MinIO-Compose-Datei und mögliche Storage-Overrides **getrennt** bewertet werden. Ein Git-Merge führt keine Containeraktionen aus. Angaben zur Portbelegung, zum Pi-Stand und zu früheren Smoke-Tests bleiben historische Evidenz; neue Tests auf echter Hardware wurden im Rahmen dieser Dokumentationspflege **nicht** ausgeführt.
+
+**Sicherheitsentwurf 25.10.2026:** Die [künftige Proxy-Trust-Härtung](proxy-trust-rollout.md) ist nur im separaten Draft. Sie kann ohne explizite Freigabe der **tatsächlichen** Caddy-Socket-Peer-IP den Pilot-HTTPS- und LAN-View-Zugang unterbrechen; sie darf nicht blind aus einem grünen CI-Ergebnis heraus auf den Pi übernommen werden.
 
 ## Entwicklung auf dem Pi (nicht die produktive Python-Installation überschreiben!)
 
-    git clone --branch develop/skyhub-next-mqtt-integrity-v3 https://github.com/mason82-dotcom/SkyHub.git ~/Projekte/SkyHub-Next
+    # Nur bei einer echten Neuinstallation; vorhandenes Projekt NICHT überschreiben.
+    if [ ! -e ~/Projekte/SkyHub-Next ]; then
+      git clone --branch main https://github.com/mason82-dotcom/SkyHub-Next.git ~/Projekte/SkyHub-Next
+    fi
     cd ~/Projekte/SkyHub-Next
-    cp .env.example .env
+    # Nur falls .env noch nicht existiert:
+    test -e .env || cp -n .env.example .env
 
-Die Datei .env bearbeiten. Alle REPLACE_* Platzhalter ersetzen. Zufallstokens/Passwörter mit openssl rand -hex 32 erzeugen. **Für den Raspberry Pi ist MQTT-Port 1884 verbindlich**: `MQTT_BROKER_URL=mqtt://host.docker.internal:1884`. Nutzername und Passwort des vorhandenen Pi-Brokers in MQTT_USER und MQTT_PASSWORD eintragen. SkyHub Next startet keinen eigenen MQTT-Broker und belegt weder Host-Port 1883 noch 1884. `SKYHUB_MQTT_REQUIRED_PORT=1884` im Pi-Compose verhindert den versehentlichen Betrieb mit einem anderen Port. MinIO wird erst mit docker compose --profile media up -d minio gestartet, da die Medien-API noch aussteht. Das separate System benötigt keinen eigenen EMQX-Broker und belegt keine bestehenden DJI-Dienstports. Auf dem Pi läuft das bestehende `skyhub_backend` bereits auf **4000**. Deshalb verwendet SkyHub Next standardmäßig den Host-Port **4001** (intern weiterhin 4000) und lauscht nur auf `127.0.0.1`. Vor jedem Start mit dem beigefügten Preflight-Skript kontrollieren, dass auch 4001 frei ist. Eine bereits vorhandene lokale `.env` mit `SKYHUB_HTTP_PORT=4000` muss manuell angepasst werden; sie wird nicht automatisch überschrieben.
+**Vorhandene Installationen:** kein neues Clone, kein `cp` über bestehende `.env`, keinen lokalen Branch ohne sauberen Arbeitsbaum wechseln. Für ein bestehendes Pi-System zunächst nur `git status --short --branch`, `docker compose -p skyhub-next ps` und [Preflight](scripts.md) lesen; neue Funktionen werden nicht automatisch deployed.
 
-Nach Behebung der bekannten NVMe-Störung und nach Prüfung der Compose-Konfiguration:
+Die Datei `.env` bei erstmaliger Inbetriebnahme lokal bearbeiten. Alle `REPLACE_*`-Platzhalter ersetzen. Zufallstokens/Passwörter mit openssl rand -hex 32 erzeugen. **Für den Raspberry Pi ist MQTT-Port 1884 verbindlich**: `MQTT_BROKER_URL=mqtt://host.docker.internal:1884`. Nutzername und Passwort des vorhandenen Pi-Brokers in MQTT_USER und MQTT_PASSWORD eintragen. SkyHub Next startet keinen eigenen MQTT-Broker und belegt weder Host-Port 1883 noch 1884. `SKYHUB_MQTT_REQUIRED_PORT=1884` im Pi-Compose verhindert den versehentlichen Betrieb mit einem anderen Port. MinIO wird erst mit docker compose --profile media up -d minio gestartet, da die Medien-API noch aussteht. Das separate System benötigt keinen eigenen EMQX-Broker und belegt keine bestehenden DJI-Dienstports. Auf dem Pi läuft das bestehende `skyhub_backend` bereits auf **4000**. Deshalb verwendet SkyHub Next standardmäßig den Host-Port **4001** (intern weiterhin 4000) und lauscht nur auf `127.0.0.1`. Vor jedem Start mit dem beigefügten Preflight-Skript kontrollieren, dass auch 4001 frei ist. Eine bereits vorhandene lokale `.env` mit `SKYHUB_HTTP_PORT=4000` muss manuell angepasst werden; sie wird nicht automatisch überschrieben.
+
+**Nur nach eigener, aktueller Prüfung** von SSD/NVMe-Gesundheit, Ressourcen, Sicherungen, Portbelegung, Git-Arbeitsbaum und Compose-Konfiguration (die älteren NVMe-Befunde sind keine Aussage über den Zustand am 23.10.2026):
 
     docker compose config --quiet
     docker compose up -d --build
@@ -93,12 +113,22 @@ Remote-Tunnel vom PC:
 
 Dann http://127.0.0.1:4001 öffnen, SKYHUB_VIEW_TOKEN aus .env eingeben. Token verbleibt nur im Speicher des Browsers bis zum Neuladen.
 
+**DJI-Diagnosekorrektur (23.10.2026):** Der HTTP-400-Validierungsfehler für gültige Modellkennungen wurde in [PR #61](https://github.com/mason82-dotcom/SkyHub-Next/pull/61) nach `main` übernommen und durch echte HTTP-Regressionstests abgesichert. Eine weiterhin mit altem Image laufende Pi-Installation kann den historischen Fehler bis zum ausdrücklich freigegebenen Backend-Update noch zeigen. **Keine automatische Aktualisierung oder Gerätefreigabe durch den GitHub-Merge.**
+
 ## Tests
 
+Der Backend-Testlauf benötigt installierte Abhängigkeiten. `npm ci` schreibt
+**nur** in `backend/node_modules/` und darf ausschließlich im dafür vorgesehenen
+Entwicklungscheckout ausgeführt werden (nicht als angeblich rein lesende Diagnose).
+Die folgenden Tests starten keine produktiven Container oder DJI-Kommandos.
+
+    npm ci --prefix backend --ignore-scripts --no-audit --no-fund
     node --check backend/server.js
     node --check backend/dji.js
     node --check backend/mqtt-metrics.js
-    node --test backend/test/*.test.js
+    npm test --prefix backend
+    python3 -m unittest discover -s tests -p 'test_*.py'
+    docker compose --env-file .env.example config --quiet
 
 ## MQTT/OSD-Adapter (Version 0.1.0)
 
@@ -177,3 +207,54 @@ Vor der Backend-Neuerstellung kopiert das Skript `.env` und den optionalen `dock
 **Grenzen:** Es werden nicht sämtliche Redis-Persistenzdateien oder MinIO-Objekte gesichert; sie werden bei diesem Backend-Update auch nicht neu gestartet. Ein `pg_dump` ist ein Datenbank-Backup, **kein** vollständiger Restore-Test auf dem Pi. Die Aufnahme der Sicherung erfolgt auf dem Pi und enthält echte sensible Daten; niemals mit Chat oder GitHub teilen. Das Skript nimmt kein neues Caddy-/EMQX-Setup vor und verlangt keinen Export von Broker- oder DJI-Geheimnissen. Es führt keinen automatischen Rollback nach einem fehlgeschlagenen Health-Test durch, bewahrt aber den vorherigen Backend-Image-Tag für eine gezielte Wiederherstellung.
 
 Bei lokal veränderten versionierten Dateien, Konflikten beim `git switch` oder einem abweichenden Compose-Layout **abbrechen, nicht `git reset --hard` oder `git clean` ausführen**. Stattdessen lokalen Stand prüfen und das Update anpassen. Nach der Installation: `docker compose -p skyhub-next logs --tail=80 backend`, `curl -fsS http://127.0.0.1:4001/api/health` und die DJI-OSD-Diagnose getrennt ausführen. Ein erfolgreicher Health-Test ersetzt keine RC-/Drohnen-Hardwareabnahme.
+
+## Compose auf dem Pi: immer mit den Overlays (pi-compose.sh)
+Auf dem Pi läuft Postgres mit dem arm64-Overlay: Image `skyhub-next-postgis:pg15-arm64`, Volume `skyhub-next_pgdata_arm64`, Backend zusätzlich im
+Speichernetz (`docker-compose.override.yml`). Ein einfaches `docker compose up -d` nimmt dagegen `docker-compose.yml` allein: das x86-Image
+`postgis/postgis:15-3.3` und ein **leeres** Volume `skyhub-next_pgdata`. Postgres stürzt dann in einer Dauerschleife ab (`libicui18n.so.67: failed to map
+segment`), das Backend startet nicht, und die Telemetrie fällt aus. Die Daten bleiben dabei unberührt im Volume `…_arm64`; passiert ist das am 26.10.2026.
+
+Deshalb auf dem Pi nur diese Hülle benutzen, sie gibt `docker-compose.yml`, `docker-compose.arm64.yml` und (falls vorhanden) `docker-compose.override.yml` immer mit:
+
+```bash
+bash scripts/pi-compose.sh ps
+bash scripts/pi-compose.sh config --quiet
+bash scripts/pi-compose.sh up -d --no-build backend     # Dienstnamen angeben
+```
+`up`, `down`, `restart`, `stop`, `rm` ohne Dienstnamen lehnt sie ab; wer wirklich den ganzen Stack meint, hängt `--all-services` an. Für Backend-Updates bleibt
+`scripts/pi-update-backend.sh` der Weg (legt nur `backend` neu an, mit Datenbanksicherung). Ein Compose-Aufruf, der `postgres` neu anlegt, ist eine bewusste
+Datenbank-Maßnahme (neues Image, Neuanlegen) und gehört in ein Wartungsfenster mit frischer Sicherung.
+
+**Wiederherstellung nach diesem Fehler:** `bash scripts/pi-compose.sh up -d --no-build postgres backend`. Das leere Volume `skyhub-next_pgdata` ist danach unbenutzt und kann
+mit `docker volume rm skyhub-next_pgdata` entfernt werden (vorher prüfen, dass kein Container es einhängt).
+
+
+## Watchtower lässt SkyHub-Next und den MinIO aus (27.10.2026)
+Der Watchtower auf dem Pi läuft ohne `--label-enable` und aktualisiert damit jeden Container, der nicht widerspricht. Am 27.10. um 05:01 zog er ein
+neues `redis:7-alpine`, legte die Redis-Container neu an und startete dabei das abhängige Backend mit neu. Alle SkyHub-Next-Dienste in
+`docker-compose.yml` und der geteilte MinIO in `docker-compose.minio-shared.yml` tragen deshalb `com.centurylinklabs.watchtower.enable: "false"`.
+Updates laufen bewusst von Hand (`scripts/pi-update-backend.sh`, für Postgres in einem Wartungsfenster).
+
+Das Label gilt erst, wenn der Container neu angelegt wird. Einmalig nach dem Merge (kurze Unterbrechung, Daten bleiben in den Volumes):
+
+```bash
+bash scripts/pi-compose.sh up -d --no-build postgres redis backend
+docker inspect -f '{{.Name}} {{index .Config.Labels "com.centurylinklabs.watchtower.enable"}}' skyhub-next-postgres-1 skyhub-next-redis-1 skyhub-next-backend-1
+```
+
+Der MinIO bekommt das Label erst beim Neuanlegen. Bis dahin ist das harmlos: Watchtower findet das lokale Image in keiner Registry und
+aktualisiert es nicht, es bleibt nur eine Warnung im Watchtower-Log. Neu anlegen (Daten, Image, Netz und Zugangsdaten bleiben; die Medien-API
+ist einige Sekunden weg):
+
+```bash
+bash scripts/pi-minio-recreate.sh plan   # lesend: Voraussetzungen, Label heute und danach
+bash scripts/pi-minio-recreate.sh run    # Unit stoppen, compose up --no-start --force-recreate, Unit starten, Nachprüfung
+```
+
+Nachtrag 30.10.2026: Auch die Cloud-API-Demo (`ops/cloud-api-demo/docker-compose.yml`) trägt das Label jetzt, für alle Dienste über den
+Anker `x-restart`. Anlass: Watchtower meldete jede Nacht `cloudapidemo-web-1` als fehlgeschlagen (`no image info available`: der Container
+lief noch mit einem alten, inzwischen namenlosen `cloudapidemo-web:local`), und ein neues `redis:7-alpine` startete das Demo-Backend neu.
+Wirksam nach `bash ops/cloud-api-demo/pi-cloud-api-demo.sh apply`.
+
+`pi-minio-migrate-from-aeronexus.sh start` legt dagegen nur an, wenn es noch keinen Container gibt. (Korrektur: Eine frühere Fassung
+dieses Abschnitts nannte hier `scripts/pi-minio-shared-runtime.sh`; dieses Skript gibt es nicht.)

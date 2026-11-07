@@ -21,6 +21,7 @@ function makeTree(fields) {
     node.max = field.max;
     node.length = field.length;
     node.enum = field.enum;
+    node.privacy = field.privacy;
   }
   // A nested property's pushMode column may be 0 even when its
   // containing top-level struct/array is reported on state.
@@ -139,6 +140,8 @@ function dynamicPayloadEntries(data) {
 
 function cleanValue(value, node, path, depth) {
   if (depth > MAX_DEPTH) return undefined;
+  // Fields the schema marks as redacted never leave the parser, whatever their type.
+  if (node.privacy === 'redacted') return undefined;
   const type = node.type;
   if (type === 'struct') {
     if (!isObject(value)) return undefined;

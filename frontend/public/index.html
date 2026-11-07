@@ -2,20 +2,20 @@
 <html lang="de">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SkyHub Next · DJI Operations</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<title>Lagebild · SkyHub</title>
+<link rel="stylesheet" href="/vendor/leaflet/1.9.4/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=">
 <style>
-:root{color-scheme:dark;--bg:#07111e;--panel:#101f30;--edge:#2c4054;--muted:#94abc1;--blue:#47c3e7}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#edf6ff;font:14px system-ui,sans-serif}
-header{height:66px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 18px;border-bottom:1px solid var(--edge)}
-h1{margin:0;font-size:20px;letter-spacing:.04em}h1 span{color:var(--blue)}small,.muted{color:var(--muted)}
+
+*{box-sizing:border-box}body{margin:0}
+header.skyhub-pagehead{height:66px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 18px;border-bottom:1px solid var(--edge)}
+h1{margin:0;font-size:20px;letter-spacing:.04em}h1 span:not(.muted){color:var(--blue)}small,.muted{color:var(--muted)}
 .auth{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.auth input{min-width:205px}
 [hidden]{display:none!important}
 input,button,select{padding:9px 11px;border:1px solid #40576d;border-radius:8px;background:#1b2b3d;color:white}
 button{background:#087d96;font-weight:700;cursor:pointer}button:hover{background:#099ab8}
 button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid #85e3fa;outline-offset:2px}
 button:disabled{cursor:not-allowed;opacity:.6}
-main{display:grid;grid-template-columns:minmax(0,1fr) 355px;height:calc(100vh - 66px)}
+main#skyhubMain{display:block;min-height:0}#operationsPanel{display:grid;grid-template-columns:minmax(0,1fr) 355px;height:calc(100vh - 118px)}
 #map{width:100%;height:100%;min-height:350px}
 .map-shell{position:relative;min-width:0;min-height:350px}
 .map-tools{position:absolute;z-index:500;top:12px;right:12px;display:grid;gap:7px;max-width:min(290px,calc(100% - 24px))}
@@ -33,6 +33,7 @@ aside{background:var(--panel);border-left:1px solid var(--edge);padding:14px;ove
 .device details[open] summary{margin-bottom:8px}
 .device .meta{display:block;margin-top:10px;line-height:1.5;overflow-wrap:anywhere}
 .warning-preview{margin:8px 0 0;color:#ffd6ad;font-size:12px;line-height:1.4}
+.rtk-line{margin:8px 0 0;font-size:12px;line-height:1.4;padding:3px 7px;border-radius:6px;border:1px solid var(--edge)}.rtk-line.alarm{font-weight:700}
 .finder{display:grid;gap:6px;margin:8px 0}.finder label{font-size:12px;color:var(--muted)}
 .finder-search{display:flex;gap:6px}.finder-search input{flex:1;min-width:0;width:100%}.finder-search button{background:#203c50}
 .finder-search input::-webkit-search-cancel-button{display:none}
@@ -79,33 +80,181 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;margin:14px 0 8p
 .events-list small{font-size:10px;white-space:nowrap}
 .events-note{margin:0;color:var(--muted);font-size:11px}
 .events-panel button{margin-top:8px;padding:4px 8px;font-size:11px;background:#203c50}
-@media(max-width:850px){header{height:auto;flex-direction:column;align-items:flex-start}main{grid-template-columns:1fr;height:auto}#map{height:clamp(300px,38vh,420px);min-height:300px}aside{border-left:0}.map-shell{min-height:300px}}
+.live-panel{margin-top:10px;border:1px solid var(--edge);border-radius:8px;padding:8px 10px}
+.live-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.live-head h2{margin:0}
+.live-badge{display:none;font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;background:#b42328;color:#fff}
+.live-panel[data-live="true"] .live-badge{display:inline-block}
+.live-panel video{display:block;width:100%;aspect-ratio:16/9;margin-top:8px;border-radius:6px;background:#000}
+.live-status{margin:6px 0 0;font-size:11px;color:var(--muted)}
+.live-status.bad{color:#b3261e}
+.live-control{margin-top:8px;border-top:1px solid var(--edge);padding-top:6px}
+.live-control h3{margin:0 0 4px;font-size:13px}
+.live-gw{margin:6px 0}
+.live-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.live-row select,.live-row button{min-height:32px}
+.hms-history-tools{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
+.hms-history-tools select{min-width:0;flex:1 1 160px;font-size:11px;padding:3px 6px}
+.hms-history-tools button,.events-panel #hmsHistoryMore{margin-top:0}
+.hms-history-list{list-style:none;padding:0;margin:0;display:grid;gap:5px}
+.hms-history-item{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:start;padding:5px 0 5px 8px;border-top:1px solid #2c4054;border-left:3px solid #6f8396}
+.hms-history-item[data-level="1"]{border-left-color:#f0b84a}.hms-history-item[data-level="2"]{border-left-color:#ff6b5b}
+.hms-history-item[data-action="resolved"]{opacity:.78}
+.hms-history-item strong{display:block;font-size:11px;font-weight:600;overflow-wrap:anywhere}
+.hms-history-item small{display:block;font-size:10px;overflow-wrap:anywhere}
+.hms-history-time{white-space:nowrap}
+.hms-history-badge{display:inline-block;margin-bottom:2px;font-size:10px;font-weight:700;padding:1px 6px;border-radius:999px;background:#203c50;white-space:nowrap}
+.hms-history-item[data-action="appeared"] .hms-history-badge{background:#5b2a2a}
+.hms-history-item[data-action="resolved"] .hms-history-badge{background:#1f4a35}
+@media(max-width:850px){header{height:auto;flex-direction:column;align-items:flex-start} #operationsPanel{grid-template-columns:1fr;height:auto}#map{height:clamp(300px,38vh,420px);min-height:300px}aside{border-left:0}.map-shell{min-height:300px}}
+/* Main tabs mirror the design reference; TAK remains a read-only, offline placeholder. */
+.workspace-tabs{display:flex;align-items:center;gap:8px;min-height:52px;padding:6px 18px;background:var(--bg);border-bottom:1px solid var(--edge)}
+.workspace-tab{min-height:40px;padding:8px 18px;border-radius:8px 8px 0 0;background:#17293a;color:#bdd2e5;border:1px solid var(--edge);font-size:14px}
+.workspace-tab[aria-selected="true"]{background:var(--panel);border-color:var(--blue);box-shadow:inset 0 -3px var(--blue);color:#e8f9ff}
+.workspace-tab[aria-selected="false"]{font-weight:500}
+#takPanel{min-height:calc(100vh - 118px);padding:24px 18px;background:var(--bg)}
+.tak-layout{width:100%;max-width:1170px;margin:0 auto;display:grid;gap:16px}
+.tak-heading{border:1px solid var(--edge);background:var(--panel);border-radius:10px;padding:20px}
+.tak-heading h2{font-size:22px;text-transform:none;letter-spacing:0;color:#edf6ff;margin:0 0 9px}
+.tak-heading p{color:var(--muted);margin:8px 0;line-height:1.55}
+.tak-status{display:inline-block;padding:6px 10px;border:1px solid #756342;border-radius:7px;color:#ffe1a6;background:#302a1d;font-weight:700;font-size:12px}
+.tak-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.tak-card{min-width:0;border:1px solid var(--edge);background:#14263a;border-radius:10px;padding:18px}
+.tak-card h3{margin:0 0 12px;font-size:15px}
+.tak-card dl{display:grid;grid-template-columns:minmax(110px,42%) 1fr;gap:10px;margin:0;font-size:13px}
+.tak-card dt{color:var(--muted)}.tak-card dd{margin:0;overflow-wrap:anywhere}
+.tak-note{border-left:3px solid var(--blue);padding:10px 14px;background:var(--panel);font-size:13px;line-height:1.55}
+@media(max-width:850px){.workspace-tabs{padding:6px 12px}.workspace-tab{min-height:44px;flex:1;padding:9px 10px}#takPanel{min-height:0;padding:14px 12px}.tak-cards{grid-template-columns:1fr}}
+@media(min-width:600px) and (max-width:1100px){.tak-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+ .module-nav{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.module-nav a{color:#a8ecfc;font-size:12px;text-decoration:underline;text-underline-offset:3px}.module-nav a[aria-current=page]{font-weight:700;color:white}
 </style>
+<link rel="stylesheet" href="/skyhub-light.css">
+<link rel="stylesheet" href="/skyhub-cockpit.css">
+<script defer src="/skyhub-nav.js"></script>
 </head>
-<body>
-<header>
-  <h1>SKY<span>HUB</span> NEXT <small>· read-only</small></h1>
+<body data-skyhub-page="dashboard">
+<a class="skyhub-skip-link" href="#skyhubMain">Zum Inhalt springen</a>
+<!-- skyhub-appbar -->
+<header class="skyhub-appbar">
+  <a class="skyhub-appbar-brand" href="/"><span class="brand-symbol" aria-hidden="true">✦</span>SkyHub <span>Next</span></a>
+  <nav class="skyhub-global-nav" aria-label="SkyHub-Bereiche">
+    <a href="/" aria-current="page">Lagebild</a>
+    <details class="skyhub-nav-group"><summary>Planen</summary><div class="skyhub-nav-menu">
+      <p class="skyhub-nav-section">Mission</p>
+      <a href="/wpml-editor.html">Missionsentwurf<small>Wegpunkte setzen, KMZ importieren</small></a>
+      <a href="/wpml-route-library.html">Routenbibliothek<small>Gespeicherte Routen und Revisionen</small></a>
+      <a href="/missionsfreigabe.html">Missionsfreigabe<small>Revision für Pilot 2 freigeben</small></a>
+      <p class="skyhub-nav-section">Karte in Pilot 2</p>
+      <a href="/kartenelemente.html">Kartenelemente<small>Punkte, Linien und Flächen</small></a>
+      <p class="skyhub-nav-section is-lab">Labor <span>experimentell, nicht für den Einsatz freigegeben</span></p>
+      <a href="/wpml-survey-preview.html" class="is-lab">Vermessungsvorschau<small>2D-Flächenvermessung, nur Vorschau</small></a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Fliegen</summary><div class="skyhub-nav-menu">
+      <a href="/drc.html">Live-Steuerung<small>Matrice 4 · RC Plus 2</small></a>
+      <a href="/drc.html?rc=pro">Kamera &amp; Gimbal<small>Mavic 3 · RC Pro</small></a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Auswerten</summary><div class="skyhub-nav-menu">
+      <p class="skyhub-nav-section">Medien &amp; Position</p>
+      <a href="/media-gallery.html">Medien<small>Fotos, Videos, TIFFs, Missionsdateien</small></a>
+      <a href="/ppk.html">PPK-Geotagging<small>Zentimetergenaue Kamerapositionen</small></a>
+      <a href="/abdeckung.html">Fotoabdeckung<small>Lücken und Überlappung eines Flugs</small></a>
+      <p class="skyhub-nav-section">Sensorik</p>
+      <a href="/thermal.html">Thermal<small>Temperaturen aus DJI R-JPEG</small></a>
+      <a href="/ndvi.html">Vegetationsindizes<small>NDVI, GNDVI, NDRE · Mavic 3M</small></a>
+      <p class="skyhub-nav-section is-lab">Labor <span>experimentell, nicht für den Einsatz freigegeben</span></p>
+      <a href="/smart-farming.html" class="is-lab">Smart Farming<small>M3M-Indexkandidaten, nur Lesen</small></a>
+      <a href="/smart-farming-map-lab.html" class="is-lab">Vegetationskarte<small>Georeferenzierte Vorschau</small></a>
+    </div></details>
+    <details class="skyhub-nav-group"><summary>Diagnose</summary><div class="skyhub-nav-menu">
+      <a href="/fh-diagnostics.html">RTK &amp; Flugsitzungen<small>RTK-Status und Sitzungsverlauf</small></a>
+      <a href="/pilot-protokolle.html">Pilot-2-Protokolle<small>Von der Fernsteuerung gesendet</small></a>
+    </div></details>
+  </nav>
+</header>
+<!-- /skyhub-appbar -->
+<header class="skyhub-pagehead">
+  <h1>Lagebild <span>Flotte, Karte und Telemetrie · nur Lesen, keine Flugsteuerung</span></h1>
   <div class="auth">
-    <input id="token" type="password" placeholder="SkyHub Zugriffstoken" aria-label="Zugriffstoken" autocomplete="off">
-    <button id="connect" type="button" disabled>Verbinden</button>
+    <button id="connect" type="button" disabled>Neu verbinden</button>
     <span id="message" role="status">Nicht verbunden</span>
   </div>
 </header>
-<main>
+<nav class="workspace-tabs" role="tablist" aria-label="SkyHub Hauptbereiche">
+  <button id="tabOperations" class="workspace-tab" type="button" role="tab" aria-controls="operationsPanel" aria-selected="true" tabindex="0">Lagebild</button>
+  <button id="tabTak" class="workspace-tab" type="button" role="tab" aria-controls="takPanel" aria-selected="false" tabindex="-1">TAK-Ausgabe</button>
+</nav>
+<main id="skyhubMain" tabindex="-1">
+<div id="operationsPanel" role="tabpanel" aria-labelledby="tabOperations">
+  <a class="skyhub-mobile-fleet-jump" href="#fleetPanel">Direkt zum Gerätestatus ↓</a>
   <section class="map-shell" aria-label="Drohnenkarte">
+    <div class="map-title" aria-hidden="true"><strong>Live-Lagebild</strong><span>Letzte gemeldete Gerätepositionen</span></div>
     <div id="map" aria-label="Karte mit zuletzt gemeldeten Gerätepositionen"></div>
     <div class="map-tools">
       <button id="fitDevices" type="button" disabled>Alle Positionen zeigen</button>
       <span id="mapNote" class="map-note" role="status">Warte auf Gerätepositionen.</span>
     </div>
   </section>
-  <aside>
-    <div class="notice">Lesende Ansicht · keine Flugsteuerung. Fehlende Werte: —. Karte benötigt Internet.</div>
+  <aside id="fleetPanel" tabindex="-1" aria-labelledby="fleetHeading">
+    <div class="sidebar-heading"><div><p class="skyhub-eyebrow">FLOTTE / TELEMETRIE</p><h2 id="fleetHeading">Gerätestatus</h2></div><span class="readonly-pill">Nur Lesen</span></div>
+    <p class="sidebar-legend">Fehlende Werte: —. Bereits angesehene Kartenbereiche bleiben ohne Internet verfügbar.</p>
+    <p class="module-nav"><a href="/cloud-api2.html">Cloud API 2 Labor – Geräte, Simulator und SDK ↗</a></p>
     <div class="grid">
       <div class="tile"><small>Geräte</small><strong id="count">0</strong></div>
       <div class="tile"><small>OSD &lt;15 s</small><strong id="live">0</strong></div>
       <div class="tile"><small>HMS Stufe 2</small><strong id="hmsCount">0</strong></div>
     </div>
+  <section id="livePanel" class="live-panel" aria-labelledby="liveTitle" hidden>
+    <div class="live-head"><h2 id="liveTitle">Livestream · DJI Pilot 2</h2><span class="live-badge" aria-hidden="true">LIVE</span></div>
+    <video id="liveVideo" muted playsinline controls hidden aria-label="Livebild der Drohnenkamera"></video>
+    <p id="liveStatus" class="live-status" role="status">Livestream-Status wird geprüft …</p>
+    <div id="liveControl" class="live-control" hidden>
+      <h3>Stream anfordern</h3>
+      <div id="liveControlList"></div>
+      <p id="liveControlMsg" class="live-status" role="status" aria-live="polite"></p>
+    </div>
+  </section>
+  <section id="cockpit" class="cockpit" aria-labelledby="cockpitTitle">
+    <div class="cockpit-top"><div><span class="cockpit-overline">OSD / Instrumente</span><h2 id="cockpitTitle">Fluginstrumente</h2></div></div>
+    <label for="cockpitDevice">Gerät für Instrumente</label>
+    <select id="cockpitDevice" disabled aria-describedby="cockpitHelp"><option value="">Warte auf Gerätedaten</option></select>
+    <p id="cockpitStatus" class="cockpit-status" role="status">Warte auf Gerätedaten.</p>
+    <section class="cockpit-quality" aria-labelledby="cockpitQualityTitle">
+      <h3 id="cockpitQualityTitle">Einzelwert-Qualität</h3>
+      <p id="cockpitQualitySummary">Noch keine Instrumentenfelder geprüft</p>
+      <dl class="cockpit-counts">
+        <div data-kind="current"><dt>Aktuell · geprüft</dt><dd id="cockpitQualityCurrent">—</dd></div>
+        <div data-kind="stale"><dt>Veraltet</dt><dd id="cockpitQualityStale">—</dd></div>
+        <div data-kind="unverified"><dt>Zeit ungeprüft</dt><dd id="cockpitQualityUnverified">—</dd></div>
+        <div data-kind="unknown"><dt>Zeit unbekannt</dt><dd id="cockpitQualityUnknown">—</dd></div>
+        <div data-kind="missing"><dt>Nicht empfangen</dt><dd id="cockpitQualityMissing">—</dd></div>
+      </dl>
+      <p class="cockpit-note">Prüfung der acht hier dargestellten Instrumentenwerte, nicht der Status der Drohne und keine Flugfreigabe.</p>
+    </section>
+    <div class="cockpit-dials" aria-label="Gemeldete Einzelwerte und Zeitprüfung">
+      <div class="cockpit-dial"><span class="cockpit-name">Akku</span><strong id="cockpitBattery" class="cockpit-value">—</strong><small id="cockpitBatteryAge" class="cockpit-age" data-kind="missing">Nicht empfangen</small><div class="cockpit-meter" aria-hidden="true"><span id="cockpitBatteryMeter"></span></div></div>
+      <div class="cockpit-dial"><span class="cockpit-name">Höhe relativ</span><strong id="cockpitAltitude" class="cockpit-value">—</strong><small id="cockpitAltitudeAge" class="cockpit-age" data-kind="missing">Nicht empfangen</small></div>
+      <div class="cockpit-dial"><span class="cockpit-name">Horizontaltempo</span><strong id="cockpitSpeed" class="cockpit-value">—</strong><small id="cockpitSpeedAge" class="cockpit-age" data-kind="missing">Nicht empfangen</small></div>
+      <div class="cockpit-dial"><span class="cockpit-name">Kurs</span><div class="cockpit-heading"><strong id="cockpitHeading" class="cockpit-value">—</strong><span id="cockpitCompass" class="cockpit-compass" aria-hidden="true" hidden><span id="cockpitNeedle" class="cockpit-needle"></span></span></div><small id="cockpitHeadingAge" class="cockpit-age" data-kind="missing">Nicht empfangen</small></div>
+      <div class="cockpit-dial"><span class="cockpit-name">Vertikaltempo</span><strong id="cockpitClimb" class="cockpit-value">—</strong><small id="cockpitClimbAge" class="cockpit-age" data-kind="missing">Nicht empfangen</small></div>
+      <div class="cockpit-dial"><span class="cockpit-name">SDR-Funkqualität</span><strong id="cockpitLink" class="cockpit-value">—</strong><small id="cockpitLinkAge" class="cockpit-age" data-kind="missing">Nicht empfangen</small><div class="cockpit-meter" aria-hidden="true"><span id="cockpitLinkMeter"></span></div></div>
+      <div class="cockpit-dial cockpit-attitude-dial">
+        <span class="cockpit-name">Lageanzeige / Attitude</span>
+        <div class="cockpit-attitude-layout">
+          <div id="cockpitAttitude" class="cockpit-attitude" aria-hidden="true" hidden>
+            <div id="cockpitAttitudePlane" class="cockpit-attitude-plane"><div class="cockpit-attitude-sky"></div><div class="cockpit-attitude-ground"></div><div class="cockpit-attitude-line"></div></div>
+            <span class="cockpit-attitude-marker"></span>
+          </div>
+          <div class="cockpit-attitude-readouts">
+            <div><span class="cockpit-name">Nickwinkel</span><strong id="cockpitPitch" class="cockpit-value">—</strong><small id="cockpitPitchAge" class="cockpit-age" data-kind="missing">Nicht empfangen</small></div>
+            <div><span class="cockpit-name">Rollwinkel</span><strong id="cockpitRoll" class="cockpit-value">—</strong><small id="cockpitRollAge" class="cockpit-age" data-kind="missing">Nicht empfangen</small></div>
+          </div>
+        </div>
+        <p class="cockpit-note">Schematisch. Der Horizont erscheint nur mit zwei aktuellen, zeitverifizierten Werten.</p>
+      </div>
+    </div>
+    <button id="cockpitLocate" type="button" disabled>Letzten Kartenstandort zeigen</button>
+    <p id="cockpitHelp" class="cockpit-note">DJI-OSD aus der vorhandenen Verbindung. Frische und Quellzeit werden je Feld geprüft. Keine Flugfreigabe.</p>
+  </section>
     <details class="health-panel">
       <summary>Datenpfad · <span id="healthSummary" role="status">wird geprüft</span></summary>
       <dl>
@@ -121,6 +270,16 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;margin:14px 0 8p
       <p id="eventsNote" class="events-note" role="status">Mit SkyHub verbinden.</p>
       <ol id="eventsList" class="events-list"></ol>
       <button id="refreshEvents" type="button" disabled>Aktualisieren</button>
+    </details>
+    <details id="hmsHistoryPanel" class="events-panel">
+      <summary>HMS-Verlauf · <span id="hmsHistorySummary">aufklappen zum Laden</span></summary>
+      <div class="hms-history-tools">
+        <select id="hmsHistoryDevice" aria-label="Gerät für den HMS-Verlauf"><option value="">Alle Geräte</option></select>
+        <button id="hmsHistoryRefresh" type="button">Aktualisieren</button>
+      </div>
+      <p id="hmsHistoryNote" class="events-note" role="status" hidden></p>
+      <ol id="hmsHistoryList" class="hms-history-list" aria-label="Gespeicherte HMS-Übergänge, neueste zuerst"></ol>
+      <button id="hmsHistoryMore" type="button" hidden>Ältere laden</button>
     </details>
     <label class="toggle"><input type="checkbox" id="showTrack" checked> Flugspur der letzten 60 Minuten anzeigen</label>
     <div id="trackFeedback" class="track-feedback"><span id="trackStatus" role="status">Flugspur wird nach Verbindung geladen.</span><button id="retryTracks" type="button" hidden disabled>Erneut laden</button></div>
@@ -141,25 +300,71 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;margin:14px 0 8p
       <p class="finder-note">Karte bleibt ungefiltert.</p>
     </div>
     <p id="resultCount" class="result-count" role="status">0 Geräte</p>
-    <div id="devices"><p class="muted">Mit Zugriffstoken verbinden.</p></div>
+    <div id="devices"><p class="muted">Verbinde…</p></div>
   </aside>
+</div>
+<section id="takPanel" role="tabpanel" aria-labelledby="tabTak" tabindex="0" hidden>
+  <div class="tak-layout">
+    <div class="tak-heading">
+      <h2>TAK / CoT · Interoperabilität</h2>
+      <span class="tak-status">TAK-Backend nicht integriert · Export AUS</span>
+      <p>TAK-/CloudTAK-Interoperabilität ist in separaten Entwicklungspaketen lokal untersucht. Diese Ansicht zeigt keine echten Freigaben, Gerätepositionen oder Übertragungen.</p>
+      <p>Es gibt hier bewusst keinen Export-Schalter und keine ausgehende Verbindung. Die vorhandene SkyHub-Gerätetelemetrie verbleibt im Tab Operations.</p>
+    </div>
+    <div class="tak-cards">
+      <article class="tak-card" aria-label="Exportstatus">
+        <h3>CoT-Export</h3>
+        <dl><dt>Status</dt><dd>Aus · nicht integriert</dd><dt>HTTPS-Ziel</dt><dd>Nicht konfiguriert</dd><dt>Letzte Übertragung</dt><dd>Kein bestätigter Export</dd></dl>
+      </article>
+      <article class="tak-card" aria-label="Berechtigungen">
+        <h3>Geräte und Workspace</h3>
+        <dl><dt>Workspace-Freigabe</dt><dd>Nicht verfügbar</dd><dt>Gerätefreigaben</dt><dd>Nicht verfügbar</dd><dt>Widerruf</dt><dd>Nur Entwurf</dd></dl>
+      </article>
+      <article class="tak-card" aria-label="TAK-Sicherheitsprüfung">
+        <h3>Sicherheit und Audit</h3>
+        <dl><dt>Signaturprüfung</dt><dd>Nicht angeschlossen</dd><dt>TAK-Audit</dt><dd>Nicht angeschlossen</dd><dt>Externer Audit-Anker</dt><dd>Nicht verifiziert</dd></dl>
+      </article>
+    </div>
+    <p class="tak-note">Vor einer Aktivierung erforderlich: geprüfte DJI-Gerätebindung, rollenbasierte Workspace-Freigabe, abgesicherter HTTPS-Transport, externe Audit-Sicherung und CloudTAK-Kompatibilitätstest. Keine DJI-Befehle oder automatischen Standortübertragungen aus dieser Ansicht.</p>
+  </div>
+</section>
 </main>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/vendor/leaflet/1.9.4/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="></script>
+<script src="/skyhub-map-home.js"></script>
 <script src="/socket.io/socket.io.js"></script>
+<script src="/hms-history-panel.js"></script>
+<script src="/live-panel.js"></script>
+<script src="/live-control-panel.js"></script>
 <script src="/telemetry-freshness.js"></script>
+<script src="/rtk-status.js"></script>
+<script src="/telemetry-cockpit.js"></script>
+<script src="/workspace-tabs.js"></script>
 <script>
 (function(){
 'use strict';
 const el=id=>document.getElementById(id);
 const fieldFreshness=window.SkyHubTelemetryFreshness;
+const cockpit=window.SkyHubCockpit?.mount({document,fieldFreshness,mapAvailable:()=>Boolean(map),onLocate:sn=>revealDevice(sn)});
 function fieldAge(element,d,key){
   const status=fieldFreshness.evaluateField(d,key);
   element.dataset.field=key;
   element.className='field-age '+status.kind;
   element.textContent=status.text;
 }
+// Reine Zeitangaben (Alter, "vor x s"), die sich ohne neue Daten aendern: sie werden hier aktualisiert und zaehlen nicht
+// fuer die Entscheidung, ob die Geraetekarten neu aufgebaut werden.
+const LIVE_TEXT={
+  osd:d=>healthAge(d.lastTelemetryAt),
+  gps:d=>gpsLabel(d),
+  hms:d=>hmsHeadLabel(d)
+};
 function refreshFieldAges(){
   const root=el('devices');
+  for(const node of root.querySelectorAll('[data-live]')){
+    const card=node.closest('.device');
+    const d=card&&records.get(card.dataset.deviceSn);
+    if(d&&LIVE_TEXT[node.dataset.live])node.textContent=LIVE_TEXT[node.dataset.live](d);
+  }
   for(const node of root.querySelectorAll('.field-age[data-field]')){
     const card=node.closest('.device');
     const d=card&&records.get(card.dataset.deviceSn);
@@ -171,15 +376,41 @@ function refreshFieldAges(){
     if(d)node.textContent=positionLabel(d);
   }
 }
-const map=window.L?L.map('map').setView([51.1657,10.4515],6):null;
-// OSM's tile policy requires a Referer; the page itself stays on no-referrer.
-if(map)L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+// Start view of all SkyHub maps: skyhub-map-home.js (76694 Forst); Germany if that file is missing.
+const HOME=window.SkyHubMapHome||{lat:51.1657,lon:10.4515,zoom:6};
+const map=window.L?L.map('map').setView([HOME.lat,HOME.lon],HOME.zoom):null;
+// Tiles via the SkyHub offline cache (or a redirect to OSM, which requires an origin Referer).
+if(map)L.tileLayer('/tiles/osm/{z}/{x}/{y}.png',
   {attribution:'© OpenStreetMap',maxZoom:19,referrerPolicy:'strict-origin-when-cross-origin'}).addTo(map);
+window.SkyHubWorkspaceTabs.init({
+  document,
+  onOperationsShown:()=>{
+    if(map)requestAnimationFrame(()=>{if(!el('operationsPanel').hidden)map.invalidateSize({pan:false});});
+  }
+});
 const records=new Map(),markers=new Map(),tracks=new Map();
+// Keine Dock-Hardware vor Ort (04.11.2026): Docks (DJI-Domäne 3) und die nur am Dock fliegenden Matrice 3D/3TD/4D/4TD
+// (Fluggerät-Typ 91/100) erscheinen nicht in der Oberfläche. Das Backend unterstützt sie unverändert.
+const DOCK_AIRCRAFT_TYPES=new Set([91,100]);
+function shownDevice(d){
+  const m=d&&d.model;
+  if(!m)return Boolean(d);
+  return String(m.domain)!=='3'&&!(String(m.domain)==='0'&&DOCK_AIRCRAFT_TYPES.has(Number(m.type)));
+}
+function putDevice(d){if(d&&shownDevice(d))records.set(d.sn,d);else if(d&&d.sn)records.delete(d.sn);}
 let socket=null,centered=false,authToken=null,selectedSn=null,connectAttempt=0;
 let trackLoadId=0,trackController=null;
 let healthController=null;
 let eventsController=null,eventsLoadId=0;
+// Stored HMS transitions (opt-in on the server); loaded only when the panel is opened.
+// Livestream from DJI Pilot 2 (opt-in on the server); hls.js is loaded only when a relay exists.
+const livePanel=window.SkyHubLivePanel?window.SkyHubLivePanel.createLivePanel({
+  document,fetchImpl:(...args)=>fetch(...args),getToken:()=>authToken,
+  loadScript:window.SkyHubLivePanel.loadScriptOnce(document)}):null;
+const liveControlPanel=window.SkyHubLiveControlPanel?window.SkyHubLiveControlPanel.createLiveControlPanel({
+  document,fetchImpl:(...args)=>fetch(...args),getToken:()=>authToken,storage:(()=>{try{return sessionStorage;}catch(_){return null;}})()}):null;
+const hmsHistoryPanel=window.SkyHubHmsHistory?window.SkyHubHmsHistory.createPanel({
+  document,fetchImpl:(...args)=>fetch(...args),getToken:()=>authToken,getDevices:()=>records.values()}):null;
 const recentEvents=[];
 const expanded=new Set();
 let listState='loading',composingSearch=false;
@@ -203,6 +434,13 @@ const positionLabel=d=>d.positionUnavailable===true?'DJI meldet (0/0)':
     (d.positionTimeVerified===false?'Zeit offen':'frisch'):
     Number.isFinite(d.lastPositionAt)?
       Math.max(0,Math.round((Date.now()-d.lastPositionAt)/1000))+' s alt':'fehlt';
+const gpsLabel=d=>d.positionUnavailable===true?'kein aktueller Fix (0/0); letzter Fix unverändert':!validPosition(d)?'keine gültige Position':positionFresh(d)?
+  (d.positionTimeVerified===false?'empfangen (Zeit ungeprüft)':'frisch'):Number.isFinite(d.lastPositionAt)?
+  Math.max(0,Math.round((Date.now()-d.lastPositionAt)/1000))+' s alt':'nicht empfangen';
+const hmsHeadLabel=d=>hmsFresh(d)?(d.hms.length?'HMS · '+d.hms.length+' aktiv':'HMS · keine Meldungen'):
+  'HMS · Stand vor '+Math.max(0,Math.round((Date.now()-d.lastHmsAt)/1000))+' s (veraltet)';
+const liveSpan=(kind,d)=>{const s=document.createElement('span');s.dataset.live=kind;s.textContent=LIVE_TEXT[kind](d);return s;};
+let deviceSignature=null;
 const searchText=d=>[d.modelName,d.sn,d.gatewaySn,d.role].filter(Boolean).join(' ').toLocaleLowerCase('de');
 function visibleDevice(d){
   const query=el('deviceSearch').value.trim().toLocaleLowerCase('de');
@@ -246,6 +484,7 @@ function fitDevices(){
 }
 function update(){
   const data=[...records.values()].sort((a,b)=>(b.lastSeenAt||0)-(a.lastSeenAt||0));
+  if(cockpit)cockpit.render(data,selectedSn,listState);
   const root=el('devices');
   const focusedSn=document.activeElement?.dataset?.focusSn;
   const focusedDetailsSn=document.activeElement?.dataset?.detailsSn;
@@ -266,13 +505,15 @@ function update(){
   el('clearSearch').disabled=!queryPresent;
   const resultText=data.length?visible.length+' von '+data.length+' '+(data.length===1?'Gerät':'Geräten'):'0 Geräte';
   if(el('resultCount').textContent!==resultText)el('resultCount').textContent=resultText;
-  root.replaceChildren();
+  // Karten zuerst in ein Fragment bauen; ersetzt wird nur, wenn sich mehr als reine Zeitangaben geaendert haben. Sonst
+  // ersetzte der 5-s-Takt alle Karten (ein Tippen konnte einen gerade ersetzten Knopf treffen).
+  const target=document.createDocumentFragment();
   if(!data.length){
     const p=document.createElement('p');p.className='muted';
     p.textContent=listState==='loading'?'Lade Geräte…':listState==='auth-required'?
-      'Zugriffstoken eingeben, um Geräte zu laden.':listState==='error'?
+      'Kein Zugriff. Dashboard bitte aus dem Heimnetz öffnen.':listState==='error'?
       'Geräte konnten nicht geladen werden. Erneut verbinden.':'Noch keine Geräte empfangen.';
-    root.append(p);
+    target.append(p);
   }else if(!visible.length){
     const box=document.createElement('div');box.className='empty-results';
     const p=document.createElement('p');p.textContent='Keine Geräte passen zur Suche oder zum Filter.';
@@ -280,7 +521,7 @@ function update(){
     reset.addEventListener('click',()=>{
       el('deviceSearch').value='';el('deviceFilter').value='all';update();el('deviceSearch').focus();
     });
-    box.append(p,reset);root.append(box);
+    box.append(p,reset);target.append(box);
   }
   for(const d of visible){
     const card=document.createElement('article');card.className='device'+(selectedSn===d.sn?' selected':'');
@@ -291,7 +532,7 @@ function update(){
     const state=document.createElement('span');state.className='state'+(fresh(d)&&d.aircraftConnected!==false?'':' stale');
     state.textContent=d.aircraftConnected===false?'● Fluggerät nicht verbunden':fresh(d)?(d.telemetryTimeVerified===false?
       '● OSD empfangen · Zeit ungeprüft':'● OSD frisch'):
-      d.topologyOnline===true?'● Topologie gemeldet · OSD veraltet':'● OSD veraltet';
+      d.topologyOnline===true?'○ Keine aktuellen Daten · Topologie zuletzt „online“':'● OSD veraltet';
     head.append(name,state);card.append(head);
     const t=d.telemetry||{};
     const quick=document.createElement('dl');quick.className='quick';
@@ -317,6 +558,26 @@ function update(){
         (important.length>1?' · '+(important.length-1)+' weitere':'');
       card.append(preview);
     }
+    // RTK state (rtk-status.js): FIX / searching / failed, stronger while flying.
+    const rtk=window.SkyHubRtkStatus&&window.SkyHubRtkStatus.rtkStatus(d,{freshness:fieldFreshness.evaluateField(d,'rtkFixState')});
+    if(rtk){
+      const line=document.createElement('p');
+      line.className='rtk-line '+rtk.level;line.dataset.rtk=rtk.level;
+      if(rtk.level==='alarm'||rtk.level==='warn')line.setAttribute('role','status');
+      line.textContent=rtk.text;card.append(line);
+    }
+    // AirSense (ADS-B) summary: counts and distance only, never identity or position of other aircraft.
+    const air=d.airsense;
+    if(air&&air.fresh===true&&Number.isInteger(air.count)&&air.count>0&&Number.isInteger(air.maxWarningLevel)){
+      const note=document.createElement('p');
+      note.className=air.maxWarningLevel>=3?'warning-preview':'muted';
+      note.dataset.airsense='true';
+      const distance=Number.isFinite(air.nearestDistanceM)?
+        ' · nächstes '+(air.nearestDistanceM>=1000?(air.nearestDistanceM/1000).toFixed(1).replace('.',',')+' km':air.nearestDistanceM+' m'):'';
+      note.textContent='AirSense: '+air.count+(air.count===1?' Luftfahrzeug':' Luftfahrzeuge')+' in der Nähe · Stufe '+
+        air.maxWarningLevel+distance+(air.maxWarningLevel>=3?' · Ausweichen empfohlen':'');
+      card.append(note);
+    }
     const details=document.createElement('details');details.dataset.deviceSn=d.sn;details.open=expanded.has(d.sn);
     const summary=document.createElement('summary');summary.dataset.detailsSn=d.sn;
     summary.textContent='Messwerte und Gerätedetails';details.append(summary);
@@ -333,7 +594,7 @@ function update(){
       maybe('RTK-Satelliten','rtkSatellites',show(t.rtkSatellites)),
       maybe('RTK-Fix-Code','rtkFixState',show(t.rtkFixState)),
       maybe('Positionsqualitätscode','positionQuality',show(t.positionQuality)),
-      maybe('Kurs / Heading','heading',show(t.heading,' °')),
+      maybe('Kurs','heading',show(t.heading,' °')),
       maybe('Vertikalgeschwindigkeit','verticalSpeed',show(t.verticalSpeed,' m/s')),
       maybe('Nickwinkel','attitudePitch',show(t.attitudePitch,' °')),
       maybe('Rollwinkel','attitudeRoll',show(t.attitudeRoll,' °')),
@@ -366,8 +627,8 @@ function update(){
     }
     details.append(grid);
     const provenance=document.createElement('p');provenance.className='metric-provenance';
-    provenance.textContent='Letztes OSD: '+healthAge(d.lastTelemetryAt)+
-      ' · Einzelwert-Alter und Zeitprüfung stehen am jeweiligen Messwert. RTK-Fix-Code ist kein Schalterstatus.';
+    provenance.append('Letztes OSD: ',liveSpan('osd',d),
+      ' · Einzelwert-Alter und Zeitprüfung stehen am jeweiligen Messwert. RTK-Fix-Code ist kein Schalterstatus.');
     details.append(provenance);
     const meta=document.createElement('small');
     meta.className='meta';
@@ -375,15 +636,12 @@ function update(){
       (d.topologyRestored?' · Topologie aus Speicher':'')+
       (Number.isInteger(d.modeCode)?' · Flugmodus '+d.modeCode:'')+
       (d.firmwareVersion?' · FW '+d.firmwareVersion:'')+
-      ' · GPS '+(d.positionUnavailable===true?'kein aktueller Fix (0/0); letzter Fix unverändert':!validPosition(d)?'keine gültige Position':positionFresh(d)?
-        (d.positionTimeVerified===false?'empfangen (Zeit ungeprüft)':'frisch'):Number.isFinite(d.lastPositionAt)?
-        Math.max(0,Math.round((Date.now()-d.lastPositionAt)/1000))+' s alt':'nicht empfangen');
+      ' · GPS ';
+    meta.append(liveSpan('gps',d));
     details.append(meta);
     if(Array.isArray(d.hms)&&Number.isFinite(d.lastHmsAt)){
       const head=document.createElement('div');head.className='hms-head';
-      const age=Math.max(0,Math.round((Date.now()-d.lastHmsAt)/1000));
-      head.textContent=hmsFresh(d)?(d.hms.length?'HMS · '+d.hms.length+' aktiv':'HMS · keine Meldungen'):
-        'HMS · Stand vor '+age+' s (veraltet)';
+      head.append(liveSpan('hms',d));
       details.append(head);
       if(hmsFresh(d)&&d.hms.length){
         const list=document.createElement('ul');list.className='hms';
@@ -409,16 +667,22 @@ function update(){
       action.addEventListener('click',()=>focusDevice(d.sn));
       card.append(action);
     }
-    root.append(card);
+    target.append(card);
   }
+  const probe=document.createElement('div');probe.append(target.cloneNode(true));
+  for(const node of probe.querySelectorAll('[data-live],.field-age,dd[data-quick-position]')){node.textContent='';node.removeAttribute('class');}
+  const signature=probe.innerHTML;
+  const rebuilt=signature!==deviceSignature||!root.firstChild;
+  if(rebuilt){root.replaceChildren(target);deviceSignature=signature;}
+  else refreshFieldAges();
   for(const d of data){
     const t=d.telemetry||{};
     if(map && validPosition(d)){
       const pos=[t.latitude,t.longitude];
-      const markerColor=positionFresh(d)&&d.positionTimeVerified===true?'#47c3e7':'#748697';
+      const markerColor=positionFresh(d)&&d.positionTimeVerified===true?'#2458d3':'#687b92';
       // Ring colour shows the most severe active HMS alert; fill keeps position freshness.
       const level=worstHms(d);
-      const style={color:level===2?'#ff6b5b':level===1?'#f0b84a':markerColor,
+      const style={color:level===2?'#b42328':level===1?'#b46d12':markerColor,
         fillColor:markerColor,fillOpacity:.45,weight:selectedSn===d.sn?5:level>=1?4:2,
         radius:selectedSn===d.sn?11:7};
       if(!markers.has(d.sn)){
@@ -452,18 +716,20 @@ function update(){
     trackSummary?'Keine gültige Position · '+trackSummary:
       'Keine gültige Position verfügbar. Gerätedaten bleiben in der Liste sichtbar.';
   if(el('mapNote').textContent!==mapMessage)el('mapNote').textContent=mapMessage;
-  if(focusedDetailsSn){for(const summary of root.querySelectorAll('summary')){
+  if(rebuilt&&focusedDetailsSn){for(const summary of root.querySelectorAll('summary')){
     if(summary.dataset.detailsSn===focusedDetailsSn){summary.focus({preventScroll:true});break;}
   }}
-  if(focusedSn){for(const button of root.querySelectorAll('.map-action')){
+  if(rebuilt&&focusedSn){for(const button of root.querySelectorAll('.map-action')){
     if(button.dataset.focusSn===focusedSn){button.focus({preventScroll:true});break;}
   }}
 }
-// token===null: token-free read-only access from the configured home network.
-async function connect(token=el('token').value.trim(),quiet=false){
-  if(token!==null && !token){el('message').textContent='Zugriffstoken eingeben';return false;}
+// token===null: token-free read-only access from the configured home network (no prompt in the UI).
+async function connect(token=null,quiet=false){
   const attempt=++connectAttempt;
   resetEvents('Verbindung wird hergestellt.');
+  if(hmsHistoryPanel)hmsHistoryPanel.reset();
+  if(livePanel)livePanel.stop();
+  if(liveControlPanel)liveControlPanel.stop();
   cancelTrackLoad();
   setTrackStatus('Warte auf Verbindung.');
   if(socket){const previous=socket;socket=null;previous.disconnect();}
@@ -475,15 +741,18 @@ async function connect(token=el('token').value.trim(),quiet=false){
   try{
     const res=await fetch('/api/devices',{headers:token?{Authorization:'Bearer '+token}:{},cache:'no-store'});
     if(attempt!==connectAttempt)return false;
-    if(!res.ok)throw new Error(res.status===401?'Zugriffstoken erforderlich oder ungültig':
+    if(!res.ok)throw new Error(res.status===401?'Kein Zugriff: Dashboard aus dem Heimnetz öffnen':
       res.status===403?'Zugriff verweigert':'Geräte konnten nicht geladen werden (HTTP '+res.status+')');
     const devices=await res.json();
     if(attempt!==connectAttempt)return false;
-    records.clear();for(const d of devices)records.set(d.sn,d);
+    records.clear();for(const d of devices)putDevice(d);
     listState='ready';
     update();
     authToken=token;
     loadEvents();
+    if(hmsHistoryPanel){hmsHistoryPanel.syncDevices();hmsHistoryPanel.reset();}
+    if(livePanel)livePanel.start();
+    if(liveControlPanel)liveControlPanel.start();
     loadTracks();
     const label=token?'Live verbunden':'Live verbunden (Heimnetz)';
     const current=io({auth:token?{token}:{},reconnectionDelayMax:5000});
@@ -491,9 +760,10 @@ async function connect(token=el('token').value.trim(),quiet=false){
     current.on('connect',()=>{if(socket===current)el('message').textContent=label;});
     current.on('connect_error',()=>{if(socket===current)el('message').textContent='WebSocket nicht verbunden';});
     current.on('disconnect',()=>{if(socket===current)el('message').textContent='Verbindung getrennt';});
-    current.on('snapshot',list=>{if(socket!==current)return;records.clear();for(const d of list)records.set(d.sn,d);update();});
-    current.on('device_update',d=>{if(socket!==current)return;records.set(d.sn,d);update();});
-    current.on('device_event',event=>{if(socket!==current)return;addRecentEvent(event);});
+    current.on('snapshot',list=>{if(socket!==current)return;records.clear();for(const d of list)putDevice(d);update();});
+    current.on('device_update',d=>{if(socket!==current)return;putDevice(d);update();});
+    current.on('device_event',event=>{if(socket!==current)return;addRecentEvent(event);
+      if(hmsHistoryPanel&&event&&event.method==='hms')hmsHistoryPanel.changed();});
     return true;
   }catch(err){
     if(attempt!==connectAttempt)return false;
@@ -524,10 +794,32 @@ function normalizeDeviceEvent(event){
     !/^[\w.-]{1,100}$/.test(event.sn)||!eventChannels.has(event.channel)||
     !Number.isFinite(event.at))return null;
   const method=typeof event.method==='string'&&/^[\w.-]{1,64}$/.test(event.method)?event.method:null;
-  return {sn:event.sn,channel:event.channel,method,at:event.at};
+  const m=event.missionReport;
+  const allowedMission=new Set(['in_progress','paused','canceled','failed','ok']);
+  const missionReport=event.channel==='events'&&method==='flighttask_progress' &&
+    m&&typeof m==='object'&&allowedMission.has(m.reportedStatus) &&
+    Number.isInteger(m.progressPercent)&&m.progressPercent>=0&&m.progressPercent<=100 &&
+    Number.isInteger(m.currentStep)&&m.currentStep>=0&&m.currentStep<=1000
+    ? {reportedStatus:m.reportedStatus,progressPercent:m.progressPercent}:null;
+  const media=event.mediaReport;
+  const mediaReport=event.channel==='events'&&media&&typeof media==='object' &&
+    ['upload_priority_report','file_metadata_report'].includes(media.kind) &&
+    media.storageVerification==='not_checked' ? {kind:media.kind}:null;
+  return {sn:event.sn,channel:event.channel,method,at:event.at,missionReport,mediaReport};
 }
 function eventDescription(event){
-  if(event.channel==='events'&&event.method==='hms')return 'HMS-Meldung';
+  if(event.missionReport){
+    const names={in_progress:'läuft',paused:'pausiert',canceled:'abgebrochen',
+      failed:'fehlgeschlagen',ok:'abgeschlossen'};
+    return 'Mission gemeldet: '+names[event.missionReport.reportedStatus]+' · '+
+      event.missionReport.progressPercent+' % (nicht verifiziert)';
+  }
+  if(event.mediaReport?.kind==='file_metadata_report')
+    return 'Medien-Metadaten gemeldet · Speicherung ungeprüft';
+  if(event.mediaReport?.kind==='upload_priority_report')
+    return 'Medienpriorität gemeldet · Speicherung ungeprüft';
+  if(event.channel==='events'&&event.method==='hms')return 'HMS-Meldungen geändert';
+  if(event.channel==='events'&&event.method==='airsense_warning')return 'AirSense-Warnstufe geändert';
   if(event.channel==='status'&&event.method==='update_topo')return 'Topologie gemeldet';
   if(event.channel==='services_reply')return 'Dienstantwort empfangen';
   return event.channel==='status'?'Statusmeldung':'Geräteereignis';
@@ -689,7 +981,7 @@ async function loadTracks({background=false}={}){
   for(const {device:d,points} of results){
     if(points.length<2){removeTrack(d.sn);continue;}
     const aircraft=d.deviceCategory==='aircraft';
-    const style={color:aircraft?'#47c3e7':'#9aa9b8',weight:aircraft?3:2,opacity:.85,dashArray:aircraft?null:'4 6'};
+    const style={color:aircraft?'#2458d3':'#7b8798',weight:aircraft?3:2,opacity:.85,dashArray:aircraft?null:'4 6'};
     if(!tracks.has(d.sn))tracks.set(d.sn,L.polyline(points,style).addTo(map));
     else tracks.get(d.sn).setLatLngs(points).setStyle(style);
     // Without a usable live position (e.g. 0/0 indoors), show the recorded track once.
@@ -720,15 +1012,14 @@ setInterval(loadHealth,30000);
 // Age only existing labels; never rebuild a card, move focus or change stored telemetry.
 setInterval(()=>{if(records.size)refreshFieldAges();},5000);
 loadHealth();
-el('connect').addEventListener('click',()=>connect());
+el('connect').addEventListener('click',()=>connect().then(ok=>{if(ok)el('connect').hidden=true;}));
 el('connect').disabled=false;
-el('token').addEventListener('keydown',e=>{if(e.key==='Enter')connect();});
-// In the home network the dashboard opens without a token; elsewhere the field stays.
+// The dashboard opens without any token prompt (home-network read-only access).
 const initialAttempt=connectAttempt+1;
 connect(null,true).then(ok=>{
   if(connectAttempt!==initialAttempt)return;
-  if(ok){el('token').hidden=true;el('connect').hidden=true;}
-  else el('message').textContent='Nicht verbunden';
+  if(ok)el('connect').hidden=true;
+  else el('message').textContent='Kein Zugriff: Dashboard aus dem Heimnetz öffnen';
 });
 update();
 setInterval(update,5000);

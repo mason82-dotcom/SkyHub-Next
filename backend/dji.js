@@ -38,6 +38,14 @@ function parseTopic(topic) {
     (match[1] === 'thing' && match[3] === 'status')) return null;
   return {source:match[1],sn:match[2],channel:match[3]};
 }
+// Home point (DJI 1.18 aircraft properties home_latitude/home_longitude, pushmode 1 = state; M3 and M4 series alike).
+// 0/0 is DJI's "no home point yet" placeholder and is never taken over.
+function extractHome(p) {
+  if (!p || typeof p !== 'object' || Array.isArray(p)) return null;
+  const latitude=finite(p.home_latitude,-90,90), longitude=finite(p.home_longitude,-180,180);
+  if (latitude===null || longitude===null || (latitude===0 && longitude===0)) return null;
+  return {latitude, longitude};
+}
 function extractTelemetry(p) {
   if (!p || typeof p !== 'object' || Array.isArray(p)) return null;
   const battery=p.battery && typeof p.battery === 'object' ? p.battery : {};
@@ -143,7 +151,59 @@ function isHms(method, data) {
   return method === 'hms' ||
     Boolean(data && typeof data === 'object' && data.event === 'hms' && data.method === 'hms');
 }
+// An event is a device-reported assertion, NOT proof that a mission flew or
+// that a file was stored. Never echo flight IDs, object keys, filenames, STS,
+// URLs, media coordinates, or nested extensions into browser-visible data.
+function extractMissionReport(method,data) {
+  if (method!=='flighttask_progress' || !data || typeof data!=='object' ||
+      Array.isArray(data) || data.result!==0) return null;
+  const output=data.output,progress=output?.progress;
+  const allowed=['in_progress','paused','canceled','failed','ok'];
+  if (!output || typeof output!=='object' || Array.isArray(output) ||
+      !allowed.includes(output.status) || !progress ||
+      typeof progress!=='object' || Array.isArray(progress)) return null;
+  const percent=integer(progress.percent,0,100),step=integer(progress.current_step,0,1000);
+  if (percent===null || step===null) return null;
+  const reason=integer(output.ext?.break_point?.break_reason,0,65535);
+  return {reportedStatus:output.status,progressPercent:percent,
+    currentStep:step,breakReason:reason};
+}
+function extractMediaReport(method,data) {
+  if (!data || typeof data!=='object' || Array.isArray(data)) return null;
+  const hasId=(x)=>typeof x==='string' && x.length>0 && x.length<=128;
+  if (method==='highest_priority_upload_flighttask_media') {
+    if (!hasId(data.flight_id)) return null;
+    return {kind:'upload_priority_report',storageVerification:'not_checked'};
+  }
+  if (method!=='file_upload_callback') return null;
+  const file=data.file;
+  if (!file || typeof file!=='object' || Array.isArray(file) ||
+      !hasId(file.ext?.flight_id) || !hasId(file.name) ||
+      typeof file.object_key!=='string' || !file.object_key.length ||
+      file.object_key.length>1024) return null;
+  return {kind:'file_metadata_report',storageVerification:'not_checked'};
+}
+
 // Field names only (never values) to compare real firmware payloads with the parser.
+// DJI AirSense (thing/product/{gateway}/events, method airsense_warning): the data is an
+// array of nearby manned aircraft. Only an aggregate is kept. The ICAO address, position and
+// heading of third parties are never copied out of the raw message.
+const MAX_AIRSENSE_ENTRIES = 50;
+function extractAirsense(data) {
+  if (!Array.isArray(data)) return null;
+  let count = 0, maxWarningLevel = null, nearestDistanceM = null;
+  for (const item of data.slice(0,MAX_AIRSENSE_ENTRIES)) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) continue;
+    const level = item.warning_level;
+    if (!Number.isInteger(level) || level < 0 || level > 4) continue;
+    count++;
+    maxWarningLevel = maxWarningLevel === null ? level : Math.max(maxWarningLevel,level);
+    const distance = item.distance;
+    if (Number.isInteger(distance) && distance >= 0 && distance <= 1e7)
+      nearestDistanceM = nearestDistanceM === null ? distance : Math.min(nearestDistanceM,distance);
+  }
+  return {count,maxWarningLevel,nearestDistanceM};
+}
 function dataKeys(data) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) return [];
   return Object.keys(data).filter(key=>/^[A-Za-z0-9_]{1,48}$/.test(key)).sort().slice(0,64);
@@ -174,12 +234,16 @@ function parseMessage(topic,raw) {
     propertyValues:['osd','state'].includes(meta.channel) ?
       sanitizeKnownProperties(data,meta.channel) : null,
     telemetry:meta.channel==='osd' ? extractTelemetry(data) : null,
+    home:meta.channel==='state' || meta.channel==='osd' ? extractHome(data) : null,
     state:meta.channel==='state' || meta.channel==='osd' ? extractState(data) : null,
     topology:meta.channel==='status' && method==='update_topo' ? extractTopology(data) : null,
-    hms:meta.channel==='events' && isHms(method,data) ? extractHms(data) : null
+    hms:meta.channel==='events' && isHms(method,data) ? extractHms(data) : null,
+    missionReport:meta.channel==='events' ? extractMissionReport(method,data) : null,
+    mediaReport:meta.channel==='events' ? extractMediaReport(method,data) : null,
+    airsense:meta.channel==='events' && method==='airsense_warning' ? extractAirsense(data) : null
   };
 }
 function fresh(last,now=Date.now()) {
   return Number.isFinite(last) && last<=now && now-last<15000;
 }
-module.exports={finite,integer,dataKeys,serial,domain,model,parseTopic,extractTelemetry,extractState,extractTopology,extractHms,hmsCode,parseMessage,fresh};
+module.exports={finite,integer,dataKeys,extractAirsense,extractMissionReport,extractMediaReport,serial,domain,model,parseTopic,extractTelemetry,extractState,extractTopology,extractHms,hmsCode,parseMessage,fresh};
