@@ -28,7 +28,7 @@ function fakeClock(start=1793800000000){
 }
 const M4T={modelKey:'0-99-1',modelName:'Matrice 4T',heightEllipsoid:180,heightAboveTakeoff:30,position:{latitude:49.1,longitude:8.5},home:{latitude:49.1,longitude:8.5}};
 
-function setup({aircraft=M4T,autoReply=true,result=0}={}){
+function setup({aircraft=M4T,autoReply=true,result=0,limits={}}={}){
   const clock=fakeClock(),sent=[],drc=[],log=[];
   let session,respond=autoReply;
   const publishService=(gw,msg)=>{
@@ -38,7 +38,7 @@ function setup({aircraft=M4T,autoReply=true,result=0}={}){
   const replies=[];
   session=createDrcSession({gateway:'RCP2SN',publishService,publishDrc:(gw,m)=>drc.push(m),publishEventsReply:(gw,m)=>replies.push(m),aircraft:()=>aircraft,clock,
     broker:()=>({address:'192.168.178.63:1884',clientId:'drc-RCP2SN',username:'drc',password:'pw',expireTime:1793900000,enableTls:false}),
-    audit:e=>log.push(e)});
+    audit:e=>log.push(e),limits});
   return {session,clock,sent,drc,log,replies,setReplies(v){respond=Boolean(v);}};
 }
 async function liveControl(x){
@@ -122,6 +122,23 @@ test('unconfirmed handback remains latched; reauthorization blocked until manual
   assert.equal(state.recoveryRequired,true);
   assert.match(state.lastError,/nicht bestätigt/);
   await assert.rejects(x.session.requestAuthorization('op1'),/nicht bestätigt/);
+});
+
+test('active stick and gimbal streams stop when the uplink proof expires',async()=>{
+  const x=setup({limits:{upLinkLostMs:700,drcStateFreshMs:2000,stickStaleMs:8000,dragStaleMs:8000}});
+  await liveControl(x);
+  x.session.stickInput('op1',{roll:0.5});
+  x.session.gimbalDrag('op1',{pitch:0.5});
+  await x.clock.advance(900);
+  assert.equal(x.session.snapshot().controlLink.ready,false);
+  assert.equal(x.session.snapshot().sticksActive,false);
+  assert.equal(x.session.snapshot().gimbalDragActive,false);
+  const sticks=x.drc.filter(m=>m.method==='stick_control');
+  assert.ok(sticks.some(m=>m.data.roll!==P.NEUTRAL.roll),'positive commands existed before expiry');
+  assert.deepEqual(sticks.at(-1).data,P.NEUTRAL,'uplink loss must end with neutral stick');
+  const drags=x.drc.filter(m=>m.method==='drc_camera_screen_drag');
+  assert.ok(drags.some(m=>m.data.pitch_speed!==0));
+  assert.equal(drags.at(-1).data.pitch_speed,0,'uplink loss must end with zero gimbal speed');
 });
 
 test('pilot denies: back to idle, nothing else happens',async()=>{
