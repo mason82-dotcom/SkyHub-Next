@@ -172,7 +172,7 @@ class BrixPlanningRolloutCheckTests(unittest.TestCase):
             (backend / "server.js").write_bytes(b"console.log('ok');")
             (backend / "package.json").write_bytes(b'{"name":"skyhub"}')
             names = ("package.json", "server.js")
-            response = "\\n".join(
+            response = "\n".join(
                 hashlib.sha256((backend / name).read_bytes()).hexdigest() +
                 "  /app/backend/" + name for name in names
             )
@@ -195,7 +195,7 @@ class BrixPlanningRolloutCheckTests(unittest.TestCase):
                 hashlib.sha256(b"old").hexdigest() + "  /app/backend/server.js",
                 hashlib.sha256(b"{}").hexdigest() + "  /app/backend/package.json",
             )
-            with patch.object(checker, "execute", return_value="\\n".join(lines)):
+            with patch.object(checker, "execute", return_value="\n".join(lines)):
                 with self.assertRaisesRegex(checker.Refusal, "Dateihashes"):
                     checker.backend_image_check("a" * 12)
 
@@ -209,7 +209,7 @@ class BrixPlanningRolloutCheckTests(unittest.TestCase):
             with patch.object(checker, "execute", return_value=line):
                 with self.assertRaisesRegex(checker.Refusal, "Dateibestand"):
                     checker.backend_image_check("a" * 12)
-            with patch.object(checker, "execute", return_value=line + "\\n" + line):
+            with patch.object(checker, "execute", return_value=line + "\n" + line):
                 with self.assertRaisesRegex(checker.Refusal, "Doppelter"):
                     checker.backend_image_check("a" * 12)
 
@@ -224,11 +224,11 @@ class BrixPlanningRolloutCheckTests(unittest.TestCase):
             self.assertEqual(args, ("bash", "scripts/brix-compose.sh", "ps", "-q", "backend"))
             recorded.append("same-container")
             return "a" * 12
-        with patch.object(checker, "source_check"), \\
-             patch.object(checker, "runtime_context", return_value=("192.168.178.50", 4001, "a" * 12)), \\
-             patch.object(checker, "http_check", side_effect=fake_http), \\
-             patch.object(checker, "backend_image_check", side_effect=fake_backend), \\
-             patch.object(checker, "execute", side_effect=fake_exec), \\
+        with patch.object(checker, "source_check"), \
+             patch.object(checker, "runtime_context", return_value=("192.168.178.50", 4001, "a" * 12)), \
+             patch.object(checker, "http_check", side_effect=fake_http), \
+             patch.object(checker, "backend_image_check", side_effect=fake_backend), \
+             patch.object(checker, "execute", side_effect=fake_exec), \
              patch.object(sys, "argv", ["check", "--mode", "postflight"]):
             self.assertEqual(checker.main(), 0)
         self.assertEqual(recorded, ["http", "backend", "same-container"])
