@@ -1,0 +1,25 @@
+# ADR-001: central WPML route library with Forgejo operator login (brix-node only).
+# scripts/brix-compose.sh adds this file ONLY when .env contains the line SKYHUB_WPML_CENTRAL=1.
+# Secrets are two 0600 files owned by uid 1000 (= user "node" in the backend image), bind-mounted read-only.
+# They are created by scripts/brix-wpml-central-setup.sh and never stored in .env or in the repository.
+services:
+  backend:
+    environment:
+      SKYHUB_WPML_CENTRAL: "1"
+      SKYHUB_WPML_OIDC_ISSUER: ${SKYHUB_WPML_OIDC_ISSUER:?Set SKYHUB_WPML_OIDC_ISSUER}
+      SKYHUB_WPML_OIDC_REDIRECT_URI: ${SKYHUB_WPML_OIDC_REDIRECT_URI:?Set SKYHUB_WPML_OIDC_REDIRECT_URI}
+      SKYHUB_WPML_OIDC_ORG: ${SKYHUB_WPML_OIDC_ORG:-skyhub}
+      SKYHUB_WPML_OPERATOR_ISSUER: ${SKYHUB_WPML_OPERATOR_ISSUER:?Set SKYHUB_WPML_OPERATOR_ISSUER}
+      SKYHUB_WPML_WORKSPACES: ${SKYHUB_WPML_WORKSPACES:?Set SKYHUB_WPML_WORKSPACES}
+      SKYHUB_WPML_CENTRAL_ORIGINS: ${SKYHUB_WPML_CENTRAL_ORIGINS:?Set SKYHUB_WPML_CENTRAL_ORIGINS}
+      SKYHUB_WPML_OIDC_CONFIG_FILE: /run/skyhub-wpml/oidc-client.json
+      SKYHUB_WPML_CENTRAL_SECRETS_FILE: /run/skyhub-wpml/central.json
+    volumes:
+      - type: bind
+        source: ${SKYHUB_WPML_SECRETS_DIR:?Set SKYHUB_WPML_SECRETS_DIR}/oidc-client.json
+        target: /run/skyhub-wpml/oidc-client.json
+        read_only: true
+      - type: bind
+        source: ${SKYHUB_WPML_SECRETS_DIR:?Set SKYHUB_WPML_SECRETS_DIR}/central.json
+        target: /run/skyhub-wpml/central.json
+        read_only: true

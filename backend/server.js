@@ -247,6 +247,15 @@ app.post('/api/adapters/msdk/observe',createFhMsdkObserve({
  enabled:process.env.SKYHUB_FH_MSDK_OBSERVER_ENABLED==='true',
  token:process.env.SKYHUB_FH_MSDK_OBSERVER_TOKEN||''
 }));
+// ADR-001: central WPML route library with its own Forgejo operator login. Default OFF; when enabled it has its
+// own session cookie and never relaxes the view-token/LAN rules of /api. A defective configuration mounts nothing.
+if(process.env.SKYHUB_WPML_CENTRAL==='1'){
+  try{
+    const {createWpmlCentralFromEnv}=require('./wpml-central-http');
+    app.use(createWpmlCentralFromEnv({express,redis}).router);
+    console.log('[wpml-central] operator login and route library enabled');
+  }catch(err){console.error('[wpml-central] disabled, configuration invalid: '+String(err&&err.message||err).slice(0,120));}
+}
 app.use('/api',auth);
 // Keyless Cloud API 2 reference portal: existing auth and read-only registry only.
 app.use('/api/cloud-api2',createCloudApi2PortalRouter({express,registry,mqttState}));
