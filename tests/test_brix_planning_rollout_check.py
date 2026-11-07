@@ -116,6 +116,88 @@ class BrixPlanningRolloutCheckTests(unittest.TestCase):
                 with self.assertRaisesRegex(checker.Refusal, "Effective Compose DRC gate"):
                     checker.runtime_context()
 
+    @staticmethod
+    def compose_fixture():
+        bind = "192.168.178.50"
+        def mapping(ip, external, internal):
+            return {"host_ip": ip, "published": str(external),
+                    "target": internal, "protocol": "tcp"}
+        return {"backend": {"ports": [mapping(bind, 4001, 4000),
+                                       mapping(bind, 4002, 4002)]},
+                "mosquitto": {"ports": [mapping(bind, 1884, 1884)]},
+                "postgres": {}, "redis": {}}
+
+    @staticmethod
+    def runtime_fixture(service):
+        bind = "192.168.178.50"
+        mapping = lambda port: [{"HostIp": bind, "HostPort": str(port)}]
+        if service == "backend":
+            return {"4000/tcp": mapping(4001), "4002/tcp": mapping(4002)}
+        if service == "mosquitto":
+            return {"1884/tcp": mapping(1884)}
+        return {"5432/tcp": None} if service == "postgres" else {}
+
+    def test_bind_address_accepts_only_literal_rfc1918_ipv4(self):
+        for value in ("10.2.3.4", "172.16.0.1", "172.31.255.254",
+                      "192.168.178.50"):
+            with self.subTest(valid=value):
+                self.assertTrue(checker.is_rfc1918_bind(value))
+        for value in ("0.0.0.0", "127.0.0.1", "::", "169.254.10.1",
+                      "192.0.2.1", "198.18.2.5", "240.1.1.2", "100.70.140.77",
+                      "224.0.0.5", "8.8.8.8", "not-an-ip"):
+            with self.subTest(invalid=value):
+                self.assertFalse(checker.is_rfc1918_bind(value))
+
+    def test_compose_ports_are_exact_and_lan_only(self):
+        checker.validate_compose_ports(self.compose_fixture(), "192.168.178.50",
+                                       4001, 4002)
+        import copy
+        for name, port, wrong_host in (
+            ("backend", 0, "0.0.0.0"),
+            ("backend", 1, "0.0.0.0"),
+            ("mosquitto", 0, "0.0.0.0"),
+        ):
+            with self.subTest(service=name, port=port):
+                config = copy.deepcopy(self.compose_fixture())
+                config[name]["ports"][port]["host_ip"] = wrong_host
+                with self.assertRaisesRegex(checker.Refusal, "Compose-Portfreigabe"):
+                    checker.validate_compose_ports(config, "192.168.178.50", 4001, 4002)
+        for name in ("backend", "mosquitto", "postgres", "redis"):
+            with self.subTest(extra=name):
+                config = copy.deepcopy(self.compose_fixture())
+                config[name].setdefault("ports", []).append(
+                    {"host_ip": "0.0.0.0", "published": "4999",
+                     "target": 9999, "protocol": "tcp"})
+                with self.assertRaisesRegex(checker.Refusal, "Compose-Portfreigabe"):
+                    checker.validate_compose_ports(config, "192.168.178.50", 4001, 4002)
+        missing = self.compose_fixture()
+        missing["backend"]["ports"].pop()
+        with self.assertRaisesRegex(checker.Refusal, "Compose-Portfreigabe"):
+            checker.validate_compose_ports(missing, "192.168.178.50", 4001, 4002)
+
+    def test_runtime_ports_detect_stale_or_public_bindings(self):
+        import copy
+        for name in ("backend", "mosquitto", "postgres", "redis"):
+            checker.validate_runtime_ports(name, self.runtime_fixture(name),
+                                           "192.168.178.50", 4001, 4002)
+        for name, target in (("backend", "4000/tcp"), ("backend", "4002/tcp"),
+                             ("mosquitto", "1884/tcp")):
+            with self.subTest(service=name, target=target):
+                ports = copy.deepcopy(self.runtime_fixture(name))
+                ports[target][0]["HostIp"] = "0.0.0.0"
+                with self.assertRaisesRegex(checker.Refusal, "laufende Portfreigabe"):
+                    checker.validate_runtime_ports(name, ports, "192.168.178.50", 4001, 4002)
+        for name in ("backend", "mosquitto", "postgres", "redis"):
+            with self.subTest(extra=name):
+                ports = copy.deepcopy(self.runtime_fixture(name))
+                ports["4999/tcp"] = [{"HostIp": "0.0.0.0", "HostPort": "4999"}]
+                with self.assertRaisesRegex(checker.Refusal, "laufende Portfreigabe"):
+                    checker.validate_runtime_ports(name, ports, "192.168.178.50", 4001, 4002)
+        duplicate = self.runtime_fixture("backend")
+        duplicate["4000/tcp"].append({"HostIp": "192.168.178.50", "HostPort": "4001"})
+        with self.assertRaisesRegex(checker.Refusal, "laufende Portfreigabe"):
+            checker.validate_runtime_ports("backend", duplicate, "192.168.178.50", 4001, 4002)
+
     def test_http_check_rejects_stale_planning_page(self):
         # HTTPConnection cannot follow redirects or honor an environment proxy.
         with patch.object(checker, "HTTPConnection", FakeConnection):
