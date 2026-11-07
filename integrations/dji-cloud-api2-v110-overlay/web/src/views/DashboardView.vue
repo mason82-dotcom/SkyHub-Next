@@ -135,7 +135,7 @@ onMounted(() => {
 </style>
 
 <style scoped>
-.dashboard-layout__provenance{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);z-index:12;margin:0;background:rgba(54,42,24,.96);border:1px solid #b78d45;border-radius:7px;padding:8px 12px;font-size:12px;font-weight:650;color:#ffebbe;pointer-events:none;max-width:92%;text-align:center}
+.dashboard-layout{position:relative}\n.dashboard-layout__provenance{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);z-index:12;margin:0;background:rgba(54,42,24,.96);border:1px solid #b78d45;border-radius:7px;padding:8px 12px;font-size:12px;font-weight:650;color:#ffebbe;pointer-events:none;max-width:92%;text-align:center}
 @media(max-width:900px){.dashboard-layout{height:auto;min-height:100%;display:flex;flex-direction:column;overflow:visible}.dashboard-layout__center{order:1;flex:none;height:380px;min-height:380px;overflow:hidden}.dashboard-layout__left{order:2}.dashboard-layout__right{order:3}.dashboard-layout__left,.dashboard-layout__right{width:100%;max-width:100%;flex:none;overflow:visible;border:0;border-top:1px solid var(--app-border);padding:16px}.dashboard-layout__time-selector{position:absolute;top:8px;left:8px;right:8px;transform:none;max-width:calc(100% - 16px);overflow-x:auto}.dashboard-layout__provenance{bottom:auto;top:342px;max-width:calc(100% - 20px)}.dashboard-layout__loading,.dashboard-layout__error{max-width:80%;text-align:center}}
 @media(max-width:520px){.dashboard-layout__center{height:340px;min-height:340px}.dashboard-layout__provenance{top:306px;font-size:11px;padding:5px 8px}}
 </style>
