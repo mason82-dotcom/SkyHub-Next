@@ -1,5 +1,9 @@
 # SkyHub Next – Dokumentationswegweiser
 
+## Cloud API 2 V1.1.0: P0-Vertragskatalog und Offline-Regression (07.11.2026)
+
+[Versionierter DJI-SDK-/Geräte-Capability-Vertrag, Read-only-Adapterprüfung und CI-Abnahme](cloud-api2-v1.1.0-p0-contracts.md) – Herstellerstand revisionsgebunden, keine SDK- oder Hardwarefreigabe.
+
 ## Cloud API 2: prüfbare Zuordnungsvorstufe (07.11.2026)
 
 [Nachweisstufen für Geräte, Missionen und Pilot-2-Medien](cloud-api2-linkage-evidence.md) – modellbasierte Kandidaten, überprüfte Datenquellen, niemals implizite Flug- oder Medienzuordnung.
