@@ -96,7 +96,7 @@ function createDrcRuntime({config,registry,pool,io,express,mqttConnect,socketAut
     lastEmit=t;nsp.emit('drc',status());
   };
   const session=createDrcSession({gateway:gw,variant,aircraft:aircraftFromRegistry(registry,gw,variant),limits:config.limits,audit,
-    onChange:broadcast,userCallsign:config.userCallsign,
+    onChange:broadcast,userCallsign:config.userCallsign,transportReady:()=>connected,
     // services and events_reply: QoS 1 (must arrive); DRC down (sticks 10 Hz, heartbeat): QoS 0 as DJI's latency-oriented link.
     publishService:(g,m)=>publish(topics.services,m,1),
     publishDrc:(g,m)=>publish(topics.drcDown,m,0),
@@ -110,9 +110,20 @@ function createDrcRuntime({config,registry,pool,io,express,mqttConnect,socketAut
       err=>{if(err)log.error('[drc] subscribe failed:',err.message);});
     broadcast();
   });
-  client.on('close',()=>{if(connected){connected=false;audit({gateway:gw,action:'broker-disconnected'});broadcast();}});
+  client.on('close',()=>{
+    if(connected){
+      connected=false;
+      audit({gateway:gw,action:'broker-disconnected'});
+      session.invalidateLink('DRC-MQTT-Verbindung unterbrochen');
+      broadcast();
+    }
+  });
   client.on('error',err=>log.error('[drc] broker:',err.message));
-  client.on('message',(topic,payload)=>session.onUp(P.parseUp(topic,payload)));
+  client.on('message',(topic,payload,packet)=>{
+    // A retained MQTT frame is a historical value, never evidence of a live RC channel.
+    if(packet?.retain)return;
+    session.onUp(P.parseUp(topic,payload));
+  });
 
   function status(){
     const a=aircraftFromRegistry(registry,gw,variant)();
