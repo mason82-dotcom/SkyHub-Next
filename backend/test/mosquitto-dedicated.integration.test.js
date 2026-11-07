@@ -10,6 +10,7 @@ const os=require('node:os');
 const net=require('node:net');
 const path=require('node:path');
 const {spawn,execFileSync}=require('node:child_process');
+const mqtt=require('mqtt');
 const {aclText,confText,passwdLine,connectCases,aclCases,deliveryChecks,probeProgram}=
   require('../../scripts/pi-mosquitto-dedicated');
 
@@ -26,6 +27,11 @@ const accounts={
   reader:{username:'t_reader',password:'reader-pass-0123456789'},
   ack:{username:'t_topology',password:'topology-pass-0123456789'},
   pilot:{username:'t_pilot',password:'pilot-pass-0123456789ab'}
+};
+// Synthetic users only: the test broker never sees any production credentials.
+const drcAccounts={...accounts,
+  commander:{username:'t_drc_commander',password:'test-drc-commander-pass-0123456789'},
+  drcLink:{username:'t_drc_link',password:'test-drc-link-pass-0123456789'}
 };
 const freePort=()=>new Promise((resolve,reject)=>{
   const server=net.createServer();
@@ -48,10 +54,10 @@ async function waitForPort(port,child,stderr){
   throw new Error('mosquitto did not start listening');
 }
 // Starts a broker from the script's real generators; `acl` can be replaced to simulate a bad ACL.
-async function withBroker(acl,fn){
+async function withBroker(acl,fn,users=accounts){
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'skyhub-mq-'));
   const port=await freePort();
-  fs.writeFileSync(path.join(dir,'passwd'),Object.values(accounts).map(passwdLine).join('\n')+'\n',{mode:0o600});
+  fs.writeFileSync(path.join(dir,'passwd'),Object.values(users).map(passwdLine).join('\n')+'\n',{mode:0o600});
   fs.writeFileSync(path.join(dir,'acl'),acl,{mode:0o600});
   fs.writeFileSync(path.join(dir,'mosquitto.conf'),
     confText({port,bind:'127.0.0.1',confDir:dir,logDest:'stderr'}),{mode:0o600});
@@ -104,4 +110,79 @@ test('the delivery check has teeth: a topology account that may read everything 
     const bad=failures(cases,runProbe(broker,cases,accounts),true);
     assert.ok(bad.some(name=>/Topologie-Publisher erhaelt nichts/.test(name)),'leak not detected: '+JSON.stringify(bad));
   });
+});
+
+
+// End-to-end Mosquitto authorization checks for optional DRC roles. Unlike the
+// synthetic session tests, this uses real MQTT v5 PUBACK and actual ACL-filtered
+// deliveries over an ephemeral, loopback-only broker. No SkyHub backend or RC.
+function connectRole(broker,account,label){
+  return new Promise((resolve,reject)=>{
+    const client=mqtt.connect(broker,{
+      username:account.username,password:account.password,protocolVersion:5,
+      reconnectPeriod:0,connectTimeout:3000,clean:true,
+      clientId:'skyhub_ci_drc_'+label+'_'+process.pid+'_'+Math.random().toString(16).slice(2)
+    });
+    client.once('connect',()=>resolve(client));
+    client.once('error',err=>{client.end(true);reject(err);});
+  });
+}
+function subscribeAll(client){
+  return new Promise((resolve,reject)=>client.subscribe('#',{qos:1},err=>err?reject(err):resolve()));
+}
+function publishAck(client,topic){
+  return new Promise(resolve=>client.publish(topic,JSON.stringify({ci:'drc-acl-only'}),{qos:1,retain:false},err=>resolve(err||null)));
+}
+const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const drcTopic=(channel)=>'thing/product/SIMRCP2/'+channel;
+
+test('DRC ACL on real Mosquitto: service, uplink, and RC OSD deliveries stay role-isolated',{skip},async()=>{
+  await withBroker(aclText(drcAccounts),async broker=>{
+    const client={};
+    try{
+      for(const k of ['reader','pilot','commander','drcLink'])
+        client[k]=await connectRole(broker,drcAccounts[k],k);
+      const seen=Object.fromEntries(Object.keys(client).map(k=>[k,[]]));
+      for(const [role,c] of Object.entries(client)){
+        c.on('message',topic=>seen[role].push(topic));
+        await subscribeAll(c);
+      }
+      await wait(150);
+      // Every publish is QoS 1. A success must be backed by MQTT's real PUBACK.
+      const allowed=[
+        ['commander','services'],['commander','drc/down'],['commander','events_reply'],
+        ['drcLink','drc/up'],['pilot','osd'],['pilot','services_reply'],['pilot','events']
+      ];
+      for(const [role,channel] of allowed)
+        assert.equal(await publishAck(client[role],drcTopic(channel)),null,role+' -> '+channel+' should be permitted');
+      const denied=[
+        ['reader','services'],['reader','drc/down'],['reader','drc/up'],
+        ['commander','drc/up'],['commander','osd'],['drcLink','services'],
+        ['drcLink','drc/down'],['drcLink','events_reply'],['drcLink','osd'],
+        ['pilot','drc/down']
+      ];
+      for(const [role,channel] of denied){
+        const err=await publishAck(client[role],drcTopic(channel));
+        assert.ok(err,role+' -> '+channel+' MUST fail');
+        assert.match(String(err.code||err.message),/135|not.authorized|Not.authorized|unauthorized/i);
+      }
+      await wait(300);
+      const has=(role,channel)=>seen[role].includes(drcTopic(channel));
+      for(const ch of ['drc/up','osd','services_reply','events'])
+        assert.equal(has('commander',ch),true,'commander must receive '+ch);
+      for(const ch of ['services','drc/down','events_reply'])
+        assert.equal(has('commander',ch),false,'commander must not read '+ch);
+      assert.equal(has('drcLink','drc/down'),true,'the RC DRC link receives control frames');
+      for(const ch of ['services','drc/up','events_reply','osd','services_reply','events'])
+        assert.equal(has('drcLink',ch),false,'DRC link cannot monitor '+ch);
+      assert.equal(has('reader','services'),false);
+      assert.equal(has('reader','drc/down'),false);
+      assert.equal(has('reader','drc/up'),false);
+      assert.equal(has('reader','osd'),true);
+      assert.equal(has('pilot','services'),true,'Pilot 2 can read service requests');
+      assert.equal(has('pilot','drc/down'),true,'Pilot 2 reads DRC control frames');
+    }finally{
+      for(const c of Object.values(client))c.end(true);
+    }
+  },drcAccounts);
 });
