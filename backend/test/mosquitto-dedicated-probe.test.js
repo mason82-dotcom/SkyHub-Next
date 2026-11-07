@@ -64,7 +64,14 @@ test('DRC ACL generation fails closed for missing, mismatched or wildcard gatewa
   };
   const render=mod=>aclText({...roles,...mod});
   assert.match(render({}),/thing\/product\/SIMRCP2\/services/);
-  assert.doesNotMatch(render({}),/thing\/product\/\+\/drc\/down/);
+  const acl=render({});
+  const commander=acl.split('user cmd\n')[1].split('\n\n')[0];
+  const link=acl.split('user link\n')[1].split('\n\n')[0];
+  assert.doesNotMatch(commander,/thing\/product\/\+\/drc\/down/);
+  assert.doesNotMatch(link,/thing\/product\/\+\/drc\/down/);
+  // The separate Pilot-2 account legitimately has wildcard topics
+  // to serve all aircraft. Only DRC-specific identities are scoped.
+  assert.match(acl.split('user p\n')[1].split('\n\n')[0],/thing\/product\/\+\/drc\/down/);
   assert.throws(()=>render({commander:{username:'cmd'}}),/gatewaySn/);
   assert.throws(()=>render({drcLink:{username:'link',gatewaySn:'OTHER-RC2'}}),/dieselbe RC-Seriennummer/);
   assert.throws(()=>render({commander:{username:'cmd',gatewaySn:'+'},drcLink:{username:'link',gatewaySn:'+'}}),/gatewaySn/);
