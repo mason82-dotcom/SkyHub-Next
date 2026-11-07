@@ -22,8 +22,8 @@ Dienste werden weder neu erstellt noch migriert.
   `postflight` zusätzlich die ausgelieferten Assets. Diese müssen nicht nur die erwarteten
   UI-Marker enthalten, sondern **bytegenau (SHA-256)** mit den lokalen Dateien übereinstimmen.
   Zusätzlich verifiziert `postflight` die im laufenden Backend-Container enthaltenen
-  **143** Top-Level-JavaScript-/Paketmanifest-Dateien (Bestand dynamisch aus dem
-  Checkout ermittelt) per `docker exec … sha256sum` gegen die lokalen Quelldateien.
+  sämtliche Top-Level-JavaScript-/Paketmanifest-Dateien (Bestand dynamisch
+  aus dem Checkout ermittelt) per `docker exec … sha256sum` gegen die lokalen Quelldateien.
   Dieses `docker exec` startet nur einen kurzlebigen lesenden Hash-Prozess;
   es ruft keinerlei SkyHub-Endpunkt oder DJI-Steuerbefehl auf.
   Es führt **nie** `git pull`, Docker Build/Up, Schreib-HTTP, S3 oder DRC aus.
