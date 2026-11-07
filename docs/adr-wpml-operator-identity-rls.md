@@ -86,15 +86,15 @@ ein späterer Wechsel A → B nur Konfiguration.
 
 ## Umsetzungsschritte
 
-1. [ ] Migration `006_wpml_runtime_rls_draft.sql` (Familie `wpml-draft`, `blocked_draft`): Rollen, Zuordnungstabelle,
+1. [x] Migration `006_wpml_runtime_rls_draft.sql` (Familie `wpml-draft`, `blocked_draft`): Rollen, Zuordnungstabelle,
        `skyhub_wpml_current_workspace()`, Policies, Grants. Integrationstest im Wegwerf-PostGIS: zwei Workspaces,
        Querzugriff ausgeschlossen, ohne `SET ROLE` nichts sichtbar, `UPDATE/DELETE` verweigert.
-2. [ ] `wpml-central-routes.js`: Transaktion mit `SET LOCAL ROLE` aus dem geprüften Token (Rollenname aus Zuordnung,
+2. [x] `wpml-central-routes.js`: Transaktion mit `SET LOCAL ROLE` aus dem geprüften Token (Rollenname aus Zuordnung,
        per `quote_ident`-sicherer Allowlist).
-3. [ ] `wpml-operator-issuer.js`: OIDC-Code-Flow mit PKCE, ID-Token-Prüfung, Gruppen → Workspace/Rolle, Ed25519-Ausgabe,
+3. [x] `wpml-operator-issuer.js`: OIDC-Code-Flow mit PKCE, ID-Token-Prüfung, Gruppen → Workspace/Rolle, Ed25519-Ausgabe,
        v2-Redis-Datensatz, Abmelden/Widerruf. Unit-Tests mit lokalem Test-IdP (JWKS-Fixture).
-4. [ ] Forgejo: OAuth2-Anwendung „SkyHub WPML“, Organisation mit Teams `skyhub-ws-<workspace>-operator|admin`.
-5. [ ] Eigene Sicherheitsprüfung von Issuer + RLS, dann erst Einbindung in `server.js` hinter Feature-Flag.
+4. [x] Forgejo: OAuth2-Anwendung „SkyHub WPML“, Organisation mit Teams `skyhub-ws-<workspace>-operator|admin`.
+5. [x] Eigene Sicherheitsprüfung von Issuer + RLS, dann erst Einbindung in `server.js` hinter Feature-Flag.
 
 ## Umsetzungsstand (07.11.2026)
 
@@ -129,3 +129,40 @@ Ursprüngliche Anleitung:
    liefert (einmal mit einem Testkonto anmelden und das ID-Token ansehen). Erst danach Schritt 5.
 5. `oidc.issuer` ist die `ROOT_URL` von Forgejo (derzeit `https://rpi5-pironman.tailf59dac.ts.net:9445/`). Die
    Browser-Weiterleitung muss diese Adresse erreichen können.
+
+### Schritt 5: HTTP-Anbindung hinter Schalter – Code fertig am 07.11.2026, noch nicht eingeschaltet
+
+`backend/wpml-central-http.js`, eingebunden in `server.js` nur bei `SKYHUB_WPML_CENTRAL=1` (Standard aus; bei
+fehlerhafter Konfiguration wird nichts eingehängt und eine Zeile protokolliert, der Server läuft weiter).
+
+| Route | Zweck |
+|---|---|
+| `GET /wpml/oidc/login?workspace=<name>` | Forgejo-Login starten; PKCE/State/Nonce im versiegelten Cookie `skyhub_wpml_login` (10 min, `Path=/wpml/oidc`, `SameSite=Lax`) |
+| `GET /wpml/oidc/callback` | Login abschließen, Login-Cookie löschen, Sitzungs-Cookie `skyhub_wpml_session` (`SameSite=Strict`, 1 h), Weiterleitung zu `/cloud-api2.html#planning` |
+| `POST /wpml/oidc/logout` | Sitzung serverseitig widerrufen |
+| `GET /wpml-central/me`, `GET/POST /wpml-central/routes`, `POST …/routes/:id/revisions`, `GET …/revisions/:n` | Routenbibliothek |
+
+- Cookies AES-256-GCM-versiegelt mit zweckgebundener AAD (Login-Cookie taugt nicht als Sitzung), `HttpOnly; Secure`.
+  Das Cookie enthält nur die Sitzungs-ID; pro Anfrage stellt `reissue()` ein frisches 15-min-Token aus, das der
+  Verifier inkl. Redis-Sitzung prüft. Workspace und Rolle kommen nur aus dem Token, nie aus dem Request.
+- Schreibende Anfragen: `Origin` aus `SKYHUB_WPML_CENTRAL_ORIGINS` und `application/json`, sonst 403/415.
+- Rate-Limit je Client-IP: Login 20/min, API 240/min. Fehler als feste Codes ohne SQL- oder Verbindungsdetails.
+- Datenbank: eigener Pool als `skyhub_wpml_app` (NOBYPASSRLS), `workspaceRoles:true`, `statement_timeout` 5 s.
+
+Konfiguration (Secrets nur in 0600-Dateien, nie im Repo oder in `.env`):
+
+```
+SKYHUB_WPML_CENTRAL=1
+SKYHUB_WPML_OIDC_ISSUER=https://rpi5-pironman.tailf59dac.ts.net:9445
+SKYHUB_WPML_OIDC_REDIRECT_URI=https://rpi5.fritz.box:4443/wpml/oidc/callback
+SKYHUB_WPML_OIDC_ORG=skyhub
+SKYHUB_WPML_OIDC_CONFIG_FILE=/run/secrets/wpml-oidc-client.json      # {"client_id","client_secret"}
+SKYHUB_WPML_CENTRAL_SECRETS_FILE=/run/secrets/wpml-central.json      # {"signingKeyPem","keyId","keySecret",
+                                                                     #  "recordMacSecret","cookieKey","databaseUrl"}
+SKYHUB_WPML_OPERATOR_ISSUER=https://rpi5.fritz.box:4443/wpml-operator
+SKYHUB_WPML_WORKSPACES=pilot=<SKYHUB_PILOT_WORKSPACE_ID>
+SKYHUB_WPML_CENTRAL_ORIGINS=https://rpi5.fritz.box:4443
+```
+
+Vor dem Einschalten auf brix-node: Migrationen 003–005 mit Admin-Rechten, `skyhub_wpml_provision_workspace(<pilot>)`,
+Login-Rolle für `skyhub_wpml_app` mit eigenem Passwort, Secrets-Datei erzeugen, Container-Mount der beiden Dateien.

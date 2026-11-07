@@ -1,8 +1,7 @@
 'use strict';
-// ISOLATED P0 CONTRACT — deliberately NOT required by backend/server.js.
-// Do not mount it until an independent human-operator IdP, a non-BYPASSRLS
-// database role, reviewed RLS policies, audit retention and deployment
-// controls have separately passed security review.
+// Central WPML route library (ADR-001). Loaded ONLY through wpml-central-http.js, which server.js requires
+// solely when SKYHUB_WPML_CENTRAL=1 (default off). Access only through the independent Forgejo operator login,
+// database access only as NOBYPASSRLS skyhub_wpml_app with SET LOCAL ROLE per workspace (migration 005).
 const crypto=require('node:crypto');
 const local=require('../frontend/public/wpml-route-library-core');
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
