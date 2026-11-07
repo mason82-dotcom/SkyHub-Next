@@ -7,6 +7,7 @@ File-number prefixes are historical labels; order is scoped by family.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -14,8 +15,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 INVENTORY = Path("backend/db/migration-inventory.json")
 MIGRATIONS = Path("backend/db/migrations")
-SCHEMA = "skyhub-sql-migration-inventory-v1"
-ENTRY_KEYS = {"id", "family", "order", "path", "status", "requires"}
+SCHEMA = "skyhub-sql-migration-inventory-v2"
+ENTRY_KEYS = {"id", "family", "order", "path", "status", "requires", "git_blob_sha"}
 STATUSES = {"offline_only", "blocked_draft"}
 FILENAME = re.compile(r"^backend/db/migrations/([0-9]{3})_[a-z0-9_]+\.sql$")
 IDENTIFIER = re.compile(r"^[a-z][a-z0-9-]{2,63}$")
@@ -82,6 +83,22 @@ def audit_inventory(root: Path = ROOT) -> list[str]:
         if name in paths:
             errors.append(f"Duplicate SQL file in inventory: {name}")
         paths.add(name)
+        # A migration ID must not silently change its contents on disk.
+        # Git object IDs are review fingerprints, NOT deployment approval.
+        pin = item["git_blob_sha"]
+        if not isinstance(pin, str) or not re.fullmatch(r"[0-9a-f]{40}", pin):
+            errors.append(f"Invalid Git blob SHA: {ident}")
+        elif name in actual:
+            try:
+                payload = (root / name).read_bytes()
+            except OSError:
+                errors.append(f"Cannot read migration contents: {ident}")
+            else:
+                actual_sha = hashlib.sha1(
+                    b"blob " + str(len(payload)).encode("ascii") + b"\\0" + payload
+                ).hexdigest()
+                if actual_sha != pin:
+                    errors.append(f"Migration contents differ from pinned Git blob SHA: {ident}")
         if not isinstance(status, str) or status not in STATUSES:
             errors.append(f"Unreviewed or deployable migration status: {ident}")
         if name.endswith("_draft.sql") != (status == "blocked_draft"):
@@ -122,7 +139,7 @@ def main() -> int:
         for problem in failures:
             print("FAIL:", problem)
         return 1
-    print("PASS: SQL migration inventory is exhaustive, offline-only and fail-closed.")
+    print("PASS: SQL migration inventory and immutable Git blob pins are complete, offline-only and fail-closed.")
     print("NOTE: numeric file prefixes are scoped to families; no SQL was executed.")
     return 0
 
