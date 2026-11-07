@@ -48,6 +48,26 @@ class SqlMigrationInventoryTest(unittest.TestCase):
         self.assertEqual({e["status"] for e in duplicates},
                          {"offline_only", "blocked_draft"})
 
+    def test_existing_sql_change_is_not_silent(self) -> None:
+        target = self.root / DIRECTORY / "003_dji_pilot_media_verified.sql"
+        target.write_bytes(target.read_bytes() + b"\\n-- unreviewed alteration\\n")
+        self.assert_fails("Migration contents differ from pinned Git blob SHA")
+
+    def test_wrong_or_malformed_git_blob_pin_is_rejected(self) -> None:
+        data = self.data()
+        data["entries"][0]["git_blob_sha"] = "0" * 40
+        self.write(data)
+        self.assert_fails("Migration contents differ from pinned Git blob SHA")
+        data["entries"][0]["git_blob_sha"] = "../relative/path"
+        self.write(data)
+        self.assert_fails("Invalid Git blob SHA")
+
+    def test_missing_content_pin_is_rejected(self) -> None:
+        data = self.data()
+        del data["entries"][0]["git_blob_sha"]
+        self.write(data)
+        self.assert_fails("unexpected or missing keys")
+
     def test_new_unregistered_sql_fails_closed(self) -> None:
         (self.root / DIRECTORY / "005_unreviewed.sql").write_text("-- unsafe draft", encoding="utf-8")
         self.assert_fails("SQL file absent from inventory")
