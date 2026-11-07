@@ -21,6 +21,10 @@ async function main(argv){
   try{
     const col=await pool.query("SELECT 1 FROM information_schema.columns WHERE table_name='dji_pilot_media_verified' AND column_name='pilot_object_key'");
     if(!col.rows.length){console.error('Migration 007 fehlt (Spalte pilot_object_key).');return 2;}
+    // Nur ein Lauf gleichzeitig (07.11.2026: zwei parallele Laeufe auf denselben Eintraegen).
+    const lock=await pool.connect();
+    const got=await lock.query("SELECT pg_try_advisory_lock(hashtext('skyhub-pilot-media-dji-names')) AS ok");
+    if(!got.rows[0].ok){lock.release();console.error('Ein anderer Lauf ist schon aktiv – abgebrochen.');return 2;}
     const renamer=createPilotMediaRenamer({s3:createRenameS3(cfg),db:pool,workspace,log:m=>console.log(m)});
     let shown=0;
     const summary=await renamer.backfill({apply,onResult:r=>{
@@ -31,6 +35,7 @@ async function main(argv){
       (apply?summary.renamed+' umbenannt':summary.planned+' würden umbenannt')+', '+summary.errors+' Fehler');
     for(const [reason,n] of Object.entries(summary.skipped))console.log('  übersprungen ('+reason+'): '+n);
     if(!apply)console.log('\nNichts geändert. Umbenennen: node pilot-media-dji-names.js --apply --confirm UMBENENNEN');
+    await lock.query("SELECT pg_advisory_unlock(hashtext('skyhub-pilot-media-dji-names'))");lock.release();
     return summary.errors?1:0;
   }finally{await pool.end();}
 }
