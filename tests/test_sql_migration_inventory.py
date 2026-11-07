@@ -50,7 +50,7 @@ class SqlMigrationInventoryTest(unittest.TestCase):
 
     def test_existing_sql_change_is_not_silent(self) -> None:
         target = self.root / DIRECTORY / "003_dji_pilot_media_verified.sql"
-        target.write_bytes(target.read_bytes() + b"\\n-- unreviewed alteration\\n")
+        target.write_bytes(target.read_bytes() + b"\n-- unreviewed alteration\n")
         self.assert_fails("Migration contents differ from pinned Git blob SHA")
 
     def test_wrong_or_malformed_git_blob_pin_is_rejected(self) -> None:
